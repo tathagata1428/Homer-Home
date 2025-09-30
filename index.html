@@ -152,7 +152,7 @@
     .pom-timer.card{
       display:grid; gap:16px; place-items:center; text-align:center;
       width:100%; max-width:520px; margin-inline:auto;
-      padding:18px; /* slightly tighter default */
+      padding:18px;
     }
     .ring{
       --ring-size: 240px;
@@ -188,31 +188,19 @@
     @media (max-width: 430px){
       body{ font-size:15px; }
       .pom-timer.card{
-        max-width: 360px;        /* hard cap so it never overflows */
-        padding:14px;            /* tighter padding */
-        gap:14px;
+        max-width: 360px; padding:14px; gap:14px;
       }
-      .ring{
-        --ring-size: 172px;      /* smaller base circle */
-        transform: scaleX(0.82) scaleY(1.22); /* slimmer & taller */
-        transform-origin:center;
-      }
+      .ring{ --ring-size: 172px; transform: scaleX(0.82) scaleY(1.22); transform-origin:center; }
       .ring .time{ font-size: clamp(1.45rem, 7.6vw, 2rem); letter-spacing:.01em; }
       .mode-pill{ font-size:.8rem; padding:5px 9px; }
-
-      /* Buttons & inputs compact */
       .btn{ padding:9px 12px; font-size:.95rem; border-radius:9px; }
       .pom-controls{ gap:8px; }
       .pom-controls .btn{ flex:1 1 calc(50% - 8px); min-width:128px; }
       .preset-row{ gap:8px; }
       .preset input{ width:60px; padding:5px 7px; }
       .meta-row{ gap:10px; font-size:.88rem; }
-
-      /* Side cards centered & capped width */
       .pom-side > .card{ width:100%; max-width:360px; }
     }
-
-    /* Even smaller (iPhone Mini / Zoomed) */
     @media (max-width: 375px){
       .pom-timer.card{ max-width: 330px; padding:12px; gap:12px; }
       .ring{ --ring-size: 160px; transform: scaleX(0.80) scaleY(1.24); }
@@ -241,6 +229,24 @@
       .toolbar{left:0; right:0; transform:none; margin:0 12px; justify-content:space-between}
       .tool-btn{flex:1 1 auto; justify-content:center; min-width:0}
     }
+
+    /* ===== Home: Focus Task + Completed ===== */
+    .htask{display:flex; align-items:center; gap:16px}
+    .mini-circle{
+      --size:86px; --prog:0deg;
+      width:var(--size); height:var(--size); border-radius:50%; flex:0 0 var(--size);
+      background:
+        radial-gradient(closest-side, rgba(15,23,42,.96) 72%, transparent 74%),
+        conic-gradient(var(--accent) var(--prog), rgba(255,255,255,.18) 0);
+      display:grid; place-items:center; border:1px solid var(--border); box-shadow:0 10px 28px rgba(0,0,0,.25);
+      font-weight:900; letter-spacing:.02em;
+    }
+    .htask .meta{display:flex; flex-direction:column; gap:4px}
+    .htask .name{font-weight:900; font-size:1.05rem}
+    .htask .sub{color:var(--muted); font-size:.95rem}
+    .done-list{display:grid; gap:10px; margin-top:12px}
+    .done-item{display:flex; justify-content:space-between; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02))}
+    .pill{padding:4px 8px; border-radius:999px; background:rgba(255,255,255,.08); border:1px solid var(--border); color:var(--muted); font-size:.85rem}
   </style>
 </head>
 <body>
@@ -321,6 +327,24 @@
           <footer style="margin-top:12px">
             <span class="muted">Source:</span> <code>api.quotable.io</code>
           </footer>
+        </div>
+
+        <!-- Focus Task on Home -->
+        <div class="span-12 card" id="home-task-card" style="display:none">
+          <h2 class="section">Focus Task</h2>
+          <div class="htask">
+            <div class="mini-circle" id="home-task-circle"><span id="home-task-left">--:--</span></div>
+            <div class="meta">
+              <div class="name" id="home-task-name">—</div>
+              <div class="sub" id="home-task-sub">Not running</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Completed (top 3) -->
+        <div class="span-12 card" id="home-done-card" style="display:none">
+          <h2 class="section">Recently Completed</h2>
+          <div class="done-list" id="home-done-list"></div>
         </div>
       </div>
     </section>
@@ -552,7 +576,7 @@
     function deleteSaved(idx){ const list=loadSaved(); list.splice(idx,1); saveSaved(list); renderSaved(); }
     function clearAllSaved(){ saveSaved([]); renderSaved(); }
     function renderSaved(){
-      const list=loadSaved(); els.savedList.innerHTML=""; els.savedEmpty.style.display= list.length? "none":"block";
+      const list=loadSaved(); document.getElementById('savedList').innerHTML=""; document.getElementById('savedEmpty').style.display= list.length? "none":"block";
       list.forEach((it,idx)=>{
         const wrap=document.createElement('div'); wrap.className="saved-item";
         wrap.innerHTML=`
@@ -563,27 +587,27 @@
             <button class="btn ghost" data-act="tweet" data-i="${idx}">Share</button>
             <button class="btn" data-act="del" data-i="${idx}">Delete</button>
           </div>`;
-        els.savedList.appendChild(wrap);
+        document.getElementById('savedList').appendChild(wrap);
       });
     }
-    els.savedList?.addEventListener('click',e=>{
+    document.getElementById('savedList')?.addEventListener('click',e=>{
       const btn=e.target.closest('button'); if(!btn) return;
       const idx=+btn.dataset.i; const list=loadSaved(); const it=list[idx]; if(!it) return;
       if(btn.dataset.act==='del'){ deleteSaved(idx); }
       if(btn.dataset.act==='copy'){ navigator.clipboard.writeText(`"${it.q}" — ${it.a||"Unknown"}`); }
       if(btn.dataset.act==='tweet'){ const u=`https://twitter.com/intent/tweet?text=${encodeURIComponent(`"${it.q}" — ${it.a||"Unknown"}`)}`; window.open(u,'_blank'); }
     });
-    els.exportSaved?.addEventListener('click',()=>{
+    document.getElementById('exportSaved')?.addEventListener('click',()=>{
       const list=loadSaved(); const text=list.map(it=>`"${it.q}" — ${it.a||"Unknown"}`).join("\n\n");
       const blob=new Blob([text],{type:'text/plain'}); const url=URL.createObjectURL(blob);
       const a=document.createElement('a'); a.href=url; a.download='saved-quotes.txt'; a.click(); URL.revokeObjectURL(url);
     });
-    els.clearSaved?.addEventListener('click',clearAllSaved);
+    document.getElementById('clearSaved')?.addEventListener('click',clearAllSaved);
 
-    els.refresh.addEventListener("click",getQuote);
-    els.skip.addEventListener("click",getQuote);
-    els.copy.addEventListener("click",copyQuote);
-    els.save.addEventListener("click",addCurrentToSaved);
+    document.getElementById('refresh').addEventListener("click",getQuote);
+    document.getElementById('skip').addEventListener("click",getQuote);
+    document.getElementById('copy').addEventListener("click",copyQuote);
+    document.getElementById('save').addEventListener("click",addCurrentToSaved);
 
     renderSaved(); getQuote(); startCountdown(AUTO_MS);
   </script>
@@ -686,7 +710,7 @@
         notify('Focus time', `${settings.focus} minutes — go!`);
         sfxDoh();
       }
-      updateMeta(); save(); start();
+      updateMeta(); save();
     }
 
     function notify(title, body){
@@ -728,6 +752,7 @@
           <button class="btn ghost" data-act="del" data-i="${i}">Delete</button>`;
         taskList.appendChild(li);
       });
+      window.dispatchEvent(new Event('tasks-changed'));
     }
     function addTask(){
       const text=taskInput.value.trim(); if(!text) return;
@@ -739,13 +764,89 @@
     taskList.addEventListener('click', e=>{
       const i=e.target.dataset.i; if(i==null) return;
       const list=loadTasks();
-      if(e.target.matches('input[type="checkbox"]')){ list[i].done = e.target.checked; }
+      if(e.target.matches('input[type="checkbox"]')){ list[i].done = e.target.checked; list[i].ts = Date.now(); }
       if(e.target.dataset.act==='del'){ list.splice(i,1); }
       saveTasks(list); renderTasks();
     });
 
+    // Keep Home in sync
+    setInterval(()=>window.dispatchEvent(new Event('pom-tick')),1000);
+    window.addEventListener('pom-tick', ()=>{}); // placeholder (listener is below)
+    window.addEventListener('tasks-changed', ()=>{}); // placeholder
+
     if(state.running){ start(); }
     renderTasks();
+  </script>
+
+  <!-- Home: Focus Task + Completed (reads Pomodoro state/tasks from localStorage) -->
+  <script>
+    function mmss2(totalSeconds){
+      const s=Math.max(0, Math.floor(totalSeconds));
+      const m=Math.floor(s/60).toString().padStart(2,'0');
+      const ss=(s%60).toString().padStart(2,'0');
+      return `${m}:${ss}`;
+    }
+    function ls(k,def){ try{return JSON.parse(localStorage.getItem(k) ?? JSON.stringify(def));}catch{ return def; } }
+
+    function getActiveTask(){
+      const tasks = ls('pom.tasks.v1',[]);
+      return tasks.find(t=>!t.done) || null;
+    }
+    function getDoneTop3(){
+      const tasks = ls('pom.tasks.v1',[]);
+      return tasks.filter(t=>t.done).sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,3);
+    }
+
+    function renderHomeTaskUI(){
+      const state = ls('pom.state.v1', null);
+      const settings = ls('pom.settings.v1', null);
+      const active = getActiveTask();
+      const card = document.getElementById('home-task-card');
+      const nameEl = document.getElementById('home-task-name');
+      const subEl = document.getElementById('home-task-sub');
+      const leftEl = document.getElementById('home-task-left');
+      const circle = document.getElementById('home-task-circle');
+
+      if(!active){ card.style.display='none'; }
+      else{
+        card.style.display='block';
+        nameEl.textContent = active.text;
+        if(!state || state.mode!=='focus'){
+          subEl.textContent = 'Pomodoro is not in Focus';
+          leftEl.textContent = '--:--';
+          circle.style.setProperty('--prog','0deg');
+        }else{
+          const total = (settings? (settings.focus*60) : 25*60);
+          const rem = Math.max(0, state.remaining||total);
+          const prog = 360 * (1 - (rem/total));
+          leftEl.textContent = mmss2(rem);
+          circle.style.setProperty('--prog', `${prog}deg`);
+          subEl.textContent = (state.running ? 'Focus • running' : 'Focus • paused');
+        }
+      }
+
+      // Completed
+      const done = getDoneTop3();
+      const doneCard = document.getElementById('home-done-card');
+      const list = document.getElementById('home-done-list');
+      list.innerHTML='';
+      if(done.length===0){ doneCard.style.display='none'; }
+      else{
+        doneCard.style.display='block';
+        done.forEach(t=>{
+          const li = document.createElement('div');
+          li.className='done-item';
+          li.innerHTML = `<span>${t.text}</span><span class="pill">${new Date(t.ts||Date.now()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>`;
+          list.appendChild(li);
+        });
+      }
+    }
+
+    // Refresh every second and whenever Pomodoro/tasks change
+    renderHomeTaskUI();
+    setInterval(renderHomeTaskUI, 1000);
+    window.addEventListener('pom-tick', renderHomeTaskUI);
+    window.addEventListener('tasks-changed', renderHomeTaskUI);
   </script>
 
   <!-- PWA: Service Worker -->
