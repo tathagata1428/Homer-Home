@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Homer — “Trying is the first step towards failure.”</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0f172a">
+
+  <style>
+    :root{
+      --bg:#0f172a; --muted:#94a3b8; --text:#e5e7eb;
+      --accent:#22c55e; --accent-2:#60a5fa; --border:rgba(255,255,255,.12);
+      --card-a: rgba(255,255,255,.06); --card-b: rgba(255,255,255,.03);
+      --shadow:0 24px 60px rgba(0,0,0,.45); --radius:18px; --countdown-track: rgba(255,255,255,.18);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0}
+    body{
+      background:
+        radial-gradient(1400px 700px at 50% -200px, #1f2937 0%, var(--bg) 55%),
+        linear-gradient(180deg, rgba(96,165,250,.05), rgba(34,197,94,.04));
+      color:var(--text);
+      font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+      padding:28px 14px 88px; /* bottom space for toolbar */
+      display:grid; place-items:start center;
+    }
+    .shell{width:min(1150px,96vw)}
+
+    /* HERO */
+    .hero{
+      position:relative; border-radius:28px; padding:28px 22px; margin-bottom:16px; overflow:hidden;
+      border:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+      backdrop-filter: blur(10px); box-shadow: var(--shadow); isolation:isolate;
+    }
+    .hero::before{
+      content:""; position:absolute; inset:-40% -20% auto -20%; height:140%;
+      background: conic-gradient(from 180deg at 50% 50%, rgba(96,165,250,.28), rgba(244,114,182,.18), rgba(34,197,94,.28), rgba(96,165,250,.28));
+      filter: blur(70px); opacity:.35; z-index:-1; animation: drift 14s linear infinite;
+    }
+    @keyframes drift{ to { transform: rotate(1turn) } }
+
+    .title{
+      margin:0 0 6px; font-weight:1000; font-size:clamp(2rem,5.4vw,3.2rem); letter-spacing:.01em; line-height:1.1;
+      display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+      background: linear-gradient(135deg,#fff,#cbd5e1 60%, #ffffff);
+      -webkit-background-clip:text;background-clip:text;color:transparent;
+      text-shadow: 0 8px 50px rgba(96,165,250,.18);
+    }
+    .title-badge{
+      padding:6px 10px; border-radius:999px; font-weight:800; font-size:.9rem; color:#041106; border:none;
+      background:linear-gradient(135deg, var(--accent) 0%, #16a34a 100%); box-shadow: 0 10px 32px rgba(34,197,94,.25);
+    }
+    .subtitle{ margin:6px 0 0; color:var(--muted); font-size:clamp(.95rem, 2.2vw, 1.05rem) }
+
+    /* Tabs */
+    .tabs{display:flex; gap:10px; margin:16px 0 18px; flex-wrap:wrap}
+    .tab-btn{
+      border:1px solid rgba(255,255,255,.18); background:#0b1220; color:var(--text);
+      padding:10px 14px; border-radius:999px; cursor:pointer; font-weight:800;
+      transition:border-color .2s ease, background .2s ease, transform .06s ease;
+    }
+    .tab-btn:hover{border-color:rgba(255,255,255,.35)}
+    .tab-btn:active{transform:translateY(1px)}
+    .tab-btn.active{
+      background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%);
+      border:none;color:#041106; box-shadow:0 10px 28px rgba(96,165,250,.28);
+    }
+
+    .card{
+      background:linear-gradient(180deg,var(--card-a),var(--card-b));
+      border:1px solid var(--border); border-radius:var(--radius);
+      box-shadow:var(--shadow); backdrop-filter: blur(8px); padding:22px;
+    }
+
+    /* Grid for Home */
+    .grid{display:grid; gap:20px; grid-template-columns:repeat(12,1fr)}
+    .span-12{grid-column:span 12}
+    .span-6{grid-column:span 6}
+    @media (max-width: 860px){ .span-6{grid-column:span 12} }
+
+    /* Music (tiny controls) */
+    .music{display:flex; align-items:center; gap:12px}
+    .music button{
+      border:none; border-radius:10px; padding:10px 14px; cursor:pointer; font-weight:800; color:#041106;
+      background:linear-gradient(135deg, var(--accent) 0%, #16a34a 100%);
+    }
+    .music button:hover{background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%); color:#041106}
+    .music .label{color:var(--muted)}
+    #ytplayer{width:0;height:0;position:absolute;opacity:0;pointer-events:none}
+
+    /* Clock */
+    .clock{display:flex;align-items:center;justify-content:space-between}
+    .clock .time{font-size:clamp(2rem,5vw,3rem);font-weight:900;letter-spacing:.02em}
+    .clock .time small{font-weight:700;opacity:.75;font-size:.6em;margin-left:6px}
+    .clock .date{color:var(--muted)}
+
+    /* Weather */
+    .weather{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
+    .wx-icon{font-size:2.2rem;line-height:1}
+    .wx-main{display:flex;flex-direction:column}
+    .wx-place{font-weight:800}
+    .wx-desc{color:var(--muted)}
+    .wx-temp{font-size:1.8rem;font-weight:900}
+
+    /* Section headings */
+    h2.section{margin:0 0 8px;font-size:.95rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+    /* Quotes */
+    blockquote{margin:10px 0 8px;font-size:clamp(1.2rem,2.5vw + .5rem,2rem);font-weight:900}
+    blockquote::before, blockquote::after{content:"“"; color:var(--accent)}
+    blockquote::after{content:"”"}
+    .author{color:var(--muted);font-style:italic}
+    .row{display:flex; flex-wrap:wrap; gap:12px; margin-top:16px}
+    .btn, a.btn{
+      border:1px solid rgba(255,255,255,.18); background:#0b1220; color:var(--text);
+      padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:800; text-decoration:none;
+      transition: transform .06s ease, border-color .2s ease, background .2s ease; user-select:none;
+    }
+    .btn:hover, a.btn:hover{border-color:rgba(255,255,255,.35)}
+    .btn:active, a.btn:active{transform:translateY(1px)}
+    .primary{background:linear-gradient(135deg, var(--accent) 0%, #16a34a 100%); border:none; color:#041106}
+    .secondary{background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%); border:none; color:#041106}
+    .ghost{background:transparent}
+    .muted{color:var(--muted)}
+    .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.2);border-top-color:var(--accent-2);border-radius:50%;display:inline-block;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Fade-in */
+    .fade-in{animation:fadeIn .7s ease both}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)}}
+
+    /* Quote countdown */
+    .count-wrap{position:relative}
+    .countdown{
+      position:absolute; top:-6px; right:-6px; width:46px; height:46px; border-radius:50%;
+      background:
+        radial-gradient(closest-side, rgba(15,23,42,0.92) 70%, transparent 71%),
+        conic-gradient(var(--accent) var(--progress,0%), var(--countdown-track) 0);
+      display:grid; place-items:center; box-shadow:0 4px 16px rgba(0,0,0,.35); border:1px solid var(--border);
+      font-size:.7rem; color:var(--muted); user-select:none;
+    }
+    .countdown span{font-variant-numeric:tabular-nums}
+
+    /* Saved quotes list */
+    .saved-list{display:grid; gap:12px}
+    .saved-item{
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:14px;
+    }
+    .saved-meta{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:.9rem;margin-top:6px}
+    .empty{color:var(--muted);text-align:center;padding:20px}
+
+    /* Pomodoro */
+    .pom-wrap{display:grid; gap:18px; grid-template-columns:repeat(12,1fr)}
+    .pom-main{grid-column: span 7}
+    .pom-side{grid-column: span 5}
+    @media (max-width: 980px){ .pom-main, .pom-side{grid-column: span 12} }
+
+    .pom-timer.card{display:grid; gap:18px; place-items:center; text-align:center}
+    .ring{
+      --ring-size: 240px;
+      position:relative; width:var(--ring-size); height:var(--ring-size); border-radius:50%;
+      background:
+        radial-gradient(closest-side, rgba(15,23,42,.96) 78%, transparent 80%),
+        conic-gradient(var(--accent) var(--pom-progress,0%), rgba(255,255,255,.18) 0);
+      box-shadow: 0 20px 60px rgba(34,197,94,.15), 0 0 0 1px var(--border) inset;
+      display:grid; place-items:center;
+    }
+    .ring .time{ font-size: clamp(2rem, 6vw, 3rem); font-weight: 1000; letter-spacing: .02em;
+      text-shadow: 0 6px 30px rgba(96,165,250,.25); }
+    .mode-pill{
+      padding:6px 10px; border-radius:999px; font-weight:900; font-size:.85rem; color:#041106;
+      background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%); box-shadow: 0 8px 22px rgba(96,165,250,.28);
+    }
+    .pom-controls{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
+    .pom-controls .btn{font-weight:900}
+    .preset-row{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
+    .preset input{width:70px; border-radius:8px; background:#0b1220; border:1px solid var(--border); color:var(--text); padding:6px 8px}
+    .meta-row{display:flex; gap:16px; justify-content:center; color:var(--muted); font-size:.95rem}
+
+    .tasks .task-row{display:flex; gap:10px; align-items:center}
+    .tasks input[type="text"]{flex:1; border-radius:10px; background:#0b1220; border:1px solid var(--border); color:var(--text); padding:10px 12px}
+    .tasks ul{list-style:none; margin:10px 0 0; padding:0; display:grid; gap:8px}
+    .tasks li{
+      display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border);
+      border-radius:10px; background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+    }
+    .tasks li.done{opacity:.7; text-decoration: line-through}
+    .tasks .small{font-size:.9rem; color:var(--muted)}
+
+    /* Sticky Footer Toolbar */
+    .toolbar{
+      position:fixed; left:50%; transform:translateX(-50%);
+      bottom:16px; z-index:50; display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:center;
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+      border:1px solid var(--border); border-radius:999px; padding:10px 12px;
+      backdrop-filter: blur(10px); box-shadow: 0 16px 40px rgba(0,0,0,.35);
+    }
+    .tool-btn{
+      display:flex; align-items:center; gap:8px; padding:10px 14px; border-radius:999px; text-decoration:none;
+      color:var(--text); border:1px solid rgba(255,255,255,.18); background:#0b1220; font-weight:800;
+      transition: border-color .2s ease, transform .06s ease;
+    }
+    .tool-btn:hover{border-color:rgba(255,255,255,.35)}
+    .tool-btn:active{transform:translateY(1px)}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="hero">
+      <div class="title">Homer <span class="title-badge">safe place</span></div>
+      <div class="subtitle">“Trying is the first step towards failure.” — Homer Simpson</div>
+    </header>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="home">Home</button>
+      <button class="tab-btn" data-tab="saved">Saved Quotes</button>
+      <button class="tab-btn" data-tab="pomodoro">Pomodoro</button>
+    </div>
+
+    <!-- HOME TAB -->
+    <section id="tab-home" class="tab card">
+      <div class="grid">
+        <!-- Music -->
+        <div class="span-12 card" style="padding:16px">
+          <div class="music">
+            <button id="playBtn">Play</button>
+            <button id="pauseBtn">Pause</button>
+            <div class="label">Lo-Fi Chill Beats • YouTube Live</div>
+          </div>
+          <div id="ytplayer"></div>
+        </div>
+
+        <!-- Clock -->
+        <div class="span-6 card">
+          <h2 class="section">Clock</h2>
+          <div class="clock">
+            <div>
+              <div class="time" id="clock-time">--:--<small>--</small></div>
+              <div class="date" id="clock-date">Loading date…</div>
+            </div>
+            <div class="clock-icon">🕒</div>
+          </div>
+        </div>
+
+        <!-- Weather -->
+        <div class="span-6 card">
+          <h2 class="section">Weather</h2>
+          <div class="weather">
+            <div class="wx-icon" id="wx-icon">⛅</div>
+            <div class="wx-main">
+              <div class="wx-place" id="wx-place">Locating…</div>
+              <div class="wx-desc" id="wx-desc">—</div>
+            </div>
+            <div class="wx-temp" id="wx-temp">--°</div>
+          </div>
+          <div class="muted" style="margin-top:10px;font-size:.85rem">Powered by open-meteo.com</div>
+        </div>
+
+        <!-- Quotes -->
+        <div class="span-12 card count-wrap">
+          <div class="countdown" id="countdown" title="Time until next quote">
+            <span id="countdown-text">15m</span>
+          </div>
+
+          <h2 class="section">Daily Motivation</h2>
+          <p id="status" class="muted">
+            <span class="spinner" aria-hidden="true"></span>Fetching a fresh quote…
+          </p>
+
+          <blockquote id="quote" style="display:none;"></blockquote>
+          <div id="byline" class="author" style="display:none;">— <span id="author"></span></div>
+
+          <div class="row" aria-label="Actions">
+            <button id="refresh" class="btn primary">New Quote</button>
+            <button id="skip" class="btn secondary">Skip</button>
+            <button id="save" class="btn ghost" title="Save this quote">Save</button>
+            <button id="copy" class="btn ghost" title="Copy quote">Copy</button>
+            <a id="tweet" class="btn ghost" target="_blank" rel="noopener" title="Share on X">Share</a>
+          </div>
+
+          <footer style="margin-top:12px">
+            <span class="muted">Source:</span> <code>api.quotable.io</code>
+          </footer>
+        </div>
+      </div>
+    </section>
+
+    <!-- SAVED TAB -->
+    <section id="tab-saved" class="tab card" style="display:none">
+      <h2 class="section">Saved Quotes</h2>
+      <div class="row" style="margin-bottom:10px">
+        <button id="exportSaved" class="btn">Export (.txt)</button>
+        <button id="clearSaved" class="btn ghost">Clear All</button>
+      </div>
+      <div id="savedList" class="saved-list"></div>
+      <div id="savedEmpty" class="empty" style="display:none">No saved quotes yet. Save your favorites from the Home tab.</div>
+    </section>
+
+    <!-- POMODORO TAB -->
+    <section id="tab-pomodoro" class="tab card" style="display:none">
+      <div class="pom-wrap">
+        <div class="pom-main">
+          <div class="pom-timer card">
+            <div class="mode-pill" id="pom-mode">Focus</div>
+            <div class="ring" id="pom-ring">
+              <div class="time" id="pom-time">25:00</div>
+            </div>
+            <div class="preset-row">
+              <div class="preset"><label class="small muted">Focus</label><input id="set-focus" type="number" min="1" value="25"> min</div>
+              <div class="preset"><label class="small muted">Short break</label><input id="set-short" type="number" min="1" value="5"> min</div>
+              <div class="preset"><label class="small muted">Long break</label><input id="set-long" type="number" min="1" value="15"> min</div>
+            </div>
+            <div class="pom-controls">
+              <button id="pom-start" class="btn primary">Start</button>
+              <button id="pom-pause" class="btn ghost">Pause</button>
+              <button id="pom-reset" class="btn ghost">Reset</button>
+              <button id="pom-skip" class="btn secondary">Skip Phase</button>
+            </div>
+            <div class="meta-row">
+              <div>Pomodoros: <strong id="pom-count">0</strong></div>
+              <div>Cycle: <strong id="pom-cycle">1</strong>/4</div>
+              <div><label><input type="checkbox" id="pom-notify"> Notifications</label></div>
+              <div><label><input type="checkbox" id="pom-sfx" checked> Simpsons chimes</label></div>
+            </div>
+          </div>
+        </div>
+        <div class="pom-side">
+          <div class="card tasks">
+            <h2 class="section">Tasks</h2>
+            <div class="task-row">
+              <input id="task-input" type="text" placeholder="Add a task…">
+              <button id="task-add" class="btn">Add</button>
+            </div>
+            <ul id="task-list"></ul>
+            <div class="small" style="margin-top:8px">Tip: plan one task per focus session.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Sticky footer toolbar -->
+  <nav class="toolbar" aria-label="Quick links">
+    <a class="tool-btn" href="https://www.youtube.com/" target="_blank" rel="noopener">▶️ YouTube</a>
+    <a class="tool-btn" href="https://journal.b4it.ro" target="_blank" rel="noopener">📔 Journal</a>
+    <a class="tool-btn" href="https://tasks.b4it.ro" target="_blank" rel="noopener">🗒️ Notes</a>
+    <a class="tool-btn" href="https://www.google.com" target="_blank" rel="noopener">🔎 Google</a>
+  </nav>
+
+  <!-- YouTube IFrame API (audio only) -->
+  <script>
+    let player;
+    function onYouTubeIframeAPIReady(){
+      player=new YT.Player('ytplayer',{
+        height:'0',width:'0',videoId:'Na0w3Mz46GA',
+        playerVars:{autoplay:0,controls:0,modestbranding:1}
+      });
+    }
+    document.addEventListener('click',e=>{
+      if(e.target.id==='playBtn') player?.playVideo();
+      if(e.target.id==='pauseBtn') player?.pauseVideo();
+    });
+  </script>
+  <script src="https://www.youtube.com/iframe_api"></script>
+
+  <!-- Tabs -->
+  <script>
+    const tabBtns=[...document.querySelectorAll('.tab-btn')];
+    const tabs={home:document.getElementById('tab-home'), saved:document.getElementById('tab-saved'), pomodoro:document.getElementById('tab-pomodoro')};
+    function showTab(name){
+      Object.entries(tabs).forEach(([k,el])=>{ el.style.display = (k===name)?'block':'none'; });
+      tabBtns.forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+    }
+    tabBtns.forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+  </script>
+
+  <!-- Clock -->
+  <script>
+    function updateClock(){
+      const now=new Date();
+      const hh=now.getHours().toString().padStart(2,'0');
+      const mm=now.getMinutes().toString().padStart(2,'0');
+      const ss=now.getSeconds().toString().padStart(2,'0');
+      const day=new Intl.DateTimeFormat(undefined,{weekday:'long'}).format(now);
+      const date=new Intl.DateTimeFormat(undefined,{day:'2-digit',month:'long',year:'numeric'}).format(now);
+      document.getElementById('clock-time').innerHTML=`${hh}:${mm}<small>${ss}</small>`;
+      document.getElementById('clock-date').textContent=`${day}, ${date}`;
+    }
+    updateClock(); setInterval(updateClock,1000);
+  </script>
+
+  <!-- Weather (Open-Meteo) -->
+  <script>
+    const WX_CODES={0:["☀️","Clear sky"],1:["🌤️","Mainly clear"],2:["⛅","Partly cloudy"],3:["☁️","Overcast"],45:["🌫️","Fog"],48:["🌫️","Rime fog"],51:["🌦️","Light drizzle"],53:["🌦️","Drizzle"],55:["🌧️","Dense drizzle"],56:["🌧️","Freezing drizzle"],57:["🌧️","Freezing drizzle"],61:["🌦️","Light rain"],63:["🌧️","Rain"],65:["🌧️","Heavy rain"],66:["🌧️","Freezing rain"],67:["🌧️","Freezing rain"],71:["🌨️","Light snow"],73:["🌨️","Snow"],75:["❄️","Heavy snow"],77:["❄️","Snow grains"],80:["🌦️","Rain showers"],81:["🌧️","Rain showers"],82:["⛈️","Violent rain"],85:["🌨️","Snow showers"],86:["❄️","Heavy snow showers"],95:["⛈️","Thunderstorm"],96:["⛈️","Thunder + hail"],99:["⛈️","Severe thunder/hail"]};
+    async function loadWeather(lat,lon,label){
+      const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
+      const res=await fetch(url,{cache:'no-store'}); const data=await res.json(); const cw=data.current_weather;
+      const [icon,desc]=WX_CODES[cw.weathercode]||["⛅","Weather"];
+      document.getElementById('wx-icon').textContent=icon;
+      document.getElementById('wx-place').textContent=label||"Your location";
+      document.getElementById('wx-desc').textContent=`${desc} • Wind ${Math.round(cw.windspeed)} km/h`;
+      document.getElementById('wx-temp').textContent=`${Math.round(cw.temperature)}°C`;
+    }
+    function detectWeather(){
+      const fallback={lat:44.4268,lon:26.1025,label:"Bucharest"};
+      if(!('geolocation'in navigator)) return loadWeather(fallback.lat,fallback.lon,fallback.label);
+      navigator.geolocation.getCurrentPosition(
+        pos=>loadWeather(pos.coords.latitude,pos.coords.longitude,"Your location"),
+        _=>loadWeather(fallback.lat,fallback.lon,fallback.label),
+        {enableHighAccuracy:false,timeout:8000,maximumAge:600000}
+      );
+    }
+    detectWeather();
+  </script>
+
+  <!-- Quotes + fade + 15-min auto + countdown + Save/Load -->
+  <script>
+    const API_BASE="https://api.quotable.io/random?tags=inspirational|motivational";
+    const AUTO_MS=900000; // 15 minutes
+    const FALLBACKS=[
+      {content:"The only way to do great work is to love what you do.",author:"Steve Jobs"},
+      {content:"It always seems impossible until it’s done.",author:"Nelson Mandela"},
+      {content:"You miss 100% of the shots you don’t take.",author:"Wayne Gretzky"},
+      {content:"Whether you think you can or you think you can’t, you’re right.",author:"Henry Ford"}
+    ];
+    const els={
+      quote:document.getElementById("quote"), author:document.getElementById("author"), byline:document.getElementById("byline"),
+      status:document.getElementById("status"), refresh:document.getElementById("refresh"), skip:document.getElementById("skip"),
+      save:document.getElementById("save"), copy:document.getElementById("copy"), tweet:document.getElementById("tweet"),
+      countdown:document.getElementById("countdown"), countdownText:document.getElementById("countdown-text"),
+      savedList:document.getElementById("savedList"), savedEmpty:document.getElementById("savedEmpty"),
+      exportSaved:document.getElementById("exportSaved"), clearSaved:document.getElementById("clearSaved"),
+    };
+    let autoTimer=null, tickTimer=null, nextAt=null;
+    const STORE_KEY="motivator.savedQuotes.v1";
+
+    function setLoading(s){ els.status.style.display=s?"block":"none"; els.quote.style.display=s?"none":"block"; els.byline.style.display=s?"none":"block"; }
+    function fadeInQuote(){ els.quote.classList.remove('fade-in'); els.byline.classList.remove('fade-in'); void els.quote.offsetWidth; els.quote.classList.add('fade-in'); els.byline.classList.add('fade-in'); }
+    function renderQuote(d){
+      const text=d.content||"Stay motivated.", author=d.author||"Unknown";
+      els.quote.textContent=text; els.author.textContent=author; setLoading(false); fadeInQuote();
+      els.tweet.href=`https://twitter.com/intent/tweet?text=${encodeURIComponent(`"${text}" — ${author}`)}`;
+      startCountdown(AUTO_MS);
+    }
+    async function getQuote(){
+      setLoading(true);
+      try{
+        const res=await fetch(`${API_BASE}&_=${Date.now()}`,{cache:"no-store"});
+        if(!res.ok) throw new Error(res.status);
+        const data=await res.json();
+        renderQuote(data);
+      }catch{ renderQuote(FALLBACKS[Math.floor(Math.random()*FALLBACKS.length)]); }
+    }
+    function copyQuote(){
+      const t=`"${els.quote.textContent}" — ${els.author.textContent}`;
+      navigator.clipboard.writeText(t);
+      const prev=els.copy.textContent; els.copy.textContent="Copied!"; setTimeout(()=>els.copy.textContent=prev,1500);
+    }
+    function mmss(ms){const s=Math.max(0,Math.floor(ms/1000)); const m=Math.floor(s/60).toString().padStart(2,'0'); const ss=(s%60).toString().padStart(2,'0'); return `${m}:${ss}`;}
+    function updateCountdown(){
+      if(nextAt==null) return;
+      const now=Date.now(); const msLeft=Math.max(0,nextAt-now);
+      const progress=1-(msLeft/AUTO_MS); const deg=Math.max(0,Math.min(360,progress*360));
+      els.countdown.style.setProperty('--progress',`${deg}deg`);
+      els.countdownText.textContent= msLeft>=60000 ? `${Math.ceil(msLeft/60000)}m` : mmss(msLeft);
+      if(msLeft<=0) getQuote();
+    }
+    function startCountdown(dur){
+      nextAt=Date.now()+dur; updateCountdown();
+      if(autoTimer) clearTimeout(autoTimer); if(tickTimer) clearInterval(tickTimer);
+      autoTimer=setTimeout(getQuote,dur+50); tickTimer=setInterval(updateCountdown,1000);
+    }
+    function loadSaved(){ try{return JSON.parse(localStorage.getItem(STORE_KEY)||"[]");}catch{return[]}}
+    function saveSaved(list){ localStorage.setItem(STORE_KEY,JSON.stringify(list)); }
+    function addCurrentToSaved(){
+      const q=els.quote.textContent.trim(), a=els.author.textContent.trim(); if(!q) return;
+      const list=loadSaved();
+      if(!list.some(it=>it.q===q && it.a===a)){
+        list.unshift({q, a, ts:Date.now()}); saveSaved(list); renderSaved();
+        const prev=els.save.textContent; els.save.textContent="Saved ✓"; setTimeout(()=>els.save.textContent=prev,1100);
+      }
+    }
+    function deleteSaved(idx){ const list=loadSaved(); list.splice(idx,1); saveSaved(list); renderSaved(); }
+    function clearAllSaved(){ saveSaved([]); renderSaved(); }
+    function renderSaved(){
+      const list=loadSaved(); els.savedList.innerHTML=""; els.savedEmpty.style.display= list.length? "none":"block";
+      list.forEach((it,idx)=>{
+        const wrap=document.createElement('div'); wrap.className="saved-item";
+        wrap.innerHTML=`
+          <div><strong>“${it.q}”</strong></div>
+          <div class="saved-meta"><span>— ${it.a||"Unknown"}</span><span>${new Date(it.ts).toLocaleString()}</span></div>
+          <div class="row" style="margin-top:10px">
+            <button class="btn ghost" data-act="copy" data-i="${idx}">Copy</button>
+            <button class="btn ghost" data-act="tweet" data-i="${idx}">Share</button>
+            <button class="btn" data-act="del" data-i="${idx}">Delete</button>
+          </div>`;
+        els.savedList.appendChild(wrap);
+      });
+    }
+    els.savedList?.addEventListener('click',e=>{
+      const btn=e.target.closest('button'); if(!btn) return;
+      const idx=+btn.dataset.i; const list=loadSaved(); const it=list[idx]; if(!it) return;
+      if(btn.dataset.act==='del'){ deleteSaved(idx); }
+      if(btn.dataset.act==='copy'){ navigator.clipboard.writeText(`"${it.q}" — ${it.a||"Unknown"}`); }
+      if(btn.dataset.act==='tweet'){ const u=`https://twitter.com/intent/tweet?text=${encodeURIComponent(`"${it.q}" — ${it.a||"Unknown"}`)}`; window.open(u,'_blank'); }
+    });
+    els.exportSaved?.addEventListener('click',()=>{
+      const list=loadSaved(); const text=list.map(it=>`"${it.q}" — ${it.a||"Unknown"}`).join("\n\n");
+      const blob=new Blob([text],{type:'text/plain'}); const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download='saved-quotes.txt'; a.click(); URL.revokeObjectURL(url);
+    });
+    els.clearSaved?.addEventListener('click',clearAllSaved);
+
+    els.refresh.addEventListener("click",getQuote);
+    els.skip.addEventListener("click",getQuote);
+    els.copy.addEventListener("click",copyQuote);
+    els.save.addEventListener("click",addCurrentToSaved);
+
+    renderSaved(); getQuote(); startCountdown(AUTO_MS);
+  </script>
+
+  <!-- Pomodoro logic + Simpsons-style chimes -->
+  <script>
+    // Storage keys
+    const PKEY='pom.settings.v1', TKEY='pom.tasks.v1', SKEY='pom.state.v1';
+
+    const elTime = document.getElementById('pom-time');
+    const elRing = document.getElementById('pom-ring');
+    const elMode = document.getElementById('pom-mode');
+    const elCount = document.getElementById('pom-count');
+    const elCycle = document.getElementById('pom-cycle');
+    const elNotify = document.getElementById('pom-notify');
+    const elSfx = document.getElementById('pom-sfx');
+
+    const elSetFocus = document.getElementById('set-focus');
+    const elSetShort = document.getElementById('set-short');
+    const elSetLong  = document.getElementById('set-long');
+
+    const btnStart = document.getElementById('pom-start');
+    const btnPause = document.getElementById('pom-pause');
+    const btnReset = document.getElementById('pom-reset');
+    const btnSkip  = document.getElementById('pom-skip');
+
+    function loadJSON(k,def){ try{ return JSON.parse(localStorage.getItem(k) || JSON.stringify(def)); }catch{ return def; } }
+    function saveJSON(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+
+    const settings = loadJSON(PKEY,{focus:25, short:5, long:15, longEvery:4});
+    const state = loadJSON(SKEY,{mode:'focus', remaining: settings.focus*60, running:false, pomodoros:0, cycle:1});
+
+    elSetFocus.value=settings.focus; elSetShort.value=settings.short; elSetLong.value=settings.long;
+    elMode.textContent=cap(state.mode); updateTime(); updateRing(); updateMeta();
+
+    function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+    function durFor(mode){ return (mode==='focus'?settings.focus:mode==='short'?settings.short:settings.long)*60; }
+    function setMode(next){ state.mode=next; state.remaining=durFor(next); elMode.textContent=cap(next); updateTime(); updateRing(); save(); }
+    function updateTime(){ const m = Math.floor(state.remaining/60).toString().padStart(2,'0'); const s = Math.floor(state.remaining%60).toString().padStart(2,'0'); elTime.textContent = `${m}:${s}`; }
+    function updateRing(){ const total = durFor(state.mode); const progress = 1 - (state.remaining / total); const deg = Math.max(0, Math.min(360, progress*360)); elRing.style.setProperty('--pom-progress', `${deg}deg`); }
+    function updateMeta(){ elCount.textContent = state.pomodoros; elCycle.textContent = ((state.pomodoros % settings.longEvery) || settings.longEvery); }
+    function save(){ saveJSON(SKEY,state); }
+
+    // Simpsons-style chimes (synthesized, no copyrighted audio)
+    let ac;
+    function ensureAC(){ if(!ac){ ac = new (window.AudioContext||window.webkitAudioContext)(); } }
+    function tone(freq, dur, type='sine', vol=0.2, when=0){
+      ensureAC();
+      const t = ac.currentTime + when;
+      const o = ac.createOscillator(); const g = ac.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(vol, t+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+      o.connect(g).connect(ac.destination); o.start(t); o.stop(t+dur+0.02);
+    }
+    // "Woo-hoo!" upbeat (end of focus → break)
+    function sfxWooHoo(){
+      if(!elSfx.checked) return;
+      tone(880, 0.12, 'triangle', 0.25, 0);
+      tone(1046.5, 0.12, 'triangle', 0.22, 0.10);
+      tone(1318.5, 0.18, 'triangle', 0.22, 0.22);
+    }
+    // "D'oh!" low blip (start focus)
+    function sfxDoh(){
+      if(!elSfx.checked) return;
+      tone(196, 0.18, 'sawtooth', 0.25, 0);
+      tone(147, 0.18, 'sawtooth', 0.20, 0.10);
+    }
+
+    let tick=null;
+    function start(){
+      if(state.running) return;
+      state.running=true; save();
+      if(elNotify.checked && 'Notification' in window && Notification.permission!=='granted'){
+        Notification.requestPermission();
+      }
+      tick=setInterval(()=>{
+        state.remaining--;
+        if(state.remaining<=0){ advance(); }
+        updateTime(); updateRing(); save();
+      },1000);
+    }
+    function pause(){ state.running=false; clearInterval(tick); save(); }
+    function reset(){ pause(); state.remaining=durFor(state.mode); updateTime(); updateRing(); save(); }
+    function skip(){ pause(); advance(true); }
+
+    function advance(skipped=false){
+      // phase end or skip
+      if(state.mode==='focus'){
+        state.pomodoros++;
+        const n = state.pomodoros % settings.longEvery;
+        setMode(n===0 ? 'long' : 'short');
+        notify('Break time', n===0 ? `Long break (${settings.long}m)` : `Short break (${settings.short}m)`);
+        sfxWooHoo();
+      }else{
+        setMode('focus');
+        notify('Focus time', `${settings.focus} minutes — go!`);
+        sfxDoh();
+      }
+      updateMeta(); save(); start();
+    }
+
+    function notify(title, body){
+      if(!elNotify.checked) return;
+      if('Notification' in window && Notification.permission==='granted'){
+        const n = new Notification(title,{ body }); setTimeout(()=>n.close(), 4000);
+      }
+    }
+
+    // controls
+    btnStart.addEventListener('click', start);
+    btnPause.addEventListener('click', pause);
+    btnReset.addEventListener('click', reset);
+    btnSkip.addEventListener('click', skip);
+
+    // settings changes
+    [elSetFocus, elSetShort, elSetLong].forEach(inp=>{
+      inp.addEventListener('change', ()=>{
+        settings.focus = Math.max(1, parseInt(elSetFocus.value||25));
+        settings.short = Math.max(1, parseInt(elSetShort.value||5));
+        settings.long  = Math.max(1, parseInt(elSetLong.value||15));
+        saveJSON(PKEY, settings);
+        if(!state.running){ state.remaining = durFor(state.mode); updateTime(); updateRing(); save(); }
+      });
+    });
+
+    // tasks
+    const taskInput=document.getElementById('task-input');
+    const taskAdd=document.getElementById('task-add');
+    const taskList=document.getElementById('task-list');
+
+    function loadTasks(){ return loadJSON(TKEY,[]); }
+    function saveTasks(list){ saveJSON(TKEY,list); }
+    function renderTasks(){
+      const list=loadTasks();
+      taskList.innerHTML='';
+      list.forEach((t,i)=>{
+        const li=document.createElement('li');
+        li.className = t.done ? 'done' : '';
+        li.innerHTML=`
+          <input type="checkbox" data-i="${i}" ${t.done?'checked':''}>
+          <span style="flex:1">${t.text}</span>
+          <button class="btn ghost" data-act="del" data-i="${i}">Delete</button>
+        `;
+        taskList.appendChild(li);
+      });
+    }
+    function addTask(){
+      const text=taskInput.value.trim();
+      if(!text) return;
+      const list=loadTasks();
+      list.unshift({text, done:false, ts:Date.now()});
+      saveTasks(list); taskInput.value=''; renderTasks();
+    }
+    taskAdd.addEventListener('click', addTask);
+    taskInput.addEventListener('keydown', e=>{ if(e.key==='Enter') addTask(); });
+    taskList.addEventListener('click', e=>{
+      const i=e.target.dataset.i; if(i==null) return;
+      const list=loadTasks();
+      if(e.target.matches('input[type="checkbox"]')){ list[i].done = e.target.checked; }
+      if(e.target.dataset.act==='del'){ list.splice(i,1); }
+      saveTasks(list); renderTasks();
+    });
+
+    if(state.running){ start(); }
+    renderTasks();
+  </script>
+
+  <!-- PWA: Service Worker -->
+  <script>
+    if('serviceWorker' in navigator){
+      window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.error));
+    }
+  </script>
+</body>
+</html>
