@@ -11,6 +11,69 @@
   <meta name="theme-color" content="#0f172a">
 
   <style>
+    /* === Pomodoro: iOS/mobile centering & polish === */
+.pom-wrap{ align-items: start; }
+
+/* Center the main timer column and cap width */
+.pom-main{
+  display: grid;
+  justify-items: center;
+}
+.pom-timer.card{
+  width: 100%;
+  max-width: 520px;      /* comfy width for mobile + tablet */
+  margin-inline: auto;   /* center horizontally */
+}
+
+/* Make inner rows follow the same width for a crisp column */
+.preset-row,
+.pom-controls,
+.meta-row{
+  width: 100%;
+  max-width: 520px;
+  margin-inline: auto;
+}
+
+/* Ensure the side column cards also center on smaller screens */
+@media (max-width: 980px){
+  .pom-side{ display: grid; justify-items: center; }
+  .pom-side > .card{
+    width: 100%;
+    max-width: 520px;
+  }
+}
+
+/* iPhone-friendly tweaks */
+@media (max-width: 480px){
+  /* Slightly smaller ring to avoid crowding on narrow screens */
+  .ring{ --ring-size: 180px; }
+
+  /* Make control buttons wrap into two columns neatly */
+  .pom-controls{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+  }
+  .pom-controls .btn{
+    flex: 1 1 calc(50% - 10px);   /* two per row */
+    min-width: 140px;             /* don’t get too tiny */
+  }
+
+  /* Inputs a tad narrower so presets fit nicely */
+  .preset-row .preset input{ width: 64px; }
+
+  /* Slightly tighter meta text for better balance */
+  .meta-row{ row-gap: 6px; column-gap: 12px; font-size: .9rem; }
+}
+
+/* Optional: give the timer card a hair more breathing room when very short */
+@supports (height: 100dvh){
+  @media (max-width: 480px){
+    .pom-timer.card{ padding-block: 26px; }
+  }
+}
+
     :root{
       --bg:#0f172a; --muted:#94a3b8; --text:#e5e7eb;
       --accent:#22c55e; --accent-2:#60a5fa; --border:rgba(255,255,255,.12);
