@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- iPhone-safe viewport -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Homer — “Trying is the first step towards failure.”</title>
 
   <!-- PWA -->
@@ -15,16 +16,18 @@
       --accent:#22c55e; --accent-2:#60a5fa; --border:rgba(255,255,255,.12);
       --card-a: rgba(255,255,255,.06); --card-b: rgba(255,255,255,.03);
       --shadow:0 24px 60px rgba(0,0,0,.45); --radius:18px; --countdown-track: rgba(255,255,255,.18);
+      --tb: 88px; /* dynamic toolbar height fallback */
     }
     *{box-sizing:border-box}
-    html,body{height:100%;margin:0}
+    html, body{min-height:100%;height:auto;margin:0}
     body{
       background:
         radial-gradient(1400px 700px at 50% -200px, #1f2937 0%, var(--bg) 55%),
         linear-gradient(180deg, rgba(96,165,250,.05), rgba(34,197,94,.04));
       color:var(--text);
       font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
-      padding:28px 14px 88px; /* bottom space for toolbar */
+      /* Make space for the fixed toolbar + iPhone home-indicator area */
+      padding:28px 14px calc(var(--tb) + env(safe-area-inset-bottom, 0px));
       display:grid; place-items:start center;
     }
     .shell{width:min(1150px,96vw)}
@@ -90,6 +93,7 @@
     }
     .music button:hover{background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%); color:#041106}
     .music .label{color:var(--muted)}
+    /* Hide the actual iframe (audio-only) */
     #ytplayer{width:0;height:0;position:absolute;opacity:0;pointer-events:none}
 
     /* Clock */
@@ -129,11 +133,11 @@
     .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.2);border-top-color:var(--accent-2);border-radius:50%;display:inline-block;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
     @keyframes spin{to{transform:rotate(360deg)}}
 
-    /* Fade-in */
+    /* Fade-in for quotes */
     .fade-in{animation:fadeIn .7s ease both}
     @keyframes fadeIn{from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)}}
 
-    /* Quote countdown */
+    /* Quote countdown chip */
     .count-wrap{position:relative}
     .countdown{
       position:absolute; top:-6px; right:-6px; width:46px; height:46px; border-radius:50%;
@@ -192,10 +196,13 @@
     .tasks li.done{opacity:.7; text-decoration: line-through}
     .tasks .small{font-size:.9rem; color:var(--muted)}
 
-    /* Sticky Footer Toolbar */
+    /* Sticky Footer Toolbar (iPhone-safe) */
     .toolbar{
-      position:fixed; left:50%; transform:translateX(-50%);
-      bottom:16px; z-index:50; display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:center;
+      position:fixed;
+      left:50%; transform:translateX(-50%);
+      bottom:calc(16px + env(safe-area-inset-bottom, 0px));
+      z-index:50;
+      display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:center;
       background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
       border:1px solid var(--border); border-radius:999px; padding:10px 12px;
       backdrop-filter: blur(10px); box-shadow: 0 16px 40px rgba(0,0,0,.35);
@@ -207,6 +214,12 @@
     }
     .tool-btn:hover{border-color:rgba(255,255,255,.35)}
     .tool-btn:active{transform:translateY(1px)}
+
+    /* Small screens: wrap & fit width; still fixed but paddings keep content clear */
+    @media (max-width: 480px){
+      .toolbar{left:0; right:0; transform:none; margin:0 12px; justify-content:space-between}
+      .tool-btn{flex:1 1 auto; justify-content:center; min-width:0}
+    }
   </style>
 </head>
 <body>
@@ -321,15 +334,19 @@
               <button id="pom-pause" class="btn ghost">Pause</button>
               <button id="pom-reset" class="btn ghost">Reset</button>
               <button id="pom-skip" class="btn secondary">Skip Phase</button>
+              <button id="pom-test-break" class="btn ghost" title="Test Woo-hoo!">Test Break</button>
+              <button id="pom-test-focus" class="btn ghost" title="Test D'oh!">Test Focus</button>
             </div>
             <div class="meta-row">
               <div>Pomodoros: <strong id="pom-count">0</strong></div>
               <div>Cycle: <strong id="pom-cycle">1</strong>/4</div>
               <div><label><input type="checkbox" id="pom-notify"> Notifications</label></div>
-              <div><label><input type="checkbox" id="pom-sfx" checked> Simpsons chimes</label></div>
+              <div><label><input type="checkbox" id="pom-voice" checked> Voice lines (“D’oh!”, “Woo-hoo!”)</label></div>
+              <div><label><input type="checkbox" id="pom-sfx" checked> Synth beeps</label></div>
             </div>
           </div>
         </div>
+
         <div class="pom-side">
           <div class="card tasks">
             <h2 class="section">Tasks</h2>
@@ -339,6 +356,17 @@
             </div>
             <ul id="task-list"></ul>
             <div class="small" style="margin-top:8px">Tip: plan one task per focus session.</div>
+          </div>
+
+          <div class="card" style="margin-top:18px">
+            <h2 class="section">Hints</h2>
+            <div class="muted" style="font-size:.95rem">
+              • 25/5 is a classic: 25 min focus → 5 min short break; every 4th break is long.<br>
+              • Write a tiny task for each focus block to stay laser-focused.<br>
+              • Enable notifications to get alerted on phase changes.<br>
+              • Use “Skip Phase” if you finish early or need to switch.<br>
+              • Sound options: <em>Voice lines</em> say “D’oh!” / “Woo-hoo!”, <em>Synth beeps</em> add playful tones.
+            </div>
           </div>
         </div>
       </div>
@@ -352,6 +380,22 @@
     <a class="tool-btn" href="https://tasks.b4it.ro" target="_blank" rel="noopener">🗒️ Notes</a>
     <a class="tool-btn" href="https://www.google.com" target="_blank" rel="noopener">🔎 Google</a>
   </nav>
+
+  <!-- Dynamic toolbar padding so content never hides on iPhone -->
+  <script>
+    (function() {
+      const tb = document.querySelector('.toolbar');
+      if (!tb) return;
+      function setTBPad() {
+        const h = tb.offsetHeight + 16; // little breathing room
+        document.documentElement.style.setProperty('--tb', h + 'px');
+      }
+      window.addEventListener('load', setTBPad);
+      window.addEventListener('resize', setTBPad);
+      if ('fonts' in document) document.fonts.addEventListener('loadingdone', setTBPad);
+      new MutationObserver(setTBPad).observe(tb, { childList: true, subtree: true, attributes: true });
+    })();
+  </script>
 
   <!-- YouTube IFrame API (audio only) -->
   <script>
@@ -525,7 +569,7 @@
     renderSaved(); getQuote(); startCountdown(AUTO_MS);
   </script>
 
-  <!-- Pomodoro logic + Simpsons-style chimes -->
+  <!-- Pomodoro logic + Simpsons chimes (voice + synth) -->
   <script>
     // Storage keys
     const PKEY='pom.settings.v1', TKEY='pom.tasks.v1', SKEY='pom.state.v1';
@@ -536,6 +580,7 @@
     const elCount = document.getElementById('pom-count');
     const elCycle = document.getElementById('pom-cycle');
     const elNotify = document.getElementById('pom-notify');
+    const elVoice = document.getElementById('pom-voice');
     const elSfx = document.getElementById('pom-sfx');
 
     const elSetFocus = document.getElementById('set-focus');
@@ -546,12 +591,14 @@
     const btnPause = document.getElementById('pom-pause');
     const btnReset = document.getElementById('pom-reset');
     const btnSkip  = document.getElementById('pom-skip');
+    const btnTestBreak = document.getElementById('pom-test-break');
+    const btnTestFocus = document.getElementById('pom-test-focus');
 
     function loadJSON(k,def){ try{ return JSON.parse(localStorage.getItem(k) || JSON.stringify(def)); }catch{ return def; } }
     function saveJSON(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
 
     const settings = loadJSON(PKEY,{focus:25, short:5, long:15, longEvery:4});
-    const state = loadJSON(SKEY,{mode:'focus', remaining: settings.focus*60, running:false, pomodoros:0, cycle:1});
+    const state = loadJSON(SKEY,{mode:'focus', remaining: settings.focus*60, running:false, pomodoros:0});
 
     elSetFocus.value=settings.focus; elSetShort.value=settings.short; elSetLong.value=settings.long;
     elMode.textContent=cap(state.mode); updateTime(); updateRing(); updateMeta();
@@ -564,33 +611,53 @@
     function updateMeta(){ elCount.textContent = state.pomodoros; elCycle.textContent = ((state.pomodoros % settings.longEvery) || settings.longEvery); }
     function save(){ saveJSON(SKEY,state); }
 
-    // Simpsons-style chimes (synthesized, no copyrighted audio)
-    let ac;
-    function ensureAC(){ if(!ac){ ac = new (window.AudioContext||window.webkitAudioContext)(); } }
-    function tone(freq, dur, type='sine', vol=0.2, when=0){
+    /* ---------- SOUND: Voice lines (TTS) + Synth beeps ---------- */
+    let ac; // AudioContext for synth
+    function ensureAC(){ if(!ac){ ac = new (window.AudioContext||window.webkitAudioContext)(); } if(ac.state==='suspended'){ ac.resume(); } }
+
+    function speak(text){
+      if(!elVoice.checked) return;
+      if(!('speechSynthesis' in window)) return;
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 1.05; u.pitch = text.includes('Woo') ? 1.3 : 0.8;
+      window.speechSynthesis.cancel(); // avoid overlap
+      window.speechSynthesis.speak(u);
+    }
+
+    function tone(freq, dur, type='triangle', vol=0.22, when=0){
+      if(!elSfx.checked) return;
       ensureAC();
       const t = ac.currentTime + when;
       const o = ac.createOscillator(); const g = ac.createGain();
-      o.type = type; o.frequency.value = freq;
+      o.type = type; o.frequency.setValueAtTime(freq, t);
       g.gain.setValueAtTime(0, t);
       g.gain.linearRampToValueAtTime(vol, t+0.01);
       g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
       o.connect(g).connect(ac.destination); o.start(t); o.stop(t+dur+0.02);
     }
-    // "Woo-hoo!" upbeat (end of focus → break)
+
+    // "Woo-hoo!" vibe (end of focus → break)
     function sfxWooHoo(){
-      if(!elSfx.checked) return;
+      speak("Woo-hoo!");
       tone(880, 0.12, 'triangle', 0.25, 0);
       tone(1046.5, 0.12, 'triangle', 0.22, 0.10);
       tone(1318.5, 0.18, 'triangle', 0.22, 0.22);
     }
-    // "D'oh!" low blip (start focus)
+    // "D'oh!" vibe (start focus)
     function sfxDoh(){
-      if(!elSfx.checked) return;
+      speak("D'oh!");
       tone(196, 0.18, 'sawtooth', 0.25, 0);
       tone(147, 0.18, 'sawtooth', 0.20, 0.10);
     }
 
+    // Unlock audio contexts/voices on first interaction (iOS important)
+    ['click','keydown','touchstart'].forEach(evt=>{
+      window.addEventListener(evt, ()=>{
+        try{ ensureAC(); if('speechSynthesis' in window) speechSynthesis.resume(); }catch(_){}
+      }, { once:true, passive:true });
+    });
+
+    /* ---------- Timer engine ---------- */
     let tick=null;
     function start(){
       if(state.running) return;
@@ -598,6 +665,7 @@
       if(elNotify.checked && 'Notification' in window && Notification.permission!=='granted'){
         Notification.requestPermission();
       }
+      ensureAC();
       tick=setInterval(()=>{
         state.remaining--;
         if(state.remaining<=0){ advance(); }
@@ -609,7 +677,6 @@
     function skip(){ pause(); advance(true); }
 
     function advance(skipped=false){
-      // phase end or skip
       if(state.mode==='focus'){
         state.pomodoros++;
         const n = state.pomodoros % settings.longEvery;
@@ -631,13 +698,15 @@
       }
     }
 
-    // controls
+    // Controls
     btnStart.addEventListener('click', start);
     btnPause.addEventListener('click', pause);
     btnReset.addEventListener('click', reset);
     btnSkip.addEventListener('click', skip);
+    btnTestBreak.addEventListener('click', ()=>{ ensureAC(); sfxWooHoo(); });
+    btnTestFocus.addEventListener('click', ()=>{ ensureAC(); sfxDoh(); });
 
-    // settings changes
+    // Settings changes
     [elSetFocus, elSetShort, elSetLong].forEach(inp=>{
       inp.addEventListener('change', ()=>{
         settings.focus = Math.max(1, parseInt(elSetFocus.value||25));
@@ -648,7 +717,7 @@
       });
     });
 
-    // tasks
+    // Tasks
     const taskInput=document.getElementById('task-input');
     const taskAdd=document.getElementById('task-add');
     const taskList=document.getElementById('task-list');
