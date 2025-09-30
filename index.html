@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Homer — “Trying is the first step towards failure.”</title>
 
-  <!-- PWA -->
+  <!-- PWA (optional) -->
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -82,7 +82,6 @@
       border:none; border-radius:10px; padding:10px 14px; cursor:pointer; font-weight:800; color:#041106;
       background:linear-gradient(135deg, var(--accent) 0%, #16a34a 100%);
     }
-    .music button:hover{background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%); color:#041106}
     .music .label{color:var(--muted)}
     #ytplayer{width:0;height:0;position:absolute;opacity:0;pointer-events:none}
 
@@ -151,8 +150,7 @@
 
     .pom-timer.card{
       display:grid; gap:16px; place-items:center; text-align:center;
-      width:100%; max-width:520px; margin-inline:auto;
-      padding:18px;
+      width:100%; max-width:520px; margin-inline:auto; padding:18px;
     }
     .ring{
       --ring-size: 240px;
@@ -184,12 +182,10 @@
     .tasks li.done{opacity:.7; text-decoration: line-through}
     .tasks .small{font-size:.9rem; color:var(--muted)}
 
-    /* ===== iPhone / narrow screens: compact Pomodoro ===== */
+    /* iPhone compact Pomodoro */
     @media (max-width: 430px){
       body{ font-size:15px; }
-      .pom-timer.card{
-        max-width: 360px; padding:14px; gap:14px;
-      }
+      .pom-timer.card{ max-width: 360px; padding:14px; gap:14px; }
       .ring{ --ring-size: 172px; transform: scaleX(0.82) scaleY(1.22); transform-origin:center; }
       .ring .time{ font-size: clamp(1.45rem, 7.6vw, 2rem); letter-spacing:.01em; }
       .mode-pill{ font-size:.8rem; padding:5px 9px; }
@@ -209,7 +205,7 @@
       .preset input{ width:56px; }
     }
 
-    /* Sticky Footer Toolbar (iPhone-safe) */
+    /* Sticky Footer Toolbar */
     .toolbar{
       position:fixed;
       left:50%; transform:translateX(-50%);
@@ -230,8 +226,27 @@
       .tool-btn{flex:1 1 auto; justify-content:center; min-width:0}
     }
 
-    /* ===== Home: Focus Task + Completed ===== */
-    .htask{display:flex; align-items:center; gap:16px}
+    /* Footer */
+    .site-footer{
+      margin-top: 28px;
+      text-align: center;
+      font-size: .9rem;
+      color: var(--muted);
+    }
+    .site-footer a{ color: var(--accent-2); font-weight: 700; text-decoration: none; }
+    .site-footer a:hover{ text-decoration: underline; }
+
+    /* ===== Home: Focus Tasks + Completed ===== */
+    .htasklist{
+      display:grid;
+      grid-template-columns: repeat( auto-fit, minmax(260px, 1fr) );
+      gap:14px;
+    }
+    .htask-card{
+      display:flex; align-items:center; gap:14px;
+      padding:12px; border:1px solid var(--border); border-radius:12px;
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+    }
     .mini-circle{
       --size:86px; --prog:0deg;
       width:var(--size); height:var(--size); border-radius:50%; flex:0 0 var(--size);
@@ -239,7 +254,7 @@
         radial-gradient(closest-side, rgba(15,23,42,.96) 72%, transparent 74%),
         conic-gradient(var(--accent) var(--prog), rgba(255,255,255,.18) 0);
       display:grid; place-items:center; border:1px solid var(--border); box-shadow:0 10px 28px rgba(0,0,0,.25);
-      font-weight:900; letter-spacing:.02em;
+      font-weight:900; letter-spacing:.02em; font-variant-numeric: tabular-nums;
     }
     .htask .meta{display:flex; flex-direction:column; gap:4px}
     .htask .name{font-weight:900; font-size:1.05rem}
@@ -247,6 +262,12 @@
     .done-list{display:grid; gap:10px; margin-top:12px}
     .done-item{display:flex; justify-content:space-between; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02))}
     .pill{padding:4px 8px; border-radius:999px; background:rgba(255,255,255,.08); border:1px solid var(--border); color:var(--muted); font-size:.85rem}
+
+    @media (max-width:430px){
+      .mini-circle{ --size:78px; }
+      .htask .name{ font-size:1rem; }
+      .htask .sub{ font-size:.9rem; }
+    }
   </style>
 </head>
 <body>
@@ -309,36 +330,24 @@
           </div>
 
           <h2 class="section">Daily Motivation</h2>
-          <p id="status" class="muted">
-            <span class="spinner" aria-hidden="true"></span>Fetching a fresh quote…
-          </p>
-
+          <p id="status" class="muted"><span class="spinner"></span>Fetching a fresh quote…</p>
           <blockquote id="quote" style="display:none;"></blockquote>
           <div id="byline" class="author" style="display:none;">— <span id="author"></span></div>
 
           <div class="row" aria-label="Actions">
             <button id="refresh" class="btn primary">New Quote</button>
             <button id="skip" class="btn secondary">Skip</button>
-            <button id="save" class="btn ghost" title="Save this quote">Save</button>
-            <button id="copy" class="btn ghost" title="Copy quote">Copy</button>
-            <a id="tweet" class="btn ghost" target="_blank" rel="noopener" title="Share on X">Share</a>
+            <button id="save" class="btn ghost">Save</button>
+            <button id="copy" class="btn ghost">Copy</button>
+            <a id="tweet" class="btn ghost" target="_blank" rel="noopener">Share</a>
           </div>
-
-          <footer style="margin-top:12px">
-            <span class="muted">Source:</span> <code>api.quotable.io</code>
-          </footer>
         </div>
 
-        <!-- Focus Task on Home -->
-        <div class="span-12 card" id="home-task-card" style="display:none">
-          <h2 class="section">Focus Task</h2>
-          <div class="htask">
-            <div class="mini-circle" id="home-task-circle"><span id="home-task-left">--:--</span></div>
-            <div class="meta">
-              <div class="name" id="home-task-name">—</div>
-              <div class="sub" id="home-task-sub">Not running</div>
-            </div>
-          </div>
+        <!-- Focus Tasks on Home (multiple) -->
+        <div class="span-12 card" id="home-tasks-card" style="display:none">
+          <h2 class="section">Focus Tasks</h2>
+          <div class="htasklist" id="home-tasks"></div>
+          <div class="muted" id="home-tasks-empty" style="display:none">No open tasks. Add one in Pomodoro → Tasks.</div>
         </div>
 
         <!-- Completed (top 3) -->
@@ -366,20 +375,21 @@
         <div class="pom-main">
           <div class="pom-timer card">
             <div class="mode-pill" id="pom-mode">Focus</div>
-            <div class="ring" id="pom-ring">
-              <div class="time" id="pom-time">25:00</div>
-            </div>
+            <div class="ring" id="pom-ring"><div class="time" id="pom-time">25:00</div></div>
+
             <div class="preset-row">
               <div class="preset"><label class="small muted">Focus</label><input id="set-focus" type="number" min="1" value="25"> min</div>
               <div class="preset"><label class="small muted">Short break</label><input id="set-short" type="number" min="1" value="5"> min</div>
               <div class="preset"><label class="small muted">Long break</label><input id="set-long" type="number" min="1" value="15"> min</div>
             </div>
+
             <div class="pom-controls">
               <button id="pom-start" class="btn primary">Start</button>
               <button id="pom-pause" class="btn ghost">Pause</button>
               <button id="pom-reset" class="btn ghost">Reset</button>
               <button id="pom-skip" class="btn secondary">Skip Phase</button>
             </div>
+
             <div class="meta-row">
               <div>Pomodoros: <strong id="pom-count">0</strong></div>
               <div>Cycle: <strong id="pom-cycle">1</strong>/4</div>
@@ -404,7 +414,7 @@
           <div class="card" style="margin-top:18px">
             <h2 class="section">Hints</h2>
             <div class="muted" style="font-size:.95rem">
-              • 25/5 is a classic: 25 min focus → 5 min short break; every 4th break is long.<br>
+              • 25/5 is classic: 25 min focus → 5 min short break; every 4th break is long.<br>
               • Write a tiny task for each focus block to stay laser-focused.<br>
               • Enable notifications to get alerted on phase changes.<br>
               • Use “Skip Phase” if you finish early or need to switch.<br>
@@ -414,6 +424,11 @@
         </div>
       </div>
     </section>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+      Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
+    </footer>
   </div>
 
   <!-- Sticky footer toolbar -->
@@ -440,7 +455,7 @@
     })();
   </script>
 
-  <!-- YouTube IFrame API -->
+  <!-- YouTube IFrame API (audio only) -->
   <script>
     let player;
     function onYouTubeIframeAPIReady(){
@@ -506,7 +521,7 @@
     detectWeather();
   </script>
 
-  <!-- Quotes -->
+  <!-- Quotes + auto refresh + saved -->
   <script>
     const API_BASE="https://api.quotable.io/random?tags=inspirational|motivational";
     const AUTO_MS=900000; // 15 minutes
@@ -576,7 +591,7 @@
     function deleteSaved(idx){ const list=loadSaved(); list.splice(idx,1); saveSaved(list); renderSaved(); }
     function clearAllSaved(){ saveSaved([]); renderSaved(); }
     function renderSaved(){
-      const list=loadSaved(); document.getElementById('savedList').innerHTML=""; document.getElementById('savedEmpty').style.display= list.length? "none":"block";
+      const list=loadSaved(); els.savedList.innerHTML=""; els.savedEmpty.style.display= list.length? "none":"block";
       list.forEach((it,idx)=>{
         const wrap=document.createElement('div'); wrap.className="saved-item";
         wrap.innerHTML=`
@@ -587,32 +602,32 @@
             <button class="btn ghost" data-act="tweet" data-i="${idx}">Share</button>
             <button class="btn" data-act="del" data-i="${idx}">Delete</button>
           </div>`;
-        document.getElementById('savedList').appendChild(wrap);
+        els.savedList.appendChild(wrap);
       });
     }
-    document.getElementById('savedList')?.addEventListener('click',e=>{
+    els.savedList?.addEventListener('click',e=>{
       const btn=e.target.closest('button'); if(!btn) return;
       const idx=+btn.dataset.i; const list=loadSaved(); const it=list[idx]; if(!it) return;
       if(btn.dataset.act==='del'){ deleteSaved(idx); }
       if(btn.dataset.act==='copy'){ navigator.clipboard.writeText(`"${it.q}" — ${it.a||"Unknown"}`); }
       if(btn.dataset.act==='tweet'){ const u=`https://twitter.com/intent/tweet?text=${encodeURIComponent(`"${it.q}" — ${it.a||"Unknown"}`)}`; window.open(u,'_blank'); }
     });
-    document.getElementById('exportSaved')?.addEventListener('click',()=>{
+    els.exportSaved?.addEventListener('click',()=>{
       const list=loadSaved(); const text=list.map(it=>`"${it.q}" — ${it.a||"Unknown"}`).join("\n\n");
       const blob=new Blob([text],{type:'text/plain'}); const url=URL.createObjectURL(blob);
       const a=document.createElement('a'); a.href=url; a.download='saved-quotes.txt'; a.click(); URL.revokeObjectURL(url);
     });
-    document.getElementById('clearSaved')?.addEventListener('click',clearAllSaved);
+    els.clearSaved?.addEventListener('click',clearAllSaved);
 
-    document.getElementById('refresh').addEventListener("click",getQuote);
-    document.getElementById('skip').addEventListener("click",getQuote);
-    document.getElementById('copy').addEventListener("click",copyQuote);
-    document.getElementById('save').addEventListener("click",addCurrentToSaved);
+    els.refresh.addEventListener("click",getQuote);
+    els.skip.addEventListener("click",getQuote);
+    els.copy.addEventListener("click",copyQuote);
+    els.save.addEventListener("click",addCurrentToSaved);
 
     renderSaved(); getQuote(); startCountdown(AUTO_MS);
   </script>
 
-  <!-- Pomodoro logic -->
+  <!-- Pomodoro logic + Tasks -->
   <script>
     const PKEY='pom.settings.v1', TKEY='pom.tasks.v1', SKEY='pom.state.v1';
 
@@ -692,6 +707,7 @@
         state.remaining--;
         if(state.remaining<=0){ advance(); }
         updateTime(); updateRing(); save();
+        window.dispatchEvent(new Event('pom-tick'));
       },1000);
     }
     function pause(){ state.running=false; clearInterval(tick); save(); }
@@ -711,6 +727,7 @@
         sfxDoh();
       }
       updateMeta(); save();
+      if(state.running) start(); // continue ticking after phase switch
     }
 
     function notify(title, body){
@@ -769,18 +786,13 @@
       saveTasks(list); renderTasks();
     });
 
-    // Keep Home in sync
-    setInterval(()=>window.dispatchEvent(new Event('pom-tick')),1000);
-    window.addEventListener('pom-tick', ()=>{}); // placeholder (listener is below)
-    window.addEventListener('tasks-changed', ()=>{}); // placeholder
-
     if(state.running){ start(); }
     renderTasks();
   </script>
 
-  <!-- Home: Focus Task + Completed (reads Pomodoro state/tasks from localStorage) -->
+  <!-- Home: Focus Tasks + Completed (sync from Pomodoro localStorage) -->
   <script>
-    function mmss2(totalSeconds){
+    function fmtMMSS(totalSeconds){
       const s=Math.max(0, Math.floor(totalSeconds));
       const m=Math.floor(s/60).toString().padStart(2,'0');
       const ss=(s%60).toString().padStart(2,'0');
@@ -788,71 +800,85 @@
     }
     function ls(k,def){ try{return JSON.parse(localStorage.getItem(k) ?? JSON.stringify(def));}catch{ return def; } }
 
-    function getActiveTask(){
+    function getOpenTasks(){
       const tasks = ls('pom.tasks.v1',[]);
-      return tasks.find(t=>!t.done) || null;
+      return tasks.filter(t=>!t.done);
     }
     function getDoneTop3(){
       const tasks = ls('pom.tasks.v1',[]);
       return tasks.filter(t=>t.done).sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,3);
     }
 
-    function renderHomeTaskUI(){
-      const state = ls('pom.state.v1', null);
-      const settings = ls('pom.settings.v1', null);
-      const active = getActiveTask();
-      const card = document.getElementById('home-task-card');
-      const nameEl = document.getElementById('home-task-name');
-      const subEl = document.getElementById('home-task-sub');
-      const leftEl = document.getElementById('home-task-left');
-      const circle = document.getElementById('home-task-circle');
+    function renderHomeFromPom(){
+      const state     = ls('pom.state.v1', null);
+      const settings  = ls('pom.settings.v1', {focus:25, short:5, long:15});
+      const openTasks = getOpenTasks();
+      const done      = getDoneTop3();
 
-      if(!active){ card.style.display='none'; }
-      else{
-        card.style.display='block';
-        nameEl.textContent = active.text;
-        if(!state || state.mode!=='focus'){
-          subEl.textContent = 'Pomodoro is not in Focus';
-          leftEl.textContent = '--:--';
-          circle.style.setProperty('--prog','0deg');
-        }else{
-          const total = (settings? (settings.focus*60) : 25*60);
-          const rem = Math.max(0, state.remaining||total);
-          const prog = 360 * (1 - (rem/total));
-          leftEl.textContent = mmss2(rem);
-          circle.style.setProperty('--prog', `${prog}deg`);
-          subEl.textContent = (state.running ? 'Focus • running' : 'Focus • paused');
-        }
+      const tasksCard = document.getElementById('home-tasks-card');
+      const tasksWrap = document.getElementById('home-tasks');
+      const tasksEmpty= document.getElementById('home-tasks-empty');
+      const doneCard  = document.getElementById('home-done-card');
+      const doneList  = document.getElementById('home-done-list');
+
+      // Open tasks
+      tasksWrap.innerHTML='';
+      if(openTasks.length===0){
+        tasksCard.style.display='block';
+        tasksEmpty.style.display='block';
+      }else{
+        tasksCard.style.display='block';
+        tasksEmpty.style.display='none';
+
+        const isFocus = state && state.mode==='focus';
+        const totalFocus = (settings.focus||25)*60;
+        const remaining  = Math.max(0, (state?.remaining ?? totalFocus));
+        const progressDeg= 360 * (1 - (remaining / totalFocus));
+
+        openTasks.forEach((t, i)=>{
+          const card = document.createElement('div');
+          card.className = 'htask-card htask';
+          const circle = document.createElement('div'); circle.className = 'mini-circle';
+          const leftSpan = document.createElement('span');
+          leftSpan.textContent = (i===0 && isFocus) ? fmtMMSS(remaining) : '--:--';
+          circle.appendChild(leftSpan);
+          circle.style.setProperty('--prog', (i===0 && isFocus) ? `${progressDeg}deg` : '0deg');
+
+          const meta = document.createElement('div'); meta.className = 'meta';
+          const name = document.createElement('div'); name.className='name'; name.textContent=t.text;
+          const sub  = document.createElement('div'); sub.className='sub';
+          sub.textContent = (i===0) ? (isFocus ? (state.running ? 'Focus • running' : 'Focus • paused') : 'Pomodoro not in Focus') : 'Queued';
+
+          meta.appendChild(name); meta.appendChild(sub);
+          card.appendChild(circle); card.appendChild(meta);
+          tasksWrap.appendChild(card);
+        });
       }
 
-      // Completed
-      const done = getDoneTop3();
-      const doneCard = document.getElementById('home-done-card');
-      const list = document.getElementById('home-done-list');
-      list.innerHTML='';
-      if(done.length===0){ doneCard.style.display='none'; }
+      // Done top 3
+      doneList.innerHTML='';
+      if(done.length===0) doneCard.style.display='none';
       else{
         doneCard.style.display='block';
         done.forEach(t=>{
-          const li = document.createElement('div');
-          li.className='done-item';
-          li.innerHTML = `<span>${t.text}</span><span class="pill">${new Date(t.ts||Date.now()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>`;
-          list.appendChild(li);
+          const row = document.createElement('div');
+          row.className='done-item';
+          row.innerHTML = `<span>${t.text}</span><span class="pill">${new Date(t.ts||Date.now()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>`;
+          doneList.appendChild(row);
         });
       }
     }
 
-    // Refresh every second and whenever Pomodoro/tasks change
-    renderHomeTaskUI();
-    setInterval(renderHomeTaskUI, 1000);
-    window.addEventListener('pom-tick', renderHomeTaskUI);
-    window.addEventListener('tasks-changed', renderHomeTaskUI);
+    renderHomeFromPom();
+    setInterval(renderHomeFromPom, 1000);
+    window.addEventListener('pom-tick', renderHomeFromPom);
+    window.addEventListener('tasks-changed', renderHomeFromPom);
   </script>
 
-  <!-- PWA: Service Worker -->
+  <!-- PWA: Service Worker (optional) -->
   <script>
     if('serviceWorker' in navigator){
-      window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.error));
+      window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
     }
   </script>
 </body>
