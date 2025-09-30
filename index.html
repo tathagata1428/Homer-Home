@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <!-- iPhone-safe viewport -->
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Homer — “Trying is the first step towards failure.”</title>
 
@@ -11,69 +10,6 @@
   <meta name="theme-color" content="#0f172a">
 
   <style>
-    /* === Pomodoro: iOS/mobile centering & polish === */
-.pom-wrap{ align-items: start; }
-
-/* Center the main timer column and cap width */
-.pom-main{
-  display: grid;
-  justify-items: center;
-}
-.pom-timer.card{
-  width: 100%;
-  max-width: 520px;      /* comfy width for mobile + tablet */
-  margin-inline: auto;   /* center horizontally */
-}
-
-/* Make inner rows follow the same width for a crisp column */
-.preset-row,
-.pom-controls,
-.meta-row{
-  width: 100%;
-  max-width: 520px;
-  margin-inline: auto;
-}
-
-/* Ensure the side column cards also center on smaller screens */
-@media (max-width: 980px){
-  .pom-side{ display: grid; justify-items: center; }
-  .pom-side > .card{
-    width: 100%;
-    max-width: 520px;
-  }
-}
-
-/* iPhone-friendly tweaks */
-@media (max-width: 480px){
-  /* Slightly smaller ring to avoid crowding on narrow screens */
-  .ring{ --ring-size: 180px; }
-
-  /* Make control buttons wrap into two columns neatly */
-  .pom-controls{
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: center;
-  }
-  .pom-controls .btn{
-    flex: 1 1 calc(50% - 10px);   /* two per row */
-    min-width: 140px;             /* don’t get too tiny */
-  }
-
-  /* Inputs a tad narrower so presets fit nicely */
-  .preset-row .preset input{ width: 64px; }
-
-  /* Slightly tighter meta text for better balance */
-  .meta-row{ row-gap: 6px; column-gap: 12px; font-size: .9rem; }
-}
-
-/* Optional: give the timer card a hair more breathing room when very short */
-@supports (height: 100dvh){
-  @media (max-width: 480px){
-    .pom-timer.card{ padding-block: 26px; }
-  }
-}
-
     :root{
       --bg:#0f172a; --muted:#94a3b8; --text:#e5e7eb;
       --accent:#22c55e; --accent-2:#60a5fa; --border:rgba(255,255,255,.12);
@@ -89,7 +25,6 @@
         linear-gradient(180deg, rgba(96,165,250,.05), rgba(34,197,94,.04));
       color:var(--text);
       font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
-      /* Make space for the fixed toolbar + iPhone home-indicator area */
       padding:28px 14px calc(var(--tb) + env(safe-area-inset-bottom, 0px));
       display:grid; place-items:start center;
     }
@@ -156,7 +91,6 @@
     }
     .music button:hover{background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%); color:#041106}
     .music .label{color:var(--muted)}
-    /* Hide the actual iframe (audio-only) */
     #ytplayer{width:0;height:0;position:absolute;opacity:0;pointer-events:none}
 
     /* Clock */
@@ -196,11 +130,11 @@
     .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.2);border-top-color:var(--accent-2);border-radius:50%;display:inline-block;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
     @keyframes spin{to{transform:rotate(360deg)}}
 
-    /* Fade-in for quotes */
+    /* Fade-in */
     .fade-in{animation:fadeIn .7s ease both}
     @keyframes fadeIn{from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)}}
 
-    /* Quote countdown chip */
+    /* Quote countdown */
     .count-wrap{position:relative}
     .countdown{
       position:absolute; top:-6px; right:-6px; width:46px; height:46px; border-radius:50%;
@@ -222,12 +156,15 @@
     .empty{color:var(--muted);text-align:center;padding:20px}
 
     /* Pomodoro */
-    .pom-wrap{display:grid; gap:18px; grid-template-columns:repeat(12,1fr)}
-    .pom-main{grid-column: span 7}
+    .pom-wrap{display:grid; gap:18px; grid-template-columns:repeat(12,1fr); align-items:start}
+    .pom-main{grid-column: span 7; display:grid; justify-items:center}
     .pom-side{grid-column: span 5}
-    @media (max-width: 980px){ .pom-main, .pom-side{grid-column: span 12} }
+    @media (max-width: 980px){ .pom-main, .pom-side{grid-column: span 12} .pom-side{display:grid; justify-items:center} }
 
-    .pom-timer.card{display:grid; gap:18px; place-items:center; text-align:center}
+    .pom-timer.card{
+      display:grid; gap:18px; place-items:center; text-align:center;
+      width:100%; max-width:520px; margin-inline:auto;
+    }
     .ring{
       --ring-size: 240px;
       position:relative; width:var(--ring-size); height:var(--ring-size); border-radius:50%;
@@ -237,14 +174,12 @@
       box-shadow: 0 20px 60px rgba(34,197,94,.15), 0 0 0 1px var(--border) inset;
       display:grid; place-items:center;
     }
-    .ring .time{ font-size: clamp(2rem, 6vw, 3rem); font-weight: 1000; letter-spacing: .02em;
-      text-shadow: 0 6px 30px rgba(96,165,250,.25); }
+    .ring .time{ font-size: clamp(2rem, 6vw, 3rem); font-weight: 1000; letter-spacing: .02em; }
     .mode-pill{
       padding:6px 10px; border-radius:999px; font-weight:900; font-size:.85rem; color:#041106;
       background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%); box-shadow: 0 8px 22px rgba(96,165,250,.28);
     }
     .pom-controls{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
-    .pom-controls .btn{font-weight:900}
     .preset-row{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
     .preset input{width:70px; border-radius:8px; background:#0b1220; border:1px solid var(--border); color:var(--text); padding:6px 8px}
     .meta-row{display:flex; gap:16px; justify-content:center; color:var(--muted); font-size:.95rem}
@@ -258,6 +193,16 @@
     }
     .tasks li.done{opacity:.7; text-decoration: line-through}
     .tasks .small{font-size:.9rem; color:var(--muted)}
+
+    /* iPhone-centric appearance: slimmer & taller timer, centered columns */
+    @media (max-width: 480px){
+      .ring{ --ring-size: 190px; transform: scaleX(0.86) scaleY(1.18); transform-origin: center; }
+      .ring .time{ font-size: clamp(1.6rem, 8.5vw, 2.2rem); letter-spacing:.01em; }
+      .pom-controls .btn{ flex:1 1 calc(50% - 10px); min-width:140px; }
+      .preset-row .preset input{ width:64px; }
+      .pom-timer.card{ padding-block:26px; }
+      .pom-side > .card{ width:100%; max-width:520px; }
+    }
 
     /* Sticky Footer Toolbar (iPhone-safe) */
     .toolbar{
@@ -278,7 +223,6 @@
     .tool-btn:hover{border-color:rgba(255,255,255,.35)}
     .tool-btn:active{transform:translateY(1px)}
 
-    /* Small screens: wrap & fit width; still fixed but paddings keep content clear */
     @media (max-width: 480px){
       .toolbar{left:0; right:0; transform:none; margin:0 12px; justify-content:space-between}
       .tool-btn{flex:1 1 auto; justify-content:center; min-width:0}
@@ -397,8 +341,6 @@
               <button id="pom-pause" class="btn ghost">Pause</button>
               <button id="pom-reset" class="btn ghost">Reset</button>
               <button id="pom-skip" class="btn secondary">Skip Phase</button>
-              <button id="pom-test-break" class="btn ghost" title="Test Woo-hoo!">Test Break</button>
-              <button id="pom-test-focus" class="btn ghost" title="Test D'oh!">Test Focus</button>
             </div>
             <div class="meta-row">
               <div>Pomodoros: <strong id="pom-count">0</strong></div>
@@ -526,7 +468,7 @@
     detectWeather();
   </script>
 
-  <!-- Quotes + fade + 15-min auto + countdown + Save/Load -->
+  <!-- Quotes + 15-min auto + countdown + Save/Load -->
   <script>
     const API_BASE="https://api.quotable.io/random?tags=inspirational|motivational";
     const AUTO_MS=900000; // 15 minutes
@@ -632,9 +574,8 @@
     renderSaved(); getQuote(); startCountdown(AUTO_MS);
   </script>
 
-  <!-- Pomodoro logic + Simpsons chimes (voice + synth) -->
+  <!-- Pomodoro logic + Simpsons chimes (voice + synth, no test buttons) -->
   <script>
-    // Storage keys
     const PKEY='pom.settings.v1', TKEY='pom.tasks.v1', SKEY='pom.state.v1';
 
     const elTime = document.getElementById('pom-time');
@@ -654,8 +595,6 @@
     const btnPause = document.getElementById('pom-pause');
     const btnReset = document.getElementById('pom-reset');
     const btnSkip  = document.getElementById('pom-skip');
-    const btnTestBreak = document.getElementById('pom-test-break');
-    const btnTestFocus = document.getElementById('pom-test-focus');
 
     function loadJSON(k,def){ try{ return JSON.parse(localStorage.getItem(k) || JSON.stringify(def)); }catch{ return def; } }
     function saveJSON(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
@@ -674,19 +613,17 @@
     function updateMeta(){ elCount.textContent = state.pomodoros; elCycle.textContent = ((state.pomodoros % settings.longEvery) || settings.longEvery); }
     function save(){ saveJSON(SKEY,state); }
 
-    /* ---------- SOUND: Voice lines (TTS) + Synth beeps ---------- */
-    let ac; // AudioContext for synth
+    /* SOUND: Voice lines (TTS) + Synth beeps */
+    let ac;
     function ensureAC(){ if(!ac){ ac = new (window.AudioContext||window.webkitAudioContext)(); } if(ac.state==='suspended'){ ac.resume(); } }
-
     function speak(text){
       if(!elVoice.checked) return;
       if(!('speechSynthesis' in window)) return;
       const u = new SpeechSynthesisUtterance(text);
       u.rate = 1.05; u.pitch = text.includes('Woo') ? 1.3 : 0.8;
-      window.speechSynthesis.cancel(); // avoid overlap
+      window.speechSynthesis.cancel();
       window.speechSynthesis.speak(u);
     }
-
     function tone(freq, dur, type='triangle', vol=0.22, when=0){
       if(!elSfx.checked) return;
       ensureAC();
@@ -698,29 +635,13 @@
       g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
       o.connect(g).connect(ac.destination); o.start(t); o.stop(t+dur+0.02);
     }
+    function sfxWooHoo(){ speak("Woo-hoo!"); tone(880, 0.12, 'triangle', 0.25, 0); tone(1046.5, 0.12, 'triangle', 0.22, 0.10); tone(1318.5, 0.18, 'triangle', 0.22, 0.22); }
+    function sfxDoh(){ speak("D'oh!"); tone(196, 0.18, 'sawtooth', 0.25, 0); tone(147, 0.18, 'sawtooth', 0.20, 0.10); }
 
-    // "Woo-hoo!" vibe (end of focus → break)
-    function sfxWooHoo(){
-      speak("Woo-hoo!");
-      tone(880, 0.12, 'triangle', 0.25, 0);
-      tone(1046.5, 0.12, 'triangle', 0.22, 0.10);
-      tone(1318.5, 0.18, 'triangle', 0.22, 0.22);
-    }
-    // "D'oh!" vibe (start focus)
-    function sfxDoh(){
-      speak("D'oh!");
-      tone(196, 0.18, 'sawtooth', 0.25, 0);
-      tone(147, 0.18, 'sawtooth', 0.20, 0.10);
-    }
-
-    // Unlock audio contexts/voices on first interaction (iOS important)
     ['click','keydown','touchstart'].forEach(evt=>{
-      window.addEventListener(evt, ()=>{
-        try{ ensureAC(); if('speechSynthesis' in window) speechSynthesis.resume(); }catch(_){}
-      }, { once:true, passive:true });
+      window.addEventListener(evt, ()=>{ try{ ensureAC(); if('speechSynthesis' in window) speechSynthesis.resume(); }catch(_){ } }, { once:true, passive:true });
     });
 
-    /* ---------- Timer engine ---------- */
     let tick=null;
     function start(){
       if(state.running) return;
@@ -739,7 +660,7 @@
     function reset(){ pause(); state.remaining=durFor(state.mode); updateTime(); updateRing(); save(); }
     function skip(){ pause(); advance(true); }
 
-    function advance(skipped=false){
+    function advance(){
       if(state.mode==='focus'){
         state.pomodoros++;
         const n = state.pomodoros % settings.longEvery;
@@ -761,15 +682,12 @@
       }
     }
 
-    // Controls
     btnStart.addEventListener('click', start);
     btnPause.addEventListener('click', pause);
     btnReset.addEventListener('click', reset);
     btnSkip.addEventListener('click', skip);
-    btnTestBreak.addEventListener('click', ()=>{ ensureAC(); sfxWooHoo(); });
-    btnTestFocus.addEventListener('click', ()=>{ ensureAC(); sfxDoh(); });
 
-    // Settings changes
+    // settings
     [elSetFocus, elSetShort, elSetLong].forEach(inp=>{
       inp.addEventListener('change', ()=>{
         settings.focus = Math.max(1, parseInt(elSetFocus.value||25));
@@ -780,32 +698,27 @@
       });
     });
 
-    // Tasks
+    // tasks
     const taskInput=document.getElementById('task-input');
     const taskAdd=document.getElementById('task-add');
     const taskList=document.getElementById('task-list');
-
     function loadTasks(){ return loadJSON(TKEY,[]); }
     function saveTasks(list){ saveJSON(TKEY,list); }
     function renderTasks(){
-      const list=loadTasks();
-      taskList.innerHTML='';
+      const list=loadTasks(); taskList.innerHTML='';
       list.forEach((t,i)=>{
         const li=document.createElement('li');
         li.className = t.done ? 'done' : '';
         li.innerHTML=`
           <input type="checkbox" data-i="${i}" ${t.done?'checked':''}>
           <span style="flex:1">${t.text}</span>
-          <button class="btn ghost" data-act="del" data-i="${i}">Delete</button>
-        `;
+          <button class="btn ghost" data-act="del" data-i="${i}">Delete</button>`;
         taskList.appendChild(li);
       });
     }
     function addTask(){
-      const text=taskInput.value.trim();
-      if(!text) return;
-      const list=loadTasks();
-      list.unshift({text, done:false, ts:Date.now()});
+      const text=taskInput.value.trim(); if(!text) return;
+      const list=loadTasks(); list.unshift({text, done:false, ts:Date.now()});
       saveTasks(list); taskInput.value=''; renderTasks();
     }
     taskAdd.addEventListener('click', addTask);
