@@ -8,6 +8,8 @@
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
   <style>
     :root{
@@ -18,7 +20,7 @@
       --tb: 88px; /* dynamic toolbar height fallback */
     }
     *{box-sizing:border-box}
-    html, body{min-height:100%;height:auto;margin:0}
+    html, body{min-height:100%;height:auto;margin:0;-webkit-text-size-adjust:100%}
     body{
       background:
         radial-gradient(1400px 700px at 50% -200px, #1f2937 0%, var(--bg) 55%),
@@ -35,15 +37,8 @@
       position:relative; border-radius:28px; padding:28px 22px; margin-bottom:16px; overflow:hidden;
       border:1px solid var(--border);
       background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
-      backdrop-filter: blur(10px); box-shadow: var(--shadow); isolation:isolate;
+      backdrop-filter: blur(10px); box-shadow: var(--shadow);
     }
-    .hero::before{
-      content:""; position:absolute; inset:-40% -20% auto -20%; height:140%;
-      background: conic-gradient(from 180deg at 50% 50%, rgba(96,165,250,.28), rgba(244,114,182,.18), rgba(34,197,94,.28), rgba(96,165,250,.28));
-      filter: blur(70px); opacity:.35; z-index:-1; animation: drift 14s linear infinite;
-    }
-    @keyframes drift{ to { transform: rotate(1turn) } }
-
     .title{
       margin:0 0 6px; font-weight:1000; font-size:clamp(2rem,5.4vw,3.2rem); letter-spacing:.01em; line-height:1.1;
       display:flex; align-items:center; gap:14px; flex-wrap:wrap;
@@ -64,8 +59,6 @@
       padding:10px 14px; border-radius:999px; cursor:pointer; font-weight:800;
       transition:border-color .2s ease, background .2s ease, transform .06s ease;
     }
-    .tab-btn:hover{border-color:rgba(255,255,255,.35)}
-    .tab-btn:active{transform:translateY(1px)}
     .tab-btn.active{
       background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%);
       border:none;color:#041106; box-shadow:0 10px 28px rgba(96,165,250,.28);
@@ -77,13 +70,13 @@
       box-shadow:var(--shadow); backdrop-filter: blur(8px); padding:22px;
     }
 
-    /* Grid for Home */
+    /* Grid */
     .grid{display:grid; gap:20px; grid-template-columns:repeat(12,1fr)}
     .span-12{grid-column:span 12}
     .span-6{grid-column:span 6}
     @media (max-width: 860px){ .span-6{grid-column:span 12} }
 
-    /* Music (tiny controls) */
+    /* Music */
     .music{display:flex; align-items:center; gap:12px}
     .music button{
       border:none; border-radius:10px; padding:10px 14px; cursor:pointer; font-weight:800; color:#041106;
@@ -107,7 +100,7 @@
     .wx-desc{color:var(--muted)}
     .wx-temp{font-size:1.8rem;font-weight:900}
 
-    /* Section headings */
+    /* Section */
     h2.section{margin:0 0 8px;font-size:.95rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 
     /* Quotes */
@@ -121,32 +114,27 @@
       padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:800; text-decoration:none;
       transition: transform .06s ease, border-color .2s ease, background .2s ease; user-select:none;
     }
-    .btn:hover, a.btn:hover{border-color:rgba(255,255,255,.35)}
-    .btn:active, a.btn:active{transform:translateY(1px)}
     .primary{background:linear-gradient(135deg, var(--accent) 0%, #16a34a 100%); border:none; color:#041106}
     .secondary{background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%); border:none; color:#041106}
     .ghost{background:transparent}
     .muted{color:var(--muted)}
     .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.2);border-top-color:var(--accent-2);border-radius:50%;display:inline-block;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
     @keyframes spin{to{transform:rotate(360deg)}}
-
-    /* Fade-in */
     .fade-in{animation:fadeIn .7s ease both}
     @keyframes fadeIn{from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)}}
 
-    /* Quote countdown */
+    /* Quote countdown chip */
     .count-wrap{position:relative}
     .countdown{
       position:absolute; top:-6px; right:-6px; width:46px; height:46px; border-radius:50%;
-      background:
-        radial-gradient(closest-side, rgba(15,23,42,0.92) 70%, transparent 71%),
-        conic-gradient(var(--accent) var(--progress,0%), var(--countdown-track) 0);
+      background: radial-gradient(closest-side, rgba(15,23,42,0.92) 70%, transparent 71%),
+                  conic-gradient(var(--accent) var(--progress,0%), var(--countdown-track) 0);
       display:grid; place-items:center; box-shadow:0 4px 16px rgba(0,0,0,.35); border:1px solid var(--border);
       font-size:.7rem; color:var(--muted); user-select:none;
     }
     .countdown span{font-variant-numeric:tabular-nums}
 
-    /* Saved quotes list */
+    /* Saved quotes */
     .saved-list{display:grid; gap:12px}
     .saved-item{
       background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
@@ -162,8 +150,9 @@
     @media (max-width: 980px){ .pom-main, .pom-side{grid-column: span 12} .pom-side{display:grid; justify-items:center} }
 
     .pom-timer.card{
-      display:grid; gap:18px; place-items:center; text-align:center;
+      display:grid; gap:16px; place-items:center; text-align:center;
       width:100%; max-width:520px; margin-inline:auto;
+      padding:18px; /* slightly tighter default */
     }
     .ring{
       --ring-size: 240px;
@@ -177,15 +166,16 @@
     .ring .time{ font-size: clamp(2rem, 6vw, 3rem); font-weight: 1000; letter-spacing: .02em; }
     .mode-pill{
       padding:6px 10px; border-radius:999px; font-weight:900; font-size:.85rem; color:#041106;
-      background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%); box-shadow: 0 8px 22px rgba(96,165,250,.28);
+      background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%);
     }
     .pom-controls{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
+    .pom-controls .btn{font-weight:900}
     .preset-row{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
-    .preset input{width:70px; border-radius:8px; background:#0b1220; border:1px solid var(--border); color:var(--text); padding:6px 8px}
-    .meta-row{display:flex; gap:16px; justify-content:center; color:var(--muted); font-size:.95rem}
+    .preset input{width:70px; border-radius:8px; background:#0b1220; border:1px solid var(--border); color:#fff; padding:6px 8px}
+    .meta-row{display:flex; gap:16px; justify-content:center; color:var(--muted); font-size:.95rem; flex-wrap:wrap}
 
     .tasks .task-row{display:flex; gap:10px; align-items:center}
-    .tasks input[type="text"]{flex:1; border-radius:10px; background:#0b1220; border:1px solid var(--border); color:var(--text); padding:10px 12px}
+    .tasks input[type="text"]{flex:1; border-radius:10px; background:#0b1220; border:1px solid var(--border); color:#fff; padding:10px 12px}
     .tasks ul{list-style:none; margin:10px 0 0; padding:0; display:grid; gap:8px}
     .tasks li{
       display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border);
@@ -194,14 +184,41 @@
     .tasks li.done{opacity:.7; text-decoration: line-through}
     .tasks .small{font-size:.9rem; color:var(--muted)}
 
-    /* iPhone-centric appearance: slimmer & taller timer, centered columns */
-    @media (max-width: 480px){
-      .ring{ --ring-size: 190px; transform: scaleX(0.86) scaleY(1.18); transform-origin: center; }
-      .ring .time{ font-size: clamp(1.6rem, 8.5vw, 2.2rem); letter-spacing:.01em; }
-      .pom-controls .btn{ flex:1 1 calc(50% - 10px); min-width:140px; }
-      .preset-row .preset input{ width:64px; }
-      .pom-timer.card{ padding-block:26px; }
-      .pom-side > .card{ width:100%; max-width:520px; }
+    /* ===== iPhone / narrow screens: compact Pomodoro ===== */
+    @media (max-width: 430px){
+      body{ font-size:15px; }
+      .pom-timer.card{
+        max-width: 360px;        /* hard cap so it never overflows */
+        padding:14px;            /* tighter padding */
+        gap:14px;
+      }
+      .ring{
+        --ring-size: 172px;      /* smaller base circle */
+        transform: scaleX(0.82) scaleY(1.22); /* slimmer & taller */
+        transform-origin:center;
+      }
+      .ring .time{ font-size: clamp(1.45rem, 7.6vw, 2rem); letter-spacing:.01em; }
+      .mode-pill{ font-size:.8rem; padding:5px 9px; }
+
+      /* Buttons & inputs compact */
+      .btn{ padding:9px 12px; font-size:.95rem; border-radius:9px; }
+      .pom-controls{ gap:8px; }
+      .pom-controls .btn{ flex:1 1 calc(50% - 8px); min-width:128px; }
+      .preset-row{ gap:8px; }
+      .preset input{ width:60px; padding:5px 7px; }
+      .meta-row{ gap:10px; font-size:.88rem; }
+
+      /* Side cards centered & capped width */
+      .pom-side > .card{ width:100%; max-width:360px; }
+    }
+
+    /* Even smaller (iPhone Mini / Zoomed) */
+    @media (max-width: 375px){
+      .pom-timer.card{ max-width: 330px; padding:12px; gap:12px; }
+      .ring{ --ring-size: 160px; transform: scaleX(0.80) scaleY(1.24); }
+      .ring .time{ font-size: 1.4rem; }
+      .pom-controls .btn{ min-width:120px; }
+      .preset input{ width:56px; }
     }
 
     /* Sticky Footer Toolbar (iPhone-safe) */
@@ -220,9 +237,6 @@
       color:var(--text); border:1px solid rgba(255,255,255,.18); background:#0b1220; font-weight:800;
       transition: border-color .2s ease, transform .06s ease;
     }
-    .tool-btn:hover{border-color:rgba(255,255,255,.35)}
-    .tool-btn:active{transform:translateY(1px)}
-
     @media (max-width: 480px){
       .toolbar{left:0; right:0; transform:none; margin:0 12px; justify-content:space-between}
       .tool-btn{flex:1 1 auto; justify-content:center; min-width:0}
@@ -386,13 +400,13 @@
     <a class="tool-btn" href="https://www.google.com" target="_blank" rel="noopener">🔎 Google</a>
   </nav>
 
-  <!-- Dynamic toolbar padding so content never hides on iPhone -->
+  <!-- Dynamic toolbar padding -->
   <script>
     (function() {
       const tb = document.querySelector('.toolbar');
       if (!tb) return;
       function setTBPad() {
-        const h = tb.offsetHeight + 16; // little breathing room
+        const h = tb.offsetHeight + 16;
         document.documentElement.style.setProperty('--tb', h + 'px');
       }
       window.addEventListener('load', setTBPad);
@@ -402,7 +416,7 @@
     })();
   </script>
 
-  <!-- YouTube IFrame API (audio only) -->
+  <!-- YouTube IFrame API -->
   <script>
     let player;
     function onYouTubeIframeAPIReady(){
@@ -444,7 +458,7 @@
     updateClock(); setInterval(updateClock,1000);
   </script>
 
-  <!-- Weather (Open-Meteo) -->
+  <!-- Weather -->
   <script>
     const WX_CODES={0:["☀️","Clear sky"],1:["🌤️","Mainly clear"],2:["⛅","Partly cloudy"],3:["☁️","Overcast"],45:["🌫️","Fog"],48:["🌫️","Rime fog"],51:["🌦️","Light drizzle"],53:["🌦️","Drizzle"],55:["🌧️","Dense drizzle"],56:["🌧️","Freezing drizzle"],57:["🌧️","Freezing drizzle"],61:["🌦️","Light rain"],63:["🌧️","Rain"],65:["🌧️","Heavy rain"],66:["🌧️","Freezing rain"],67:["🌧️","Freezing rain"],71:["🌨️","Light snow"],73:["🌨️","Snow"],75:["❄️","Heavy snow"],77:["❄️","Snow grains"],80:["🌦️","Rain showers"],81:["🌧️","Rain showers"],82:["⛈️","Violent rain"],85:["🌨️","Snow showers"],86:["❄️","Heavy snow showers"],95:["⛈️","Thunderstorm"],96:["⛈️","Thunder + hail"],99:["⛈️","Severe thunder/hail"]};
     async function loadWeather(lat,lon,label){
@@ -468,7 +482,7 @@
     detectWeather();
   </script>
 
-  <!-- Quotes + 15-min auto + countdown + Save/Load -->
+  <!-- Quotes -->
   <script>
     const API_BASE="https://api.quotable.io/random?tags=inspirational|motivational";
     const AUTO_MS=900000; // 15 minutes
@@ -574,7 +588,7 @@
     renderSaved(); getQuote(); startCountdown(AUTO_MS);
   </script>
 
-  <!-- Pomodoro logic + Simpsons chimes (voice + synth, no test buttons) -->
+  <!-- Pomodoro logic -->
   <script>
     const PKEY='pom.settings.v1', TKEY='pom.tasks.v1', SKEY='pom.state.v1';
 
@@ -613,11 +627,11 @@
     function updateMeta(){ elCount.textContent = state.pomodoros; elCycle.textContent = ((state.pomodoros % settings.longEvery) || settings.longEvery); }
     function save(){ saveJSON(SKEY,state); }
 
-    /* SOUND: Voice lines (TTS) + Synth beeps */
+    /* SOUND */
     let ac;
     function ensureAC(){ if(!ac){ ac = new (window.AudioContext||window.webkitAudioContext)(); } if(ac.state==='suspended'){ ac.resume(); } }
     function speak(text){
-      if(!elVoice.checked) return;
+      if(!elVoice?.checked) return;
       if(!('speechSynthesis' in window)) return;
       const u = new SpeechSynthesisUtterance(text);
       u.rate = 1.05; u.pitch = text.includes('Woo') ? 1.3 : 0.8;
@@ -625,7 +639,7 @@
       window.speechSynthesis.speak(u);
     }
     function tone(freq, dur, type='triangle', vol=0.22, when=0){
-      if(!elSfx.checked) return;
+      if(!elSfx?.checked) return;
       ensureAC();
       const t = ac.currentTime + when;
       const o = ac.createOscillator(); const g = ac.createGain();
@@ -646,7 +660,7 @@
     function start(){
       if(state.running) return;
       state.running=true; save();
-      if(elNotify.checked && 'Notification' in window && Notification.permission!=='granted'){
+      if(elNotify?.checked && 'Notification' in window && Notification.permission!=='granted'){
         Notification.requestPermission();
       }
       ensureAC();
@@ -676,7 +690,7 @@
     }
 
     function notify(title, body){
-      if(!elNotify.checked) return;
+      if(!elNotify?.checked) return;
       if('Notification' in window && Notification.permission==='granted'){
         const n = new Notification(title,{ body }); setTimeout(()=>n.close(), 4000);
       }
@@ -687,7 +701,6 @@
     btnReset.addEventListener('click', reset);
     btnSkip.addEventListener('click', skip);
 
-    // settings
     [elSetFocus, elSetShort, elSetLong].forEach(inp=>{
       inp.addEventListener('change', ()=>{
         settings.focus = Math.max(1, parseInt(elSetFocus.value||25));
@@ -698,7 +711,7 @@
       });
     });
 
-    // tasks
+    // Tasks
     const taskInput=document.getElementById('task-input');
     const taskAdd=document.getElementById('task-add');
     const taskList=document.getElementById('task-list');
