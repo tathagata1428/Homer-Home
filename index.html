@@ -711,7 +711,7 @@
       const idx=+btn.dataset.i; const list=loadSaved(); const it=list[idx]; if(!it) return;
       if(btn.dataset.act==='del') deleteSaved(idx);
       if(btn.dataset.act==='copy') navigator.clipboard.writeText(`“${it.q}” — ${it.a||"Unknown"}`);
-      }
+      
     });
     els.exportSaved?.addEventListener('click',()=>{
       const list=loadSaved();
