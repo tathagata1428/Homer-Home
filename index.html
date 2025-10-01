@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Homer — “Trying is the first step towards failure.”</title>
 
-  <!-- PWA (optional) -->
-  <link rel="manifest" href="manifest.webmanifest">
+  <!-- iOS icon (inline 180x180 PNG data URL) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
+
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -17,7 +18,7 @@
       --accent:#22c55e; --accent-2:#60a5fa; --border:rgba(255,255,255,.12);
       --card-a: rgba(255,255,255,.06); --card-b: rgba(255,255,255,.03);
       --shadow:0 24px 60px rgba(0,0,0,.45); --radius:18px; --countdown-track: rgba(255,255,255,.18);
-      --tb: 88px; /* dynamic toolbar height fallback */
+      --tb: 88px;
     }
     *{box-sizing:border-box}
     html, body{min-height:100%;height:auto;margin:0;-webkit-text-size-adjust:100%}
@@ -149,8 +150,8 @@
     @media (max-width: 980px){ .pom-main, .pom-side{grid-column: span 12} .pom-side{display:grid; justify-items:center} }
 
     .pom-timer.card{
-      display:grid; gap:16px; place-items:center; text-align:center;
-      width:100%; max-width:520px; margin-inline:auto; padding:18px;
+      display:grid; gap:18px; place-items:center; text-align:center;
+      width:100%; max-width:350px; /* reduced for iPhone */ margin-inline:auto; padding:18px;
     }
     .ring{
       --ring-size: 240px;
@@ -343,7 +344,7 @@
           </div>
         </div>
 
-        <!-- Focus Tasks on Home (multiple) -->
+        <!-- Focus Tasks on Home -->
         <div class="span-12 card" id="home-tasks-card" style="display:none">
           <h2 class="section">Focus Tasks</h2>
           <div class="htasklist" id="home-tasks"></div>
@@ -394,7 +395,7 @@
               <div>Pomodoros: <strong id="pom-count">0</strong></div>
               <div>Cycle: <strong id="pom-cycle">1</strong>/4</div>
               <div><label><input type="checkbox" id="pom-notify"> Notifications</label></div>
-              <div><label><input type="checkbox" id="pom-voice" checked> Voice lines (“D’oh!”, “Woo-hoo!”)</label></div>
+              <div><label><input type="checkbox" id="pom-voice" checked> Voice lines (“D’oh!”, “Woo‑ho!”)</label></div>
               <div><label><input type="checkbox" id="pom-sfx" checked> Synth beeps</label></div>
             </div>
           </div>
@@ -415,10 +416,10 @@
             <h2 class="section">Hints</h2>
             <div class="muted" style="font-size:.95rem">
               • 25/5 is classic: 25 min focus → 5 min short break; every 4th break is long.<br>
-              • Write a tiny task for each focus block to stay laser-focused.<br>
+              • Write a tiny task for each focus block to stay laser‑focused.<br>
               • Enable notifications to get alerted on phase changes.<br>
               • Use “Skip Phase” if you finish early or need to switch.<br>
-              • Sound options: <em>Voice lines</em> say “D’oh!” / “Woo-hoo!”, <em>Synth beeps</em> add playful tones.
+              • Sound options: <em>Voice lines</em> say “D’oh!” / “Woo‑ho!”, <em>Synth beeps</em> add playful tones.
             </div>
           </div>
         </div>
@@ -444,10 +445,7 @@
     (function() {
       const tb = document.querySelector('.toolbar');
       if (!tb) return;
-      function setTBPad() {
-        const h = tb.offsetHeight + 16;
-        document.documentElement.style.setProperty('--tb', h + 'px');
-      }
+      function setTBPad() { const h = tb.offsetHeight + 16; document.documentElement.style.setProperty('--tb', h + 'px'); }
       window.addEventListener('load', setTBPad);
       window.addEventListener('resize', setTBPad);
       if ('fonts' in document) document.fonts.addEventListener('loadingdone', setTBPad);
@@ -458,16 +456,8 @@
   <!-- YouTube IFrame API (audio only) -->
   <script>
     let player;
-    function onYouTubeIframeAPIReady(){
-      player=new YT.Player('ytplayer',{
-        height:'0',width:'0',videoId:'Na0w3Mz46GA',
-        playerVars:{autoplay:0,controls:0,modestbranding:1}
-      });
-    }
-    document.addEventListener('click',e=>{
-      if(e.target.id==='playBtn') player?.playVideo();
-      if(e.target.id==='pauseBtn') player?.pauseVideo();
-    });
+    function onYouTubeIframeAPIReady(){ player=new YT.Player('ytplayer',{height:'0',width:'0',videoId:'Na0w3Mz46GA',playerVars:{autoplay:0,controls:0,modestbranding:1}}); }
+    document.addEventListener('click',e=>{ if(e.target.id==='playBtn') player?.playVideo(); if(e.target.id==='pauseBtn') player?.pauseVideo(); });
   </script>
   <script src="https://www.youtube.com/iframe_api"></script>
 
@@ -475,127 +465,117 @@
   <script>
     const tabBtns=[...document.querySelectorAll('.tab-btn')];
     const tabs={home:document.getElementById('tab-home'), saved:document.getElementById('tab-saved'), pomodoro:document.getElementById('tab-pomodoro')};
-    function showTab(name){
-      Object.entries(tabs).forEach(([k,el])=>{ el.style.display = (k===name)?'block':'none'; });
-      tabBtns.forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
-    }
+    function showTab(name){ Object.entries(tabs).forEach(([k,el])=>{ el.style.display=(k===name)?'block':'none'; }); tabBtns.forEach(b=>b.classList.toggle('active', b.dataset.tab===name)); }
     tabBtns.forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
   </script>
 
   <!-- Clock -->
   <script>
-    function updateClock(){
-      const now=new Date();
-      const hh=now.getHours().toString().padStart(2,'0');
-      const mm=now.getMinutes().toString().padStart(2,'0');
-      const ss=now.getSeconds().toString().padStart(2,'0');
-      const day=new Intl.DateTimeFormat(undefined,{weekday:'long'}).format(now);
-      const date=new Intl.DateTimeFormat(undefined,{day:'2-digit',month:'long',year:'numeric'}).format(now);
-      document.getElementById('clock-time').innerHTML=`${hh}:${mm}<small>${ss}</small>`;
-      document.getElementById('clock-date').textContent=`${day}, ${date}`;
-    }
-    updateClock(); setInterval(updateClock,1000);
+    function updateClock(){ const now=new Date(); const hh=now.getHours().toString().padStart(2,'0'); const mm=now.getMinutes().toString().padStart(2,'0'); const ss=now.getSeconds().toString().padStart(2,'0'); const day=new Intl.DateTimeFormat(undefined,{weekday:'long'}).format(now); const date=new Intl.DateTimeFormat(undefined,{day:'2-digit',month:'long',year:'numeric'}).format(now); document.getElementById('clock-time').innerHTML=`${hh}:${mm}<small>${ss}</small>`; document.getElementById('clock-date').textContent=`${day}, ${date}`; } updateClock(); setInterval(updateClock,1000);
   </script>
 
   <!-- Weather -->
   <script>
     const WX_CODES={0:["☀️","Clear sky"],1:["🌤️","Mainly clear"],2:["⛅","Partly cloudy"],3:["☁️","Overcast"],45:["🌫️","Fog"],48:["🌫️","Rime fog"],51:["🌦️","Light drizzle"],53:["🌦️","Drizzle"],55:["🌧️","Dense drizzle"],56:["🌧️","Freezing drizzle"],57:["🌧️","Freezing drizzle"],61:["🌦️","Light rain"],63:["🌧️","Rain"],65:["🌧️","Heavy rain"],66:["🌧️","Freezing rain"],67:["🌧️","Freezing rain"],71:["🌨️","Light snow"],73:["🌨️","Snow"],75:["❄️","Heavy snow"],77:["❄️","Snow grains"],80:["🌦️","Rain showers"],81:["🌧️","Rain showers"],82:["⛈️","Violent rain"],85:["🌨️","Snow showers"],86:["❄️","Heavy snow showers"],95:["⛈️","Thunderstorm"],96:["⛈️","Thunder + hail"],99:["⛈️","Severe thunder/hail"]};
-    async function loadWeather(lat,lon,label){
-      const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
-      const res=await fetch(url,{cache:'no-store'}); const data=await res.json(); const cw=data.current_weather;
-      const [icon,desc]=WX_CODES[cw.weathercode]||["⛅","Weather"];
-      document.getElementById('wx-icon').textContent=icon;
-      document.getElementById('wx-place').textContent=label||"Your location";
-      document.getElementById('wx-desc').textContent=`${desc} • Wind ${Math.round(cw.windspeed)} km/h`;
-      document.getElementById('wx-temp').textContent=`${Math.round(cw.temperature)}°C`;
-    }
-    function detectWeather(){
-      const fallback={lat:44.4268,lon:26.1025,label:"Bucharest"};
-      if(!('geolocation'in navigator)) return loadWeather(fallback.lat,fallback.lon,fallback.label);
-      navigator.geolocation.getCurrentPosition(
-        pos=>loadWeather(pos.coords.latitude,pos.coords.longitude,"Your location"),
-        _=>loadWeather(fallback.lat,fallback.lon,fallback.label),
-        {enableHighAccuracy:false,timeout:8000,maximumAge:600000}
-      );
-    }
-    detectWeather();
+    async function loadWeather(lat,lon,label){ const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`; const res=await fetch(url,{cache:'no-store'}); const data=await res.json(); const cw=data.current_weather; const [icon,desc]=WX_CODES[cw.weathercode]||["⛅","Weather"]; document.getElementById('wx-icon').textContent=icon; document.getElementById('wx-place').textContent=label||"Your location"; document.getElementById('wx-desc').textContent=`${desc} • Wind ${Math.round(cw.windspeed)} km/h`; document.getElementById('wx-temp').textContent=`${Math.round(cw.temperature)}°`; }
+    function detectWeather(){ const fallback={lat:44.4268,lon:26.1025,label:"Bucharest"}; if(!('geolocation'in navigator)) return loadWeather(fallback.lat,fallback.lon,fallback.label); navigator.geolocation.getCurrentPosition(pos=>loadWeather(pos.coords.latitude,pos.coords.longitude,"Your location"), _=>loadWeather(fallback.lat,fallback.lon,fallback.label), {enableHighAccuracy:false,timeout:8000,maximumAge:600000}); } detectWeather();
   </script>
 
-  <!-- Quotes + auto refresh + saved -->
+  <!-- Quotes (hard‑coded on load, API on button) -->
   <script>
-    const API_BASE="https://api.quotable.io/random?tags=inspirational|motivational";
-    const AUTO_MS=900000; // 15 minutes
-    const FALLBACKS=[
-      {content:"The only way to do great work is to love what you do.",author:"Steve Jobs"},
-      {content:"It always seems impossible until it’s done.",author:"Nelson Mandela"},
-      {content:"You miss 100% of the shots you don’t take.",author:"Wayne Gretzky"},
-      {content:"Whether you think you can or you think you can’t, you’re right.",author:"Henry Ford"}
+    const AUTO_MS = 900_000; // 15 min (kept for reference)
+    const LOCAL_POOL = [
+      {content:"Life is what happens when you're busy making other plans.", author:"John Lennon"}
     ];
-    const els={
-      quote:document.getElementById("quote"), author:document.getElementById("author"), byline:document.getElementById("byline"),
-      status:document.getElementById("status"), refresh:document.getElementById("refresh"), skip:document.getElementById("skip"),
-      save:document.getElementById("save"), copy:document.getElementById("copy"), tweet:document.getElementById("tweet"),
-      countdown:document.getElementById("countdown"), countdownText:document.getElementById("countdown-text"),
-      savedList:document.getElementById("savedList"), savedEmpty:document.getElementById("savedEmpty"),
-      exportSaved:document.getElementById("exportSaved"), clearSaved:document.getElementById("clearSaved"),
-    };
-    let autoTimer=null, tickTimer=null, nextAt=null;
-    const STORE_KEY="motivator.savedQuotes.v1";
 
-    function setLoading(s){ els.status.style.display=s?"block":"none"; els.quote.style.display=s?"none":"block"; els.byline.style.display=s?"none":"block"; }
-    function fadeInQuote(){ els.quote.classList.remove('fade-in'); els.byline.classList.remove('fade-in'); void els.quote.offsetWidth; els.quote.classList.add('fade-in'); els.byline.classList.add('fade-in'); }
-    function renderQuote(d){
-      const text=d.content||"Stay motivated.", author=d.author||"Unknown";
-      els.quote.textContent=text; els.author.textContent=author; setLoading(false); fadeInQuote();
-      els.tweet.href=`https://twitter.com/intent/tweet?text=${encodeURIComponent(`"${text}" — ${author}`)}`;
-      startCountdown(AUTO_MS);
+    const els = {
+      quote:document.getElementById("quote"),
+      author:document.getElementById("author"),
+      byline:document.getElementById("byline"),
+      status:document.getElementById("status"),
+      refresh:document.getElementById("refresh"),
+      skip:document.getElementById("skip"),
+      save:document.getElementById("save"),
+      copy:document.getElementById("copy"),
+      tweet:document.getElementById("tweet"),
+      countdown:document.getElementById("countdown"),
+      countdownText:document.getElementById("countdown-text"),
+      savedList:document.getElementById("savedList"),
+      savedEmpty:document.getElementById("savedEmpty"),
+      exportSaved:document.getElementById("exportSaved"),
+      clearSaved:document.getElementById("clearSaved"),
+    };
+
+    /* persistence helpers */
+    const SEEN_KEY ="quotes.seen.v4";
+    function getSeen(){ try{return JSON.parse(localStorage.getItem(SEEN_KEY)||"[]");}catch{return[]} }
+    function pushSeen(txt){ const arr=getSeen(); const t=txt.toLowerCase(); if(!arr.includes(t)){arr.unshift(t); localStorage.setItem(SEEN_KEY,JSON.stringify(arr.slice(0,1600)));}}
+    function isSeen(txt){ return getSeen().includes(txt.toLowerCase()); }
+
+    /* rendering helpers */
+    function setLoading(show){ els.status.style.display=show?"block":"none"; els.quote.style.display=show?"none":"block"; els.byline.style.display=show?"none":"block"; }
+    function fadeIn(){ els.quote.classList.remove('fade-in'); els.byline.classList.remove('fade-in'); void els.quote.offsetWidth; els.quote.classList.add('fade-in'); els.byline.classList.add('fade-in'); }
+    function renderQuote(q){ const txt=q.content||"Stay motivated."; const ath=q.author||"Unknown"; els.quote.textContent=txt; els.author.textContent=ath; els.tweet.href=`https://twitter.com/intent/tweet?text=${encodeURIComponent(`"${txt}" — ${ath}`)}`; setLoading(false); fadeIn(); pushSeen(txt); }
+
+    /* fetch a fresh quote from quotable.io */
+    async function fetchQuotable(){
+      const tags=["inspirational","motivational","success","wisdom","life","happiness"];
+      const pick=tags[Math.floor(Math.random()*tags.length)];
+      const url=`https://api.quotable.io/random?tags=${pick}&maxlength=180&_=${Date.now()}`;
+      const r=await fetch(url);               // plain fetch – no custom headers
+      if(!r.ok) throw new Error("quotable "+r.status);
+      const j=await r.json();
+      if(!j?.content) throw new Error("quotable bad");
+      return {content:j.content, author:j.author||"Unknown"};
     }
-    async function getQuote(){
+
+    async function fetchUniqueQuote(){
+      try{ return await fetchQuotable(); }catch(e){ console.error(e); }
+      // fallback – still return a (different) local quote if the API fails
+      return LOCAL_POOL[0];
+    }
+
+    /* button actions */
+    els.refresh.addEventListener("click",async()=>{
       setLoading(true);
-      try{
-        const res=await fetch(`${API_BASE}&_=${Date.now()}`,{cache:"no-store"});
-        if(!res.ok) throw new Error(res.status);
-        const data=await res.json();
-        renderQuote(data);
-      }catch{ renderQuote(FALLBACKS[Math.floor(Math.random()*FALLBACKS.length)]); }
-    }
-    function copyQuote(){
-      const t=`"${els.quote.textContent}" — ${els.author.textContent}`;
-      navigator.clipboard.writeText(t);
-      const prev=els.copy.textContent; els.copy.textContent="Copied!"; setTimeout(()=>els.copy.textContent=prev,1500);
-    }
-    function mmss(ms){const s=Math.max(0,Math.floor(ms/1000)); const m=Math.floor(s/60).toString().padStart(2,'0'); const ss=(s%60).toString().padStart(2,'0'); return `${m}:${ss}`;}
-    function updateCountdown(){
-      if(nextAt==null) return;
-      const now=Date.now(); const msLeft=Math.max(0,nextAt-now);
-      const progress=1-(msLeft/AUTO_MS); const deg=Math.max(0,Math.min(360,progress*360));
-      els.countdown.style.setProperty('--progress',`${deg}deg`);
-      els.countdownText.textContent= msLeft>=60000 ? `${Math.ceil(msLeft/60000)}m` : mmss(msLeft);
-      if(msLeft<=0) getQuote();
-    }
-    function startCountdown(dur){
-      nextAt=Date.now()+dur; updateCountdown();
-      if(autoTimer) clearTimeout(autoTimer); if(tickTimer) clearInterval(tickTimer);
-      autoTimer=setTimeout(getQuote,dur+50); tickTimer=setInterval(updateCountdown,1000);
-    }
-    function loadSaved(){ try{return JSON.parse(localStorage.getItem(STORE_KEY)||"[]");}catch{return[]}}
-    function saveSaved(list){ localStorage.setItem(STORE_KEY,JSON.stringify(list)); }
+      const q=await fetchUniqueQuote();
+      renderQuote(q);
+    });
+    els.skip.addEventListener("click",()=>els.refresh.click());
+
+    els.copy.addEventListener("click",()=>{
+      const txt=`"${els.quote.textContent}" — ${els.author.textContent}`;
+      navigator.clipboard.writeText(txt);
+      const p=els.copy.textContent;
+      els.copy.textContent="Copied!";
+      setTimeout(()=>els.copy.textContent=p,1500);
+    });
+
+    /* saved‑quotes handling (unchanged) */
+    const SAVED_KEY="motivator.savedQuotes.v1";
+    function loadSaved(){ try{ return JSON.parse(localStorage.getItem(SAVED_KEY)||"[]"); }catch{return [];} }
+    function saveSaved(list){ localStorage.setItem(SAVED_KEY,JSON.stringify(list)); }
     function addCurrentToSaved(){
       const q=els.quote.textContent.trim(), a=els.author.textContent.trim(); if(!q) return;
       const list=loadSaved();
       if(!list.some(it=>it.q===q && it.a===a)){
-        list.unshift({q, a, ts:Date.now()}); saveSaved(list); renderSaved();
-        const prev=els.save.textContent; els.save.textContent="Saved ✓"; setTimeout(()=>els.save.textContent=prev,1100);
+        list.unshift({q,a,ts:Date.now()});
+        saveSaved(list);
+        renderSaved();
+        const prev=els.save.textContent;
+        els.save.textContent="Saved ✓";
+        setTimeout(()=>els.save.textContent=prev,1100);
       }
     }
     function deleteSaved(idx){ const list=loadSaved(); list.splice(idx,1); saveSaved(list); renderSaved(); }
     function clearAllSaved(){ saveSaved([]); renderSaved(); }
     function renderSaved(){
-      const list=loadSaved(); els.savedList.innerHTML=""; els.savedEmpty.style.display= list.length? "none":"block";
+      const list=loadSaved(); const empty=(list.length===0);
+      els.savedList.innerHTML="";
+      els.savedEmpty.style.display=empty?"block":"none";
       list.forEach((it,idx)=>{
         const wrap=document.createElement('div'); wrap.className="saved-item";
-        wrap.innerHTML=`
-          <div><strong>“${it.q}”</strong></div>
+        wrap.innerHTML=`<div><strong>“${it.q}”</strong></div>
           <div class="saved-meta"><span>— ${it.a||"Unknown"}</span><span>${new Date(it.ts).toLocaleString()}</span></div>
           <div class="row" style="margin-top:10px">
             <button class="btn ghost" data-act="copy" data-i="${idx}">Copy</button>
@@ -608,278 +588,194 @@
     els.savedList?.addEventListener('click',e=>{
       const btn=e.target.closest('button'); if(!btn) return;
       const idx=+btn.dataset.i; const list=loadSaved(); const it=list[idx]; if(!it) return;
-      if(btn.dataset.act==='del'){ deleteSaved(idx); }
-      if(btn.dataset.act==='copy'){ navigator.clipboard.writeText(`"${it.q}" — ${it.a||"Unknown"}`); }
-      if(btn.dataset.act==='tweet'){ const u=`https://twitter.com/intent/tweet?text=${encodeURIComponent(`"${it.q}" — ${it.a||"Unknown"}`)}`; window.open(u,'_blank'); }
+      if(btn.dataset.act==='del') deleteSaved(idx);
+      if(btn.dataset.act==='copy') navigator.clipboard.writeText(`“${it.q}” — ${it.a||"Unknown"}`);
+      if(btn.dataset.act==='tweet'){
+        const u=`https://twitter.com/intent/tweet?text=${encodeURIComponent(`“${it.q}” — ${it.a||"Unknown"}`)}`;
+        window.open(u,'_blank');
+      }
     });
     els.exportSaved?.addEventListener('click',()=>{
-      const list=loadSaved(); const text=list.map(it=>`"${it.q}" — ${it.a||"Unknown"}`).join("\n\n");
-      const blob=new Blob([text],{type:'text/plain'}); const url=URL.createObjectURL(blob);
+      const list=loadSaved();
+      const text=list.map(it=>`“${it.q}” — ${it.a||"Unknown"`).join("\n\n");
+      const blob=new Blob([text],{type:'text/plain'});
+      const url=URL.createObjectURL(blob);
       const a=document.createElement('a'); a.href=url; a.download='saved-quotes.txt'; a.click(); URL.revokeObjectURL(url);
     });
     els.clearSaved?.addEventListener('click',clearAllSaved);
-
-    els.refresh.addEventListener("click",getQuote);
-    els.skip.addEventListener("click",getQuote);
-    els.copy.addEventListener("click",copyQuote);
     els.save.addEventListener("click",addCurrentToSaved);
 
-    renderSaved(); getQuote(); startCountdown(AUTO_MS);
+    /* initial display – only the hard‑coded quote */
+    renderQuote(LOCAL_POOL[0]); els.status.style.display="none";
   </script>
 
-  <!-- Pomodoro logic + Tasks -->
+  <!-- Pomodoro logic (unchanged) -->
   <script>
     const PKEY='pom.settings.v1', TKEY='pom.tasks.v1', SKEY='pom.state.v1';
+    const elTime=document.getElementById('pom-time');
+    const elRing=document.getElementById('pom-ring');
+    const elMode=document.getElementById('pom-mode');
+    const elCount=document.getElementById('pom-count');
+    const elCycle=document.getElementById('pom-cycle');
+    const elNotify=document.getElementById('pom-notify');
+    const elVoice=document.getElementById('pom-voice');
+    const elSfx=document.getElementById('pom-sfx');
+    const elSetFocus=document.getElementById('set-focus');
+    const elSetShort=document.getElementById('set-short');
+    const elSetLong=document.getElementById('set-long');
 
-    const elTime = document.getElementById('pom-time');
-    const elRing = document.getElementById('pom-ring');
-    const elMode = document.getElementById('pom-mode');
-    const elCount = document.getElementById('pom-count');
-    const elCycle = document.getElementById('pom-cycle');
-    const elNotify = document.getElementById('pom-notify');
-    const elVoice = document.getElementById('pom-voice');
-    const elSfx = document.getElementById('pom-sfx');
+    const btnStart=document.getElementById('pom-start');
+    const btnPause=document.getElementById('pom-pause');
+    const btnReset=document.getElementById('pom-reset');
+    const btnSkip=document.getElementById('pom-skip');
 
-    const elSetFocus = document.getElementById('set-focus');
-    const elSetShort = document.getElementById('set-short');
-    const elSetLong  = document.getElementById('set-long');
+    function loadJSON(k,def){ try{ return JSON.parse(localStorage.getItem(k)||JSON.stringify(def)); }catch{return def;} }
+    function saveJSON(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
 
-    const btnStart = document.getElementById('pom-start');
-    const btnPause = document.getElementById('pom-pause');
-    const btnReset = document.getElementById('pom-reset');
-    const btnSkip  = document.getElementById('pom-skip');
-
-    function loadJSON(k,def){ try{ return JSON.parse(localStorage.getItem(k) || JSON.stringify(def)); }catch{ return def; } }
-    function saveJSON(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
-
-    const settings = loadJSON(PKEY,{focus:25, short:5, long:15, longEvery:4});
-    const state = loadJSON(SKEY,{mode:'focus', remaining: settings.focus*60, running:false, pomodoros:0});
-
+    const settings=loadJSON(PKEY,{focus:25, short:5, long:15, longEvery:4});
+    const state=loadJSON(SKEY,{mode:'focus', remaining:settings.focus*60, running:false, pomodoros:0});
     elSetFocus.value=settings.focus; elSetShort.value=settings.short; elSetLong.value=settings.long;
     elMode.textContent=cap(state.mode); updateTime(); updateRing(); updateMeta();
 
     function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
     function durFor(mode){ return (mode==='focus'?settings.focus:mode==='short'?settings.short:settings.long)*60; }
     function setMode(next){ state.mode=next; state.remaining=durFor(next); elMode.textContent=cap(next); updateTime(); updateRing(); save(); }
-    function updateTime(){ const m = Math.floor(state.remaining/60).toString().padStart(2,'0'); const s = Math.floor(state.remaining%60).toString().padStart(2,'0'); elTime.textContent = `${m}:${s}`; }
-    function updateRing(){ const total = durFor(state.mode); const progress = 1 - (state.remaining / total); const deg = Math.max(0, Math.min(360, progress*360)); elRing.style.setProperty('--pom-progress', `${deg}deg`); }
-    function updateMeta(){ elCount.textContent = state.pomodoros; elCycle.textContent = ((state.pomodoros % settings.longEvery) || settings.longEvery); }
+    function updateTime(){ const m=Math.floor(state.remaining/60).toString().padStart(2,'0'); const s=Math.floor(state.remaining%60).toString().padStart(2,'0'); elTime.textContent=`${m}:${s}`; }
+    function updateRing(){ const total=durFor(state.mode); const progress=1-(state.remaining/total); const deg=Math.max(0,Math.min(360,progress*360)); elRing.style.setProperty('--pom-progress',`${deg}deg`); }
+    function updateMeta(){ elCount.textContent=state.pomodoros; elCycle.textContent=((state.pomodoros % settings.longEvery)||settings.longEvery); }
     function save(){ saveJSON(SKEY,state); }
 
-    /* SOUND */
+    /* sound + voice */
     let ac;
     function ensureAC(){ if(!ac){ ac = new (window.AudioContext||window.webkitAudioContext)(); } if(ac.state==='suspended'){ ac.resume(); } }
-    function speak(text){
-      if(!elVoice?.checked) return;
-      if(!('speechSynthesis' in window)) return;
-      const u = new SpeechSynthesisUtterance(text);
-      u.rate = 1.05; u.pitch = text.includes('Woo') ? 1.3 : 0.8;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(u);
-    }
-    function tone(freq, dur, type='triangle', vol=0.22, when=0){
-      if(!elSfx?.checked) return;
-      ensureAC();
-      const t = ac.currentTime + when;
-      const o = ac.createOscillator(); const g = ac.createGain();
-      o.type = type; o.frequency.setValueAtTime(freq, t);
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(vol, t+0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
-      o.connect(g).connect(ac.destination); o.start(t); o.stop(t+dur+0.02);
-    }
-    function sfxWooHoo(){ speak("Woo-hoo!"); tone(880, 0.12, 'triangle', 0.25, 0); tone(1046.5, 0.12, 'triangle', 0.22, 0.10); tone(1318.5, 0.18, 'triangle', 0.22, 0.22); }
-    function sfxDoh(){ speak("D'oh!"); tone(196, 0.18, 'sawtooth', 0.25, 0); tone(147, 0.18, 'sawtooth', 0.20, 0.10); }
+    function speak(text){ if(!elVoice?.checked) return; if(!('speechSynthesis' in window)) return; const u=new SpeechSynthesisUtterance(text); u.rate=1.05; u.pitch=text.includes('Woo')?1.3:0.8; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }
+    function tone(freq,dur,type='triangle',vol=0.22,when=0){ if(!elSfx?.checked) return; ensureAC(); const t=ac.currentTime+when; const o=ac.createOscillator(); const g=ac.createGain(); o.type=type; o.frequency.setValueAtTime(freq,t); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); o.connect(g).connect(ac.destination); o.start(t); o.stop(t+dur+0.02); }
+    function sfxWooHoo(){ speak("Woo‑ho!"); tone(880,0.12,'triangle',0.25,0); tone(1046.5,0.12,'triangle',0.22,0.10); tone(1318.5,0.18,'triangle',0.22,0.22); }
+    function sfxDoh(){ speak("D’oh!"); tone(196,0.18,'sawtooth',0.25,0); tone(147,0.18,'sawtooth',0.20,0.10); }
 
-    ['click','keydown','touchstart'].forEach(evt=>{
-      window.addEventListener(evt, ()=>{ try{ ensureAC(); if('speechSynthesis' in window) speechSynthesis.resume(); }catch(_){ } }, { once:true, passive:true });
-    });
+    ['click','keydown','touchstart'].forEach(evt=>{ window.addEventListener(evt,()=>{ try{ ensureAC(); if('speechSynthesis' in window) speechSynthesis.resume(); }catch(_){ } },{once:true, passive:true}); });
 
     let tick=null;
-    function start(){
-      if(state.running) return;
-      state.running=true; save();
-      if(elNotify?.checked && 'Notification' in window && Notification.permission!=='granted'){
-        Notification.requestPermission();
-      }
-      ensureAC();
-      tick=setInterval(()=>{
-        state.remaining--;
-        if(state.remaining<=0){ advance(); }
-        updateTime(); updateRing(); save();
-        window.dispatchEvent(new Event('pom-tick'));
-      },1000);
-    }
+    function start(){ if(state.running) return; state.running=true; save(); if(elNotify?.checked && 'Notification' in window && Notification.permission!=='granted'){ Notification.requestPermission(); } ensureAC(); tick=setInterval(()=>{ state.remaining--; if(state.remaining<=0){ advance(); } updateTime(); updateRing(); save(); window.dispatchEvent(new Event('pom-tick')); },1000); }
     function pause(){ state.running=false; clearInterval(tick); save(); }
     function reset(){ pause(); state.remaining=durFor(state.mode); updateTime(); updateRing(); save(); }
     function skip(){ pause(); advance(true); }
 
-    function advance(){
-      if(state.mode==='focus'){
-        state.pomodoros++;
-        const n = state.pomodoros % settings.longEvery;
-        setMode(n===0 ? 'long' : 'short');
-        notify('Break time', n===0 ? `Long break (${settings.long}m)` : `Short break (${settings.short}m)`);
-        sfxWooHoo();
-      }else{
-        setMode('focus');
-        notify('Focus time', `${settings.focus} minutes — go!`);
-        sfxDoh();
-      }
-      updateMeta(); save();
-      if(state.running) start(); // continue ticking after phase switch
-    }
+    function advance(){ if(state.mode==='focus'){ state.pomodoros++; const n=state.pomodoros % settings.longEvery; setMode(n===0?'long':'short'); notify('Break time', n===0?`Long break (${settings.long}m)`:`Short break (${settings.short}m)`); sfxWooHoo(); }else{ setMode('focus'); notify('Focus time', `${settings.focus} minutes — go!`); sfxDoh(); } updateMeta(); save(); if(state.running) start(); }
+    function notify(title,body){ if(!elNotify?.checked) return; if('Notification' in window && Notification.permission==='granted'){ const n=new Notification(title,{body}); setTimeout(()=>n.close(),4000); } }
 
-    function notify(title, body){
-      if(!elNotify?.checked) return;
-      if('Notification' in window && Notification.permission==='granted'){
-        const n = new Notification(title,{ body }); setTimeout(()=>n.close(), 4000);
-      }
-    }
+    btnStart.addEventListener('click',start);
+    btnPause.addEventListener('click',pause);
+    btnReset.addEventListener('click',reset);
+    btnSkip.addEventListener('click',skip);
 
-    btnStart.addEventListener('click', start);
-    btnPause.addEventListener('click', pause);
-    btnReset.addEventListener('click', reset);
-    btnSkip.addEventListener('click', skip);
+    [elSetFocus, elSetShort, elSetLong].forEach(inp=>{ inp.addEventListener('change',()=>{ settings.focus=Math.max(1,parseInt(elSetFocus.value||25)); settings.short=Math.max(1,parseInt(elSetShort.value||5)); settings.long=Math.max(1,parseInt(elSetLong.value||15)); saveJSON(PKEY,settings); if(!state.running){ state.remaining=durFor(state.mode); updateTime(); updateRing(); save(); } }); });
 
-    [elSetFocus, elSetShort, elSetLong].forEach(inp=>{
-      inp.addEventListener('change', ()=>{
-        settings.focus = Math.max(1, parseInt(elSetFocus.value||25));
-        settings.short = Math.max(1, parseInt(elSetShort.value||5));
-        settings.long  = Math.max(1, parseInt(elSetLong.value||15));
-        saveJSON(PKEY, settings);
-        if(!state.running){ state.remaining = durFor(state.mode); updateTime(); updateRing(); save(); }
-      });
-    });
-
-    // Tasks
+    /* Tasks */
     const taskInput=document.getElementById('task-input');
     const taskAdd=document.getElementById('task-add');
     const taskList=document.getElementById('task-list');
     function loadTasks(){ return loadJSON(TKEY,[]); }
     function saveTasks(list){ saveJSON(TKEY,list); }
-    function renderTasks(){
-      const list=loadTasks(); taskList.innerHTML='';
-      list.forEach((t,i)=>{
-        const li=document.createElement('li');
-        li.className = t.done ? 'done' : '';
-        li.innerHTML=`
-          <input type="checkbox" data-i="${i}" ${t.done?'checked':''}>
-          <span style="flex:1">${t.text}</span>
-          <button class="btn ghost" data-act="del" data-i="${i}">Delete</button>`;
-        taskList.appendChild(li);
-      });
-      window.dispatchEvent(new Event('tasks-changed'));
-    }
-    function addTask(){
-      const text=taskInput.value.trim(); if(!text) return;
-      const list=loadTasks(); list.unshift({text, done:false, ts:Date.now()});
-      saveTasks(list); taskInput.value=''; renderTasks();
-    }
-    taskAdd.addEventListener('click', addTask);
-    taskInput.addEventListener('keydown', e=>{ if(e.key==='Enter') addTask(); });
-    taskList.addEventListener('click', e=>{
-      const i=e.target.dataset.i; if(i==null) return;
-      const list=loadTasks();
-      if(e.target.matches('input[type="checkbox"]')){ list[i].done = e.target.checked; list[i].ts = Date.now(); }
-      if(e.target.dataset.act==='del'){ list.splice(i,1); }
-      saveTasks(list); renderTasks();
-    });
+    function renderTasks(){ const list=loadTasks(); taskList.innerHTML=''; list.forEach((t,i)=>{ const li=document.createElement('li'); li.className = t.done?'done':''; li.innerHTML= `<input type="checkbox" data-i="${i}" ${t.done?'checked':''}><span style="flex:1">${t.text}</span> <button class="btn ghost" data-act="del" data-i="${i}">Delete</button>`; taskList.appendChild(li); }); window.dispatchEvent(new Event('tasks-changed')); }
+    function addTask(){ const text=taskInput.value.trim(); if(!text) return; const list=loadTasks(); list.unshift({text,done:false,ts:Date.now()}); saveTasks(list); taskInput.value=''; renderTasks(); }
+    taskAdd.addEventListener('click',addTask); taskInput.addEventListener('keydown',e=>{ if(e.key==='Enter') addTask(); });
+    taskList.addEventListener('click',e=>{ const i=e.target.dataset.i; if(i==null) return; const list=loadTasks(); if(e.target.matches('input[type="checkbox"]')){ list[i].done=e.target.checked; list[i].ts=Date.now(); } if(e.target.dataset.act==='del'){ list.splice(i,1); } saveTasks(list); renderTasks(); });
 
-    if(state.running){ start(); }
-    renderTasks();
+    if(state.running){ start(); } renderTasks();
   </script>
 
-  <!-- Home: Focus Tasks + Completed (sync from Pomodoro localStorage) -->
+  <!-- Home: focus tasks & completed (synchronised with Pomodoro) -->
   <script>
-    function fmtMMSS(totalSeconds){
-      const s=Math.max(0, Math.floor(totalSeconds));
-      const m=Math.floor(s/60).toString().padStart(2,'0');
-      const ss=(s%60).toString().padStart(2,'0');
-      return `${m}:${ss}`;
-    }
-    function ls(k,def){ try{return JSON.parse(localStorage.getItem(k) ?? JSON.stringify(def));}catch{ return def; } }
-
-    function getOpenTasks(){
-      const tasks = ls('pom.tasks.v1',[]);
-      return tasks.filter(t=>!t.done);
-    }
-    function getDoneTop3(){
-      const tasks = ls('pom.tasks.v1',[]);
-      return tasks.filter(t=>t.done).sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,3);
-    }
+    function fmtMMSS(totalSeconds){ const s=Math.max(0,Math.floor(totalSeconds)); const m=Math.floor(s/60).toString().padStart(2,'0'); const ss=(s%60).toString().padStart(2,'0'); return `${m}:${ss}`; }
+    const LS='pom.state.v1', LS_SETTINGS='pom.settings.v1', LS_TASKS='pom.tasks.v1';
+    function ls(k,def){ try{return JSON.parse(localStorage.getItem(k)||JSON.stringify(def));}catch{return def;} }
+    function getOpenTasks(){ const tasks=ls(LS_TASKS,[]); return tasks.filter(t=>!t.done); }
+    function getDoneTop3(){ const tasks=ls(LS_TASKS,[]); return tasks.filter(t=>t.done).sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,3); }
 
     function renderHomeFromPom(){
-      const state     = ls('pom.state.v1', null);
-      const settings  = ls('pom.settings.v1', {focus:25, short:5, long:15});
-      const openTasks = getOpenTasks();
-      const done      = getDoneTop3();
+      const state=ls(LS, null);
+      const settings=ls(LS_SETTINGS,{focus:25, short:5, long:15});
+      const openTasks=getOpenTasks();
+      const done=getDoneTop3();
 
-      const tasksCard = document.getElementById('home-tasks-card');
-      const tasksWrap = document.getElementById('home-tasks');
-      const tasksEmpty= document.getElementById('home-tasks-empty');
-      const doneCard  = document.getElementById('home-done-card');
-      const doneList  = document.getElementById('home-done-list');
+      const tasksCard=document.getElementById('home-tasks-card');
+      const tasksWrap=document.getElementById('home-tasks');
+      const tasksEmpty=document.getElementById('home-tasks-empty');
+      const doneCard=document.getElementById('home-done-card');
+      const doneList=document.getElementById('home-done-list');
 
-      // Open tasks
       tasksWrap.innerHTML='';
       if(openTasks.length===0){
-        tasksCard.style.display='block';
-        tasksEmpty.style.display='block';
+        tasksCard.style.display='block'; tasksEmpty.style.display='block';
       }else{
-        tasksCard.style.display='block';
-        tasksEmpty.style.display='none';
-
-        const isFocus = state && state.mode==='focus';
-        const totalFocus = (settings.focus||25)*60;
-        const remaining  = Math.max(0, (state?.remaining ?? totalFocus));
-        const progressDeg= 360 * (1 - (remaining / totalFocus));
-
-        openTasks.forEach((t, i)=>{
-          const card = document.createElement('div');
-          card.className = 'htask-card htask';
-          const circle = document.createElement('div'); circle.className = 'mini-circle';
-          const leftSpan = document.createElement('span');
-          leftSpan.textContent = (i===0 && isFocus) ? fmtMMSS(remaining) : '--:--';
+        tasksCard.style.display='block'; tasksEmpty.style.display='none';
+        const isFocus=state&&state.mode==='focus';
+        const totalFocus=(settings.focus||25)*60;
+        const remaining=Math.max(0,(state?.remaining||totalFocus));
+        const progressDeg=360*(1-(remaining/totalFocus));
+        openTasks.forEach((t,i)=>{
+          const card=document.createElement('div'); card.className='htask-card htask';
+          const circle=document.createElement('div'); circle.className='mini-circle';
+          const leftSpan=document.createElement('span');
+          leftSpan.textContent=(i===0&&isFocus)?fmtMMSS(remaining):'--:--';
           circle.appendChild(leftSpan);
-          circle.style.setProperty('--prog', (i===0 && isFocus) ? `${progressDeg}deg` : '0deg');
-
-          const meta = document.createElement('div'); meta.className = 'meta';
-          const name = document.createElement('div'); name.className='name'; name.textContent=t.text;
-          const sub  = document.createElement('div'); sub.className='sub';
-          sub.textContent = (i===0) ? (isFocus ? (state.running ? 'Focus • running' : 'Focus • paused') : 'Pomodoro not in Focus') : 'Queued';
-
+          circle.style.setProperty('--prog',(i===0&&isFocus)?`${progressDeg}deg`:'0deg');
+          const meta=document.createElement('div'); meta.className='meta';
+          const name=document.createElement('div'); name.className='name'; name.textContent=t.text;
+          const sub=document.createElement('div'); sub.className='sub';
+          sub.textContent=(i===0)?(isFocus?(state.running?'Focus • running':'Focus • paused'): 'Pomodoro not in Focus'):'Queued';
           meta.appendChild(name); meta.appendChild(sub);
           card.appendChild(circle); card.appendChild(meta);
           tasksWrap.appendChild(card);
         });
       }
 
-      // Done top 3
       doneList.innerHTML='';
       if(done.length===0) doneCard.style.display='none';
       else{
         doneCard.style.display='block';
-        done.forEach(t=>{
-          const row = document.createElement('div');
-          row.className='done-item';
-          row.innerHTML = `<span>${t.text}</span><span class="pill">${new Date(t.ts||Date.now()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>`;
-          doneList.appendChild(row);
-        });
+        done.forEach(t=>{ const row=document.createElement('div'); row.className='done-item'; row.innerHTML=`<span>${t.text}</span><span class="pill">${new Date(t.ts||Date.now()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>`; doneList.appendChild(row); });
       }
     }
 
     renderHomeFromPom();
-    setInterval(renderHomeFromPom, 1000);
-    window.addEventListener('pom-tick', renderHomeFromPom);
-    window.addEventListener('tasks-changed', renderHomeFromPom);
+    setInterval(renderHomeFromPom,1000);
+    window.addEventListener('pom-tick',renderHomeFromPom);
+    window.addEventListener('tasks-changed',renderHomeFromPom);
   </script>
 
-  <!-- PWA: Service Worker (optional) -->
+  <!-- Service worker, PWA, manifest -->
   <script>
-    if('serviceWorker' in navigator){
-      window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
-    }
+    (function(){
+      const png1x1="iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==";
+      const icon192="data:image/png;base64,"+png1x1;
+      const icon512="data:image/png;base64,"+png1x1;
+      const manifest={
+        name:"Homer — safe place",
+        short_name:"Homer",
+        start_url:"/",
+        display:"standalone",
+        background_color:"#0f172a",
+        theme_color:"#0f172a",
+        icons:[
+          {src:icon192,sizes:"192x192",type:"image/png",purpose:"any"},
+          {src:icon512,sizes:"512x512",type:"image/png",purpose:"any"}
+        ]
+      };
+      const murl=URL.createObjectURL(new Blob([JSON.stringify(manifest)],{type:"application/manifest+json"}));
+      const link=document.createElement('link'); link.rel='manifest'; link.href=murl; document.head.appendChild(link);
+      const swCode=`const CACHE='homer-v1'; const APP_SHELL=['/','/index.html'];
+        self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(APP_SHELL)).then(()=>self.skipWaiting())); })
+        self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); })
+        self.addEventListener('fetch',e=>{ const url=new URL(e.request.url); const isExternal=url.origin!==self.location.origin; const isAPI=url.hostname.includes('api.quotable.io')||url.hostname.includes('type.fit')||url.hostname.includes('open-meteo.com')||url.hostname.includes('youtube.com')||url.hostname.includes('googlevideo.com'); if(isExternal||isAPI){ e.respondWith(fetch(e.request).catch(()=>new Response('',{status:503}))); return; } e.respondWith(fetch(e.request).then(res=>{const copy=res.clone(); caches.open(CACHE).then(c=>c.put(e.request,copy)); return res; }).catch(()=>caches.match(e.request))); })`;
+      if('serviceWorker'in navigator){ const swUrl=URL.createObjectURL(new Blob([swCode],{type:'text/javascript'})); window.addEventListener('load',()=>navigator.serviceWorker.register(swUrl).then(r=>r.update()).catch(()=>{})); }
+    })();
+  </script>
+
+  <!-- Force Service Worker update -->
+  <script>
+    if('serviceWorker'in navigator){ navigator.serviceWorker.getRegistrations().then(regs=>regs.forEach(r=>r.update())); }
   </script>
 </body>
 </html>
