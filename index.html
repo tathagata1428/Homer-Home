@@ -6,7 +6,8 @@
   <title>Homer — “Trying is the first step towards failure.”</title>
 
   <!-- iOS icon (inline 180x180 PNG data URL) -->
-  <link rel="apple-touch-icon" sizes="180x180" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
+  <link rel="apple-touch-icon" sizes="180x180"
+        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
 
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -151,18 +152,19 @@
 
     .pom-timer.card{
       display:grid; gap:18px; place-items:center; text-align:center;
-      width:100%; max-width:350px; /* reduced for iPhone */ margin-inline:auto; padding:18px;
+      width:100%; max-width:350px; margin-inline:auto; padding:18px;
     }
     .ring{
-      --ring-size: 240px;
+      --ring-size: 220px; /* smaller */
       position:relative; width:var(--ring-size); height:var(--ring-size); border-radius:50%;
       background:
         radial-gradient(closest-side, rgba(15,23,42,.96) 78%, transparent 80%),
         conic-gradient(var(--accent) var(--pom-progress,0%), rgba(255,255,255,.18) 0);
       box-shadow: 0 20px 60px rgba(34,197,94,.15), 0 0 0 1px var(--border) inset;
       display:grid; place-items:center;
+      margin-top: 12px; /* a bit lower under the pill */
     }
-    .ring .time{ font-size: clamp(2rem, 6vw, 3rem); font-weight: 1000; letter-spacing: .02em; }
+    .ring .time{ font-size: clamp(1.9rem, 5.6vw, 2.7rem); font-weight: 1000; letter-spacing: .02em; }
     .mode-pill{
       padding:6px 10px; border-radius:999px; font-weight:900; font-size:.85rem; color:#041106;
       background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%);
@@ -187,7 +189,7 @@
     @media (max-width: 430px){
       body{ font-size:15px; }
       .pom-timer.card{ max-width: 360px; padding:14px; gap:14px; }
-      .ring{ --ring-size: 172px; transform: scaleX(0.82) scaleY(1.22); transform-origin:center; }
+      .ring{ --ring-size: 160px; transform: scaleX(0.82) scaleY(1.22); transform-origin:center; }
       .ring .time{ font-size: clamp(1.45rem, 7.6vw, 2rem); letter-spacing:.01em; }
       .mode-pill{ font-size:.8rem; padding:5px 9px; }
       .btn{ padding:9px 12px; font-size:.95rem; border-radius:9px; }
@@ -200,7 +202,7 @@
     }
     @media (max-width: 375px){
       .pom-timer.card{ max-width: 330px; padding:12px; gap:12px; }
-      .ring{ --ring-size: 160px; transform: scaleX(0.80) scaleY(1.24); }
+      .ring{ --ring-size: 150px; transform: scaleX(0.80) scaleY(1.24); }
       .ring .time{ font-size: 1.4rem; }
       .pom-controls .btn{ min-width:120px; }
       .preset input{ width:56px; }
@@ -395,7 +397,7 @@
               <div>Pomodoros: <strong id="pom-count">0</strong></div>
               <div>Cycle: <strong id="pom-cycle">1</strong>/4</div>
               <div><label><input type="checkbox" id="pom-notify"> Notifications</label></div>
-              <div><label><input type="checkbox" id="pom-voice" checked> Voice lines (“D’oh!”, “Woo‑ho!”)</label></div>
+              <div><label><input type="checkbox" id="pom-voice" checked> Voice lines (“D’oh!”, “Woo-ho!”)</label></div>
               <div><label><input type="checkbox" id="pom-sfx" checked> Synth beeps</label></div>
             </div>
           </div>
@@ -416,10 +418,10 @@
             <h2 class="section">Hints</h2>
             <div class="muted" style="font-size:.95rem">
               • 25/5 is classic: 25 min focus → 5 min short break; every 4th break is long.<br>
-              • Write a tiny task for each focus block to stay laser‑focused.<br>
+              • Write a tiny task for each focus block to stay laser-focused.<br>
               • Enable notifications to get alerted on phase changes.<br>
               • Use “Skip Phase” if you finish early or need to switch.<br>
-              • Sound options: <em>Voice lines</em> say “D’oh!” / “Woo‑ho!”, <em>Synth beeps</em> add playful tones.
+              • Sound options: <em>Voice lines</em> say “D’oh!” / “Woo-ho!”, <em>Synth beeps</em> add playful tones.
             </div>
           </div>
         </div>
@@ -481,11 +483,40 @@
     function detectWeather(){ const fallback={lat:44.4268,lon:26.1025,label:"Bucharest"}; if(!('geolocation'in navigator)) return loadWeather(fallback.lat,fallback.lon,fallback.label); navigator.geolocation.getCurrentPosition(pos=>loadWeather(pos.coords.latitude,pos.coords.longitude,"Your location"), _=>loadWeather(fallback.lat,fallback.lon,fallback.label), {enableHighAccuracy:false,timeout:8000,maximumAge:600000}); } detectWeather();
   </script>
 
-  <!-- Quotes (hard‑coded on load, API on button) -->
+  <!-- Quotes -->
   <script>
-    const AUTO_MS = 900_000; // 15 min (kept for reference)
+    const AUTO_MS = 900_000; // 15 min
     const LOCAL_POOL = [
-      {content:"Life is what happens when you're busy making other plans.", author:"John Lennon"}
+      {content:"Life is what happens when you're busy making other plans.", author:"John Lennon"},
+      {content:"The only limit to our realization of tomorrow is our doubts of today.", author:"Franklin D. Roosevelt"},
+      {content:"Do what you can, with what you have, where you are.", author:"Theodore Roosevelt"},
+      {content:"Happiness depends upon ourselves.", author:"Aristotle"},
+      {content:"Turn your wounds into wisdom.", author:"Oprah Winfrey"},
+      {content:"The purpose of our lives is to be happy.", author:"Dalai Lama"},
+      {content:"Get busy living or get busy dying.", author:"Stephen King"},
+      {content:"You only live once, but if you do it right, once is enough.", author:"Mae West"},
+      {content:"Success is not final, failure is not fatal: It is the courage to continue that counts.", author:"Winston Churchill"},
+      {content:"Never let the fear of striking out keep you from playing the game.", author:"Babe Ruth"},
+      {content:"Money and success don’t change people; they merely amplify what is already there.", author:"Will Smith"},
+      {content:"Your time is limited, so don’t waste it living someone else’s life.", author:"Steve Jobs"},
+      {content:"Not how long, but how well you have lived is the main thing.", author:"Seneca"},
+      {content:"If life were predictable it would cease to be life, and be without flavor.", author:"Eleanor Roosevelt"},
+      {content:"In order to write about life first you must live it.", author:"Ernest Hemingway"},
+      {content:"The big lesson in life, baby, is never be scared of anyone or anything.", author:"Frank Sinatra"},
+      {content:"Curiosity about life in all of its aspects is still the secret of great creative people.", author:"Leo Burnett"},
+      {content:"Life is not a problem to be solved, but a reality to be experienced.", author:"Søren Kierkegaard"},
+      {content:"The unexamined life is not worth living.", author:"Socrates"},
+      {content:"Turn your face to the sun and the shadows fall behind you.", author:"Maori Proverb"},
+      {content:"Keep smiling, because life is a beautiful thing and there’s so much to smile about.", author:"Marilyn Monroe"},
+      {content:"Health is the greatest gift, contentment the greatest wealth, faithfulness the best relationship.", author:"Buddha"},
+      {content:"Good friends, good books, and a sleepy conscience: this is the ideal life.", author:"Mark Twain"},
+      {content:"Life is really simple, but we insist on making it complicated.", author:"Confucius"},
+      {content:"May you live all the days of your life.", author:"Jonathan Swift"},
+      {content:"Life itself is the most wonderful fairy tale.", author:"Hans Christian Andersen"},
+      {content:"Do not let making a living prevent you from making a life.", author:"John Wooden"},
+      {content:"Life is ours to be spent, not to be saved.", author:"D. H. Lawrence"},
+      {content:"Love the life you live. Live the life you love.", author:"Bob Marley"},
+      {content:"The best way to predict the future is to invent it.", author:"Alan Kay"}
     ];
 
     const els = {
@@ -507,7 +538,7 @@
     };
 
     /* persistence helpers */
-    const SEEN_KEY ="quotes.seen.v4";
+    const SEEN_KEY ="quotes.seen.v5";
     function getSeen(){ try{return JSON.parse(localStorage.getItem(SEEN_KEY)||"[]");}catch{return[]} }
     function pushSeen(txt){ const arr=getSeen(); const t=txt.toLowerCase(); if(!arr.includes(t)){arr.unshift(t); localStorage.setItem(SEEN_KEY,JSON.stringify(arr.slice(0,1600)));}}
     function isSeen(txt){ return getSeen().includes(txt.toLowerCase()); }
@@ -515,31 +546,96 @@
     /* rendering helpers */
     function setLoading(show){ els.status.style.display=show?"block":"none"; els.quote.style.display=show?"none":"block"; els.byline.style.display=show?"none":"block"; }
     function fadeIn(){ els.quote.classList.remove('fade-in'); els.byline.classList.remove('fade-in'); void els.quote.offsetWidth; els.quote.classList.add('fade-in'); els.byline.classList.add('fade-in'); }
-    function renderQuote(q){ const txt=q.content||"Stay motivated."; const ath=q.author||"Unknown"; els.quote.textContent=txt; els.author.textContent=ath; els.tweet.href=`https://twitter.com/intent/tweet?text=${encodeURIComponent(`"${txt}" — ${ath}`)}`; setLoading(false); fadeIn(); pushSeen(txt); }
+    function renderQuote(q){
+      const txt=q.content||"Stay motivated."; const ath=q.author||"Unknown";
+      els.quote.textContent=txt; els.author.textContent=ath;
+      els.tweet.href=`https://twitter.com/intent/tweet?text=${encodeURIComponent(`"${txt}" — ${ath}`)}`;
+      setLoading(false); fadeIn(); pushSeen(txt); resetCountdown();
+    }
 
-    /* fetch a fresh quote from quotable.io */
-    async function fetchQuotable(){
-      const tags=["inspirational","motivational","success","wisdom","life","happiness"];
-      const pick=tags[Math.floor(Math.random()*tags.length)];
-      const url=`https://api.quotable.io/random?tags=${pick}&maxlength=180&_=${Date.now()}`;
-      const r=await fetch(url);               // plain fetch – no custom headers
-      if(!r.ok) throw new Error("quotable "+r.status);
-      const j=await r.json();
-      if(!j?.content) throw new Error("quotable bad");
-      return {content:j.content, author:j.author||"Unknown"};
+    /* ZenQuotes fetchers (robust + CORS-safe) */
+    const ZQ_PRIMARY = "https://zenquotes.io/api/quotes/random";
+    const ZQ_RANDOM  = "https://zenquotes.io/api/random";
+    const ZQ_QUOTES  = "https://zenquotes.io/api/quotes";
+    const proxy = (u)=>'https://api.allorigins.win/raw?url=' + encodeURIComponent(u);
+
+    async function tryFetchJSON(url){
+      const r=await fetch(url,{cache:'no-store'});
+      if(!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    }
+    async function tryDirectThenProxy(url){
+      try{ return await tryFetchJSON(url); }
+      catch(_){ return await tryFetchJSON(proxy(url)); }
+    }
+
+    async function fetchZenQuoteOnce(){
+      // 1) user's requested endpoint (quotes/random) → array or object
+      try{
+        const d=await tryDirectThenProxy(ZQ_PRIMARY);
+        const item=Array.isArray(d)?d[0]:d;
+        if(item?.q && item?.a) return {content:item.q, author:item.a};
+      }catch(_){}
+      // 2) official random endpoint
+      try{
+        const d=await tryDirectThenProxy(ZQ_RANDOM);
+        const item=Array.isArray(d)?d[0]:d;
+        if(item?.q && item?.a) return {content:item.q, author:item.a};
+      }catch(_){}
+      // 3) batch quotes and pick one
+      try{
+        const d=await tryDirectThenProxy(ZQ_QUOTES);
+        if(Array.isArray(d) && d.length){
+          const item=d[Math.floor(Math.random()*d.length)];
+          if(item?.q && item?.a) return {content:item.q, author:item.a};
+        }
+      }catch(_){}
+      // 4) fallback local
+      return LOCAL_POOL[Math.floor(Math.random()*LOCAL_POOL.length)];
     }
 
     async function fetchUniqueQuote(){
-      try{ return await fetchQuotable(); }catch(e){ console.error(e); }
-      // fallback – still return a (different) local quote if the API fails
-      return LOCAL_POOL[0];
+      for(let i=0;i<6;i++){
+        const q=await fetchZenQuoteOnce();
+        if(!isSeen(q.content)) return q;
+      }
+      // all seen? pick any
+      return LOCAL_POOL[Math.floor(Math.random()*LOCAL_POOL.length)];
+    }
+
+    /* countdown (15 min auto-refresh) */
+    let deadline = Date.now()+AUTO_MS, cdTimer=null;
+    function resetCountdown(){
+      deadline = Date.now()+AUTO_MS;
+      tickCountdown();
+    }
+    function tickCountdown(){
+      if(cdTimer) cancelAnimationFrame(cdTimer);
+      const now=Date.now();
+      let rem=Math.max(0, deadline-now);
+      const mins=Math.floor(rem/60000);
+      const secs=Math.floor((rem%60000)/1000);
+      els.countdownText.textContent = mins>0 ? `${mins}m` : `${secs}s`;
+      const pct = 100 - Math.round((rem/AUTO_MS)*100);
+      els.countdown.style.setProperty('--progress', pct + '%');
+      if(rem<=0){
+        // auto-refresh
+        els.refresh.click();
+      }else{
+        cdTimer=requestAnimationFrame(tickCountdown);
+      }
     }
 
     /* button actions */
     els.refresh.addEventListener("click",async()=>{
       setLoading(true);
-      const q=await fetchUniqueQuote();
-      renderQuote(q);
+      try{
+        const q=await fetchUniqueQuote();
+        renderQuote(q);
+      }catch(e){
+        console.error(e);
+        renderQuote(LOCAL_POOL[0]);
+      }
     });
     els.skip.addEventListener("click",()=>els.refresh.click());
 
@@ -551,7 +647,7 @@
       setTimeout(()=>els.copy.textContent=p,1500);
     });
 
-    /* saved‑quotes handling (unchanged) */
+    /* saved-quotes handling */
     const SAVED_KEY="motivator.savedQuotes.v1";
     function loadSaved(){ try{ return JSON.parse(localStorage.getItem(SAVED_KEY)||"[]"); }catch{return [];} }
     function saveSaved(list){ localStorage.setItem(SAVED_KEY,JSON.stringify(list)); }
@@ -592,12 +688,12 @@
       if(btn.dataset.act==='copy') navigator.clipboard.writeText(`“${it.q}” — ${it.a||"Unknown"}`);
       if(btn.dataset.act==='tweet'){
         const u=`https://twitter.com/intent/tweet?text=${encodeURIComponent(`“${it.q}” — ${it.a||"Unknown"}`)}`;
-        window.open(u,'_blank');
+        window.open(u,'_blank','noopener');
       }
     });
     els.exportSaved?.addEventListener('click',()=>{
       const list=loadSaved();
-      const text=list.map(it=>`“${it.q}” — ${it.a||"Unknown"`).join("\n\n");
+      const text=list.map(it=>`“${it.q}” — ${it.a||"Unknown"}`).join("\n\n"); // fixed
       const blob=new Blob([text],{type:'text/plain'});
       const url=URL.createObjectURL(blob);
       const a=document.createElement('a'); a.href=url; a.download='saved-quotes.txt'; a.click(); URL.revokeObjectURL(url);
@@ -605,11 +701,11 @@
     els.clearSaved?.addEventListener('click',clearAllSaved);
     els.save.addEventListener("click",addCurrentToSaved);
 
-    /* initial display – only the hard‑coded quote */
-    renderQuote(LOCAL_POOL[0]); els.status.style.display="none";
+    /* initial render – hard-coded quote only, then start countdown */
+    renderQuote(LOCAL_POOL[0]); els.status.style.display="none"; resetCountdown();
   </script>
 
-  <!-- Pomodoro logic (unchanged) -->
+  <!-- Pomodoro logic (unchanged except ring size reflected by CSS) -->
   <script>
     const PKEY='pom.settings.v1', TKEY='pom.tasks.v1', SKEY='pom.state.v1';
     const elTime=document.getElementById('pom-time');
@@ -642,7 +738,7 @@
     function setMode(next){ state.mode=next; state.remaining=durFor(next); elMode.textContent=cap(next); updateTime(); updateRing(); save(); }
     function updateTime(){ const m=Math.floor(state.remaining/60).toString().padStart(2,'0'); const s=Math.floor(state.remaining%60).toString().padStart(2,'0'); elTime.textContent=`${m}:${s}`; }
     function updateRing(){ const total=durFor(state.mode); const progress=1-(state.remaining/total); const deg=Math.max(0,Math.min(360,progress*360)); elRing.style.setProperty('--pom-progress',`${deg}deg`); }
-    function updateMeta(){ elCount.textContent=state.pomodoros; elCycle.textContent=((state.pomodoros % settings.longEvery)||settings.longEvery); }
+    function updateMeta(){ elCount?.textContent=state.pomodoros; elCycle?.textContent=((state.pomodoros % settings.longEvery)||settings.longEvery); }
     function save(){ saveJSON(SKEY,state); }
 
     /* sound + voice */
@@ -650,7 +746,7 @@
     function ensureAC(){ if(!ac){ ac = new (window.AudioContext||window.webkitAudioContext)(); } if(ac.state==='suspended'){ ac.resume(); } }
     function speak(text){ if(!elVoice?.checked) return; if(!('speechSynthesis' in window)) return; const u=new SpeechSynthesisUtterance(text); u.rate=1.05; u.pitch=text.includes('Woo')?1.3:0.8; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }
     function tone(freq,dur,type='triangle',vol=0.22,when=0){ if(!elSfx?.checked) return; ensureAC(); const t=ac.currentTime+when; const o=ac.createOscillator(); const g=ac.createGain(); o.type=type; o.frequency.setValueAtTime(freq,t); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); o.connect(g).connect(ac.destination); o.start(t); o.stop(t+dur+0.02); }
-    function sfxWooHoo(){ speak("Woo‑ho!"); tone(880,0.12,'triangle',0.25,0); tone(1046.5,0.12,'triangle',0.22,0.10); tone(1318.5,0.18,'triangle',0.22,0.22); }
+    function sfxWooHoo(){ speak("Woo-ho!"); tone(880,0.12,'triangle',0.25,0); tone(1046.5,0.12,'triangle',0.22,0.10); tone(1318.5,0.18,'triangle',0.22,0.22); }
     function sfxDoh(){ speak("D’oh!"); tone(196,0.18,'sawtooth',0.25,0); tone(147,0.18,'sawtooth',0.20,0.10); }
 
     ['click','keydown','touchstart'].forEach(evt=>{ window.addEventListener(evt,()=>{ try{ ensureAC(); if('speechSynthesis' in window) speechSynthesis.resume(); }catch(_){ } },{once:true, passive:true}); });
@@ -766,10 +862,25 @@
       const murl=URL.createObjectURL(new Blob([JSON.stringify(manifest)],{type:"application/manifest+json"}));
       const link=document.createElement('link'); link.rel='manifest'; link.href=murl; document.head.appendChild(link);
       const swCode=`const CACHE='homer-v1'; const APP_SHELL=['/','/index.html'];
-        self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(APP_SHELL)).then(()=>self.skipWaiting())); })
-        self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); })
-        self.addEventListener('fetch',e=>{ const url=new URL(e.request.url); const isExternal=url.origin!==self.location.origin; const isAPI=url.hostname.includes('api.quotable.io')||url.hostname.includes('type.fit')||url.hostname.includes('open-meteo.com')||url.hostname.includes('youtube.com')||url.hostname.includes('googlevideo.com'); if(isExternal||isAPI){ e.respondWith(fetch(e.request).catch(()=>new Response('',{status:503}))); return; } e.respondWith(fetch(e.request).then(res=>{const copy=res.clone(); caches.open(CACHE).then(c=>c.put(e.request,copy)); return res; }).catch(()=>caches.match(e.request))); })`;
-      if('serviceWorker'in navigator){ const swUrl=URL.createObjectURL(new Blob([swCode],{type:'text/javascript'})); window.addEventListener('load',()=>navigator.serviceWorker.register(swUrl).then(r=>r.update()).catch(()=>{})); }
+        self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(APP_SHELL)).then(()=>self.skipWaiting())); });
+        self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); });
+        self.addEventListener('fetch',e=>{
+          const url=new URL(e.request.url);
+          const isExternal=url.origin!==self.location.origin;
+          const isAPI=url.hostname.includes('open-meteo.com')
+                    || url.hostname.includes('youtube.com')
+                    || url.hostname.includes('googlevideo.com')
+                    || url.hostname.includes('zenquotes.io')
+                    || url.hostname.includes('allorigins.win');
+          if(isExternal||isAPI){
+            e.respondWith(fetch(e.request).catch(()=>new Response('',{status:503}))); return;
+          }
+          e.respondWith(fetch(e.request).then(res=>{const copy=res.clone(); caches.open(CACHE).then(c=>c.put(e.request,copy)); return res; }).catch(()=>caches.match(e.request)));
+        });`;
+      if('serviceWorker'in navigator){
+        const swUrl=URL.createObjectURL(new Blob([swCode],{type:'text/javascript'}));
+        window.addEventListener('load',()=>navigator.serviceWorker.register(swUrl).then(r=>r.update()).catch(()=>{}));
+      }
     })();
   </script>
 
