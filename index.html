@@ -7,7 +7,7 @@
 
   <!-- iOS icon (inline 180x180 PNG data URL) -->
   <link rel="apple-touch-icon" sizes="180x180"
-        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
+        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
 
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -89,9 +89,12 @@
 
     /* Clock */
     .clock{display:flex;align-items:center;justify-content:space-between}
-    .clock .time{font-size:clamp(2rem,5vw,3rem);font-weight:900;letter-spacing:.02em}
+    .clock .time{font-size:clamp(1.6rem,4.2vw,2.4rem);font-weight:900;letter-spacing:.02em}
     .clock .time small{font-weight:700;opacity:.75;font-size:.6em;margin-left:6px}
     .clock .date{color:var(--muted)}
+    @media (max-width: 430px){
+      .clock .time{font-size:1.55rem}
+    }
 
     /* Weather */
     .weather{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
@@ -323,7 +326,7 @@
             </div>
             <div class="wx-temp" id="wx-temp">--°</div>
           </div>
-          <div class="muted" style="margin-top:10px;font-size:.85rem">Powered by open-meteo.com</div>
+          <div class="muted" style="margin-top:10px;font-size:.85rem">Powered by open-meteо.com</div>
         </div>
 
         <!-- Quotes -->
@@ -421,7 +424,7 @@
               • Write a tiny task for each focus block to stay laser-focused.<br>
               • Enable notifications to get alerted on phase changes.<br>
               • Use “Skip Phase” if you finish early or need to switch.<br>
-              • Sound options: <em>Voice lines</em> say “D’oh!” / “Woo-ho!”, <em>Synth beeps</em> add playful tones.
+             <strong>Bonus:</strong>Keep everything in a single “today’s goal” list so you’re always working toward a tangible outcome. Happy ticking!
             </div>
           </div>
         </div>
@@ -473,17 +476,44 @@
 
   <!-- Clock -->
   <script>
-    function updateClock(){ const now=new Date(); const hh=now.getHours().toString().padStart(2,'0'); const mm=now.getMinutes().toString().padStart(2,'0'); const ss=now.getSeconds().toString().padStart(2,'0'); const day=new Intl.DateTimeFormat(undefined,{weekday:'long'}).format(now); const date=new Intl.DateTimeFormat(undefined,{day:'2-digit',month:'long',year:'numeric'}).format(now); document.getElementById('clock-time').innerHTML=`${hh}:${mm}<small>${ss}</small>`; document.getElementById('clock-date').textContent=`${day}, ${date}`; } updateClock(); setInterval(updateClock,1000);
+    function updateClock(){
+      const now=new Date();
+      const hh=now.getHours().toString().padStart(2,'0');
+      const mm=now.getMinutes().toString().padStart(2,'0');
+      const ss=now.getSeconds().toString().padStart(2,'0');
+      const day=new Intl.DateTimeFormat(undefined,{weekday:'long'}).format(now);
+      const date=new Intl.DateTimeFormat(undefined,{day:'2-digit',month:'long',year:'numeric'}).format(now);
+      document.getElementById('clock-time').innerHTML=`${hh}:${mm}<small>${ss}</small>`;
+      document.getElementById('clock-date').textContent=`${day}, ${date}`;
+    }
+    updateClock(); setInterval(updateClock,1000);
   </script>
 
   <!-- Weather -->
   <script>
     const WX_CODES={0:["☀️","Clear sky"],1:["🌤️","Mainly clear"],2:["⛅","Partly cloudy"],3:["☁️","Overcast"],45:["🌫️","Fog"],48:["🌫️","Rime fog"],51:["🌦️","Light drizzle"],53:["🌦️","Drizzle"],55:["🌧️","Dense drizzle"],56:["🌧️","Freezing drizzle"],57:["🌧️","Freezing drizzle"],61:["🌦️","Light rain"],63:["🌧️","Rain"],65:["🌧️","Heavy rain"],66:["🌧️","Freezing rain"],67:["🌧️","Freezing rain"],71:["🌨️","Light snow"],73:["🌨️","Snow"],75:["❄️","Heavy snow"],77:["❄️","Snow grains"],80:["🌦️","Rain showers"],81:["🌧️","Rain showers"],82:["⛈️","Violent rain"],85:["🌨️","Snow showers"],86:["❄️","Heavy snow showers"],95:["⛈️","Thunderstorm"],96:["⛈️","Thunder + hail"],99:["⛈️","Severe thunder/hail"]};
-    async function loadWeather(lat,lon,label){ const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`; const res=await fetch(url,{cache:'no-store'}); const data=await res.json(); const cw=data.current_weather; const [icon,desc]=WX_CODES[cw.weathercode]||["⛅","Weather"]; document.getElementById('wx-icon').textContent=icon; document.getElementById('wx-place').textContent=label||"Your location"; document.getElementById('wx-desc').textContent=`${desc} • Wind ${Math.round(cw.windspeed)} km/h`; document.getElementById('wx-temp').textContent=`${Math.round(cw.temperature)}°`; }
-    function detectWeather(){ const fallback={lat:44.4268,lon:26.1025,label:"Bucharest"}; if(!('geolocation'in navigator)) return loadWeather(fallback.lat,fallback.lon,fallback.label); navigator.geolocation.getCurrentPosition(pos=>loadWeather(pos.coords.latitude,pos.coords.longitude,"Your location"), _=>loadWeather(fallback.lat,fallback.lon,fallback.label), {enableHighAccuracy:false,timeout:8000,maximumAge:600000}); } detectWeather();
+    async function loadWeather(lat,lon,label){
+      const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
+      const res=await fetch(url,{cache:'no-store'}); const data=await res.json(); const cw=data.current_weather;
+      const [icon,desc]=WX_CODES[cw.weathercode]||["⛅","Weather"];
+      document.getElementById('wx-icon').textContent=icon;
+      document.getElementById('wx-place').textContent=label||"Your location";
+      document.getElementById('wx-desc').textContent=`${desc} • Wind ${Math.round(cw.windspeed)} km/h`;
+      document.getElementById('wx-temp').textContent=`${Math.round(cw.temperature)}°`;
+    }
+    function detectWeather(){
+      const fallback={lat:44.4268,lon:26.1025,label:"Bucharest"};
+      if(!('geolocation'in navigator)) return loadWeather(fallback.lat,fallback.lon,fallback.label);
+      navigator.geolocation.getCurrentPosition(
+        pos=>loadWeather(pos.coords.latitude,pos.coords.longitude,"Your location"),
+        _=>loadWeather(fallback.lat,fallback.lon,fallback.label),
+        {enableHighAccuracy:false,timeout:8000,maximumAge:600000}
+      );
+    }
+    detectWeather();
   </script>
 
-  <!-- Quotes -->
+  <!-- Quotes (ZenQuotes robust + 30 fallback) -->
   <script>
     const AUTO_MS = 900_000; // 15 min
     const LOCAL_POOL = [
@@ -570,19 +600,19 @@
     }
 
     async function fetchZenQuoteOnce(){
-      // 1) user's requested endpoint (quotes/random) → array or object
+      // 1) requested endpoint
       try{
         const d=await tryDirectThenProxy(ZQ_PRIMARY);
         const item=Array.isArray(d)?d[0]:d;
         if(item?.q && item?.a) return {content:item.q, author:item.a};
       }catch(_){}
-      // 2) official random endpoint
+      // 2) random endpoint
       try{
         const d=await tryDirectThenProxy(ZQ_RANDOM);
         const item=Array.isArray(d)?d[0]:d;
         if(item?.q && item?.a) return {content:item.q, author:item.a};
       }catch(_){}
-      // 3) batch quotes and pick one
+      // 3) quotes list pick
       try{
         const d=await tryDirectThenProxy(ZQ_QUOTES);
         if(Array.isArray(d) && d.length){
@@ -599,7 +629,6 @@
         const q=await fetchZenQuoteOnce();
         if(!isSeen(q.content)) return q;
       }
-      // all seen? pick any
       return LOCAL_POOL[Math.floor(Math.random()*LOCAL_POOL.length)];
     }
 
@@ -619,7 +648,6 @@
       const pct = 100 - Math.round((rem/AUTO_MS)*100);
       els.countdown.style.setProperty('--progress', pct + '%');
       if(rem<=0){
-        // auto-refresh
         els.refresh.click();
       }else{
         cdTimer=requestAnimationFrame(tickCountdown);
@@ -701,84 +729,138 @@
     els.clearSaved?.addEventListener('click',clearAllSaved);
     els.save.addEventListener("click",addCurrentToSaved);
 
-    /* initial render – hard-coded quote only, then start countdown */
+    /* initial display – show a local quote, then start countdown */
     renderQuote(LOCAL_POOL[0]); els.status.style.display="none"; resetCountdown();
   </script>
 
-  <!-- Pomodoro logic (unchanged except ring size reflected by CSS) -->
+  <!-- Pomodoro logic (wrapped so buttons work) -->
   <script>
-    const PKEY='pom.settings.v1', TKEY='pom.tasks.v1', SKEY='pom.state.v1';
-    const elTime=document.getElementById('pom-time');
-    const elRing=document.getElementById('pom-ring');
-    const elMode=document.getElementById('pom-mode');
-    const elCount=document.getElementById('pom-count');
-    const elCycle=document.getElementById('pom-cycle');
-    const elNotify=document.getElementById('pom-notify');
-    const elVoice=document.getElementById('pom-voice');
-    const elSfx=document.getElementById('pom-sfx');
-    const elSetFocus=document.getElementById('set-focus');
-    const elSetShort=document.getElementById('set-short');
-    const elSetLong=document.getElementById('set-long');
+    document.addEventListener('DOMContentLoaded', function(){
+      const PKEY='pom.settings.v1', TKEY='pom.tasks.v1', SKEY='pom.state.v1';
+      const elTime=document.getElementById('pom-time');
+      const elRing=document.getElementById('pom-ring');
+      const elMode=document.getElementById('pom-mode');
+      const elCount=document.getElementById('pom-count');
+      const elCycle=document.getElementById('pom-cycle');
+      const elNotify=document.getElementById('pom-notify');
+      const elVoice=document.getElementById('pom-voice');
+      const elSfx=document.getElementById('pom-sfx');
+      const elSetFocus=document.getElementById('set-focus');
+      const elSetShort=document.getElementById('set-short');
+      const elSetLong=document.getElementById('set-long');
 
-    const btnStart=document.getElementById('pom-start');
-    const btnPause=document.getElementById('pom-pause');
-    const btnReset=document.getElementById('pom-reset');
-    const btnSkip=document.getElementById('pom-skip');
+      const btnStart=document.getElementById('pom-start');
+      const btnPause=document.getElementById('pom-pause');
+      const btnReset=document.getElementById('pom-reset');
+      const btnSkip=document.getElementById('pom-skip');
 
-    function loadJSON(k,def){ try{ return JSON.parse(localStorage.getItem(k)||JSON.stringify(def)); }catch{return def;} }
-    function saveJSON(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
+      function loadJSON(k,def){ try{ return JSON.parse(localStorage.getItem(k)||JSON.stringify(def)); }catch{return def;} }
+      function saveJSON(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
 
-    const settings=loadJSON(PKEY,{focus:25, short:5, long:15, longEvery:4});
-    const state=loadJSON(SKEY,{mode:'focus', remaining:settings.focus*60, running:false, pomodoros:0});
-    elSetFocus.value=settings.focus; elSetShort.value=settings.short; elSetLong.value=settings.long;
-    elMode.textContent=cap(state.mode); updateTime(); updateRing(); updateMeta();
+      const settings=loadJSON(PKEY,{focus:25, short:5, long:15, longEvery:4});
+      const state=loadJSON(SKEY,{mode:'focus', remaining:settings.focus*60, running:false, pomodoros:0});
+      elSetFocus.value=settings.focus; elSetShort.value=settings.short; elSetLong.value=settings.long;
+      elMode.textContent=cap(state.mode); updateTime(); updateRing(); updateMeta();
 
-    function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
-    function durFor(mode){ return (mode==='focus'?settings.focus:mode==='short'?settings.short:settings.long)*60; }
-    function setMode(next){ state.mode=next; state.remaining=durFor(next); elMode.textContent=cap(next); updateTime(); updateRing(); save(); }
-    function updateTime(){ const m=Math.floor(state.remaining/60).toString().padStart(2,'0'); const s=Math.floor(state.remaining%60).toString().padStart(2,'0'); elTime.textContent=`${m}:${s}`; }
-    function updateRing(){ const total=durFor(state.mode); const progress=1-(state.remaining/total); const deg=Math.max(0,Math.min(360,progress*360)); elRing.style.setProperty('--pom-progress',`${deg}deg`); }
-    function updateMeta(){ elCount?.textContent=state.pomodoros; elCycle?.textContent=((state.pomodoros % settings.longEvery)||settings.longEvery); }
-    function save(){ saveJSON(SKEY,state); }
+      function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+      function durFor(mode){ return (mode==='focus'?settings.focus:mode==='short'?settings.short:settings.long)*60; }
+      function setMode(next){ state.mode=next; state.remaining=durFor(next); elMode.textContent=cap(next); updateTime(); updateRing(); save(); }
+      function updateTime(){ const m=Math.floor(state.remaining/60).toString().padStart(2,'0'); const s=Math.floor(state.remaining%60).toString().padStart(2,'0'); elTime.textContent=`${m}:${s}`; }
+      function updateRing(){ const total=durFor(state.mode); const progress=1-(state.remaining/total); const deg=Math.max(0,Math.min(360,progress*360)); elRing.style.setProperty('--pom-progress',`${deg}deg`); }
+      function updateMeta(){ elCount.textContent=state.pomodoros; elCycle.textContent=((state.pomodoros % settings.longEvery)||settings.longEvery); }
+      function save(){ saveJSON(SKEY,state); }
 
-    /* sound + voice */
-    let ac;
-    function ensureAC(){ if(!ac){ ac = new (window.AudioContext||window.webkitAudioContext)(); } if(ac.state==='suspended'){ ac.resume(); } }
-    function speak(text){ if(!elVoice?.checked) return; if(!('speechSynthesis' in window)) return; const u=new SpeechSynthesisUtterance(text); u.rate=1.05; u.pitch=text.includes('Woo')?1.3:0.8; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }
-    function tone(freq,dur,type='triangle',vol=0.22,when=0){ if(!elSfx?.checked) return; ensureAC(); const t=ac.currentTime+when; const o=ac.createOscillator(); const g=ac.createGain(); o.type=type; o.frequency.setValueAtTime(freq,t); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); o.connect(g).connect(ac.destination); o.start(t); o.stop(t+dur+0.02); }
-    function sfxWooHoo(){ speak("Woo-ho!"); tone(880,0.12,'triangle',0.25,0); tone(1046.5,0.12,'triangle',0.22,0.10); tone(1318.5,0.18,'triangle',0.22,0.22); }
-    function sfxDoh(){ speak("D’oh!"); tone(196,0.18,'sawtooth',0.25,0); tone(147,0.18,'sawtooth',0.20,0.10); }
+      /* sound + voice */
+      let ac;
+      function ensureAC(){ if(!ac){ ac = new (window.AudioContext||window.webkitAudioContext)(); } if(ac.state==='suspended'){ ac.resume(); } }
+      function speak(text){ if(!elVoice?.checked) return; if(!('speechSynthesis' in window)) return; const u=new SpeechSynthesisUtterance(text); u.rate=1.05; u.pitch=text.includes('Woo')?1.3:0.8; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }
+      function tone(freq,dur,type='triangle',vol=0.22,when=0){ if(!elSfx?.checked) return; ensureAC(); const t=ac.currentTime+when; const o=ac.createOscillator(); const g=ac.createGain(); o.type=type; o.frequency.setValueAtTime(freq,t); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); o.connect(g).connect(ac.destination); o.start(t); o.stop(t+dur+0.02); }
+      function sfxWooHoo(){ speak("Woo-ho!"); tone(880,0.12,'triangle',0.25,0); tone(1046.5,0.12,'triangle',0.22,0.10); tone(1318.5,0.18,'triangle',0.22,0.22); }
+      function sfxDoh(){ speak("D’oh!"); tone(196,0.18,'sawtooth',0.25,0); tone(147,0.18,'sawtooth',0.20,0.10); }
 
-    ['click','keydown','touchstart'].forEach(evt=>{ window.addEventListener(evt,()=>{ try{ ensureAC(); if('speechSynthesis' in window) speechSynthesis.resume(); }catch(_){ } },{once:true, passive:true}); });
+      ['click','keydown','touchstart'].forEach(evt=>{
+        window.addEventListener(evt,()=>{ try{ ensureAC(); if('speechSynthesis' in window) speechSynthesis.resume(); }catch(_){ } },{once:true, passive:true});
+      });
 
-    let tick=null;
-    function start(){ if(state.running) return; state.running=true; save(); if(elNotify?.checked && 'Notification' in window && Notification.permission!=='granted'){ Notification.requestPermission(); } ensureAC(); tick=setInterval(()=>{ state.remaining--; if(state.remaining<=0){ advance(); } updateTime(); updateRing(); save(); window.dispatchEvent(new Event('pom-tick')); },1000); }
-    function pause(){ state.running=false; clearInterval(tick); save(); }
-    function reset(){ pause(); state.remaining=durFor(state.mode); updateTime(); updateRing(); save(); }
-    function skip(){ pause(); advance(true); }
+      let tick=null;
+      function start(){ if(state.running) return; state.running=true; save(); if(elNotify?.checked && 'Notification' in window && Notification.permission!=='granted'){ Notification.requestPermission(); } ensureAC(); tick=setInterval(()=>{ state.remaining--; if(state.remaining<=0){ advance(); } updateTime(); updateRing(); save(); window.dispatchEvent(new Event('pom-tick')); },1000); }
+      function pause(){ state.running=false; clearInterval(tick); save(); }
+      function reset(){ pause(); state.remaining=durFor(state.mode); updateTime(); updateRing(); save(); }
+      function skip(){ pause(); advance(true); }
 
-    function advance(){ if(state.mode==='focus'){ state.pomodoros++; const n=state.pomodoros % settings.longEvery; setMode(n===0?'long':'short'); notify('Break time', n===0?`Long break (${settings.long}m)`:`Short break (${settings.short}m)`); sfxWooHoo(); }else{ setMode('focus'); notify('Focus time', `${settings.focus} minutes — go!`); sfxDoh(); } updateMeta(); save(); if(state.running) start(); }
-    function notify(title,body){ if(!elNotify?.checked) return; if('Notification' in window && Notification.permission==='granted'){ const n=new Notification(title,{body}); setTimeout(()=>n.close(),4000); } }
+      function advance(){
+        if(state.mode==='focus'){
+          state.pomodoros++;
+          const n=state.pomodoros % settings.longEvery;
+          setMode(n===0?'long':'short');
+          notify('Break time', n===0?`Long break (${settings.long}m)`:`Short break (${settings.short}m)`);
+          sfxWooHoo();
+        }else{
+          setMode('focus');
+          notify('Focus time', `${settings.focus} minutes — go!`);
+          sfxDoh();
+        }
+        updateMeta(); save(); if(state.running) start();
+      }
+      function notify(title,body){
+        if(!elNotify?.checked) return;
+        if('Notification' in window && Notification.permission==='granted'){
+          const n=new Notification(title,{body}); setTimeout(()=>n.close(),4000);
+        }
+      }
 
-    btnStart.addEventListener('click',start);
-    btnPause.addEventListener('click',pause);
-    btnReset.addEventListener('click',reset);
-    btnSkip.addEventListener('click',skip);
+      btnStart.addEventListener('click',start);
+      btnPause.addEventListener('click',pause);
+      btnReset.addEventListener('click',reset);
+      btnSkip.addEventListener('click',skip);
 
-    [elSetFocus, elSetShort, elSetLong].forEach(inp=>{ inp.addEventListener('change',()=>{ settings.focus=Math.max(1,parseInt(elSetFocus.value||25)); settings.short=Math.max(1,parseInt(elSetShort.value||5)); settings.long=Math.max(1,parseInt(elSetLong.value||15)); saveJSON(PKEY,settings); if(!state.running){ state.remaining=durFor(state.mode); updateTime(); updateRing(); save(); } }); });
+      [elSetFocus, elSetShort, elSetLong].forEach(inp=>{
+        inp.addEventListener('change',()=>{
+          settings.focus=Math.max(1,parseInt(elSetFocus.value||25));
+          settings.short=Math.max(1,parseInt(elSetShort.value||5));
+          settings.long=Math.max(1,parseInt(elSetLong.value||15));
+          saveJSON(PKEY,settings);
+          if(!state.running){ state.remaining=durFor(state.mode); updateTime(); updateRing(); save(); }
+        });
+      });
 
-    /* Tasks */
-    const taskInput=document.getElementById('task-input');
-    const taskAdd=document.getElementById('task-add');
-    const taskList=document.getElementById('task-list');
-    function loadTasks(){ return loadJSON(TKEY,[]); }
-    function saveTasks(list){ saveJSON(TKEY,list); }
-    function renderTasks(){ const list=loadTasks(); taskList.innerHTML=''; list.forEach((t,i)=>{ const li=document.createElement('li'); li.className = t.done?'done':''; li.innerHTML= `<input type="checkbox" data-i="${i}" ${t.done?'checked':''}><span style="flex:1">${t.text}</span> <button class="btn ghost" data-act="del" data-i="${i}">Delete</button>`; taskList.appendChild(li); }); window.dispatchEvent(new Event('tasks-changed')); }
-    function addTask(){ const text=taskInput.value.trim(); if(!text) return; const list=loadTasks(); list.unshift({text,done:false,ts:Date.now()}); saveTasks(list); taskInput.value=''; renderTasks(); }
-    taskAdd.addEventListener('click',addTask); taskInput.addEventListener('keydown',e=>{ if(e.key==='Enter') addTask(); });
-    taskList.addEventListener('click',e=>{ const i=e.target.dataset.i; if(i==null) return; const list=loadTasks(); if(e.target.matches('input[type="checkbox"]')){ list[i].done=e.target.checked; list[i].ts=Date.now(); } if(e.target.dataset.act==='del'){ list.splice(i,1); } saveTasks(list); renderTasks(); });
+      /* Tasks */
+      const taskInput=document.getElementById('task-input');
+      const taskAdd=document.getElementById('task-add');
+      const taskList=document.getElementById('task-list');
+      function loadTasks(){ return loadJSON(TKEY,[]); }
+      function saveTasks(list){ saveJSON(TKEY,list); }
+      function renderTasks(){
+        const list=loadTasks();
+        taskList.innerHTML='';
+        list.forEach((t,i)=>{
+          const li=document.createElement('li');
+          li.className = t.done?'done':'';
+          li.innerHTML= `<input type="checkbox" data-i="${i}" ${t.done?'checked':''}>
+            <span style="flex:1">${t.text}</span>
+            <button class="btn ghost" data-act="del" data-i="${i}">Delete</button>`;
+          taskList.appendChild(li);
+        });
+        window.dispatchEvent(new Event('tasks-changed'));
+      }
+      function addTask(){
+        const text=taskInput.value.trim(); if(!text) return;
+        const list=loadTasks(); list.unshift({text,done:false,ts:Date.now()});
+        saveTasks(list); taskInput.value=''; renderTasks();
+      }
+      taskAdd.addEventListener('click',addTask);
+      taskInput.addEventListener('keydown',e=>{ if(e.key==='Enter') addTask(); });
+      taskList.addEventListener('click',e=>{
+        const i=e.target.dataset.i; if(i==null) return;
+        const list=loadTasks();
+        if(e.target.matches('input[type="checkbox"]')){ list[i].done=e.target.checked; list[i].ts=Date.now(); }
+        if(e.target.dataset.act==='del'){ list.splice(i,1); }
+        saveTasks(list); renderTasks();
+      });
 
-    if(state.running){ start(); } renderTasks();
+      if(state.running){ start(); }
+      renderTasks();
+    });
   </script>
 
   <!-- Home: focus tasks & completed (synchronised with Pomodoro) -->
@@ -862,8 +944,8 @@
       const murl=URL.createObjectURL(new Blob([JSON.stringify(manifest)],{type:"application/manifest+json"}));
       const link=document.createElement('link'); link.rel='manifest'; link.href=murl; document.head.appendChild(link);
       const swCode=`const CACHE='homer-v1'; const APP_SHELL=['/','/index.html'];
-        self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(APP_SHELL)).then(()=>self.skipWaiting())); });
-        self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); });
+        self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(APP_SHELL)).then(()=>self.skipWaiting())); })
+        self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); })
         self.addEventListener('fetch',e=>{
           const url=new URL(e.request.url);
           const isExternal=url.origin!==self.location.origin;
@@ -876,7 +958,7 @@
             e.respondWith(fetch(e.request).catch(()=>new Response('',{status:503}))); return;
           }
           e.respondWith(fetch(e.request).then(res=>{const copy=res.clone(); caches.open(CACHE).then(c=>c.put(e.request,copy)); return res; }).catch(()=>caches.match(e.request)));
-        });`;
+        })`;
       if('serviceWorker'in navigator){
         const swUrl=URL.createObjectURL(new Blob([swCode],{type:'text/javascript'}));
         window.addEventListener('load',()=>navigator.serviceWorker.register(swUrl).then(r=>r.update()).catch(()=>{}));
