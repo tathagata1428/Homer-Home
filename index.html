@@ -346,7 +346,6 @@
             <button id="skip" class="btn secondary">Skip</button>
             <button id="save" class="btn ghost">Save</button>
             <button id="copy" class="btn ghost">Copy</button>
-            <a id="tweet" class="btn ghost" target="_blank" rel="noopener">Share</a>
           </div>
         </div>
 
@@ -559,7 +558,6 @@
       skip:document.getElementById("skip"),
       save:document.getElementById("save"),
       copy:document.getElementById("copy"),
-      tweet:document.getElementById("tweet"),
       countdown:document.getElementById("countdown"),
       countdownText:document.getElementById("countdown-text"),
       savedList:document.getElementById("savedList"),
@@ -580,7 +578,6 @@
     function renderQuote(q){
       const txt=q.content||"Stay motivated."; const ath=q.author||"Unknown";
       els.quote.textContent=txt; els.author.textContent=ath;
-      els.tweet.href=`https://twitter.com/intent/tweet?text=${encodeURIComponent(`"${txt}" — ${ath}`)}`;
       setLoading(false); fadeIn(); pushSeen(txt); resetCountdown();
     }
 
@@ -704,7 +701,6 @@
           <div class="saved-meta"><span>— ${it.a||"Unknown"}</span><span>${new Date(it.ts).toLocaleString()}</span></div>
           <div class="row" style="margin-top:10px">
             <button class="btn ghost" data-act="copy" data-i="${idx}">Copy</button>
-            <button class="btn ghost" data-act="tweet" data-i="${idx}">Share</button>
             <button class="btn" data-act="del" data-i="${idx}">Delete</button>
           </div>`;
         els.savedList.appendChild(wrap);
@@ -715,9 +711,6 @@
       const idx=+btn.dataset.i; const list=loadSaved(); const it=list[idx]; if(!it) return;
       if(btn.dataset.act==='del') deleteSaved(idx);
       if(btn.dataset.act==='copy') navigator.clipboard.writeText(`“${it.q}” — ${it.a||"Unknown"}`);
-      if(btn.dataset.act==='tweet'){
-        const u=`https://twitter.com/intent/tweet?text=${encodeURIComponent(`“${it.q}” — ${it.a||"Unknown"}`)}`;
-        window.open(u,'_blank','noopener');
       }
     });
     els.exportSaved?.addEventListener('click',()=>{
