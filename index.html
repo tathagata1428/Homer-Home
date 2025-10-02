@@ -524,6 +524,7 @@
   <button id="mix-sleep" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">🌙 Sleep Mix</button>
   <button id="mix-rainy" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">🌦️ Rainy Mix</button>
   <button id="mix-reading" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">📖 Reading Mix</button>
+  <button id="mix-cozy" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">📖 Cozy Night in</button>
   <button id="stop-all" class="btn ghost" style="padding:8px 14px; font-size:.95rem;">⏹ Stop All</button>
 </div>
 
@@ -1167,6 +1168,18 @@ function applyReadingMix() {
   setVolume("library", 55);
   setVolume("rain", 20);
   setVolume("ocean", 10);
+  tracks.library.player.playVideo();
+  tracks.rainywindow.player.playVideo();
+  tracks.weightless.player.playVideo();
+  document.getElementById(tracks.library.btn).textContent = tracks.library.labelPause;
+  document.getElementById(tracks.rainywindow.btn).textContent = tracks.rainywindow.labelPause;
+}
+/* 📖 Cozy Nigh in */
+function applyReadingMix() {
+  stopAll();
+  setVolume("fire", 20);
+  setVolume("rain", 10);
+  setVolume("rainywindow", 30;
   tracks.library.player.playVideo();
   tracks.rainywindow.player.playVideo();
   tracks.weightless.player.playVideo();
