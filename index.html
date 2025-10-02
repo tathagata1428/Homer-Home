@@ -1166,24 +1166,26 @@ function applyRainyMix() {
 function applyReadingMix() {
   stopAll();
   setVolume("library", 55);
-  setVolume("rain", 20);
-  setVolume("ocean", 10);
+  setVolume("rainywindow", 30);
+  setVolume("weightless", 25);
   tracks.library.player.playVideo();
   tracks.rainywindow.player.playVideo();
   tracks.weightless.player.playVideo();
   document.getElementById(tracks.library.btn).textContent = tracks.library.labelPause;
   document.getElementById(tracks.rainywindow.btn).textContent = tracks.rainywindow.labelPause;
 }
-/* 📖 Cozy Nigh in */
-function applyReadingMix() {
+
+/* 🏠 Cozy Night In */
+function applyCozyMix() {
   stopAll();
-  setVolume("fire", 20);
-  setVolume("rain", 10);
-  setVolume("rainywindow", 30;
-  tracks.library.player.playVideo();
+  setVolume("fire", 40);
+  setVolume("rain", 30);
+  setVolume("rainywindow", 50);
+  tracks.fire.player.playVideo();
+  tracks.rain.player.playVideo();
   tracks.rainywindow.player.playVideo();
-  tracks.weightless.player.playVideo();
-  document.getElementById(tracks.library.btn).textContent = tracks.library.labelPause;
+  document.getElementById(tracks.fire.btn).textContent = tracks.fire.labelPause;
+  document.getElementById(tracks.rain.btn).textContent = tracks.rain.labelPause;
   document.getElementById(tracks.rainywindow.btn).textContent = tracks.rainywindow.labelPause;
 }
 
@@ -1193,7 +1195,7 @@ document.addEventListener("click", e => {
   if (id === "mix-sleep") applySleepMix();
   if (id === "mix-rainy") applyRainyMix();
   if (id === "mix-reading") applyReadingMix();
-
+  if (id === "mix-cozy") applyCozyMix(); // ✅ new cozy mix
   Object.keys(tracks).forEach(k => {
     if (id === tracks[k].btn) togglePlay(k);
   });
