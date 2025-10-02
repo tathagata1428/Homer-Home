@@ -7,7 +7,7 @@
 
   <!-- iOS icon (inline 180x180 PNG data URL) -->
   <link rel="apple-touch-icon" sizes="180x180"
-        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
+        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
 
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -76,7 +76,8 @@
     .grid{display:grid; gap:20px; grid-template-columns:repeat(12,1fr)}
     .span-12{grid-column:span 12}
     .span-6{grid-column:span 6}
-    @media (max-width: 860px){ .span-6{grid-column:span 12} }
+    .span-4{grid-column:span 4}
+    @media (max-width: 860px){ .span-6,.span-4{grid-column:span 12} }
 
     /* Music */
     .music{display:flex; align-items:center; gap:12px}
@@ -275,6 +276,10 @@
       .htask .name{ font-size:1rem; }
       .htask .sub{ font-size:.9rem; }
     }
+
+    /* Simple tool cards extra */
+    .tool-card{text-align:center}
+    .tool-card a.btn{display:inline-block;margin-top:10px}
   </style>
 </head>
 <body>
@@ -289,6 +294,7 @@
       <button class="tab-btn active" data-tab="home">Home</button>
       <button class="tab-btn" data-tab="saved">Saved Quotes</button>
       <button class="tab-btn" data-tab="pomodoro">Pomodoro</button>
+      <button class="tab-btn" data-tab="tools">Tools</button>
     </div>
 
     <!-- HOME TAB -->
@@ -431,6 +437,28 @@
       </div>
     </section>
 
+    <!-- TOOLS TAB (NEW) -->
+    <section id="tab-tools" class="tab card" style="display:none">
+      <h2 class="section">My Tools</h2>
+      <div class="grid">
+        <div class="span-4 card tool-card">
+          <h3>🧩 Nextcloud</h3>
+          <p class="muted">Access your personal cloud and files securely.</p>
+          <a href="https://cloud.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Nextcloud</a>
+        </div>
+        <div class="span-4 card tool-card">
+          <h3>🔔 Notifications</h3>
+          <p class="muted">Receive instant alerts via ntfy.sh.</p>
+          <a href="https://ntfy.sh/bogdan-alerts" target="_blank" rel="noopener" class="btn secondary">Open Notifications</a>
+        </div>
+        <div class="span-4 card tool-card">
+          <h3>⏰ Reminders</h3>
+          <p class="muted">Manage your reminders and schedule tasks.</p>
+          <a href="https://reminder.b4it.ro/reminders" target="_blank" rel="noopener" class="btn primary">Open Reminders</a>
+        </div>
+      </div>
+    </section>
+
     <!-- Footer -->
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
@@ -469,7 +497,12 @@
   <!-- Tabs -->
   <script>
     const tabBtns=[...document.querySelectorAll('.tab-btn')];
-    const tabs={home:document.getElementById('tab-home'), saved:document.getElementById('tab-saved'), pomodoro:document.getElementById('tab-pomodoro')};
+    const tabs={
+      home:document.getElementById('tab-home'),
+      saved:document.getElementById('tab-saved'),
+      pomodoro:document.getElementById('tab-pomodoro'),
+      tools:document.getElementById('tab-tools')
+    };
     function showTab(name){ Object.entries(tabs).forEach(([k,el])=>{ el.style.display=(k===name)?'block':'none'; }); tabBtns.forEach(b=>b.classList.toggle('active', b.dataset.tab===name)); }
     tabBtns.forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
   </script>
@@ -513,7 +546,7 @@
     detectWeather();
   </script>
 
-  <!-- Quotes (ZenQuotes robust + 30 fallback) -->
+  <!-- Quotes (robust + saved) -->
   <script>
     const AUTO_MS = 900_000; // 15 min
     const LOCAL_POOL = [
@@ -927,7 +960,7 @@
       const manifest={
         name:"Homer — safe place",
         short_name:"Homer",
-        start_url:"/",
+        start_url:"/?",
         display:"standalone",
         background_color:"#0f172a",
         theme_color:"#0f172a",
