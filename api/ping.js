@@ -1,7 +1,6 @@
 export default async function handler(req, res) {
-  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") {
@@ -9,58 +8,43 @@ export default async function handler(req, res) {
   }
 
   const { url } = req.query;
-  if (!url) {
-    return res.status(400).json({ error: "Missing url param" });
-  }
+  if (!url) return res.status(400).json({ error: "Missing url" });
 
-  // Parse & allow-list the hostname (not substring)
-  let host;
+  let hostname;
   try {
-    host = new URL(url).hostname;
+    hostname = new URL(url).hostname;
   } catch {
     return res.status(400).json({ error: "Invalid URL" });
   }
 
-  const ALLOW = new Set([
-    "cloud.b4it.ro",       // ✅ added
+  const allowed = [
+    "cloud.b4it.ro",
     "reminder.b4it.ro",
     "journal.b4it.ro",
     "tasks.b4it.ro",
     "password.b4it.ro",
-    "b4it.go.ro",          // Proxmox (any port)
+    "b4it.go.ro",
     "ntfy.sh",
-    "www.tnas.online",     // NAS
-    "b4it.ro"              // root if you ever ping it directly
-  ]);
-
-  if (!ALLOW.has(host)) {
-    return res.status(403).json({ error: "Forbidden host", host });
+    "www.tnas.online",
+    "b4it.ro"
+  ];
+  if (!allowed.includes(hostname)) {
+    return res.status(403).json({ error: "Forbidden host", hostname });
   }
 
-  // Fetch with timeout + HEAD→GET fallback
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-  const baseOpts = { cache: "no-store", redirect: "follow", signal: controller.signal };
-
   try {
-    let method = "HEAD";
-    let r = await fetch(url, { ...baseOpts, method });
-
-    // Some servers return 405 for HEAD; try GET
-    if (!r.ok && (r.status === 405 || r.status === 501)) {
-      method = "GET";
-      r = await fetch(url, { ...baseOpts, method });
-    }
-
-    clearTimeout(timeout);
-
-    const code = r.status || 0;
-    // Consider reachable if we got any non-5xx HTTP response
-    const up = code > 0 && code < 500;
-
-    return res.status(200).json({ status: up ? "ok" : "down", code, host, method });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const resp = await fetch(url, {
+      method: "HEAD",
+      cache: "no-store",
+      redirect: "follow",
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    const ok = resp.ok || (resp.status >= 200 && resp.status < 500);
+    res.status(200).json({ status: ok ? "ok" : "down", code: resp.status, hostname });
   } catch (err) {
-    clearTimeout(timeout);
-    return res.status(200).json({ status: "down", error: err.message, host });
+    res.status(200).json({ status: "down", error: err.message, hostname });
   }
 }
