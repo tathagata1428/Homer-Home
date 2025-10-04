@@ -431,119 +431,138 @@
 <section id="tab-tools" class="tab card" style="display:none">
   <h2 class="section">My Tools</h2>
 
-  <!-- Tools grid (3 cards) -->
-  <div class="grid">
-    <div class="span-4 card tool-card">
-      <h3>🧩 Nextcloud</h3>
-      <p class="muted">Access your personal cloud and files securely.</p>
-      <a href="https://cloud.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Nextcloud</a>
-    </div>
+  <!-- match Ambient Sounds width -->
+  <div class="tools-wrap" style="max-width:860px;margin-inline:auto;">
+    <div class="grid">
+      <!-- Row 1 -->
+      <div class="span-4 card tool-card">
+        <h3>🧩 Nextcloud</h3>
+        <p class="muted">Access your personal cloud and files securely.</p>
+        <a href="https://cloud.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Nextcloud</a>
+      </div>
 
-    <div class="span-4 card tool-card">
-      <h3>🔔 Notifications</h3>
-      <p class="muted">Receive instant alerts via ntfy.sh.</p>
-      <a href="https://ntfy.sh/bogdan-alerts" target="_blank" rel="noopener" class="btn secondary">Open Notifications</a>
-    </div>
+      <div class="span-4 card tool-card">
+        <h3>🔔 Notifications</h3>
+        <p class="muted">Receive instant alerts via ntfy.sh.</p>
+        <a href="https://ntfy.sh/bogdan-alerts" target="_blank" rel="noopener" class="btn secondary">Open Notifications</a>
+      </div>
 
-    <div class="span-4 card tool-card">
-      <h3>⏰ Reminders</h3>
-      <p class="muted">Manage your reminders and schedule tasks.</p>
-      <a href="https://reminder.b4it.ro/reminders" target="_blank" rel="noopener" class="btn primary">Open Reminders</a>
-    </div>
-  </div>
-<!-- Ambient Sounds -->
-<div class="card" style="margin-top:28px; text-align:center; padding:24px; max-width:860px; margin-inline:auto;">
-  <h2 class="section" style="margin-bottom:16px;">🎧 Ambient Sounds</h2>
+      <div class="span-4 card tool-card">
+        <h3>⏰ Reminders</h3>
+        <p class="muted">Manage your reminders and schedule tasks.</p>
+        <a href="https://reminder.b4it.ro/reminders" target="_blank" rel="noopener" class="btn primary">Open Reminders</a>
+      </div>
 
-  <div
-    style="
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 16px;
-      justify-items: stretch;
-    "
-  >
-    <!-- Ocean -->
-    <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">🌊 Ocean</h3>
-      <button id="btn-ocean" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Ocean</button>
-      <input id="vol-ocean" type="range" min="0" max="100" value="50" style="width:100%;">
-    </div>
+      <!-- Row 2 (added) -->
+      <div class="span-4 card tool-card">
+        <h3>📔 Journal</h3>
+        <p class="muted">Daily notes and reflections.</p>
+        <a href="https://journal.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Journal</a>
+      </div>
 
-    <!-- Fireplace -->
-    <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">🔥 Fireplace</h3>
-      <button id="btn-fire" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Fireplace</button>
-      <input id="vol-fire" type="range" min="0" max="100" value="40" style="width:100%;">
-    </div>
+      <div class="span-4 card tool-card">
+        <h3>🔐 Passwords</h3>
+        <p class="muted">Secure password vault.</p>
+        <a href="https://password.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Passwords</a>
+      </div>
 
-    <!-- Rain -->
-    <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">🌧️ Rain</h3>
-      <button id="btn-rain" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Rain</button>
-      <input id="vol-rain" type="range" min="0" max="100" value="60" style="width:100%;">
-    </div>
-
-    <!-- Rainy Window -->
-    <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">🌧️🪟 Jazz</h3>
-      <button id="btn-rainywindow" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Jazz</button>
-      <input id="vol-rainywindow" type="range" min="0" max="100" value="60" style="width:100%;">
-    </div>
-
-    <!-- Café -->
-    <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">☕ Café</h3>
-      <button id="btn-cafe" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Café</button>
-      <input id="vol-cafe" type="range" min="0" max="100" value="50" style="width:100%;">
-    </div>
-
-    <!-- Lo-Fi Chill -->
-    <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">🎶 Lo-Fi Chill Beats</h3>
-      <button id="btn-lofi" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Lo-Fi</button>
-      <input id="vol-lofi" type="range" min="0" max="100" value="50" style="width:100%;">
-    </div>
-
-    <!-- Crickets -->
-    <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">🦗 Crickets Night</h3>
-      <button id="btn-crickets" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Crickets</button>
-      <input id="vol-crickets" type="range" min="0" max="100" value="50" style="width:100%;">
-    </div>
-
-    <!-- Library -->
-    <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">📚 Chill mix</h3>
-      <button id="btn-library" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Chill mix</button>
-      <input id="vol-library" type="range" min="0" max="100" value="50" style="width:100%;">
+      <div class="span-4 card tool-card">
+        <h3>🗒️ Notes</h3>
+        <p class="muted">Quick notes & to-dos.</p>
+        <a href="https://tasks.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Notes</a>
+      </div>
     </div>
   </div>
 
-<div style="margin-top:24px; display:flex; flex-wrap:wrap; justify-content:center; gap:12px;">
-  <button id="mix-sleep" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">🌙 Sleep Mix</button>
-  <button id="mix-rainy" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">🌦️ Rainy Mix</button>
-  <button id="mix-reading" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">📖 Reading Mix</button>
-  <button id="mix-cozy" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">📖 Cozy Night in</button>
-  <button id="stop-all" class="btn ghost" style="padding:8px 14px; font-size:.95rem;">⏹ Stop All</button>
-</div>
+  <!-- Ambient Sounds (unchanged) -->
+  <div class="card" style="margin-top:28px; text-align:center; padding:24px; max-width:860px; margin-inline:auto;">
+    <h2 class="section" style="margin-bottom:16px;">🎧 Ambient Sounds</h2>
 
-  <!-- Hidden players -->
-  <div id="yt-ocean" style="display:none;"></div>
-  <div id="yt-fire" style="display:none;"></div>
-  <div id="yt-rain" style="display:none;"></div>
-  <div id="yt-rainywindow" style="display:none;"></div>
-  <div id="yt-cafe" style="display:none;"></div>
-  <div id="yt-lofi" style="display:none;"></div>
-  <div id="yt-crickets" style="display:none;"></div>
-  <div id="yt-library" style="display:none;"></div>
-  <div id="yt-weightless" style="display:none;"></div>
+    <div
+      style="
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+        justify-items: stretch;
+      "
+    >
+      <!-- Ocean -->
+      <div class="card" style="padding:16px; text-align:left;">
+        <h3 style="margin:0 0 10px;">🌊 Ocean</h3>
+        <button id="btn-ocean" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Ocean</button>
+        <input id="vol-ocean" type="range" min="0" max="100" value="50" style="width:100%;">
+      </div>
 
-</div>
+      <!-- Fireplace -->
+      <div class="card" style="padding:16px; text-align:left;">
+        <h3 style="margin:0 0 10px;">🔥 Fireplace</h3>
+        <button id="btn-fire" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Fireplace</button>
+        <input id="vol-fire" type="range" min="0" max="100" value="40" style="width:100%;">
+      </div>
 
-   </section>
+      <!-- Rain -->
+      <div class="card" style="padding:16px; text-align:left;">
+        <h3 style="margin:0 0 10px;">🌧️ Rain</h3>
+        <button id="btn-rain" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Rain</button>
+        <input id="vol-rain" type="range" min="0" max="100" value="60" style="width:100%;">
+      </div>
 
+      <!-- Rainy Window -->
+      <div class="card" style="padding:16px; text-align:left;">
+        <h3 style="margin:0 0 10px;">🌧️🪟 Jazz</h3>
+        <button id="btn-rainywindow" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Jazz</button>
+        <input id="vol-rainywindow" type="range" min="0" max="100" value="60" style="width:100%;">
+      </div>
 
+      <!-- Café -->
+      <div class="card" style="padding:16px; text-align:left;">
+        <h3 style="margin:0 0 10px;">☕ Café</h3>
+        <button id="btn-cafe" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Café</button>
+        <input id="vol-cafe" type="range" min="0" max="100" value="50" style="width:100%;">
+      </div>
+
+      <!-- Lo-Fi Chill -->
+      <div class="card" style="padding:16px; text-align:left;">
+        <h3 style="margin:0 0 10px;">🎶 Lo-Fi Chill Beats</h3>
+        <button id="btn-lofi" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Lo-Fi</button>
+        <input id="vol-lofi" type="range" min="0" max="100" value="50" style="width:100%;">
+      </div>
+
+      <!-- Crickets -->
+      <div class="card" style="padding:16px; text-align:left;">
+        <h3 style="margin:0 0 10px;">🦗 Crickets Night</h3>
+        <button id="btn-crickets" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Crickets</button>
+        <input id="vol-crickets" type="range" min="0" max="100" value="50" style="width:100%;">
+      </div>
+
+      <!-- Library -->
+      <div class="card" style="padding:16px; text-align:left;">
+        <h3 style="margin:0 0 10px;">📚 Chill mix</h3>
+        <button id="btn-library" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Chill mix</button>
+        <input id="vol-library" type="range" min="0" max="100" value="50" style="width:100%;">
+      </div>
+    </div>
+
+    <div style="margin-top:24px; display:flex; flex-wrap:wrap; justify-content:center; gap:12px;">
+      <button id="mix-sleep" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">🌙 Sleep Mix</button>
+      <button id="mix-rainy" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">🌦️ Rainy Mix</button>
+      <button id="mix-reading" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">📖 Reading Mix</button>
+      <button id="mix-cozy" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">📖 Cozy Night in</button>
+      <button id="stop-all" class="btn ghost" style="padding:8px 14px; font-size:.95rem;">⏹ Stop All</button>
+    </div>
+
+    <!-- Hidden players -->
+    <div id="yt-ocean" style="display:none;"></div>
+    <div id="yt-fire" style="display:none;"></div>
+    <div id="yt-rain" style="display:none;"></div>
+    <div id="yt-rainywindow" style="display:none;"></div>
+    <div id="yt-cafe" style="display:none;"></div>
+    <div id="yt-lofi" style="display:none;"></div>
+    <div id="yt-crickets" style="display:none;"></div>
+    <div id="yt-library" style="display:none;"></div>
+    <div id="yt-weightless" style="display:none;"></div>
+  </div>
+</section>
     <!-- Footer -->
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
