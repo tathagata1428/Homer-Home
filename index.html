@@ -535,13 +535,15 @@
         <input id="vol-crickets" type="range" min="0" max="100" value="50" style="width:100%;">
       </div>
 
-      <!-- Library -->
-      <div class="card" style="padding:16px; text-align:left;">
-        <h3 style="margin:0 0 10px;">📚 Synthwave mix</h3>
-        <button id="btn-library" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Chill mix</button>
-        <input id="vol-library" type="range" min="0" max="100" value="50" style="width:100%;">
-      </div>
-    </div>
+      <!-- Synthwave -->
+<div class="card" style="padding:16px; text-align:left;">
+  <h3 style="margin:0 0 10px;">📚 Synthwave mix</h3>
+  <button id="btn-synthwave" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Synthwave</button>
+  <input id="vol-synthwave" type="range" min="0" max="100" value="50" style="width:100%;">
+</div>
+
+<div id="yt-synthwave" style="display:none;"></div>
+
 
     <div style="margin-top:24px; display:flex; flex-wrap:wrap; justify-content:center; gap:12px;">
       <button id="mix-sleep" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">🌙 Sleep Mix</button>
@@ -1103,7 +1105,7 @@ const tracks = {
   cafe:  { id:"uiMXGIG_DQo", btn:"btn-cafe",  vol:"vol-cafe",  labelPlay:"▶️ Play Café ☕", labelPause:"⏸️ Pause Café ☕", holder:"yt-cafe" },
   lofi:  { id:"Na0w3Mz46GA", btn:"btn-lofi",  vol:"vol-lofi",  labelPlay:"▶️ Play Lo-Fi 🎶", labelPause:"⏸️ Pause Lo-Fi 🎶", holder:"yt-lofi" },
   crickets: { id:"CTzuqQ3fRSQ", btn:"btn-crickets", vol:"vol-crickets", labelPlay:"▶️ Play Crickets 🦗", labelPause:"⏸️ Pause Crickets 🦗", holder:"yt-crickets" },
-  library: { id:"4xDzrJKXOOY", btn:"btn-library", vol:"vol-library", labelPlay:"▶️ Play synthwave  📚", labelPause:"⏸️ Pause synthwave  📚", holder:"yt-library" },
+  synthwave: { id:"4xDzrJKXOOY", btn:"btn-synthwave", vol:"vol-synthwave", labelPlay:"▶️ Play Synthwave 📚", labelPause:"⏸️ Pause Synthwave 📚", holder:"yt-synthwave" },
   weightless: { id:"vYIYIVmOo3Q", btn:null, vol:null, holder:"yt-weightless" } // no button, used only in mix
 };
 
@@ -1181,13 +1183,16 @@ function applyRainyMix() {
 /* 📖 Reading Mix */
 function applyReadingMix() {
   stopAll();
-  setVolume("library", 50);
+  setVolume("synthwave", 50);
   setVolume("fire", 20);
-  tracks.library.player.playVideo();
+
+  tracks.synthwave.player.playVideo();
   tracks.fire.player.playVideo();
-  document.getElementById(tracks.library.btn).textContent = tracks.library.labelPause;
-  document.getElementById(tracks.rainywindow.btn).textContent = tracks.rainywindow.labelPause;
+
+  document.getElementById(tracks.synthwave.btn).textContent = tracks.synthwave.labelPause;
+  document.getElementById(tracks.fire.btn).textContent = tracks.fire.labelPause;
 }
+
 
 /* 🏠 Cozy Night In */
 function applyCozyMix() {
