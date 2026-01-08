@@ -1151,11 +1151,16 @@ function applyReadingMix() {
   setVolume("wind", 50);
   setVolume("rain", 20);
 
-  tracks.synthwave.player.playVideo();
+  tracks.lofi.player.playVideo();
   tracks.fire.player.playVideo();
+  tracks.wind.player.playVideo();
+  tracks.rain.player.playVideo();
 
-  document.getElementById(tracks.synthwave.btn).textContent = tracks.synthwave.labelPause;
+
+  document.getElementById(tracks.lofi.btn).textContent = tracks.lofi.labelPause;
   document.getElementById(tracks.fire.btn).textContent = tracks.fire.labelPause;
+  document.getElementById(tracks.rain.btn).textContent = tracks.rain.labelPause;
+  document.getElementById(tracks.wind.btn).textContent = tracks.wind.labelPause;
 }
 
 
