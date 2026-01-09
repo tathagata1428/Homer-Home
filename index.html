@@ -3,11 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Homer — “Trying is the first step towards failure.”</title>
+  <title>Homer — Focus Dashboard</title>
 
-  <!-- iOS icon (inline 180x180 PNG data URL) -->
   <link rel="apple-touch-icon" sizes="180x180"
-        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
+        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
 
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -86,7 +85,12 @@
       background:linear-gradient(135deg, var(--accent) 0%, #16a34a 100%);
     }
     .music .label{color:var(--muted)}
-    #ytplayer{width:0;height:0;position:absolute;opacity:0;pointer-events:none}
+    
+    /* 🔴 FIXED: Use this class instead of display:none to allow audio */
+    .yt-hidden-player {
+      position: absolute; width: 1px; height: 1px;
+      opacity: 0; pointer-events: none; left: -9999px;
+    }
 
     /* Clock */
     .clock{display:flex;align-items:center;justify-content:space-between}
@@ -285,11 +289,10 @@
 <body>
   <div class="shell">
     <header class="hero">
-      <div class="title">Homer <span class="title-badge">safe place</span></div>
+      <div class="title"><span id="greeting">Hello</span> <span class="title-badge">safe place</span></div>
       <div class="subtitle">“Trying is the first step towards failure.” — Homer Simpson</div>
     </header>
 
-    <!-- Tabs -->
     <div class="tabs">
       <button class="tab-btn active" data-tab="home">Home</button>
       <button class="tab-btn" data-tab="saved">Saved Quotes</button>
@@ -297,10 +300,8 @@
       <button class="tab-btn" data-tab="tools">Tools</button>
     </div>
 
-    <!-- HOME TAB -->
     <section id="tab-home" class="tab card">
       <div class="grid">
-        <!-- Clock -->
         <div class="span-6 card">
           <h2 class="section">Clock</h2>
           <div class="clock">
@@ -312,7 +313,6 @@
           </div>
         </div>
 
-        <!-- Weather -->
         <div class="span-6 card">
           <h2 class="section">Weather</h2>
           <div class="weather">
@@ -326,7 +326,6 @@
           <div class="muted" style="margin-top:10px;font-size:.85rem">Powered by open-meteо.com</div>
         </div>
 
-        <!-- Quotes -->
         <div class="span-12 card count-wrap">
           <div class="countdown" id="countdown" title="Time until next quote">
             <span id="countdown-text">15m</span>
@@ -345,14 +344,12 @@
           </div>
         </div>
 
-        <!-- Focus Tasks on Home -->
         <div class="span-12 card" id="home-tasks-card" style="display:none">
           <h2 class="section">Focus Tasks</h2>
           <div class="htasklist" id="home-tasks"></div>
           <div class="muted" id="home-tasks-empty" style="display:none">No open tasks. Add one in Pomodoro → Tasks.</div>
         </div>
 
-        <!-- Completed (top 3) -->
         <div class="span-12 card" id="home-done-card" style="display:none">
           <h2 class="section">Recently Completed</h2>
           <div class="done-list" id="home-done-list"></div>
@@ -360,7 +357,6 @@
       </div>
     </section>
 
-    <!-- SAVED TAB -->
     <section id="tab-saved" class="tab card" style="display:none">
       <h2 class="section">Saved Quotes</h2>
       <div class="row" style="margin-bottom:10px">
@@ -371,7 +367,6 @@
       <div id="savedEmpty" class="empty" style="display:none">No saved quotes yet. Save your favorites from the Home tab.</div>
     </section>
 
-    <!-- POMODORO TAB -->
     <section id="tab-pomodoro" class="tab card" style="display:none">
       <div class="pom-wrap">
         <div class="pom-main">
@@ -427,14 +422,11 @@
       </div>
     </section>
 
- <!-- TOOLS TAB -->
-<section id="tab-tools" class="tab card" style="display:none">
+ <section id="tab-tools" class="tab card" style="display:none">
   <h2 class="section">My Tools</h2>
 
-  <!-- match Ambient Sounds width -->
   <div class="tools-wrap" style="max-width:860px;margin-inline:auto;">
     <div class="grid">
-      <!-- Row 1 -->
       <div class="span-4 card tool-card">
         <h3>🧩 Nextcloud</h3>
         <p class="muted">Access your personal cloud and files securely.</p>
@@ -453,98 +445,101 @@
         <a href="https://reminder.b4it.ro/reminders" target="_blank" rel="noopener" class="btn primary">Open Reminders</a>
       </div>
 
-      <!-- Row 2 (added) -->
       <div class="span-4 card tool-card">
         <h3>📔 Journal</h3>
         <p class="muted">Daily notes and reflections.</p>
         <a href="https://journal.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Journal</a>
       </div>
       
-<div class="span-4 card tool-card">
-  <h3>🍿 Jellyfin</h3>
-  <p class="muted">Your personal media server.</p>
-  <a href="https://jellyfin.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Jellyfin</a>
-</div>
-
+      <div class="span-4 card tool-card">
+        <h3>🍿 Jellyfin</h3>
+        <p class="muted">Your personal media server.</p>
+        <a href="https://jellyfin.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Jellyfin</a>
+      </div>
 
       <div class="span-4 card tool-card">
         <h3>🗒️ Notes</h3>
         <p class="muted">Quick notes & to-dos.</p>
         <a href="https://tasks.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Notes</a>
       </div>
+
+      <div class="span-4 card tool-card">
+        <h3>✨ Gemini</h3>
+        <p class="muted">Google's AI assistant.</p>
+        <a href="https://gemini.google.com" target="_blank" rel="noopener" class="btn primary">Open Gemini</a>
+      </div>
+
+      <div class="span-4 card tool-card">
+        <h3>🖼️ Immich</h3>
+        <p class="muted">Self-hosted photos.</p>
+        <a href="https://immich.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Immich</a>
+      </div>
+
+      <div class="span-4 card tool-card">
+        <h3>🤖 ChatGPT</h3>
+        <p class="muted">OpenAI Chat.</p>
+        <a href="https://chatgpt.com" target="_blank" rel="noopener" class="btn secondary">Open ChatGPT</a>
+      </div>
     </div>
   </div>
 
- <!-- Ambient Sounds -->
-<div class="card" style="margin-top:28px; text-align:center; padding:24px; max-width:860px; margin-inline:auto;">
+ <div class="card" style="margin-top:28px; text-align:center; padding:24px; max-width:860px; margin-inline:auto;">
   <h2 class="section" style="margin-bottom:16px;">🎧 Ambient Sounds</h2>
 
-  <!-- Proper grid wrapper -->
   <div style="
     display:grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap:16px;
     justify-items:stretch;
   ">
-    <!-- Ocean -->
     <div class="card" style="padding:16px; text-align:left;">
       <h3 style="margin:0 0 10px;">🌊 Ocean</h3>
       <button id="btn-ocean" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Ocean</button>
       <input id="vol-ocean" type="range" min="0" max="100" value="50" style="width:100%;">
     </div>
 
-    <!-- Fireplace -->
     <div class="card" style="padding:16px; text-align:left;">
       <h3 style="margin:0 0 10px;">🔥 Fireplace</h3>
       <button id="btn-fire" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Fireplace</button>
       <input id="vol-fire" type="range" min="0" max="100" value="40" style="width:100%;">
     </div>
 
-    <!-- Rain -->
     <div class="card" style="padding:16px; text-align:left;">
       <h3 style="margin:0 0 10px;">🌧️ Rain</h3>
       <button id="btn-rain" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Rain</button>
       <input id="vol-rain" type="range" min="0" max="100" value="60" style="width:100%;">
     </div>
 
-    <!-- Rainy Window (Jazz) -->
     <div class="card" style="padding:16px; text-align:left;">
       <h3 style="margin:0 0 10px;">🌧️🪟 Jazz</h3>
       <button id="btn-rainywindow" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Jazz</button>
       <input id="vol-rainywindow" type="range" min="0" max="100" value="60" style="width:100%;">
     </div>
 
-    <!-- Café -->
     <div class="card" style="padding:16px; text-align:left;">
       <h3 style="margin:0 0 10px;">☕ Café</h3>
       <button id="btn-cafe" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Café</button>
       <input id="vol-cafe" type="range" min="0" max="100" value="50" style="width:100%;">
     </div>
 
-    <!-- Lo-Fi -->
     <div class="card" style="padding:16px; text-align:left;">
       <h3 style="margin:0 0 10px;">🎶 Lo-Fi Chill Beats</h3>
       <button id="btn-lofi" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Lo-Fi</button>
       <input id="vol-lofi" type="range" min="0" max="100" value="50" style="width:100%;">
     </div>
 
-    <!-- Wind -->
     <div class="card" style="padding:16px; text-align:left;">
       <h3 style="margin:0 0 10px;">🍃 Wind</h3>
       <button id="btn-wind" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Wind</button>
       <input id="vol-wind" type="range" min="0" max="100" value="50" style="width:100%;">
     </div>
 
-    <!-- Synthwave -->
     <div class="card" style="padding:16px; text-align:left;">
       <h3 style="margin:0 0 10px;">📚 Synthwave mix</h3>
       <button id="btn-synthwave" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Synthwave</button>
       <input id="vol-synthwave" type="range" min="0" max="100" value="50" style="width:100%;">
     </div>
-  </div> <!-- ✅ close the grid -->
-
-  <!-- Mix buttons -->
-  <div style="margin-top:24px; display:flex; flex-wrap:wrap; justify-content:center; gap:12px;">
+  </div> <div style="margin-top:24px; display:flex; flex-wrap:wrap; justify-content:center; gap:12px;">
     <button id="mix-sleep" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">🌙 Sleep Mix</button>
     <button id="mix-rainy" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">🌦️ Rainy Mix</button>
     <button id="mix-reading" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">📖 Reading Mix</button>
@@ -552,34 +547,30 @@
     <button id="stop-all" class="btn ghost" style="padding:8px 14px; font-size:.95rem;">⏹ Stop All</button>
   </div>
 
-  <!-- Hidden players (keep all together here) -->
-  <div id="yt-ocean" style="display:none;"></div>
-  <div id="yt-fire" style="display:none;"></div>
-  <div id="yt-rain" style="display:none;"></div>
-  <div id="yt-rainywindow" style="display:none;"></div>
-  <div id="yt-cafe" style="display:none;"></div>
-  <div id="yt-lofi" style="display:none;"></div>
-  <div id="yt-wind" style="display:none;"></div>
-  <div id="yt-synthwave" style="display:none;"></div>   <!-- ✅ moved here -->
-  <div id="yt-weightless" style="display:none;"></div>
+  <div id="yt-ocean" class="yt-hidden-player"></div>
+  <div id="yt-fire" class="yt-hidden-player"></div>
+  <div id="yt-rain" class="yt-hidden-player"></div>
+  <div id="yt-rainywindow" class="yt-hidden-player"></div>
+  <div id="yt-cafe" class="yt-hidden-player"></div>
+  <div id="yt-lofi" class="yt-hidden-player"></div>
+  <div id="yt-wind" class="yt-hidden-player"></div>
+  <div id="yt-synthwave" class="yt-hidden-player"></div>
+  <div id="yt-weightless" class="yt-hidden-player"></div>
 </div>
 
 </section>
-    <!-- Footer -->
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
     </footer>
   </div>
 
-  <!-- Sticky footer toolbar -->
   <nav class="toolbar" aria-label="Quick links">
     <a class="tool-btn" href="https://www.youtube.com/" target="_blank" rel="noopener">▶️ YouTube</a>
-    <a class="tool-btn" href="https://journal.b4it.ro" target="_blank" rel="noopener">📔 Journal</a>
+    <a class="tool-btn" href="https://gemini.google.com" target="_blank" rel="noopener">✨ Gemini AI</a>
     <a class="tool-btn" href="https://tasks.b4it.ro" target="_blank" rel="noopener">🗒️ Notes</a>
     <a class="tool-btn" href="https://www.google.com" target="_blank" rel="noopener">🔎 Google</a>
   </nav>
 
-  <!-- Dynamic toolbar padding -->
   <script>
     (function() {
       const tb = document.querySelector('.toolbar');
@@ -591,7 +582,6 @@
       new MutationObserver(setTBPad).observe(tb, { childList: true, subtree: true, attributes: true });
     })();
   </script>
-  <!-- Tabs -->
   <script>
     const tabBtns=[...document.querySelectorAll('.tab-btn')];
     const tabs={
@@ -604,7 +594,6 @@
     tabBtns.forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
   </script>
 
-  <!-- Clock -->
   <script>
     function updateClock(){
       const now=new Date();
@@ -615,11 +604,19 @@
       const date=new Intl.DateTimeFormat(undefined,{day:'2-digit',month:'long',year:'numeric'}).format(now);
       document.getElementById('clock-time').innerHTML=`${hh}:${mm}<small>${ss}</small>`;
       document.getElementById('clock-date').textContent=`${day}, ${date}`;
+
+      // Greeting Logic
+      const hVal = now.getHours();
+      let greet = "Hello";
+      if(hVal < 12) greet = "Good Morning";
+      else if(hVal < 18) greet = "Good Afternoon";
+      else greet = "Good Evening";
+      const gEl = document.getElementById('greeting');
+      if(gEl) gEl.textContent = greet;
     }
     updateClock(); setInterval(updateClock,1000);
   </script>
 
-  <!-- Weather -->
   <script>
     const WX_CODES={0:["☀️","Clear sky"],1:["🌤️","Mainly clear"],2:["⛅","Partly cloudy"],3:["☁️","Overcast"],45:["🌫️","Fog"],48:["🌫️","Rime fog"],51:["🌦️","Light drizzle"],53:["🌦️","Drizzle"],55:["🌧️","Dense drizzle"],56:["🌧️","Freezing drizzle"],57:["🌧️","Freezing drizzle"],61:["🌦️","Light rain"],63:["🌧️","Rain"],65:["🌧️","Heavy rain"],66:["🌧️","Freezing rain"],67:["🌧️","Freezing rain"],71:["🌨️","Light snow"],73:["🌨️","Snow"],75:["❄️","Heavy snow"],77:["❄️","Snow grains"],80:["🌦️","Rain showers"],81:["🌧️","Rain showers"],82:["⛈️","Violent rain"],85:["🌨️","Snow showers"],86:["❄️","Heavy snow showers"],95:["⛈️","Thunderstorm"],96:["⛈️","Thunder + hail"],99:["⛈️","Severe thunder/hail"]};
     async function loadWeather(lat,lon,label){
@@ -643,13 +640,12 @@
     detectWeather();
   </script>
 
-  <!-- Quotes (robust + saved) -->
   <script>
     const AUTO_MS = 900_000; // 15 min
     const LOCAL_POOL = [
       {content:"Life is simple. Are you happy? Yes? Keep going. No? Change something.", author:"Bogdan Radu"},
       {content:"People who have goals succeed because they know where they're going. It's that simple..", author:"Earl Nightingale"},
-    
+      
     ];
 
     const els = {
@@ -822,12 +818,11 @@ async function fetchUniqueQuote() {
     els.clearSaved?.addEventListener('click',clearAllSaved);
     els.save.addEventListener("click",addCurrentToSaved);
 
-    /* initial display – show a local quote, then start countdown */
-    renderQuote(LOCAL_POOL[0]); els.status.style.display="none"; resetCountdown();
+    /* initial display – fetch immediately */
+    els.refresh.click(); 
     renderSaved();
   </script>
 
-  <!-- Pomodoro logic (wrapped so buttons work) -->
   <script>
     document.addEventListener('DOMContentLoaded', function(){
       const PKEY='pom.settings.v1', TKEY='pom.tasks.v1', SKEY='pom.state.v1';
@@ -957,7 +952,6 @@ async function fetchUniqueQuote() {
     });
   </script>
 
-  <!-- Home: focus tasks & completed (synchronised with Pomodoro) -->
   <script>
     function fmtMMSS(totalSeconds){ const s=Math.max(0,Math.floor(totalSeconds)); const m=Math.floor(s/60).toString().padStart(2,'0'); const ss=(s%60).toString().padStart(2,'0'); return `${m}:${ss}`; }
     const LS='pom.state.v1', LS_SETTINGS='pom.settings.v1', LS_TASKS='pom.tasks.v1';
@@ -1017,7 +1011,6 @@ async function fetchUniqueQuote() {
     window.addEventListener('tasks-changed',renderHomeFromPom);
   </script>
 
-  <!-- Service worker, PWA, manifest -->
   <script>
     (function(){
       const png1x1="iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==";
@@ -1199,7 +1192,6 @@ document.addEventListener("input", e => {
 <script src="https://www.youtube.com/iframe_api"></script>
 
 
-  <!-- Force Service Worker update -->
   <script>
     if('serviceWorker'in navigator){ navigator.serviceWorker.getRegistrations().then(regs=>regs.forEach(r=>r.update())); }
   </script>
