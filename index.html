@@ -6,11 +6,13 @@
   <title>Homer — Focus Dashboard</title>
 
   <link rel="apple-touch-icon" sizes="180x180"
-        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
+        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
 
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
 
   <style>
     :root{
@@ -476,7 +478,7 @@
 
       <div class="span-4 card tool-card">
         <h3>☕ Keep Awake</h3>
-        <p class="muted">Coffe for Computer.</p>
+        <p class="muted">Prevent screen sleep.</p>
         <button id="btn-wake" class="btn primary">Enable Wake Lock</button>
       </div>
 
@@ -1040,7 +1042,8 @@ async function fetchUniqueQuote() {
                     || url.hostname.includes('youtube.com')
                     || url.hostname.includes('googlevideo.com')
                     || url.hostname.includes('zenquotes.io')
-                    || url.hostname.includes('allorigins.win');
+                    || url.hostname.includes('allorigins.win')
+                    || url.hostname.includes('cdnjs.cloudflare.com');
           if(isExternal||isAPI){
             e.respondWith(fetch(e.request).catch(()=>new Response('',{status:503}))); return;
           }
@@ -1192,55 +1195,39 @@ document.addEventListener("input", e => {
 <script src="https://www.youtube.com/iframe_api"></script>
 
 <script>
+  // Ensure the library is loaded or create a dummy to prevent crash
+  if (typeof NoSleep === 'undefined') {
+    console.error("NoSleep.js library not loaded! Check internet connection.");
+  }
+  
+  const noSleep = new NoSleep();
   const btnWake = document.getElementById('btn-wake');
-  let wakeLock = null;
+  let isKeepingAwake = false;
 
-  async function toggleWakeLock() {
-    if (!wakeLock) {
+  function toggleWakeLock() {
+    // Requires user gesture!
+    if (!isKeepingAwake) {
       // TURN ON
-      try {
-        if ('wakeLock' in navigator) {
-          wakeLock = await navigator.wakeLock.request('screen');
-          
-          // Update Button UI to show it's active
-          btnWake.textContent = '👀 Keeping Awake...';
-          btnWake.classList.remove('primary');
-          btnWake.classList.add('secondary'); // Change color to blue (accent-2)
-          
-          // Listen for release (e.g. if user minimizes window)
-          wakeLock.addEventListener('release', () => {
-            console.log('Wake Lock released');
-          });
-        } else {
-          alert('Your browser does not support the Wake Lock feature.');
-        }
-      } catch (err) {
-        console.error(`${err.name}, ${err.message}`);
-      }
+      noSleep.enable(); 
+      isKeepingAwake = true;
+      
+      btnWake.textContent = '👀 Keeping Awake...';
+      btnWake.classList.remove('primary');
+      btnWake.classList.add('secondary'); // Blue
+      console.log('NoSleep enabled');
     } else {
       // TURN OFF
-      await wakeLock.release();
-      wakeLock = null;
+      noSleep.disable();
+      isKeepingAwake = false;
       
-      // Reset Button UI
       btnWake.textContent = 'Enable Wake Lock';
       btnWake.classList.add('primary');
       btnWake.classList.remove('secondary');
+      console.log('NoSleep disabled');
     }
   }
 
   if(btnWake) btnWake.addEventListener('click', toggleWakeLock);
-
-  // Smart Re-engage: If the tab becomes visible again, re-apply the lock automatically
-  document.addEventListener('visibilitychange', async () => {
-    if (wakeLock !== null && document.visibilityState === 'visible') {
-      try {
-        wakeLock = await navigator.wakeLock.request('screen');
-      } catch(e) {
-        console.log("Could not re-acquire lock", e);
-      }
-    }
-  });
 </script>
 
   <script>
