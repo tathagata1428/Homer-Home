@@ -6,7 +6,7 @@
   <title>Homer — Focus Dashboard</title>
 
   <link rel="apple-touch-icon" sizes="180x180"
-        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
+        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
 
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -86,7 +86,6 @@
     }
     .music .label{color:var(--muted)}
     
-    /* 🔴 FIXED: Use this class instead of display:none to allow audio */
     .yt-hidden-player {
       position: absolute; width: 1px; height: 1px;
       opacity: 0; pointer-events: none; left: -9999px;
@@ -476,10 +475,11 @@
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>🤖 ChatGPT</h3>
-        <p class="muted">OpenAI Chat.</p>
-        <a href="https://chatgpt.com" target="_blank" rel="noopener" class="btn secondary">Open ChatGPT</a>
+        <h3>☕ Keep Awake</h3>
+        <p class="muted">Prevents the screen from sleeping.</p>
+        <button id="btn-wake" class="btn primary">Enable Wake Lock</button>
       </div>
+
     </div>
   </div>
 
@@ -668,7 +668,7 @@
     /* persistence helpers */
     const SEEN_KEY ="quotes.seen.v5";
     function getSeen(){ try{return JSON.parse(localStorage.getItem(SEEN_KEY)||"[]");}catch{return[]} }
-    function pushSeen(txt){ const arr=getSeen(); const t=txt.toLowerCase(); if(!arr.includes(t)){arr.unshift(t); localStorage.setItem(SEEN_KEY,JSON.stringify(arr.slice(0,1600)));}}
+    function pushSeen(txt){ const arr=getSeen(); const t=txt.toLowerCase(); if(!arr.includes(t)){arr.unshift(t); localStorage.setItem(SEEN_KEY,JSON.stringify(arr.slice(1600)));}}
     function isSeen(txt){ return getSeen().includes(txt.toLowerCase()); }
 
     /* rendering helpers */
@@ -1191,6 +1191,57 @@ document.addEventListener("input", e => {
 </script>
 <script src="https://www.youtube.com/iframe_api"></script>
 
+<script>
+  const btnWake = document.getElementById('btn-wake');
+  let wakeLock = null;
+
+  async function toggleWakeLock() {
+    if (!wakeLock) {
+      // TURN ON
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+          
+          // Update Button UI to show it's active
+          btnWake.textContent = '👀 Keeping Awake...';
+          btnWake.classList.remove('primary');
+          btnWake.classList.add('secondary'); // Change color to blue (accent-2)
+          
+          // Listen for release (e.g. if user minimizes window)
+          wakeLock.addEventListener('release', () => {
+            console.log('Wake Lock released');
+          });
+        } else {
+          alert('Your browser does not support the Wake Lock feature.');
+        }
+      } catch (err) {
+        console.error(`${err.name}, ${err.message}`);
+      }
+    } else {
+      // TURN OFF
+      await wakeLock.release();
+      wakeLock = null;
+      
+      // Reset Button UI
+      btnWake.textContent = 'Enable Wake Lock';
+      btnWake.classList.add('primary');
+      btnWake.classList.remove('secondary');
+    }
+  }
+
+  if(btnWake) btnWake.addEventListener('click', toggleWakeLock);
+
+  // Smart Re-engage: If the tab becomes visible again, re-apply the lock automatically
+  document.addEventListener('visibilitychange', async () => {
+    if (wakeLock !== null && document.visibilityState === 'visible') {
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+      } catch(e) {
+        console.log("Could not re-acquire lock", e);
+      }
+    }
+  });
+</script>
 
   <script>
     if('serviceWorker'in navigator){ navigator.serviceWorker.getRegistrations().then(regs=>regs.forEach(r=>r.update())); }
