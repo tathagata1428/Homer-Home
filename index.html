@@ -6,7 +6,7 @@
   <title>Homer — Focus Dashboard</title>
 
   <link rel="apple-touch-icon" sizes="180x180"
-        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
+        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
 
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -127,7 +127,7 @@
     .primary{background:linear-gradient(135deg, var(--accent) 0%, #16a34a 100%); border:none; color:#041106}
     .secondary{background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%); border:none; color:#041106}
     
-    /* 🔴 THE RED BUTTON CLASS */
+    /* 🔴 RED BUTTON CLASS */
     .danger{
       background:linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); 
       border:none; color:#ffffff; 
@@ -747,8 +747,10 @@ async function fetchUniqueQuote() {
       deadline = Date.now()+AUTO_MS;
       tickCountdown();
     }
+    
+    // 🔵 OPTIMIZED CPU: Switched from requestAnimationFrame to setTimeout (1s)
     function tickCountdown(){
-      if(cdTimer) cancelAnimationFrame(cdTimer);
+      if(cdTimer) clearTimeout(cdTimer);
       const now=Date.now();
       let rem=Math.max(0, deadline-now);
       const mins=Math.floor(rem/60000);
@@ -759,7 +761,7 @@ async function fetchUniqueQuote() {
       if(rem<=0){
         els.refresh.click();
       }else{
-        cdTimer=requestAnimationFrame(tickCountdown);
+        cdTimer=setTimeout(tickCountdown, 1000); // Only run once per second
       }
     }
 
@@ -1182,11 +1184,17 @@ document.addEventListener("input", e => {
     console.error("NoSleep.js library not loaded! Check internet connection.");
   }
 
-  const noSleep = new NoSleep();
+  // 🔴 NOTE: We DO NOT create new NoSleep() here to save CPU on startup.
+  let noSleep = null; 
   const btnWake = document.getElementById('btn-wake');
   let isKeepingAwake = false;
 
   async function toggleWakeLock() {
+    // Initialize the library ONLY when button is clicked (Lazy Load)
+    if (!noSleep) {
+      noSleep = new NoSleep();
+    }
+
     if (!isKeepingAwake) {
       // --- TURN ON ---
       try {
@@ -1195,12 +1203,13 @@ document.addEventListener("input", e => {
            try { await navigator.wakeLock.request('screen'); } catch(e){}
         }
         
-        // 2. Enable NoSleep (Video Fallback) - This is very reliable
+        // 2. Enable NoSleep (Video Fallback)
         noSleep.enable(); 
 
         isKeepingAwake = true;
         btnWake.textContent = '👀 Keeping Awake...';
-        // Add visual indicator (pulsing effect could be added via CSS if desired)
+        btnWake.classList.remove('danger'); // Remove Red
+        btnWake.classList.add('secondary'); // Add Blue/Active color
         console.log('Wake Lock: ENABLED');
       } catch (err) {
         console.error(err);
@@ -1210,7 +1219,10 @@ document.addEventListener("input", e => {
       // --- TURN OFF ---
       noSleep.disable();
       isKeepingAwake = false;
+      
       btnWake.textContent = 'Enable Wake Lock';
+      btnWake.classList.add('danger'); // Return to Red
+      btnWake.classList.remove('secondary');
       console.log('Wake Lock: DISABLED');
     }
   }
