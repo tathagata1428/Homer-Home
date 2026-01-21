@@ -6,7 +6,7 @@
   <title>Homer — Focus Dashboard</title>
 
   <link rel="apple-touch-icon" sizes="180x180"
-        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
+        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
 
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -126,6 +126,14 @@
     }
     .primary{background:linear-gradient(135deg, var(--accent) 0%, #16a34a 100%); border:none; color:#041106}
     .secondary{background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%); border:none; color:#041106}
+    
+    /* 🔴 THE RED BUTTON CLASS */
+    .danger{
+      background:linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); 
+      border:none; color:#ffffff; 
+      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+    }
+    
     .ghost{background:transparent}
     .muted{color:var(--muted)}
     .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.2);border-top-color:var(--accent-2);border-radius:50%;display:inline-block;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
@@ -477,9 +485,15 @@
       </div>
 
       <div class="span-4 card tool-card">
+        <h3>🤖 ChatGPT</h3>
+        <p class="muted">OpenAI Chat.</p>
+        <a href="https://chatgpt.com" target="_blank" rel="noopener" class="btn secondary">Open ChatGPT</a>
+      </div>
+
+      <div class="span-4 card tool-card">
         <h3>☕ Keep Awake</h3>
-        <p class="muted">Prevent screen sleep.</p>
-        <button id="btn-wake" class="btn primary">Enable Wake Lock</button>
+        <p class="muted">Prevents screen from sleeping.</p>
+        <button id="btn-wake" class="btn danger">Enable Wake Lock</button>
       </div>
 
     </div>
@@ -1056,6 +1070,8 @@ async function fetchUniqueQuote() {
     })();
   </script>
 <script>
+// 🔵 OPTIMIZED AUDIO PLAYER (Lazy Load)
+// This keeps the CPU idle. Video players are only created when YOU click play.
 const tracks = {
   ocean: { id:"WHPEKLQID4U", btn:"btn-ocean", vol:"vol-ocean", labelPlay:"▶️ Play Ocean 🌊", labelPause:"⏸️ Pause Ocean 🌊", holder:"yt-ocean" },
   fire:  { id:"UgHKb_7884o", btn:"btn-fire",  vol:"vol-fire",  labelPlay:"▶️ Play Fireplace 🔥", labelPause:"⏸️ Pause Fireplace 🔥", holder:"yt-fire" },
@@ -1065,122 +1081,89 @@ const tracks = {
   lofi:  { id:"Na0w3Mz46GA", btn:"btn-lofi",  vol:"vol-lofi",  labelPlay:"▶️ Play Lo-Fi 🎶", labelPause:"⏸️ Pause Lo-Fi 🎶", holder:"yt-lofi" },
   wind: { id:"jYu1-CxNqks", btn:"btn-wind", vol:"vol-wind", labelPlay:"▶️ Play wind 🍃", labelPause:"⏸️ Pause wind🍃 ", holder:"yt-wind" },
   synthwave: { id:"4xDzrJKXOOY", btn:"btn-synthwave", vol:"vol-synthwave", labelPlay:"▶️ Play Synthwave 📚", labelPause:"⏸️ Pause Synthwave 📚", holder:"yt-synthwave" },
-  weightless: { id:"vYIYIVmOo3Q", btn:null, vol:null, holder:"yt-weightless" } // no button, used only in mix
+  weightless: { id:"vYIYIVmOo3Q", btn:null, vol:null, holder:"yt-weightless" } 
 };
 
-function onYouTubeIframeAPIReady() {
-  Object.keys(tracks).forEach(k => {
-    const t = tracks[k];
-    t.player = new YT.Player(t.holder, {
-      height: "0",
-      width: "0",
-      videoId: t.id,
-      playerVars: { autoplay: 0, controls: 0, loop: 1, playlist: t.id, modestbranding: 1 },
-      events: {
-        onReady: e => {
-          const volEl = t.vol ? document.getElementById(t.vol) : null;
-          const v = volEl ? +volEl.value : 50;
-          e.target.setVolume(v);
-        }
+// We DO NOT load all players at start. We wait for clicks.
+function createPlayer(k) {
+  const t = tracks[k];
+  if(t.player) return; // already created
+  t.player = new YT.Player(t.holder, {
+    height: "0", width: "0",
+    videoId: t.id,
+    playerVars: { autoplay: 1, controls: 0, loop: 1, playlist: t.id, modestbranding: 1 },
+    events: {
+      onReady: e => {
+        const volEl = t.vol ? document.getElementById(t.vol) : null;
+        if(volEl) e.target.setVolume(+volEl.value);
       }
-    });
+    }
   });
 }
 
 function togglePlay(k) {
   const t = tracks[k];
-  const p = t.player;
   const btn = document.getElementById(t.btn);
-  if (!p) return;
-  const st = p.getPlayerState();
+  
+  // Initialize on first click (Lazy Load)
+  if (!t.player) {
+    createPlayer(k);
+    if(btn) btn.textContent = t.labelPause;
+    return;
+  }
+  
+  const st = t.player.getPlayerState();
   if (st === YT.PlayerState.PLAYING) {
-    p.pauseVideo();
-    btn.textContent = t.labelPlay;
+    t.player.pauseVideo();
+    if(btn) btn.textContent = t.labelPlay;
   } else {
-    p.playVideo();
-    btn.textContent = t.labelPause;
+    t.player.playVideo();
+    if(btn) btn.textContent = t.labelPause;
   }
 }
 
 function setVolume(k, v) {
   const t = tracks[k];
-  if (t.player && typeof t.player.setVolume === "function") {
-    t.player.setVolume(v);
-  }
+  if (t.player && typeof t.player.setVolume === "function") t.player.setVolume(v);
 }
 
 function stopAll() {
   Object.keys(tracks).forEach(k => {
     const t = tracks[k];
-    if (t.player) t.player.pauseVideo();
+    if (t.player && typeof t.player.pauseVideo === 'function') t.player.pauseVideo();
     if (t.btn) document.getElementById(t.btn).textContent = t.labelPlay;
   });
 }
 
-/* 🌙 Sleep Mix */
-function applySleepMix() {
+// Mixes - these trigger creation if needed
+function playMix(list) {
   stopAll();
-  setVolume("fire", 40);
-  setVolume("rain", 60);
-  tracks.fire.player.playVideo();
-  tracks.rain.player.playVideo();
-  document.getElementById(tracks.fire.btn).textContent = tracks.fire.labelPause;
-  document.getElementById(tracks.rain.btn).textContent = tracks.rain.labelPause;
-}
-
-/* 🌦️ Rainy Mix */
-function applyRainyMix() {
-  stopAll();
-  setVolume("rain", 70);
-  setVolume("ocean", 40);
-  tracks.rain.player.playVideo();
-  tracks.ocean.player.playVideo();
-  document.getElementById(tracks.rain.btn).textContent = tracks.rain.labelPause;
-  document.getElementById(tracks.ocean.btn).textContent = tracks.ocean.labelPause;
-}
-
-/* 📖 Reading Mix */
-function applyReadingMix() {
-  stopAll();
-  setVolume("lofi", 50);
-  setVolume("fire", 10);
-  setVolume("wind", 10);
-  setVolume("rain", 10);
-
-  tracks.lofi.player.playVideo();
-  tracks.fire.player.playVideo();
-  tracks.wind.player.playVideo();
-  tracks.rain.player.playVideo();
-
-
-  document.getElementById(tracks.lofi.btn).textContent = tracks.lofi.labelPause;
-  document.getElementById(tracks.fire.btn).textContent = tracks.fire.labelPause;
-  document.getElementById(tracks.rain.btn).textContent = tracks.rain.labelPause;
-  document.getElementById(tracks.wind.btn).textContent = tracks.wind.labelPause;
-}
-
-
-/* 🏠 Cozy Night In */
-function applyCozyMix() {
-  stopAll();
-  setVolume("fire", 40);
-  setVolume("rain", 40);
-  setVolume("rainywindow", 30);
-  tracks.fire.player.playVideo();
-  tracks.rain.player.playVideo();
-  tracks.rainywindow.player.playVideo();
-  document.getElementById(tracks.fire.btn).textContent = tracks.fire.labelPause;
-  document.getElementById(tracks.rain.btn).textContent = tracks.rain.labelPause;
-  document.getElementById(tracks.rainywindow.btn).textContent = tracks.rainywindow.labelPause;
+  list.forEach(item => {
+    // If not created, create it
+    if(!tracks[item.k].player) createPlayer(item.k);
+    
+    // Wait small bit for init, or if ready set vol
+    // Because lazy load is async, precise mix start might delay slightly on first run
+    // but usually Youtube API queues the play command.
+    setTimeout(() => {
+       const t = tracks[item.k];
+       if(t.player && typeof t.player.setVolume === 'function') {
+         t.player.setVolume(item.vol);
+         t.player.playVideo();
+         if(t.btn) document.getElementById(t.btn).textContent = t.labelPause;
+       }
+    }, 100);
+  });
 }
 
 document.addEventListener("click", e => {
   const id = e.target.id;
   if (id === "stop-all") stopAll();
-  if (id === "mix-sleep") applySleepMix();
-  if (id === "mix-rainy") applyRainyMix();
-  if (id === "mix-reading") applyReadingMix();
-  if (id === "mix-cozy") applyCozyMix(); // ✅ new cozy mix
+  if (id === "mix-sleep") playMix([{k:'fire',vol:40}, {k:'rain',vol:60}]);
+  if (id === "mix-rainy") playMix([{k:'rain',vol:70}, {k:'ocean',vol:40}]);
+  if (id === "mix-reading") playMix([{k:'lofi',vol:50}, {k:'fire',vol:10}, {k:'wind',vol:10}, {k:'rain',vol:10}]);
+  if (id === "mix-cozy") playMix([{k:'fire',vol:40}, {k:'rain',vol:40}, {k:'rainywindow',vol:30}]);
+  
   Object.keys(tracks).forEach(k => {
     if (id === tracks[k].btn) togglePlay(k);
   });
@@ -1195,35 +1178,40 @@ document.addEventListener("input", e => {
 <script src="https://www.youtube.com/iframe_api"></script>
 
 <script>
-  // Ensure the library is loaded or create a dummy to prevent crash
   if (typeof NoSleep === 'undefined') {
     console.error("NoSleep.js library not loaded! Check internet connection.");
   }
-  
+
   const noSleep = new NoSleep();
   const btnWake = document.getElementById('btn-wake');
   let isKeepingAwake = false;
 
-  function toggleWakeLock() {
-    // Requires user gesture!
+  async function toggleWakeLock() {
     if (!isKeepingAwake) {
-      // TURN ON
-      noSleep.enable(); 
-      isKeepingAwake = true;
-      
-      btnWake.textContent = '👀 Keeping Awake...';
-      btnWake.classList.remove('primary');
-      btnWake.classList.add('secondary'); // Blue
-      console.log('NoSleep enabled');
+      // --- TURN ON ---
+      try {
+        // 1. Try Native API (0% CPU)
+        if ('wakeLock' in navigator) {
+           try { await navigator.wakeLock.request('screen'); } catch(e){}
+        }
+        
+        // 2. Enable NoSleep (Video Fallback) - This is very reliable
+        noSleep.enable(); 
+
+        isKeepingAwake = true;
+        btnWake.textContent = '👀 Keeping Awake...';
+        // Add visual indicator (pulsing effect could be added via CSS if desired)
+        console.log('Wake Lock: ENABLED');
+      } catch (err) {
+        console.error(err);
+        alert("Could not enable wake lock.");
+      }
     } else {
-      // TURN OFF
+      // --- TURN OFF ---
       noSleep.disable();
       isKeepingAwake = false;
-      
       btnWake.textContent = 'Enable Wake Lock';
-      btnWake.classList.add('primary');
-      btnWake.classList.remove('secondary');
-      console.log('NoSleep disabled');
+      console.log('Wake Lock: DISABLED');
     }
   }
 
