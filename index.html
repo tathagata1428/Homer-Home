@@ -6,7 +6,7 @@
   <title>Homer — Focus Dashboard</title>
 
   <link rel="apple-touch-icon" sizes="180x180"
-        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
+        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
 
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1178,45 +1178,66 @@ document.addEventListener("input", e => {
     console.error("NoSleep.js library not loaded! Check internet connection.");
   }
 
-  // 🔴 NOTE: We DO NOT create new NoSleep() here to save CPU on startup.
-  let noSleep = null; 
-  const btnWake = document.getElementById('btn-wake');
+  // 1. Initialize NoSleep immediately so the object is ready.
+  // iOS needs the object ready before the click event fires.
+  const noSleep = new NoSleep(); 
+  
+  // 2. Variable to store the Native API lock object (Chrome/Android)
+  let wakeLockSentinel = null;
+  
   let isKeepingAwake = false;
+  const btnWake = document.getElementById('btn-wake');
 
   async function toggleWakeLock() {
-    // Initialize the library ONLY when button is clicked (Lazy Load)
-    if (!noSleep) {
-      noSleep = new NoSleep();
-    }
-
     if (!isKeepingAwake) {
       // --- TURN ON ---
+      
       try {
-        // 1. Try Native API (0% CPU)
+        // A. CRITICAL FOR IOS: Enable NoSleep (Video Fallback) FIRST.
+        // This must run synchronously inside the click event.
+        // If we 'await' anything before this line, iOS will block the wake lock.
+        noSleep.enable();
+        
+        // B. Update UI immediately to show responsiveness
+        isKeepingAwake = true;
+        if(btnWake) {
+          btnWake.textContent = '👀 Keeping Awake...';
+          btnWake.classList.remove('danger');   // Remove red
+          btnWake.classList.add('secondary');   // Add blue/active
+        }
+
+        // C. Try Native API (Best for Android/Desktop/Chrome)
+        // We do this AFTER enabling the backup, inside a try/catch
         if ('wakeLock' in navigator) {
-           try { await navigator.wakeLock.request('screen'); } catch(e){}
+          wakeLockSentinel = await navigator.wakeLock.request('screen');
+          console.log('Native Wake Lock active');
         }
         
-        // 2. Enable NoSleep (Video Fallback)
-        noSleep.enable(); 
-
-        isKeepingAwake = true;
-        btnWake.textContent = '👀 Keeping Awake...';
-        btnWake.classList.remove('danger'); // Remove Red
-        btnWake.classList.add('secondary'); // Add Blue/Active color
-        console.log('Wake Lock: ENABLED');
       } catch (err) {
-        console.error(err);
-        alert("Could not enable wake lock.");
+        console.error("Wake Lock Error:", err);
       }
+
     } else {
       // --- TURN OFF ---
-      noSleep.disable();
-      isKeepingAwake = false;
       
-      btnWake.textContent = 'Enable Wake Lock';
-      btnWake.classList.add('danger'); // Return to Red
-      btnWake.classList.remove('secondary');
+      // A. Disable NoSleep
+      noSleep.disable();
+
+      // B. Release Native Lock if it exists
+      if (wakeLockSentinel) {
+        try {
+          await wakeLockSentinel.release();
+          wakeLockSentinel = null;
+        } catch(e) { console.log(e); }
+      }
+
+      // C. Revert UI
+      isKeepingAwake = false;
+      if(btnWake) {
+        btnWake.textContent = 'Enable Wake Lock';
+        btnWake.classList.add('danger');
+        btnWake.classList.remove('secondary');
+      }
       console.log('Wake Lock: DISABLED');
     }
   }
