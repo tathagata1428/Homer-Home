@@ -572,7 +572,7 @@
 </section>
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
-      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v1.4</span>
+      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v1.3 (PC Optimized)</span>
     </footer>
   </div>
 
@@ -1113,7 +1113,7 @@ function togglePlay(k) {
   const st = t.player.getPlayerState();
   if (st === YT.PlayerState.PLAYING) {
     t.player.pauseVideo();
-    if(btn) btn.textContent = t.labelPlay;
+    if(btn) btn.textContent = t.labelPause;
   } else {
     t.player.playVideo();
     if(btn) btn.textContent = t.labelPause;
@@ -1185,7 +1185,7 @@ document.addEventListener("input", e => {
     console.error("NoSleep.js failed to load. Check internet.");
   }
 
-  // 2. Variables for Native Lock (Chrome/Android)
+  // 2. Variables for Native Lock (Chrome/Android/PC)
   let wakeLockSentinel = null;
   let isKeepingAwake = false;
   const btnWake = document.getElementById('btn-wake');
@@ -1198,18 +1198,19 @@ document.addEventListener("input", e => {
         noSleep.enable(); // This starts the hidden video loop
       }
 
-      // B. Request Native Lock (Android/Desktop)
+      // B. Request Native Lock (PC/Android/Desktop)
       if ('wakeLock' in navigator) {
         try {
           wakeLockSentinel = await navigator.wakeLock.request('screen');
           console.log('Native Wake Lock: ACQUIRED');
           
-          // Listen for involuntary release (e.g. system kills it)
+          // Listen for involuntary release (e.g. system kills it, user tabs away)
           wakeLockSentinel.addEventListener('release', async () => {
-            console.log('Native Wake Lock: RELEASED (System)');
+            console.log('Native Wake Lock: RELEASED (System/Tab Switch)');
             wakeLockSentinel = null;
-            // Immediate re-acquire attempt if we still want it
+            // Immediate re-acquire attempt if we still want it and are visible
             if(isKeepingAwake && document.visibilityState === 'visible') {
+               console.log('Re-acquiring lock immediately...');
                await enableWakeLock();
             }
           });
@@ -1268,7 +1269,7 @@ document.addEventListener("input", e => {
     });
   }
 
-  // --- CRITICAL FIX: RE-ACQUIRE ON TAB SWITCH ---
+  // --- CRITICAL FIX FOR PC: RE-ACQUIRE ON TAB SWITCH ---
   // If you switch tabs, the Native Lock dies. We must restore it when you come back.
   document.addEventListener('visibilitychange', async () => {
     if (isKeepingAwake && document.visibilityState === 'visible' && !wakeLockSentinel) {
