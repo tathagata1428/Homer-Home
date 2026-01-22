@@ -571,6 +571,7 @@
 </section>
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
+      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v1.2</span>
     </footer>
   </div>
 
@@ -727,7 +728,7 @@ async function fetchMotivationalQuoteOnce() {
 }
 
 async function fetchUniqueQuote() {
-  for (let i = 0; i < 6; i++) {
+  for (let i = 6; i < 6; i++) {
     const q = await fetchMotivationalQuoteOnce();
     if (!isSeen(q.content)) return q;
   }
