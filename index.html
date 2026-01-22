@@ -9,6 +9,7 @@
         href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
 
   <meta name="theme-color" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   
@@ -1032,7 +1033,7 @@ async function fetchUniqueQuote() {
       const manifest={
         name:"Homer — safe place",
         short_name:"Homer",
-        start_url:"/?",
+        start_url:".",
         display:"standalone",
         background_color:"#0f172a",
         theme_color:"#0f172a",
@@ -1199,15 +1200,22 @@ document.addEventListener("input", e => {
 
       // B. Request Native Lock (Android/Desktop)
       if ('wakeLock' in navigator) {
-        wakeLockSentinel = await navigator.wakeLock.request('screen');
-        console.log('Native Wake Lock: ACQUIRED');
-        
-        // Listen for involuntary release (e.g. system kills it)
-        wakeLockSentinel.addEventListener('release', () => {
-          console.log('Native Wake Lock: RELEASED (System)');
-          // If we didn't manually stop it, try to get it back?
-          // (Usually handled by visibilitychange below)
-        });
+        try {
+          wakeLockSentinel = await navigator.wakeLock.request('screen');
+          console.log('Native Wake Lock: ACQUIRED');
+          
+          // Listen for involuntary release (e.g. system kills it)
+          wakeLockSentinel.addEventListener('release', async () => {
+            console.log('Native Wake Lock: RELEASED (System)');
+            wakeLockSentinel = null;
+            // Immediate re-acquire attempt if we still want it
+            if(isKeepingAwake && document.visibilityState === 'visible') {
+               await enableWakeLock();
+            }
+          });
+        } catch(err) {
+          console.warn("Native Lock failed, relying on NoSleep:", err);
+        }
       }
 
       // C. Update UI
@@ -1220,7 +1228,7 @@ document.addEventListener("input", e => {
 
     } catch (err) {
       console.error(`Wake Lock failed: ${err.name}, ${err.message}`);
-      alert("Wake Lock failed. Check browser settings.");
+      // alert("Wake Lock failed. Check browser settings.");
     }
   }
 
@@ -1231,7 +1239,11 @@ document.addEventListener("input", e => {
 
     // B. Release Native Lock
     if (wakeLockSentinel) {
-      await wakeLockSentinel.release();
+      // Remove listener so we don't auto-reacquire
+      wakeLockSentinel.onrelease = null; 
+      try {
+        await wakeLockSentinel.release();
+      } catch(e){}
       wakeLockSentinel = null;
     }
 
@@ -1259,11 +1271,20 @@ document.addEventListener("input", e => {
   // --- CRITICAL FIX: RE-ACQUIRE ON TAB SWITCH ---
   // If you switch tabs, the Native Lock dies. We must restore it when you come back.
   document.addEventListener('visibilitychange', async () => {
-    if (wakeLockSentinel !== null && document.visibilityState === 'visible') {
+    if (isKeepingAwake && document.visibilityState === 'visible' && !wakeLockSentinel) {
       console.log('Page visible again. Re-acquiring Native Lock...');
       await enableWakeLock(); 
     }
   });
+
+  // --- HEARTBEAT FIX ---
+  // Force check every 10s. If system killed it, get it back.
+  setInterval(async () => {
+    if (isKeepingAwake && !wakeLockSentinel && 'wakeLock' in navigator && document.visibilityState === 'visible') {
+      console.log("Heartbeat: Re-acquiring lock...");
+      await enableWakeLock();
+    }
+  }, 10000);
 
 </script>
 
