@@ -1174,75 +1174,96 @@ document.addEventListener("input", e => {
 <script src="https://www.youtube.com/iframe_api"></script>
 
 <script>
-  if (typeof NoSleep === 'undefined') {
-    console.error("NoSleep.js library not loaded! Check internet connection.");
+  // 1. Setup NoSleep (Video method backup for iOS)
+  // We check if the library loaded correctly
+  let noSleep = null;
+  if (typeof NoSleep !== 'undefined') {
+    noSleep = new NoSleep();
+  } else {
+    console.error("NoSleep.js failed to load. Check internet.");
   }
 
-  // 1. Initialize NoSleep immediately so the object is ready.
-  // iOS needs the object ready before the click event fires.
-  const noSleep = new NoSleep(); 
-  
-  // 2. Variable to store the Native API lock object (Chrome/Android)
+  // 2. Variables for Native Lock (Chrome/Android)
   let wakeLockSentinel = null;
-  
   let isKeepingAwake = false;
   const btnWake = document.getElementById('btn-wake');
 
-  async function toggleWakeLock() {
-    if (!isKeepingAwake) {
-      // --- TURN ON ---
-      
-      try {
-        // A. CRITICAL FOR IOS: Enable NoSleep (Video Fallback) FIRST.
-        // This must run synchronously inside the click event.
-        // If we 'await' anything before this line, iOS will block the wake lock.
-        noSleep.enable();
+  // --- CORE FUNCTION: REQUEST LOCK ---
+  async function enableWakeLock() {
+    try {
+      // A. Enable NoSleep (iOS/Safari requirement: MUST be first)
+      if (noSleep) {
+        noSleep.enable(); // This starts the hidden video loop
+      }
+
+      // B. Request Native Lock (Android/Desktop)
+      if ('wakeLock' in navigator) {
+        wakeLockSentinel = await navigator.wakeLock.request('screen');
+        console.log('Native Wake Lock: ACQUIRED');
         
-        // B. Update UI immediately to show responsiveness
-        isKeepingAwake = true;
-        if(btnWake) {
-          btnWake.textContent = '👀 Keeping Awake...';
-          btnWake.classList.remove('danger');   // Remove red
-          btnWake.classList.add('secondary');   // Add blue/active
-        }
-
-        // C. Try Native API (Best for Android/Desktop/Chrome)
-        // We do this AFTER enabling the backup, inside a try/catch
-        if ('wakeLock' in navigator) {
-          wakeLockSentinel = await navigator.wakeLock.request('screen');
-          console.log('Native Wake Lock active');
-        }
-        
-      } catch (err) {
-        console.error("Wake Lock Error:", err);
+        // Listen for involuntary release (e.g. system kills it)
+        wakeLockSentinel.addEventListener('release', () => {
+          console.log('Native Wake Lock: RELEASED (System)');
+          // If we didn't manually stop it, try to get it back?
+          // (Usually handled by visibilitychange below)
+        });
       }
 
-    } else {
-      // --- TURN OFF ---
-      
-      // A. Disable NoSleep
-      noSleep.disable();
-
-      // B. Release Native Lock if it exists
-      if (wakeLockSentinel) {
-        try {
-          await wakeLockSentinel.release();
-          wakeLockSentinel = null;
-        } catch(e) { console.log(e); }
+      // C. Update UI
+      isKeepingAwake = true;
+      if (btnWake) {
+        btnWake.textContent = '👀 Keeping Awake...';
+        btnWake.classList.remove('danger');
+        btnWake.classList.add('secondary');
       }
 
-      // C. Revert UI
-      isKeepingAwake = false;
-      if(btnWake) {
-        btnWake.textContent = 'Enable Wake Lock';
-        btnWake.classList.add('danger');
-        btnWake.classList.remove('secondary');
-      }
-      console.log('Wake Lock: DISABLED');
+    } catch (err) {
+      console.error(`Wake Lock failed: ${err.name}, ${err.message}`);
+      alert("Wake Lock failed. Check browser settings.");
     }
   }
 
-  if(btnWake) btnWake.addEventListener('click', toggleWakeLock);
+  // --- CORE FUNCTION: RELEASE LOCK ---
+  async function disableWakeLock() {
+    // A. Disable NoSleep
+    if (noSleep) noSleep.disable();
+
+    // B. Release Native Lock
+    if (wakeLockSentinel) {
+      await wakeLockSentinel.release();
+      wakeLockSentinel = null;
+    }
+
+    // C. Update UI
+    isKeepingAwake = false;
+    if (btnWake) {
+      btnWake.textContent = 'Enable Wake Lock';
+      btnWake.classList.add('danger');
+      btnWake.classList.remove('secondary');
+    }
+    console.log('Wake Lock: DISABLED (User)');
+  }
+
+  // --- BUTTON CLICK HANDLER ---
+  if (btnWake) {
+    btnWake.addEventListener('click', async () => {
+      if (!isKeepingAwake) {
+        await enableWakeLock();
+      } else {
+        await disableWakeLock();
+      }
+    });
+  }
+
+  // --- CRITICAL FIX: RE-ACQUIRE ON TAB SWITCH ---
+  // If you switch tabs, the Native Lock dies. We must restore it when you come back.
+  document.addEventListener('visibilitychange', async () => {
+    if (wakeLockSentinel !== null && document.visibilityState === 'visible') {
+      console.log('Page visible again. Re-acquiring Native Lock...');
+      await enableWakeLock(); 
+    }
+  });
+
 </script>
 
   <script>
