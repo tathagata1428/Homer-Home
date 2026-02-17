@@ -6,7 +6,7 @@
   <title>Homer — Focus Dashboard</title>
 
   <link rel="apple-touch-icon" sizes="180x180"
-        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
+        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
 
   <meta name="theme-color" content="#0f172a">
   <meta name="mobile-web-app-capable" content="yes">
@@ -348,7 +348,8 @@
 
           <div class="row" aria-label="Actions">
             <button id="refresh" class="btn primary">New Quote</button>
-            <button id="btn-advice" class="btn secondary">Need Advice?</button>
+            
+            <button id="btn-humor" class="btn secondary">Humor</button>
             
             <button id="save" class="btn ghost">Save</button>
             <button id="copy" class="btn ghost">Copy</button>
@@ -573,7 +574,7 @@
 </section>
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
-      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v1.7 (Fixed + Advice)</span>
+      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v2.2 (No DummyJSON)</span>
     </footer>
   </div>
 
@@ -655,10 +656,15 @@
 
   <script>
     const AUTO_MS = 900_000; // 15 min
-    const LOCAL_POOL = [
+    
+    // OFFLINE BACKUP (No internet needed)
+    const BACKUP_MOTIVATION = [
       {content:"Life is simple. Are you happy? Yes? Keep going. No? Change something.", author:"Bogdan Radu"},
-      {content:"People who have goals succeed because they know where they're going. It's that simple..", author:"Earl Nightingale"},
-       
+      {content:"People who have goals succeed because they know where they're going.", author:"Earl Nightingale"}
+    ];
+    const BACKUP_HUMOR = [
+      {content: "I am so clever that sometimes I don't understand a single word of what I am saying.", author: "Oscar Wilde"},
+      {content: "Behind every great man is a woman rolling her eyes.", author: "Jim Carrey"}
     ];
 
     const els = {
@@ -667,7 +673,6 @@
       byline:document.getElementById("byline"),
       status:document.getElementById("status"),
       refresh:document.getElementById("refresh"),
-      skip:document.getElementById("skip"),
       save:document.getElementById("save"),
       copy:document.getElementById("copy"),
       countdown:document.getElementById("countdown"),
@@ -693,53 +698,64 @@
       setLoading(false); fadeIn(); pushSeen(txt); resetCountdown();
     }
     
-    /* --- DUAL API LOGIC (Motivation vs Advice) --- */
-    const API_MOTIVATION = "https://dummyjson.com/quotes/random";
-    const API_ADVICE = "https://api.adviceslip.com/advice";
+    /* --- UNIFIED API LOGIC (thequoteshub.com) --- */
+    
+    const HUB_BASE = "https://thequoteshub.com/api/tags/";
 
-    // 1. Fetch Motivation (Default)
-    async function fetchMotivation() {
+    async function fetchFromHub(tag) {
       try {
-        const r = await fetch(API_MOTIVATION, { cache: "no-store" });
-        if (!r.ok) throw new Error("Motivation API Error");
-        const d = await r.json();
-        return { content: d.quote, author: d.author };
-      } catch (e) {
-        console.warn("Motivation failed", e);
-        return LOCAL_POOL[Math.floor(Math.random() * LOCAL_POOL.length)];
-      }
-    }
+        // 1. Fetch from TheQuotesHub
+        const r = await fetch(`${HUB_BASE}${tag}?limit=1`);
+        if (!r.ok) throw new Error("API Error");
+        
+        // 2. Smart Parse (Handle different JSON structures)
+        const data = await r.json();
+        let item = null;
+        
+        if (Array.isArray(data) && data.length > 0) item = data[0];
+        else if (data.data && Array.isArray(data.data) && data.data.length > 0) item = data.data[0];
+        else if (data.quote || data.text) item = data;
 
-    // 2. Fetch Advice (On Button Press)
-    async function fetchAdvice() {
-      try {
-        // Add timestamp ?t= to prevent caching the same advice
-        const r = await fetch(API_ADVICE + '?t=' + Date.now());
-        if (!r.ok) throw new Error("Advice API Error");
-        const d = await r.json();
-        // Format advice to look like a quote
-        return { content: d.slip.advice, author: "Daily Advice" };
+        if (item) {
+          const content = item.text || item.quote || item.content;
+          const author = item.author || item.from || "Unknown";
+          if (content) return { content, author };
+        }
+        throw new Error("Invalid Data");
+
       } catch (e) {
-        console.warn("Advice failed", e);
-        return { content: "Sometimes silence is the best advice.", author: "Daily Advice" };
+        console.warn(`Hub failed for ${tag}, using local backup.`, e);
+        
+        // 3. Fallback Strategies (OFFLINE MODE)
+        if(tag === 'humor') {
+           return BACKUP_HUMOR[Math.floor(Math.random() * BACKUP_HUMOR.length)];
+        } else {
+           return BACKUP_MOTIVATION[Math.floor(Math.random() * BACKUP_MOTIVATION.length)];
+        }
       }
     }
 
     /* --- BUTTON LISTENERS --- */
     
-    // "New Quote" -> Fetches Motivation
+    // 1. MOTIVATION (Default)
     els.refresh.addEventListener("click", async () => {
       setLoading(true);
-      const q = await fetchMotivation();
+      const statusText = document.querySelector("#status");
+      if(statusText) statusText.innerHTML = '<span class="spinner"></span>Fetching wisdom…';
+      
+      const q = await fetchFromHub('motivation');
       renderQuote(q);
     });
 
-    // "Need Advice?" -> Fetches Advice
-    const btnAdvice = document.getElementById("btn-advice");
-    if(btnAdvice) {
-      btnAdvice.addEventListener("click", async () => {
+    // 2. HUMOR (Replaces Advice)
+    const btnHumor = document.getElementById("btn-humor");
+    if(btnHumor) {
+      btnHumor.addEventListener("click", async () => {
         setLoading(true);
-        const q = await fetchAdvice();
+        const statusText = document.querySelector("#status");
+        if(statusText) statusText.innerHTML = '<span class="spinner"></span>Fetching a laugh…';
+
+        const q = await fetchFromHub('humor');
         renderQuote(q);
       });
     }
@@ -1047,8 +1063,7 @@
           const isAPI=url.hostname.includes('open-meteo.com')
                     || url.hostname.includes('youtube.com')
                     || url.hostname.includes('googlevideo.com')
-                    || url.hostname.includes('dummyjson.com')
-                    || url.hostname.includes('adviceslip.com')
+                    || url.hostname.includes('thequoteshub.com')
                     || url.hostname.includes('cdnjs.cloudflare.com');
           if(isExternal||isAPI){
             e.respondWith(fetch(e.request).catch(()=>new Response('',{status:503}))); return;
