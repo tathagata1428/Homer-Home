@@ -706,27 +706,32 @@ async function tryDirectThenProxy(url) {
   try { return await tryFetchJSON(url); }
   catch { return await tryFetchJSON(proxy(url)); }
 }
+/* REPLACE YOUR 'fetchMotivationalQuoteOnce' FUNCTION WITH THIS: */
 
 async function fetchMotivationalQuoteOnce() {
-  // 1️⃣ Try Quotable first (motivational + inspirational)
+  // 1. Use DummyJSON (Reliable, Secure, Fast)
+  const API_URL = "https://dummyjson.com/quotes/random";
+  
   try {
-    const d = await tryDirectThenProxy(QUOTABLE_API);
-    const item = Array.isArray(d) ? d[0] : d;
-    if (item?.content && item?.author)
-      return { content: item.content, author: item.author };
-  } catch (_) {}
-
-  // 2️⃣ Fallback to ZenQuotes (general inspiration)
-  try {
-    const d = await tryDirectThenProxy(ZQ_RANDOM);
-    const item = Array.isArray(d) ? d[0] : d;
-    if (item?.q && item?.a)
-      return { content: item.q, author: item.a };
-  } catch (_) {}
-
-  // 3️⃣ Local fallback (offline or both fail)
-  return LOCAL_POOL[Math.floor(Math.random() * LOCAL_POOL.length)];
+    const response = await fetch(API_URL, { cache: "no-store" });
+    if (!response.ok) throw new Error("API Failed");
+    
+    const data = await response.json();
+    
+    // 2. Return the data in the format your app expects
+    return { 
+      content: data.quote, 
+      author: data.author 
+    };
+    
+  } catch (error) {
+    console.warn("Quote API failed, using local backup.");
+    
+    // 3. Fallback to local quotes if internet is down
+    return LOCAL_POOL[Math.floor(Math.random() * LOCAL_POOL.length)];
+  }
 }
+
 
 async function fetchUniqueQuote() {
   for (let i = 0; i < 6; i++) {
