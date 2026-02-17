@@ -6,13 +6,13 @@
   <title>Homer — Focus Dashboard</title>
 
   <link rel="apple-touch-icon" sizes="180x180"
-        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
+        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
 
   <meta name="theme-color" content="#0f172a">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  
+   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
 
   <style>
@@ -88,7 +88,7 @@
       background:linear-gradient(135deg, var(--accent) 0%, #16a34a 100%);
     }
     .music .label{color:var(--muted)}
-    
+     
     .yt-hidden-player {
       position: absolute; width: 1px; height: 1px;
       opacity: 0; pointer-events: none; left: -9999px;
@@ -127,14 +127,14 @@
     }
     .primary{background:linear-gradient(135deg, var(--accent) 0%, #16a34a 100%); border:none; color:#041106}
     .secondary{background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%); border:none; color:#041106}
-    
+     
     /* 🔴 RED BUTTON CLASS */
     .danger{
       background:linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); 
       border:none; color:#ffffff; 
       box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
     }
-    
+     
     .ghost{background:transparent}
     .muted{color:var(--muted)}
     .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.2);border-top-color:var(--accent-2);border-radius:50%;display:inline-block;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
@@ -341,14 +341,15 @@
             <span id="countdown-text">15m</span>
           </div>
 
-          <h2 class="section">Daily Motivation</h2>
-          <p id="status" class="muted"><span class="spinner"></span>Fetching a fresh quote…</p>
+          <h2 class="section">Daily Inspiration</h2>
+          <p id="status" class="muted"><span class="spinner"></span>Fetching wisdom…</p>
           <blockquote id="quote" style="display:none;"></blockquote>
           <div id="byline" class="author" style="display:none;">— <span id="author"></span></div>
 
           <div class="row" aria-label="Actions">
             <button id="refresh" class="btn primary">New Quote</button>
-            <button id="skip" class="btn secondary">Skip</button>
+            <button id="btn-advice" class="btn secondary">Need Advice?</button>
+            
             <button id="save" class="btn ghost">Save</button>
             <button id="copy" class="btn ghost">Copy</button>
           </div>
@@ -460,7 +461,7 @@
         <p class="muted">Daily notes and reflections.</p>
         <a href="https://journal.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Journal</a>
       </div>
-      
+       
       <div class="span-4 card tool-card">
         <h3>🍿 Jellyfin</h3>
         <p class="muted">Your personal media server.</p>
@@ -484,7 +485,7 @@
         <p class="muted">Self-hosted photos.</p>
         <a href="https://immich.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Immich</a>
       </div>
-      
+       
       <div class="span-4 card tool-card">
         <h3>☕ Keep Awake</h3>
         <p class="muted">Prevents screen from sleeping.</p>
@@ -572,7 +573,7 @@
 </section>
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
-      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v1.6 (PC Optimized)</span>
+      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v1.7 (Fixed + Advice)</span>
     </footer>
   </div>
 
@@ -657,7 +658,7 @@
     const LOCAL_POOL = [
       {content:"Life is simple. Are you happy? Yes? Keep going. No? Change something.", author:"Bogdan Radu"},
       {content:"People who have goals succeed because they know where they're going. It's that simple..", author:"Earl Nightingale"},
-      
+       
     ];
 
     const els = {
@@ -691,56 +692,57 @@
       els.quote.textContent=txt; els.author.textContent=ath;
       setLoading(false); fadeIn(); pushSeen(txt); resetCountdown();
     }
-/* Motivational & Inspirational Quotes (Quotable.io + ZenQuotes fallback, CORS-safe) */
-const QUOTABLE_API = "https://api.quotable.io/quotes/random?tags=inspirational%7Cmotivational";
-const ZQ_RANDOM = "https://zenquotes.io/api/random";
-const proxy = (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u);
-
-async function tryFetchJSON(url) {
-  const r = await fetch(url, { cache: "no-store" });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r.json();
-}
-
-async function tryDirectThenProxy(url) {
-  try { return await tryFetchJSON(url); }
-  catch { return await tryFetchJSON(proxy(url)); }
-}
-/* REPLACE YOUR 'fetchMotivationalQuoteOnce' FUNCTION WITH THIS: */
-
-async function fetchMotivationalQuoteOnce() {
-  // 1. Use DummyJSON (Reliable, Secure, Fast)
-  const API_URL = "https://dummyjson.com/quotes/random";
-  
-  try {
-    const response = await fetch(API_URL, { cache: "no-store" });
-    if (!response.ok) throw new Error("API Failed");
     
-    const data = await response.json();
-    
-    // 2. Return the data in the format your app expects
-    return { 
-      content: data.quote, 
-      author: data.author 
-    };
-    
-  } catch (error) {
-    console.warn("Quote API failed, using local backup.");
-    
-    // 3. Fallback to local quotes if internet is down
-    return LOCAL_POOL[Math.floor(Math.random() * LOCAL_POOL.length)];
-  }
-}
+    /* --- DUAL API LOGIC (Motivation vs Advice) --- */
+    const API_MOTIVATION = "https://dummyjson.com/quotes/random";
+    const API_ADVICE = "https://api.adviceslip.com/advice";
 
+    // 1. Fetch Motivation (Default)
+    async function fetchMotivation() {
+      try {
+        const r = await fetch(API_MOTIVATION, { cache: "no-store" });
+        if (!r.ok) throw new Error("Motivation API Error");
+        const d = await r.json();
+        return { content: d.quote, author: d.author };
+      } catch (e) {
+        console.warn("Motivation failed", e);
+        return LOCAL_POOL[Math.floor(Math.random() * LOCAL_POOL.length)];
+      }
+    }
 
-async function fetchUniqueQuote() {
-  for (let i = 0; i < 6; i++) {
-    const q = await fetchMotivationalQuoteOnce();
-    if (!isSeen(q.content)) return q;
-  }
-  return LOCAL_POOL[Math.floor(Math.random() * LOCAL_POOL.length)];
-}
+    // 2. Fetch Advice (On Button Press)
+    async function fetchAdvice() {
+      try {
+        // Add timestamp ?t= to prevent caching the same advice
+        const r = await fetch(API_ADVICE + '?t=' + Date.now());
+        if (!r.ok) throw new Error("Advice API Error");
+        const d = await r.json();
+        // Format advice to look like a quote
+        return { content: d.slip.advice, author: "Daily Advice" };
+      } catch (e) {
+        console.warn("Advice failed", e);
+        return { content: "Sometimes silence is the best advice.", author: "Daily Advice" };
+      }
+    }
 
+    /* --- BUTTON LISTENERS --- */
+    
+    // "New Quote" -> Fetches Motivation
+    els.refresh.addEventListener("click", async () => {
+      setLoading(true);
+      const q = await fetchMotivation();
+      renderQuote(q);
+    });
+
+    // "Need Advice?" -> Fetches Advice
+    const btnAdvice = document.getElementById("btn-advice");
+    if(btnAdvice) {
+      btnAdvice.addEventListener("click", async () => {
+        setLoading(true);
+        const q = await fetchAdvice();
+        renderQuote(q);
+      });
+    }
 
     /* countdown (15 min auto-refresh) */
     let deadline = Date.now()+AUTO_MS, cdTimer=null;
@@ -748,7 +750,7 @@ async function fetchUniqueQuote() {
       deadline = Date.now()+AUTO_MS;
       tickCountdown();
     }
-    
+     
     // 🔵 OPTIMIZED CPU: Switched from requestAnimationFrame to setTimeout (1s)
     function tickCountdown(){
       if(cdTimer) clearTimeout(cdTimer);
@@ -765,19 +767,6 @@ async function fetchUniqueQuote() {
         cdTimer=setTimeout(tickCountdown, 1000); // Only run once per second
       }
     }
-
-    /* button actions */
-    els.refresh.addEventListener("click",async()=>{
-      setLoading(true);
-      try{
-        const q=await fetchUniqueQuote();
-        renderQuote(q);
-      }catch(e){
-        console.error(e);
-        renderQuote(LOCAL_POOL[0]);
-      }
-    });
-    els.skip.addEventListener("click",()=>els.refresh.click());
 
     els.copy.addEventListener("click",()=>{
       const txt=`"${els.quote.textContent}" — ${els.author.textContent}`;
@@ -825,7 +814,7 @@ async function fetchUniqueQuote() {
       const idx=+btn.dataset.i; const list=loadSaved(); const it=list[idx]; if(!it) return;
       if(btn.dataset.act==='del') deleteSaved(idx);
       if(btn.dataset.act==='copy') navigator.clipboard.writeText(`“${it.q}” — ${it.a||"Unknown"}`);
-      
+       
     });
     els.exportSaved?.addEventListener('click',()=>{
       const list=loadSaved();
@@ -1058,8 +1047,8 @@ async function fetchUniqueQuote() {
           const isAPI=url.hostname.includes('open-meteo.com')
                     || url.hostname.includes('youtube.com')
                     || url.hostname.includes('googlevideo.com')
-                    || url.hostname.includes('zenquotes.io')
-                    || url.hostname.includes('allorigins.win')
+                    || url.hostname.includes('dummyjson.com')
+                    || url.hostname.includes('adviceslip.com')
                     || url.hostname.includes('cdnjs.cloudflare.com');
           if(isExternal||isAPI){
             e.respondWith(fetch(e.request).catch(()=>new Response('',{status:503}))); return;
@@ -1107,14 +1096,14 @@ function createPlayer(k) {
 function togglePlay(k) {
   const t = tracks[k];
   const btn = document.getElementById(t.btn);
-  
+   
   // Initialize on first click (Lazy Load)
   if (!t.player) {
     createPlayer(k);
     if(btn) btn.textContent = t.labelPause;
     return;
   }
-  
+   
   const st = t.player.getPlayerState();
   if (st === YT.PlayerState.PLAYING) {
     t.player.pauseVideo();
@@ -1149,12 +1138,12 @@ function playMix(list) {
     // Because lazy load is async, precise mix start might delay slightly on first run
     // but usually Youtube API queues the play command.
     setTimeout(() => {
-       const t = tracks[item.k];
-       if(t.player && typeof t.player.setVolume === 'function') {
-         t.player.setVolume(item.vol);
-         t.player.playVideo();
-         if(t.btn) document.getElementById(t.btn).textContent = t.labelPause;
-       }
+        const t = tracks[item.k];
+        if(t.player && typeof t.player.setVolume === 'function') {
+          t.player.setVolume(item.vol);
+          t.player.playVideo();
+          if(t.btn) document.getElementById(t.btn).textContent = t.labelPause;
+        }
     }, 100);
   });
 }
@@ -1166,7 +1155,7 @@ document.addEventListener("click", e => {
   if (id === "mix-rainy") playMix([{k:'rain',vol:70}, {k:'ocean',vol:40}]);
   if (id === "mix-reading") playMix([{k:'lofi',vol:50}, {k:'fire',vol:10}, {k:'wind',vol:10}, {k:'rain',vol:10}]);
   if (id === "mix-cozy") playMix([{k:'fire',vol:40}, {k:'rain',vol:40}, {k:'rainywindow',vol:30}]);
-  
+   
   Object.keys(tracks).forEach(k => {
     if (id === tracks[k].btn) togglePlay(k);
   });
@@ -1207,7 +1196,7 @@ document.addEventListener("input", e => {
         try {
           wakeLockSentinel = await navigator.wakeLock.request('screen');
           console.log('Native Wake Lock: ACQUIRED');
-          
+           
           // Listen for involuntary release (e.g. system kills it, user tabs away)
           wakeLockSentinel.addEventListener('release', async () => {
             console.log('Native Wake Lock: RELEASED (System/Tab Switch)');
