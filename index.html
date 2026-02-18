@@ -36,7 +36,12 @@
     }
     
     /* === ZEN MODE OVERRIDES === */
-    /* When body has class 'zen-active', hide these elements */
+    body.zen-active {
+        background: #000;
+        place-items: center;
+        padding: 0;
+    }
+    /* Hide everything in Zen Mode */
     body.zen-active .hero, 
     body.zen-active .tabs, 
     body.zen-active .toolbar, 
@@ -46,15 +51,15 @@
     body.zen-active #tab-pomodoro,
     body.zen-active #tab-tools,
     body.zen-active .ambient-section,
-    body.zen-active .focus-grid-wrapper { /* Hides normal Focus Lab grid */
+    body.zen-active .focus-grid-wrapper { 
         display: none !important; 
     }
     
-    /* Ensure the Zen Overlay is visible properly */
+    /* Show Zen Overlay */
     body.zen-active #zen-overlay {
         display: flex !important;
     }
-    
+
     .shell{width:min(1150px,96vw)}
 
     /* HERO */
@@ -196,15 +201,15 @@
     .ring{
       --ring-size: 220px; /* smaller */
       position:relative; width:var(--ring-size); height:var(--ring-size); border-radius:50%;
-      /* FIX: 85% hole makes ring thinner, preventing text overlap */
+      /* 🔴 THICKER RING (76% hole = 24% thick) */
       background:
-        radial-gradient(closest-side, #151f32 85%, transparent 86%),
+        radial-gradient(closest-side, #151f32 76%, transparent 77%),
         conic-gradient(var(--accent) var(--pom-progress,0%), rgba(255,255,255,.18) 0);
       box-shadow: 0 20px 60px rgba(34,197,94,.15), 0 0 0 1px var(--border) inset;
       display:grid; place-items:center;
-      margin-top: 16px; /* Added spacing from pill */
+      margin-top: 16px;
     }
-    /* FIX: Force text to be on top layer */
+    /* FIX: Force text to be on top layer so it doesn't get hidden */
     .ring .time{ 
       font-size: clamp(1.9rem, 5.6vw, 2.7rem); 
       font-weight: 1000; 
@@ -346,6 +351,20 @@
     }
     .site-footer a{ color: var(--accent-2); font-weight: 700; text-decoration: none; }
     .site-footer a:hover{ text-decoration: underline; }
+
+    /* Simple tool cards extra (FIXED ALIGNMENT) */
+    .tool-card {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+    }
+    .tool-card a.btn, .tool-card button.btn {
+      display: inline-block;
+      margin-top: 10px;
+    }
 
   </style>
 </head>
@@ -503,7 +522,7 @@
     </section>
 
     <section id="tab-focuslab" class="tab card" style="display:none">
-       <div class="grid" class="focus-grid-wrapper">
+       <div class="grid focus-grid-wrapper">
          
          <div class="span-6 card breathing-container">
            <h3 style="margin-top:0">🌬️ Box Breathing</h3>
@@ -654,7 +673,7 @@
       <button id="btn-synthwave" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Synthwave</button>
       <input id="vol-synthwave" type="range" min="0" max="100" value="50" style="width:100%;">
     </div>
-  </div> <div class="ambient-section" style="margin-top:24px; display:flex; flex-wrap:wrap; justify-content:center; gap:12px;">
+  </div> <div style="margin-top:24px; display:flex; flex-wrap:wrap; justify-content:center; gap:12px;">
     <button id="mix-sleep" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">🌙 Sleep Mix</button>
     <button id="mix-rainy" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">🌦️ Rainy Mix</button>
     <button id="mix-reading" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">📖 Reading Mix</button>
@@ -676,7 +695,7 @@
 </section>
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
-      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v5.1 (Fixed Zen & Focus)</span>
+      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v5.6 (Fix: Smart Home Widget)</span>
     </footer>
   </div>
 
@@ -865,6 +884,7 @@
       const p=els.copy.textContent; els.copy.textContent="Copied!"; setTimeout(()=>els.copy.textContent=p,1500);
     });
 
+    const SAVED_KEY="motivator.savedQuotes.v1";
     function loadSaved(){ try{ return JSON.parse(localStorage.getItem(SAVED_KEY)||"[]"); }catch{return [];} }
     function saveSaved(list){ localStorage.setItem(SAVED_KEY,JSON.stringify(list)); }
     function addCurrentToSaved(){
@@ -926,7 +946,7 @@
     }
 
     // Zen Mode Logic - FIXED
-    const zenBtn = document.getElementById("btn-zen");
+    const zenBtn = document.getElementById("zen-btn");
     const zenExit = document.getElementById("zen-exit");
     const zenOverlay = document.getElementById("zen-overlay");
     const zenInput = document.getElementById("zen-input");
@@ -1155,21 +1175,56 @@
         tasksCard.style.display='block'; tasksEmpty.style.display='block';
       }else{
         tasksCard.style.display='block'; tasksEmpty.style.display='none';
-        const isFocus=state&&state.mode==='focus';
-        const totalFocus=(settings.focus||25)*60;
-        const remaining=Math.max(0,(state?.remaining||totalFocus));
-        const progressDeg=360*(1-(remaining/totalFocus));
+        
+        // FIX: Handle null state gracefully so time shows up before user clicks Start
+        const isFocus = (state && state.mode === 'focus') || (!state); // Default to true if state missing
+        const isRunning = state && state.running;
+        const totalFocus = (settings.focus || 25) * 60;
+        const remaining = Math.max(0, (state && state.remaining ? state.remaining : totalFocus));
+        const progressDeg = 360 * (1 - (remaining / totalFocus));
+
         openTasks.forEach((t,i)=>{
           const card=document.createElement('div'); card.className='htask-card htask';
           const circle=document.createElement('div'); circle.className='mini-circle';
           const leftSpan=document.createElement('span');
-          leftSpan.textContent=(i===0&&isFocus)?fmtMMSS(remaining):'--:--';
+          
+          /* SMART CLOCK LOGIC:
+             1. Only show time if task is actively RUNNING in Focus mode.
+             2. If Paused/Ready: Show Play Icon.
+             3. If Break: Show Coffee Icon.
+          */
+          let displayContent = '▶'; 
+          
+          if (isFocus) {
+             if (isRunning) {
+                 displayContent = fmtMMSS(remaining);
+             } else {
+                 displayContent = '▶'; 
+             }
+          } else {
+             displayContent = '☕'; 
+          }
+
+          // Apply to first task only
+          leftSpan.textContent = (i === 0) ? displayContent : (i + 1);
+          
           circle.appendChild(leftSpan);
-          circle.style.setProperty('--prog',(i===0&&isFocus)?`${progressDeg}deg`:'0deg');
+          circle.style.setProperty('--prog',(i===0 && isFocus && isRunning) ? `${progressDeg}deg` : '0deg');
           const meta=document.createElement('div'); meta.className='meta';
           const name=document.createElement('div'); name.className='name'; name.textContent=t.text;
           const sub=document.createElement('div'); sub.className='sub';
-          sub.textContent=(i===0)?(isFocus?(state.running?'Focus • running':'Focus • paused'): 'Pomodoro not in Focus'):'Queued';
+          
+          // Subtitle Logic
+          if(i===0) {
+             if(isFocus) {
+                sub.textContent = isRunning ? 'Focusing...' : 'Ready to Start';
+             } else {
+                sub.textContent = 'On Break ☕';
+             }
+          } else {
+             sub.textContent = 'Queued';
+          }
+
           meta.appendChild(name); meta.appendChild(sub);
           card.appendChild(circle); card.appendChild(meta);
           tasksWrap.appendChild(card);
