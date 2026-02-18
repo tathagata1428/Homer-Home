@@ -32,15 +32,11 @@
       font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
       padding:28px 14px calc(var(--tb) + env(safe-area-inset-bottom, 0px));
       display:grid; place-items:start center;
-      transition: background 0.5s ease;
+      transition: background 0.5s ease; 
     }
     
-    /* ZEN MODE OVERRIDES */
-    body.zen-active {
-        background: #000;
-        place-items: center;
-        padding: 0;
-    }
+    /* === ZEN MODE OVERRIDES === */
+    /* When body has class 'zen-active', hide these elements */
     body.zen-active .hero, 
     body.zen-active .tabs, 
     body.zen-active .toolbar, 
@@ -49,17 +45,16 @@
     body.zen-active #tab-saved,
     body.zen-active #tab-pomodoro,
     body.zen-active #tab-tools,
-    body.zen-active .ambient-section { 
+    body.zen-active .ambient-section,
+    body.zen-active .focus-grid-wrapper { /* Hides normal Focus Lab grid */
         display: none !important; 
     }
-    /* Only show specific parts of Focus Lab in Zen */
-    body.zen-active #tab-focuslab {
-        display: block !important;
-        background: none; border: none; box-shadow: none; backdrop-filter: none;
-        width: 100%; max-width: 600px;
+    
+    /* Ensure the Zen Overlay is visible properly */
+    body.zen-active #zen-overlay {
+        display: flex !important;
     }
-    body.zen-active .hide-in-zen { display: none !important; }
-
+    
     .shell{width:min(1150px,96vw)}
 
     /* HERO */
@@ -201,14 +196,23 @@
     .ring{
       --ring-size: 220px; /* smaller */
       position:relative; width:var(--ring-size); height:var(--ring-size); border-radius:50%;
+      /* FIX: 85% hole makes ring thinner, preventing text overlap */
       background:
-        radial-gradient(closest-side, rgba(15,23,42,.96) 78%, transparent 80%),
+        radial-gradient(closest-side, #151f32 85%, transparent 86%),
         conic-gradient(var(--accent) var(--pom-progress,0%), rgba(255,255,255,.18) 0);
       box-shadow: 0 20px 60px rgba(34,197,94,.15), 0 0 0 1px var(--border) inset;
       display:grid; place-items:center;
-      margin-top: 12px; /* a bit lower under the pill */
+      margin-top: 16px; /* Added spacing from pill */
     }
-    .ring .time{ font-size: clamp(1.9rem, 5.6vw, 2.7rem); font-weight: 1000; letter-spacing: .02em; }
+    /* FIX: Force text to be on top layer */
+    .ring .time{ 
+      font-size: clamp(1.9rem, 5.6vw, 2.7rem); 
+      font-weight: 1000; 
+      letter-spacing: .02em; 
+      position: relative; 
+      z-index: 5;
+    }
+
     .mode-pill{
       padding:6px 10px; border-radius:999px; font-weight:900; font-size:.85rem; color:#041106;
       background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%);
@@ -274,53 +278,6 @@
       .tool-btn{flex:1 1 auto; justify-content:center; min-width:0}
     }
 
-    /* Footer */
-    .site-footer{
-      margin-top: 28px;
-      text-align: center;
-      font-size: .9rem;
-      color: var(--muted);
-    }
-    .site-footer a{ color: var(--accent-2); font-weight: 700; text-decoration: none; }
-    .site-footer a:hover{ text-decoration: underline; }
-
-    /* ===== Home: Focus Tasks + Completed ===== */
-    .htasklist{
-      display:grid;
-      grid-template-columns: repeat( auto-fit, minmax(260px, 1fr) );
-      gap:14px;
-    }
-    .htask-card{
-      display:flex; align-items:center; gap:14px;
-      padding:12px; border:1px solid var(--border); border-radius:12px;
-      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
-    }
-    .mini-circle{
-      --size:86px; --prog:0deg;
-      width:var(--size); height:var(--size); border-radius:50%; flex:0 0 var(--size);
-      background:
-        radial-gradient(closest-side, rgba(15,23,42,.96) 72%, transparent 74%),
-        conic-gradient(var(--accent) var(--prog), rgba(255,255,255,.18) 0);
-      display:grid; place-items:center; border:1px solid var(--border); box-shadow:0 10px 28px rgba(0,0,0,.25);
-      font-weight:900; letter-spacing:.02em; font-variant-numeric: tabular-nums;
-    }
-    .htask .meta{display:flex; flex-direction:column; gap:4px}
-    .htask .name{font-weight:900; font-size:1.05rem}
-    .htask .sub{color:var(--muted); font-size:.95rem}
-    .done-list{display:grid; gap:10px; margin-top:12px}
-    .done-item{display:flex; justify-content:space-between; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02))}
-    .pill{padding:4px 8px; border-radius:999px; background:rgba(255,255,255,.08); border:1px solid var(--border); color:var(--muted); font-size:.85rem}
-
-    @media (max-width:430px){
-      .mini-circle{ --size:78px; }
-      .htask .name{ font-size:1rem; }
-      .htask .sub{ font-size:.9rem; }
-    }
-
-    /* Simple tool cards extra */
-    .tool-card{text-align:center}
-    .tool-card a.btn{display:inline-block;margin-top:10px}
-    
     /* FOCUS LAB STYLES */
     /* 1. Trataka Overlay */
     .focus-overlay{
@@ -379,6 +336,16 @@
     #zen-text { font-size: 3rem; font-weight: 900; color: var(--accent); text-align: center; padding: 20px; }
     #zen-exit { margin-top: 20px; opacity: 0.5; cursor: pointer; }
     #zen-exit:hover { opacity: 1; }
+
+    /* Footer */
+    .site-footer{
+      margin-top: 28px;
+      text-align: center;
+      font-size: .9rem;
+      color: var(--muted);
+    }
+    .site-footer a{ color: var(--accent-2); font-weight: 700; text-decoration: none; }
+    .site-footer a:hover{ text-decoration: underline; }
 
   </style>
 </head>
@@ -536,8 +503,7 @@
     </section>
 
     <section id="tab-focuslab" class="tab card" style="display:none">
-       <h2 class="section">🧠 Focus Lab</h2>
-       <div class="grid">
+       <div class="grid" class="focus-grid-wrapper">
          
          <div class="span-6 card breathing-container">
            <h3 style="margin-top:0">🌬️ Box Breathing</h3>
@@ -582,9 +548,9 @@
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>📚 Docs</h3>
-        <p class="muted">Access personal documentation.</p>
-        <a href="https://docs.b4it.ro" target="_blank" rel="noopener" class="btn secondary">Open Docs</a>
+        <h3>🔔 Notifications</h3>
+        <p class="muted">Receive real-time notifications through ntfy.sh.</p>
+        <a href="https://ntfy.b4it.ro/" target="_blank" rel="noopener" class="btn secondary">Open Notifications</a>
       </div>
 
       <div class="span-4 card tool-card">
@@ -632,7 +598,7 @@
     </div>
   </div>
 
- <div class="card" style="margin-top:28px; text-align:center; padding:24px; max-width:860px; margin-inline:auto;">
+ <div class="card ambient-section" style="margin-top:28px; text-align:center; padding:24px; max-width:860px; margin-inline:auto;">
   <h2 class="section" style="margin-bottom:16px;">🎧 Ambient Sounds</h2>
 
   <div style="
@@ -688,7 +654,7 @@
       <button id="btn-synthwave" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Synthwave</button>
       <input id="vol-synthwave" type="range" min="0" max="100" value="50" style="width:100%;">
     </div>
-  </div> <div style="margin-top:24px; display:flex; flex-wrap:wrap; justify-content:center; gap:12px;">
+  </div> <div class="ambient-section" style="margin-top:24px; display:flex; flex-wrap:wrap; justify-content:center; gap:12px;">
     <button id="mix-sleep" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">🌙 Sleep Mix</button>
     <button id="mix-rainy" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">🌦️ Rainy Mix</button>
     <button id="mix-reading" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">📖 Reading Mix</button>
@@ -708,7 +674,19 @@
 </div>
 
 </section>
-  
+    <footer class="site-footer">
+      Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
+      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v5.1 (Fixed Zen & Focus)</span>
+    </footer>
+  </div>
+
+  <nav class="toolbar" aria-label="Quick links">
+    <a class="tool-btn" href="https://www.youtube.com/" target="_blank" rel="noopener">▶️ YouTube</a>
+    <a class="tool-btn" href="https://gemini.google.com" target="_blank" rel="noopener">✨ Gemini AI</a>
+    <a class="tool-btn" href="https://tasks.b4it.ro" target="_blank" rel="noopener">🗒️ Notes</a>
+    <a class="tool-btn" href="https://www.google.com" target="_blank" rel="noopener">🔎 Google</a>
+  </nav>
+
   <script>
     /* 1. TABS */
     const tabBtns = [...document.querySelectorAll('.tab-btn')];
@@ -811,12 +789,21 @@
       setLoading(false); fadeIn(); resetCountdown();
     }
     
+    /* --- API LOGIC (SMART LOCAL PROXY + HTML TRAP) --- */
+    const IS_LOCAL = window.location.protocol === 'file:' || window.location.hostname === 'localhost';
+    const API_HUMOR = "https://official-joke-api.appspot.com/random_joke";
+
     async function fetchMotivation() {
       try {
+        const url = IS_LOCAL 
+          ? "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(DB_URL)
+          : DB_URL;
+
         if (!globalQuotes) {
-           const r = await fetch(DB_URL);
-           if (!r.ok) throw new Error("DB Download Failed");
-           globalQuotes = await r.json();
+           const r = await fetch(url);
+           const text = await r.text();
+           if(text.trim().startsWith("<")) throw new Error("Received HTML instead of JSON");
+           globalQuotes = JSON.parse(text);
         }
         const topic = TOPICS[Math.floor(Math.random() * TOPICS.length)];
         const candidates = globalQuotes.filter(q => q.quoteText.toLowerCase().includes(topic));
@@ -829,7 +816,7 @@
 
     async function fetchHumor() {
       try {
-        const r = await fetch("https://official-joke-api.appspot.com/random_joke");
+        const r = await fetch(API_HUMOR);
         if (!r.ok) throw new Error("Humor API Failed");
         const data = await r.json();
         if(data.setup && data.punchline) return { content: `${data.setup} ... ${data.punchline}`, author: "Daily Joke" };
@@ -878,7 +865,6 @@
       const p=els.copy.textContent; els.copy.textContent="Copied!"; setTimeout(()=>els.copy.textContent=p,1500);
     });
 
-    const SAVED_KEY="motivator.savedQuotes.v1";
     function loadSaved(){ try{ return JSON.parse(localStorage.getItem(SAVED_KEY)||"[]"); }catch{return [];} }
     function saveSaved(list){ localStorage.setItem(SAVED_KEY,JSON.stringify(list)); }
     function addCurrentToSaved(){
@@ -916,37 +902,67 @@
     els.refresh.click(); renderSaved();
 
     /* 5. FOCUS LAB LOGIC */
-    // Focus Dot
+    
+    // Focus Dot (Trataka) Logic - FIXED
     const btnFocusDot = document.getElementById("btn-focus-dot");
-    const overlay = document.getElementById("focus-overlay");
-    if(btnFocusDot && overlay) {
+    const focusOverlay = document.getElementById("focus-overlay");
+    
+    if(btnFocusDot && focusOverlay) {
       btnFocusDot.addEventListener("click", () => {
-        overlay.style.display = "grid";
-        if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(e=>{});
+        focusOverlay.style.display = "grid";
+        // Try fullscreen
+        if(document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(e => console.log(e));
+        }
       });
-      overlay.addEventListener("click", () => {
-        overlay.style.display = "none";
-        if(document.exitFullscreen) document.exitFullscreen().catch(e=>{});
+      
+      focusOverlay.addEventListener("click", () => {
+        focusOverlay.style.display = "none";
+        // Exit fullscreen
+        if(document.exitFullscreen) {
+            document.exitFullscreen().catch(e => console.log(e));
+        }
       });
     }
-    // Zen Mode
+
+    // Zen Mode Logic - FIXED
     const zenBtn = document.getElementById("btn-zen");
     const zenExit = document.getElementById("zen-exit");
     const zenOverlay = document.getElementById("zen-overlay");
     const zenInput = document.getElementById("zen-input");
     const zenText = document.getElementById("zen-text");
+
     if(zenBtn && zenOverlay) {
         zenBtn.addEventListener("click", () => {
             const goal = zenInput.value.trim() || "FOCUS";
             zenText.textContent = goal;
+            
+            // Add class to body to hide everything else via CSS
+            document.body.classList.add("zen-active");
+            
+            // Show overlay
             zenOverlay.style.display = "flex";
-            if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(e=>{});
+            
+            // Fullscreen
+            if(document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(e => console.log(e));
+            }
         });
+
         zenExit.addEventListener("click", () => {
+            // Remove class to restore everything
+            document.body.classList.remove("zen-active");
+            
+            // Hide overlay
             zenOverlay.style.display = "none";
-            if(document.exitFullscreen) document.exitFullscreen().catch(e=>{});
+            
+            // Exit fullscreen
+            if(document.exitFullscreen) {
+                document.exitFullscreen().catch(e => console.log(e));
+            }
         });
     }
+
     // Brain Dump
     const txtDump = document.getElementById("brain-dump");
     const dumpStatus = document.getElementById("dump-status");
