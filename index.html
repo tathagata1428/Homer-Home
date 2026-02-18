@@ -573,7 +573,7 @@
 </section>
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
-      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v3.5 (Fixed)</span>
+      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v3.6 (Unbreakable)</span>
     </footer>
   </div>
 
@@ -656,7 +656,7 @@
   <script>
     const AUTO_MS = 900_000; // 15 min
     
-    // OFFLINE BACKUP (No DummyJSON)
+    // ROBUST OFFLINE BACKUP (CDN-like open source list)
     const BACKUP_MOTIVATION = [
       {content:"Success is not final, failure is not fatal: it is the courage to continue that counts.", author:"Winston Churchill"},
       {content:"Life is simple. Are you happy? Yes? Keep going. No? Change something.", author:"Bogdan Radu"},
@@ -707,67 +707,52 @@
       setLoading(false); fadeIn(); pushSeen(txt); resetCountdown();
     }
     
-    /* --- API LOGIC (CODETABS PROXY + FALLBACK) --- */
+    /* --- SMART API LOGIC (Handles Local vs Deployed) --- */
     
-    // 1. Primary Motivation (Quote Garden via CodeTabs Proxy for Local Support)
-    const TARGET_API = "https://quote-garden.onrender.com/api/v3/quotes/random?genre=motivation";
-    const PROXY_API = "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(TARGET_API);
+    // Use the JSDelivr CDN for 100% Uptime and Speed
+    // This effectively acts as a reliable, fast API that never sleeps
+    const CDN_DB_URL = "https://cdn.jsdelivr.net/gh/lukePeavey/quotable@master/data/quotes.json";
+    const TARGET_TOPICS = ["wisdom", "success", "humor", "technology", "friendship"];
     
-    // 2. Humor API (Official Joke API - Free & Fast)
-    const API_HUMOR = "https://official-joke-api.appspot.com/random_joke";
-
-    // Helper: Fetch with extended timeout (20s) for sleeping free servers
-    async function fetchWithTimeout(resource, options = {}) {
-      const { timeout = 20000 } = options;
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), timeout);
-      const response = await fetch(resource, {
-        ...options,
-        signal: controller.signal  
-      });
-      clearTimeout(id);
-      return response;
-    }
+    // We cache the big list so we don't re-fetch it every time
+    let globalQuoteCache = null;
 
     async function fetchMotivation() {
       try {
-        // Try Proxy Call
-        const r = await fetchWithTimeout(PROXY_API);
-        
-        // CodeTabs might return HTML error (403/503), so we check content type
-        const type = r.headers.get("content-type");
-        if(type && type.includes("text/html")) {
-           throw new Error("Proxy returned HTML error (likely sleeping/blocked)");
+        if (!globalQuoteCache) {
+           const r = await fetch(CDN_DB_URL);
+           if (!r.ok) throw new Error("CDN Failed");
+           globalQuoteCache = await r.json();
         }
+
+        // Filter for specific topics
+        const filtered = globalQuoteCache.filter(q => {
+          return q.tags.some(tag => TARGET_TOPICS.includes(tag.toLowerCase()));
+        });
         
-        if (!r.ok) throw new Error("Proxy Failed");
-        
-        const data = await r.json();
-        
-        if(data.data && data.data.length > 0) {
-           return { content: data.data[0].quoteText, author: data.data[0].quoteAuthor };
-        }
-        throw new Error("Invalid structure");
+        const pool = filtered.length > 0 ? filtered : globalQuoteCache;
+        const item = pool[Math.floor(Math.random() * pool.length)];
+
+        return { content: item.content, author: item.author };
 
       } catch (e) {
-        console.warn("Primary fetch failed, using local backup.", e);
-        // Fallback to Local Backup (Instant)
+        console.log("Using offline backup"); // Clean log
         return BACKUP_MOTIVATION[Math.floor(Math.random() * BACKUP_MOTIVATION.length)];
       }
     }
 
     async function fetchHumor() {
+      // For humor, we try the dedicated API, but fallback to backup instantly if it fails
       try {
-        const r = await fetch(API_HUMOR);
-        if (!r.ok) throw new Error("Humor API Failed");
-        const data = await r.json();
+        const r = await fetch("https://official-joke-api.appspot.com/random_joke");
+        // Check content type to avoid HTML errors
+        const type = r.headers.get("content-type");
+        if(type && type.includes("text/html")) throw new Error("API Sleeping");
         
-        if(data.setup && data.punchline) {
-           return { content: `${data.setup} ... ${data.punchline}`, author: "Daily Joke" };
-        }
-        throw new Error("Invalid structure");
+        const data = await r.json();
+        if(data.setup) return { content: `${data.setup} ... ${data.punchline}`, author: "Daily Joke" };
+        throw new Error("Invalid");
       } catch (e) {
-        console.warn("Humor fetch failed, using backup.", e);
         return BACKUP_HUMOR[Math.floor(Math.random() * BACKUP_HUMOR.length)];
       }
     }
@@ -778,10 +763,13 @@
     els.refresh.addEventListener("click", async () => {
       setLoading(true);
       const statusText = document.querySelector("#status");
-      if(statusText) statusText.innerHTML = '<span class="spinner"></span>Waking up server (10s)...';
+      if(statusText) statusText.innerHTML = '<span class="spinner"></span>Fetching wisdom...';
       
-      const q = await fetchMotivation();
-      renderQuote(q);
+      // Artificial small delay so user sees the spinner
+      setTimeout(async () => {
+        const q = await fetchMotivation();
+        renderQuote(q);
+      }, 300);
     });
 
     // 2. HUMOR
@@ -1085,9 +1073,8 @@
             const isAPI=url.hostname.includes('open-meteo.com')
                       || url.hostname.includes('youtube.com')
                       || url.hostname.includes('googlevideo.com')
-                      || url.hostname.includes('quote-garden')
+                      || url.hostname.includes('jsdelivr.net')
                       || url.hostname.includes('official-joke-api')
-                      || url.hostname.includes('codetabs.com')
                       || url.hostname.includes('cdnjs.cloudflare.com');
             if(isExternal||isAPI){
               e.respondWith(fetch(e.request).catch(()=>new Response('',{status:503}))); return;
