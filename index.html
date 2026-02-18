@@ -573,7 +573,7 @@
 </section>
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
-      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v3.4 (CodeTabs Proxy)</span>
+      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v3.5 (Fixed)</span>
     </footer>
   </div>
 
@@ -656,7 +656,7 @@
   <script>
     const AUTO_MS = 900_000; // 15 min
     
-    // ROBUST OFFLINE BACKUP
+    // OFFLINE BACKUP (No DummyJSON)
     const BACKUP_MOTIVATION = [
       {content:"Success is not final, failure is not fatal: it is the courage to continue that counts.", author:"Winston Churchill"},
       {content:"Life is simple. Are you happy? Yes? Keep going. No? Change something.", author:"Bogdan Radu"},
@@ -709,7 +709,7 @@
     
     /* --- API LOGIC (CODETABS PROXY + FALLBACK) --- */
     
-    // 1. Primary Motivation (Quote Garden via CodeTabs Proxy)
+    // 1. Primary Motivation (Quote Garden via CodeTabs Proxy for Local Support)
     const TARGET_API = "https://quote-garden.onrender.com/api/v3/quotes/random?genre=motivation";
     const PROXY_API = "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(TARGET_API);
     
@@ -733,9 +733,15 @@
       try {
         // Try Proxy Call
         const r = await fetchWithTimeout(PROXY_API);
+        
+        // CodeTabs might return HTML error (403/503), so we check content type
+        const type = r.headers.get("content-type");
+        if(type && type.includes("text/html")) {
+           throw new Error("Proxy returned HTML error (likely sleeping/blocked)");
+        }
+        
         if (!r.ok) throw new Error("Proxy Failed");
         
-        // CodeTabs returns raw JSON (no need to unwrap "contents")
         const data = await r.json();
         
         if(data.data && data.data.length > 0) {
@@ -772,7 +778,7 @@
     els.refresh.addEventListener("click", async () => {
       setLoading(true);
       const statusText = document.querySelector("#status");
-      if(statusText) statusText.innerHTML = '<span class="spinner"></span>Connecting to garden…';
+      if(statusText) statusText.innerHTML = '<span class="spinner"></span>Waking up server (10s)...';
       
       const q = await fetchMotivation();
       renderQuote(q);
