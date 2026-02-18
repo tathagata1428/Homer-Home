@@ -573,7 +573,7 @@
 </section>
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
-      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v3.2 (Patient Proxy)</span>
+      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v3.4 (CodeTabs Proxy)</span>
     </footer>
   </div>
 
@@ -656,7 +656,7 @@
   <script>
     const AUTO_MS = 900_000; // 15 min
     
-    // ROBUST OFFLINE BACKUP (For when API 503s or CORS blocks)
+    // ROBUST OFFLINE BACKUP
     const BACKUP_MOTIVATION = [
       {content:"Success is not final, failure is not fatal: it is the courage to continue that counts.", author:"Winston Churchill"},
       {content:"Life is simple. Are you happy? Yes? Keep going. No? Change something.", author:"Bogdan Radu"},
@@ -707,19 +707,18 @@
       setLoading(false); fadeIn(); pushSeen(txt); resetCountdown();
     }
     
-    /* --- API LOGIC (PATIENT PROXY for Local + Free Server) --- */
+    /* --- API LOGIC (CODETABS PROXY + FALLBACK) --- */
     
-    // 1. Primary Motivation (Quote Garden via AllOrigins Proxy)
-    // We use AllOrigins because CorsProxy.io is down.
+    // 1. Primary Motivation (Quote Garden via CodeTabs Proxy)
     const TARGET_API = "https://quote-garden.onrender.com/api/v3/quotes/random?genre=motivation";
-    const PROXY_API = "https://api.allorigins.win/get?url=" + encodeURIComponent(TARGET_API);
+    const PROXY_API = "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(TARGET_API);
     
     // 2. Humor API (Official Joke API - Free & Fast)
     const API_HUMOR = "https://official-joke-api.appspot.com/random_joke";
 
     // Helper: Fetch with extended timeout (20s) for sleeping free servers
     async function fetchWithTimeout(resource, options = {}) {
-      const { timeout = 20000 } = options; // 20 seconds patience
+      const { timeout = 20000 } = options;
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), timeout);
       const response = await fetch(resource, {
@@ -732,15 +731,12 @@
 
     async function fetchMotivation() {
       try {
-        // Try Primary (Quote Garden via AllOrigins)
+        // Try Proxy Call
         const r = await fetchWithTimeout(PROXY_API);
         if (!r.ok) throw new Error("Proxy Failed");
         
-        const proxyData = await r.json();
-        // Unwrap AllOrigins response
-        if(!proxyData.contents) throw new Error("Empty Proxy Response");
-        
-        const data = JSON.parse(proxyData.contents);
+        // CodeTabs returns raw JSON (no need to unwrap "contents")
+        const data = await r.json();
         
         if(data.data && data.data.length > 0) {
            return { content: data.data[0].quoteText, author: data.data[0].quoteAuthor };
@@ -748,7 +744,7 @@
         throw new Error("Invalid structure");
 
       } catch (e) {
-        console.warn("Primary fetch failed/timeout, using local backup.", e);
+        console.warn("Primary fetch failed, using local backup.", e);
         // Fallback to Local Backup (Instant)
         return BACKUP_MOTIVATION[Math.floor(Math.random() * BACKUP_MOTIVATION.length)];
       }
@@ -776,8 +772,7 @@
     els.refresh.addEventListener("click", async () => {
       setLoading(true);
       const statusText = document.querySelector("#status");
-      // Inform user we are waiting for the free server
-      if(statusText) statusText.innerHTML = '<span class="spinner"></span>Waking up server (10s)...';
+      if(statusText) statusText.innerHTML = '<span class="spinner"></span>Connecting to garden…';
       
       const q = await fetchMotivation();
       renderQuote(q);
@@ -1073,27 +1068,26 @@
 
   <script>
     (function(){
-      // Removed broken blob URL logic for manifest to fix Vercel/Local warning
-      // Added valid data URI favicon in head
-      const swCode=`const CACHE='homer-v1'; const APP_SHELL=['/','/index.html'];
-        self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(APP_SHELL)).then(()=>self.skipWaiting())); })
-        self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); })
-        self.addEventListener('fetch',e=>{
-          const url=new URL(e.request.url);
-          const isExternal=url.origin!==self.location.origin;
-          const isAPI=url.hostname.includes('open-meteo.com')
-                    || url.hostname.includes('youtube.com')
-                    || url.hostname.includes('googlevideo.com')
-                    || url.hostname.includes('quote-garden')
-                    || url.hostname.includes('official-joke-api')
-                    || url.hostname.includes('allorigins.win')
-                    || url.hostname.includes('cdnjs.cloudflare.com');
-          if(isExternal||isAPI){
-            e.respondWith(fetch(e.request).catch(()=>new Response('',{status:503}))); return;
-          }
-          e.respondWith(fetch(e.request).then(res=>{const copy=res.clone(); caches.open(CACHE).then(c=>c.put(e.request,copy)); return res; }).catch(()=>caches.match(e.request)));
-        })`;
+      // Only register service worker if on HTTP/HTTPS (Prevents local file error)
       if('serviceWorker'in navigator && location.protocol.startsWith('http')){
+        const swCode=`const CACHE='homer-v1'; const APP_SHELL=['/','/index.html'];
+          self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(APP_SHELL)).then(()=>self.skipWaiting())); })
+          self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); })
+          self.addEventListener('fetch',e=>{
+            const url=new URL(e.request.url);
+            const isExternal=url.origin!==self.location.origin;
+            const isAPI=url.hostname.includes('open-meteo.com')
+                      || url.hostname.includes('youtube.com')
+                      || url.hostname.includes('googlevideo.com')
+                      || url.hostname.includes('quote-garden')
+                      || url.hostname.includes('official-joke-api')
+                      || url.hostname.includes('codetabs.com')
+                      || url.hostname.includes('cdnjs.cloudflare.com');
+            if(isExternal||isAPI){
+              e.respondWith(fetch(e.request).catch(()=>new Response('',{status:503}))); return;
+            }
+            e.respondWith(fetch(e.request).then(res=>{const copy=res.clone(); caches.open(CACHE).then(c=>c.put(e.request,copy)); return res; }).catch(()=>caches.match(e.request)));
+          })`;
         const swUrl=URL.createObjectURL(new Blob([swCode],{type:'text/javascript'}));
         window.addEventListener('load',()=>navigator.serviceWorker.register(swUrl).then(r=>r.update()).catch(()=>{}));
       }
