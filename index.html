@@ -209,7 +209,7 @@
       display:grid; place-items:center;
       margin-top: 16px;
     }
-    /* FIX: Force text to be on top layer so it doesn't get hidden */
+    /* FIX: Force text to be on top layer */
     .ring .time{ 
       font-size: clamp(1.9rem, 5.6vw, 2.7rem); 
       font-weight: 1000; 
@@ -352,7 +352,46 @@
     .site-footer a{ color: var(--accent-2); font-weight: 700; text-decoration: none; }
     .site-footer a:hover{ text-decoration: underline; }
 
-    /* Simple tool cards extra (FIXED ALIGNMENT) */
+    /* ===== Home: Focus Tasks Mini Circle (VISUAL FIX) ===== */
+    .htasklist{
+      display:grid;
+      grid-template-columns: repeat( auto-fit, minmax(260px, 1fr) );
+      gap:14px;
+    }
+    .htask-card{
+      display:flex; align-items:center; gap:14px;
+      padding:12px; border:1px solid var(--border); border-radius:12px;
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+    }
+    /* Updated Mini Circle to match Dashboard Dark Look */
+    .mini-circle{
+      --size:86px; 
+      width:var(--size); height:var(--size); border-radius:50%; flex:0 0 var(--size);
+      /* Dark Grey Track + Green Progress (var(--accent)) */
+      background:
+        radial-gradient(closest-side, #1e293b 76%, transparent 77%),
+        conic-gradient(var(--accent) var(--prog), #334155 0);
+      display:grid; place-items:center; 
+      border: 2px solid #334155; 
+      box-shadow:0 10px 28px rgba(0,0,0,.25);
+      font-weight:900; letter-spacing:.02em; font-variant-numeric: tabular-nums;
+      font-size: 1.2rem;
+      color: #fff;
+    }
+    .htask .meta{display:flex; flex-direction:column; gap:4px}
+    .htask .name{font-weight:900; font-size:1.05rem}
+    .htask .sub{color:var(--muted); font-size:.95rem}
+    .done-list{display:grid; gap:10px; margin-top:12px}
+    .done-item{display:flex; justify-content:space-between; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02))}
+    .pill{padding:4px 8px; border-radius:999px; background:rgba(255,255,255,.08); border:1px solid var(--border); color:var(--muted); font-size:.85rem}
+
+    @media (max-width:430px){
+      .mini-circle{ --size:78px; font-size:1.1rem; }
+      .htask .name{ font-size:1rem; }
+      .htask .sub{ font-size:.9rem; }
+    }
+
+    /* Simple tool cards extra (CENTERED TEXT FIX) */
     .tool-card {
       text-align: center;
       display: flex;
@@ -360,10 +399,14 @@
       align-items: center;
       justify-content: center;
       height: 100%;
+      padding: 24px 16px;
     }
+    .tool-card h3 { margin: 0 0 10px 0; }
+    .tool-card p { margin: 0 0 16px 0; flex-grow: 1; display:flex; align-items:center; justify-content:center; }
     .tool-card a.btn, .tool-card button.btn {
       display: inline-block;
-      margin-top: 10px;
+      width: 100%;
+      margin-top: auto; /* Push to bottom if needed */
     }
 
   </style>
@@ -673,7 +716,7 @@
       <button id="btn-synthwave" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">▶️ Play Synthwave</button>
       <input id="vol-synthwave" type="range" min="0" max="100" value="50" style="width:100%;">
     </div>
-  </div> <div style="margin-top:24px; display:flex; flex-wrap:wrap; justify-content:center; gap:12px;">
+  </div> <div class="ambient-section" style="margin-top:24px; display:flex; flex-wrap:wrap; justify-content:center; gap:12px;">
     <button id="mix-sleep" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">🌙 Sleep Mix</button>
     <button id="mix-rainy" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">🌦️ Rainy Mix</button>
     <button id="mix-reading" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">📖 Reading Mix</button>
@@ -695,7 +738,7 @@
 </section>
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
-      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v5.6 (Fix: Smart Home Widget)</span>
+      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v5.7 (Visual Polish)</span>
     </footer>
   </div>
 
@@ -1177,7 +1220,7 @@
         tasksCard.style.display='block'; tasksEmpty.style.display='none';
         
         // FIX: Handle null state gracefully so time shows up before user clicks Start
-        const isFocus = (state && state.mode === 'focus') || (!state); // Default to true if state missing
+        const isFocus = (state && state.mode === 'focus') || (!state); 
         const isRunning = state && state.running;
         const totalFocus = (settings.focus || 25) * 60;
         const remaining = Math.max(0, (state && state.remaining ? state.remaining : totalFocus));
@@ -1209,7 +1252,9 @@
           leftSpan.textContent = (i === 0) ? displayContent : (i + 1);
           
           circle.appendChild(leftSpan);
+          // Only show progress bar if running
           circle.style.setProperty('--prog',(i===0 && isFocus && isRunning) ? `${progressDeg}deg` : '0deg');
+          
           const meta=document.createElement('div'); meta.className='meta';
           const name=document.createElement('div'); name.className='name'; name.textContent=t.text;
           const sub=document.createElement('div'); sub.className='sub';
