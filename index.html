@@ -573,7 +573,7 @@
 </section>
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
-      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v3.6 (Unbreakable)</span>
+      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v4.0 (Hybrid Static)</span>
     </footer>
   </div>
 
@@ -656,24 +656,15 @@
   <script>
     const AUTO_MS = 900_000; // 15 min
     
-    // ROBUST OFFLINE BACKUP (CDN-like open source list)
+    // OFFLINE BACKUP (Just in case the static download fails)
     const BACKUP_MOTIVATION = [
-      {content:"Success is not final, failure is not fatal: it is the courage to continue that counts.", author:"Winston Churchill"},
-      {content:"Life is simple. Are you happy? Yes? Keep going. No? Change something.", author:"Bogdan Radu"},
-      {content:"People who have goals succeed because they know where they're going.", author:"Earl Nightingale"},
-      {content:"The only way to do great work is to love what you do.", author:"Steve Jobs"},
-      {content:"Believe you can and you're halfway there.", author:"Theodore Roosevelt"},
-      {content:"Act as if what you do makes a difference. It does.", author:"William James"},
-      {content:"The best time to plant a tree was 20 years ago. The second best time is now.", author:"Chinese Proverb"},
-      {content:"Your time is limited, so don't waste it living someone else's life.", author:"Steve Jobs"},
-      {content:"You miss 100% of the shots you don't take.", author:"Wayne Gretzky"},
-      {content:"Whether you think you can or you think you can't, you're right.", author:"Henry Ford"}
+      {quoteText:"Success is not final, failure is not fatal: it is the courage to continue that counts.", quoteAuthor:"Winston Churchill"},
+      {quoteText:"Life is simple. Are you happy? Yes? Keep going. No? Change something.", quoteAuthor:"Bogdan Radu"},
+      {quoteText:"The only way to do great work is to love what you do.", quoteAuthor:"Steve Jobs"}
     ];
     const BACKUP_HUMOR = [
       {content: "I am so clever that sometimes I don't understand a single word of what I am saying.", author: "Oscar Wilde"},
-      {content: "Behind every great man is a woman rolling her eyes.", author: "Jim Carrey"},
-      {content: "I haven't spoken to my wife in years. I didn't want to interrupt her.", author: "Rodney Dangerfield"},
-      {content: "My fake plants died because I did not pretend to water them.", author: "Mitch Hedberg"}
+      {content: "Behind every great man is a woman rolling her eyes.", author: "Jim Carrey"}
     ];
 
     const els = {
@@ -702,57 +693,66 @@
     function setLoading(show){ els.status.style.display=show?"block":"none"; els.quote.style.display=show?"none":"block"; els.byline.style.display=show?"none":"block"; }
     function fadeIn(){ els.quote.classList.remove('fade-in'); els.byline.classList.remove('fade-in'); void els.quote.offsetWidth; els.quote.classList.add('fade-in'); els.byline.classList.add('fade-in'); }
     function renderQuote(q){
-      const txt=q.content||"Stay motivated."; const ath=q.author||"Unknown";
+      const txt=q.content||q.quoteText||"Stay motivated."; 
+      const ath=q.author||q.quoteAuthor||"Unknown";
       els.quote.textContent=txt; els.author.textContent=ath;
       setLoading(false); fadeIn(); pushSeen(txt); resetCountdown();
     }
     
-    /* --- SMART API LOGIC (Handles Local vs Deployed) --- */
+    /* --- NEW HYBRID STATIC LOGIC --- */
+    // Instead of a fragile API, we fetch a 5,000+ quote JSON file once from GitHub.
+    // This allows local searching for your specific topics (Success, Wisdom, etc.)
     
-    // Use the JSDelivr CDN for 100% Uptime and Speed
-    // This effectively acts as a reliable, fast API that never sleeps
-    const CDN_DB_URL = "https://cdn.jsdelivr.net/gh/lukePeavey/quotable@master/data/quotes.json";
-    const TARGET_TOPICS = ["wisdom", "success", "humor", "technology", "friendship"];
+    const DB_URL = "https://raw.githubusercontent.com/JamesFT/Database-Quotes-JSON/master/quotes.json";
+    let globalQuotes = null; // Cache the downloaded list
     
-    // We cache the big list so we don't re-fetch it every time
-    let globalQuoteCache = null;
+    const TOPICS = ["wisdom", "success", "courage", "happiness", "time", "freedom", "philosophy"];
 
     async function fetchMotivation() {
       try {
-        if (!globalQuoteCache) {
-           const r = await fetch(CDN_DB_URL);
-           if (!r.ok) throw new Error("CDN Failed");
-           globalQuoteCache = await r.json();
+        // 1. Download the database if not already cached
+        if (!globalQuotes) {
+           const r = await fetch(DB_URL);
+           if (!r.ok) throw new Error("DB Download Failed");
+           globalQuotes = await r.json();
+           console.log(`Loaded ${globalQuotes.length} quotes from GitHub.`);
         }
-
-        // Filter for specific topics
-        const filtered = globalQuoteCache.filter(q => {
-          return q.tags.some(tag => TARGET_TOPICS.includes(tag.toLowerCase()));
-        });
         
-        const pool = filtered.length > 0 ? filtered : globalQuoteCache;
-        const item = pool[Math.floor(Math.random() * pool.length)];
-
-        return { content: item.content, author: item.author };
+        // 2. Pick a random topic
+        const topic = TOPICS[Math.floor(Math.random() * TOPICS.length)];
+        
+        // 3. Search the database for quotes containing that keyword
+        // (This simulates an API search but happens instantly in your browser)
+        const candidates = globalQuotes.filter(q => 
+           q.quoteText.toLowerCase().includes(topic)
+        );
+        
+        // 4. Pick one, or fallback to the full list if none found
+        const pool = candidates.length > 0 ? candidates : globalQuotes;
+        const final = pool[Math.floor(Math.random() * pool.length)];
+        
+        return final;
 
       } catch (e) {
-        console.log("Using offline backup"); // Clean log
+        console.warn("Static fetch failed, using local backup.", e);
         return BACKUP_MOTIVATION[Math.floor(Math.random() * BACKUP_MOTIVATION.length)];
       }
     }
 
+    // Humor still uses the API because it is lightweight and reliable
     async function fetchHumor() {
-      // For humor, we try the dedicated API, but fallback to backup instantly if it fails
       try {
+        // Official Joke API - Free & Fast
         const r = await fetch("https://official-joke-api.appspot.com/random_joke");
-        // Check content type to avoid HTML errors
-        const type = r.headers.get("content-type");
-        if(type && type.includes("text/html")) throw new Error("API Sleeping");
-        
+        if (!r.ok) throw new Error("Humor API Failed");
         const data = await r.json();
-        if(data.setup) return { content: `${data.setup} ... ${data.punchline}`, author: "Daily Joke" };
-        throw new Error("Invalid");
+        
+        if(data.setup && data.punchline) {
+           return { content: `${data.setup} ... ${data.punchline}`, author: "Daily Joke" };
+        }
+        throw new Error("Invalid structure");
       } catch (e) {
+        console.warn("Humor fetch failed, using backup.", e);
         return BACKUP_HUMOR[Math.floor(Math.random() * BACKUP_HUMOR.length)];
       }
     }
@@ -763,13 +763,10 @@
     els.refresh.addEventListener("click", async () => {
       setLoading(true);
       const statusText = document.querySelector("#status");
-      if(statusText) statusText.innerHTML = '<span class="spinner"></span>Fetching wisdom...';
+      if(statusText) statusText.innerHTML = '<span class="spinner"></span>Accessing library...';
       
-      // Artificial small delay so user sees the spinner
-      setTimeout(async () => {
-        const q = await fetchMotivation();
-        renderQuote(q);
-      }, 300);
+      const q = await fetchMotivation();
+      renderQuote(q);
     });
 
     // 2. HUMOR
@@ -792,7 +789,7 @@
       tickCountdown();
     }
      
-    // 🔵 OPTIMIZED CPU: Switched from requestAnimationFrame to setTimeout (1s)
+    // 🔵 OPTIMIZED CPU
     function tickCountdown(){
       if(cdTimer) clearTimeout(cdTimer);
       const now=Date.now();
@@ -1073,7 +1070,7 @@
             const isAPI=url.hostname.includes('open-meteo.com')
                       || url.hostname.includes('youtube.com')
                       || url.hostname.includes('googlevideo.com')
-                      || url.hostname.includes('jsdelivr.net')
+                      || url.hostname.includes('raw.githubusercontent.com')
                       || url.hostname.includes('official-joke-api')
                       || url.hostname.includes('cdnjs.cloudflare.com');
             if(isExternal||isAPI){
