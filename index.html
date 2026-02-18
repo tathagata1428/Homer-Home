@@ -32,7 +32,34 @@
       font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
       padding:28px 14px calc(var(--tb) + env(safe-area-inset-bottom, 0px));
       display:grid; place-items:start center;
+      transition: background 0.5s ease;
     }
+    
+    /* ZEN MODE OVERRIDES */
+    body.zen-active {
+        background: #000;
+        place-items: center;
+        padding: 0;
+    }
+    body.zen-active .hero, 
+    body.zen-active .tabs, 
+    body.zen-active .toolbar, 
+    body.zen-active .site-footer, 
+    body.zen-active #tab-home,
+    body.zen-active #tab-saved,
+    body.zen-active #tab-pomodoro,
+    body.zen-active #tab-tools,
+    body.zen-active .ambient-section { 
+        display: none !important; 
+    }
+    /* Only show specific parts of Focus Lab in Zen */
+    body.zen-active #tab-focuslab {
+        display: block !important;
+        background: none; border: none; box-shadow: none; backdrop-filter: none;
+        width: 100%; max-width: 600px;
+    }
+    body.zen-active .hide-in-zen { display: none !important; }
+
     .shell{width:min(1150px,96vw)}
 
     /* HERO */
@@ -295,6 +322,30 @@
     .tool-card a.btn{display:inline-block;margin-top:10px}
     
     /* FOCUS LAB STYLES */
+    /* 1. Trataka Overlay */
+    .focus-overlay{
+      position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999;
+      background:black; display:none; place-items:center; cursor:pointer;
+      animation: fadeIn .4s ease;
+    }
+    .focus-center{
+      position:relative; width:400px; height:400px; display:grid; place-items:center;
+    }
+    .focus-dot{
+      width:16px; height:16px; background:white; border-radius:50%;
+      box-shadow: 0 0 20px rgba(255,255,255,0.8);
+      position:absolute; z-index:2;
+    }
+    .breathing-circle-anim{
+      position:absolute; width:100px; height:100px;
+      border:2px solid rgba(255,255,255,0.2); border-radius:50%;
+      animation: breathe 8s infinite ease-in-out;
+    }
+    .breathing-circle-anim:nth-child(2) { animation-delay: 0.5s; width:140px; height:140px; border-color:rgba(255,255,255,0.15); }
+    .breathing-circle-anim:nth-child(3) { animation-delay: 1s; width:180px; height:180px; border-color:rgba(255,255,255,0.1); }
+    @keyframes breathe { 0%, 100% { transform: scale(0.8); opacity: 0.3; } 50% { transform: scale(1.5); opacity: 0.8; } }
+
+    /* 2. Box Breathing */
     .breathing-circle {
       width: 140px; height: 140px; border-radius: 50%;
       background: radial-gradient(circle, var(--accent-2) 0%, rgba(96,165,250,0.1) 70%);
@@ -310,6 +361,7 @@
     .b-hold { transform: scale(1.5); border-style: dashed; }
     .b-exhale { transform: scale(1); background-color: var(--accent-2); }
     
+    /* 3. Brain Dump */
     .brain-dump-area {
       width: 100%; height: 150px;
       background: rgba(0,0,0,0.3); border: 1px solid var(--border);
@@ -317,6 +369,7 @@
       font-family: inherit; font-size: 1rem; resize: vertical;
     }
     
+    /* 4. Zen Mode */
     #zen-overlay {
       position: fixed; top:0; left:0; width:100%; height:100%;
       background: #000; z-index: 9999;
@@ -330,6 +383,22 @@
   </style>
 </head>
 <body>
+  
+  <div id="focus-overlay" class="focus-overlay" title="Click anywhere to close">
+     <div class="focus-center">
+        <div class="focus-dot"></div>
+        <div class="breathing-circle-anim"></div>
+        <div class="breathing-circle-anim"></div>
+        <div class="breathing-circle-anim"></div>
+     </div>
+     <div style="position:absolute; bottom:40px; color:#555; font-size:0.9rem;">Tap to exit</div>
+  </div>
+
+  <div id="zen-overlay">
+      <div id="zen-text">Your Goal</div>
+      <div id="zen-exit" class="btn ghost">Exit Zen Mode</div>
+  </div>
+
   <div class="shell">
     <header class="hero">
       <div class="title"><span id="greeting">Hello</span> <span class="title-badge">safe place</span></div>
@@ -382,9 +451,7 @@
 
           <div class="row" aria-label="Actions">
             <button id="refresh" class="btn primary">New Quote</button>
-            
             <button id="btn-humor" class="btn secondary">Humor</button>
-            
             <button id="save" class="btn ghost">Save</button>
             <button id="copy" class="btn ghost">Copy</button>
           </div>
@@ -467,36 +534,41 @@
         </div>
       </div>
     </section>
-    
+
     <section id="tab-focuslab" class="tab card" style="display:none">
+       <h2 class="section">🧠 Focus Lab</h2>
        <div class="grid">
+         
          <div class="span-6 card breathing-container">
-           <h2 class="section">Box Breathing</h2>
+           <h3 style="margin-top:0">🌬️ Box Breathing</h3>
            <p class="muted small">Inhale (4s) • Hold (4s) • Exhale (4s) • Hold (4s)</p>
            <div id="b-circle" class="breathing-circle">Ready</div>
            <button id="b-toggle" class="btn primary">Start Breathing</button>
          </div>
 
-         <div class="span-6 card">
-           <h2 class="section">Zen Mode</h2>
-           <p class="muted small">Focus on one single goal. Blackout everything else.</p>
-           <input type="text" id="zen-input" placeholder="What is your ONE goal?" style="width:100%; padding:10px; border-radius:8px; background:#0b1220; border:1px solid var(--border); color:#fff; margin-bottom:10px;">
-           <button id="zen-btn" class="btn secondary" style="width:100%">Enter Zen Mode</button>
+         <div class="span-6 card" style="display:flex; flex-direction:column; gap:16px; justify-content:center;">
+            <h3 style="margin-top:0">🔬 Neuro Tools</h3>
+            
+            <button id="btn-focus-dot" class="btn primary" style="padding:16px;">
+              🎯 Huberman Focus (Trataka)
+              <div style="font-size:0.8em; opacity:0.8; font-weight:400; margin-top:4px;">Stare at the dot for 30s to spike focus.</div>
+            </button>
+
+            <div style="background:rgba(255,255,255,0.05); padding:16px; border-radius:12px; border:1px solid var(--border);">
+               <h4 style="margin:0 0 8px;">🧘 Zen Mode</h4>
+               <input type="text" id="zen-input" placeholder="What is your ONE goal?" style="width:100%; padding:10px; border-radius:8px; background:#0b1220; border:1px solid var(--border); color:#fff; margin-bottom:10px;">
+               <button id="zen-btn" class="btn secondary" style="width:100%">Enter Zen Mode</button>
+            </div>
          </div>
 
          <div class="span-12 card">
-           <h2 class="section">The "Brain Dump"</h2>
-           <p class="muted small">Distracting thought? Type it here to park it. It won't be saved.</p>
-           <textarea class="brain-dump-area" placeholder="I need to buy milk... Did I email Dave?..."></textarea>
-           <button onclick="document.querySelector('.brain-dump-area').value=''" class="btn ghost" style="margin-top:8px">Clear</button>
+           <h3 style="margin-top:0">📝 Brain Dump</h3>
+           <p class="muted" style="font-size:0.9rem; margin-bottom:10px;">Distracting thought? Park it here. Auto-saved locally.</p>
+           <textarea id="brain-dump" class="brain-dump-area" placeholder="I need to buy milk... Did I email Dave?..."></textarea>
+           <div id="dump-status" class="muted" style="font-size:0.8rem; margin-top:6px; text-align:right;">Saved</div>
          </div>
        </div>
     </section>
-    
-    <div id="zen-overlay">
-       <div id="zen-text">Your Goal</div>
-       <div id="zen-exit" class="btn ghost">Exit Focus</div>
-    </div>
 
  <section id="tab-tools" class="tab card" style="display:none">
   <h2 class="section">My Tools</h2>
@@ -511,8 +583,8 @@
 
       <div class="span-4 card tool-card">
         <h3>📚 Docs</h3>
-        <p class="muted">Receive real-time notifications through ntfy.sh.</p>
-        <a href="https://docs.b4it.ro/" target="_blank" rel="noopener" class="btn secondary">Open Docs</a>
+        <p class="muted">Access personal documentation.</p>
+        <a href="https://docs.b4it.ro" target="_blank" rel="noopener" class="btn secondary">Open Docs</a>
       </div>
 
       <div class="span-4 card tool-card">
@@ -636,44 +708,26 @@
 </div>
 
 </section>
-    <footer class="site-footer">
-      Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
-      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v5.0 (Focus Lab)</span>
-    </footer>
-  </div>
-
-  <nav class="toolbar" aria-label="Quick links">
-    <a class="tool-btn" href="https://www.youtube.com/" target="_blank" rel="noopener">▶️ YouTube</a>
-    <a class="tool-btn" href="https://gemini.google.com" target="_blank" rel="noopener">✨ Gemini AI</a>
-    <a class="tool-btn" href="https://tasks.b4it.ro" target="_blank" rel="noopener">🗒️ Notes</a>
-    <a class="tool-btn" href="https://www.google.com" target="_blank" rel="noopener">🔎 Google</a>
-  </nav>
-
+  
   <script>
-    (function() {
-      const tb = document.querySelector('.toolbar');
-      if (!tb) return;
-      function setTBPad() { const h = tb.offsetHeight + 16; document.documentElement.style.setProperty('--tb', h + 'px'); }
-      window.addEventListener('load', setTBPad);
-      window.addEventListener('resize', setTBPad);
-      if ('fonts' in document) document.fonts.addEventListener('loadingdone', setTBPad);
-      new MutationObserver(setTBPad).observe(tb, { childList: true, subtree: true, attributes: true });
-    })();
-  </script>
-  <script>
-    const tabBtns=[...document.querySelectorAll('.tab-btn')];
-    const tabs={
-      home:document.getElementById('tab-home'),
-      saved:document.getElementById('tab-saved'),
-      pomodoro:document.getElementById('tab-pomodoro'),
-      focuslab:document.getElementById('tab-focuslab'),
-      tools:document.getElementById('tab-tools')
+    /* 1. TABS */
+    const tabBtns = [...document.querySelectorAll('.tab-btn')];
+    const tabs = {
+      home: document.getElementById('tab-home'),
+      saved: document.getElementById('tab-saved'),
+      pomodoro: document.getElementById('tab-pomodoro'),
+      focuslab: document.getElementById('tab-focuslab'),
+      tools: document.getElementById('tab-tools')
     };
-    function showTab(name){ Object.entries(tabs).forEach(([k,el])=>{ el.style.display=(k===name)?'block':'none'; }); tabBtns.forEach(b=>b.classList.toggle('active', b.dataset.tab===name)); }
-    tabBtns.forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
-  </script>
+    function showTab(name) {
+      Object.entries(tabs).forEach(([k, el]) => {
+        if(el) el.style.display = (k === name) ? 'block' : 'none';
+      });
+      tabBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    }
+    tabBtns.forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
-  <script>
+    /* 2. CLOCK */
     function updateClock(){
       const now=new Date();
       const hh=now.getHours().toString().padStart(2,'0');
@@ -684,7 +738,6 @@
       document.getElementById('clock-time').innerHTML=`${hh}:${mm}<small>${ss}</small>`;
       document.getElementById('clock-date').textContent=`${day}, ${date}`;
 
-      // Greeting Logic
       const hVal = now.getHours();
       let greet = "Hello";
       if(hVal < 12) greet = "Good Morning";
@@ -694,9 +747,8 @@
       if(gEl) gEl.textContent = greet;
     }
     updateClock(); setInterval(updateClock,1000);
-  </script>
 
-  <script>
+    /* 3. WEATHER */
     const WX_CODES={0:["☀️","Clear sky"],1:["🌤️","Mainly clear"],2:["⛅","Partly cloudy"],3:["☁️","Overcast"],45:["🌫️","Fog"],48:["🌫️","Rime fog"],51:["🌦️","Light drizzle"],53:["🌦️","Drizzle"],55:["🌧️","Dense drizzle"],56:["🌧️","Freezing drizzle"],57:["🌧️","Freezing drizzle"],61:["🌦️","Light rain"],63:["🌧️","Rain"],65:["🌧️","Heavy rain"],66:["🌧️","Freezing rain"],67:["🌧️","Freezing rain"],71:["🌨️","Light snow"],73:["🌨️","Snow"],75:["❄️","Heavy snow"],77:["❄️","Snow grains"],80:["🌦️","Rain showers"],81:["🌧️","Rain showers"],82:["⛈️","Violent rain"],85:["🌨️","Snow showers"],86:["❄️","Heavy snow showers"],95:["⛈️","Thunderstorm"],96:["⛈️","Thunder + hail"],99:["⛈️","Severe thunder/hail"]};
     async function loadWeather(lat,lon,label){
       const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
@@ -717,12 +769,9 @@
       );
     }
     detectWeather();
-  </script>
 
-  <script>
+    /* 4. QUOTES (Hybrid Static Logic) */
     const AUTO_MS = 900_000; // 15 min
-    
-    // HYBRID STATIC LOGIC (v4.0)
     const DB_URL = "https://raw.githubusercontent.com/JamesFT/Database-Quotes-JSON/master/quotes.json";
     let globalQuotes = null;
     const TOPICS = ["wisdom", "success", "courage", "happiness", "time", "freedom", "philosophy"];
@@ -753,23 +802,15 @@
       clearSaved:document.getElementById("clearSaved"),
     };
 
-    /* persistence helpers */
-    const SEEN_KEY ="quotes.seen.v5";
-    function getSeen(){ try{return JSON.parse(localStorage.getItem(SEEN_KEY)||"[]");}catch{return[]} }
-    function pushSeen(txt){ const arr=getSeen(); const t=txt.toLowerCase(); if(!arr.includes(t)){arr.unshift(t); localStorage.setItem(SEEN_KEY,JSON.stringify(arr.slice(1600)));}}
-    function isSeen(txt){ return getSeen().includes(txt.toLowerCase()); }
-
-    /* rendering helpers */
     function setLoading(show){ els.status.style.display=show?"block":"none"; els.quote.style.display=show?"none":"block"; els.byline.style.display=show?"none":"block"; }
     function fadeIn(){ els.quote.classList.remove('fade-in'); els.byline.classList.remove('fade-in'); void els.quote.offsetWidth; els.quote.classList.add('fade-in'); els.byline.classList.add('fade-in'); }
     function renderQuote(q){
       const txt=q.content||q.quoteText||"Stay motivated."; 
       const ath=q.author||q.quoteAuthor||"Unknown";
       els.quote.textContent=txt; els.author.textContent=ath;
-      setLoading(false); fadeIn(); pushSeen(txt); resetCountdown();
+      setLoading(false); fadeIn(); resetCountdown();
     }
     
-    // Motivation: Hybrid Static
     async function fetchMotivation() {
       try {
         if (!globalQuotes) {
@@ -786,7 +827,6 @@
       }
     }
 
-    // Humor: API
     async function fetchHumor() {
       try {
         const r = await fetch("https://official-joke-api.appspot.com/random_joke");
@@ -799,8 +839,6 @@
       }
     }
 
-    /* --- BUTTON LISTENERS --- */
-    
     els.refresh.addEventListener("click", async () => {
       setLoading(true);
       const statusText = document.querySelector("#status");
@@ -820,13 +858,8 @@
       });
     }
 
-    /* countdown (15 min auto-refresh) */
     let deadline = Date.now()+AUTO_MS, cdTimer=null;
-    function resetCountdown(){
-      deadline = Date.now()+AUTO_MS;
-      tickCountdown();
-    }
-     
+    function resetCountdown(){ deadline = Date.now()+AUTO_MS; tickCountdown(); }
     function tickCountdown(){
       if(cdTimer) clearTimeout(cdTimer);
       const now=Date.now();
@@ -836,22 +869,15 @@
       els.countdownText.textContent = mins>0 ? `${mins}m` : `${secs}s`;
       const pct = 100 - Math.round((rem/AUTO_MS)*100);
       els.countdown.style.setProperty('--progress', pct + '%');
-      if(rem<=0){
-        els.refresh.click();
-      }else{
-        cdTimer=setTimeout(tickCountdown, 1000); // Only run once per second
-      }
+      if(rem<=0){ els.refresh.click(); } else{ cdTimer=setTimeout(tickCountdown, 1000); }
     }
 
     els.copy.addEventListener("click",()=>{
       const txt=`"${els.quote.textContent}" — ${els.author.textContent}`;
       navigator.clipboard.writeText(txt);
-      const p=els.copy.textContent;
-      els.copy.textContent="Copied!";
-      setTimeout(()=>els.copy.textContent=p,1500);
+      const p=els.copy.textContent; els.copy.textContent="Copied!"; setTimeout(()=>els.copy.textContent=p,1500);
     });
 
-    /* saved-quotes handling */
     const SAVED_KEY="motivator.savedQuotes.v1";
     function loadSaved(){ try{ return JSON.parse(localStorage.getItem(SAVED_KEY)||"[]"); }catch{return [];} }
     function saveSaved(list){ localStorage.setItem(SAVED_KEY,JSON.stringify(list)); }
@@ -859,100 +885,106 @@
       const q=els.quote.textContent.trim(), a=els.author.textContent.trim(); if(!q) return;
       const list=loadSaved();
       if(!list.some(it=>it.q===q && it.a===a)){
-        list.unshift({q,a,ts:Date.now()});
-        saveSaved(list);
-        renderSaved();
-        const prev=els.save.textContent;
-        els.save.textContent="Saved ✓";
-        setTimeout(()=>els.save.textContent=prev,1100);
+        list.unshift({q,a,ts:Date.now()}); saveSaved(list); renderSaved();
+        const prev=els.save.textContent; els.save.textContent="Saved ✓"; setTimeout(()=>els.save.textContent=prev,1100);
       }
     }
     function deleteSaved(idx){ const list=loadSaved(); list.splice(idx,1); saveSaved(list); renderSaved(); }
     function clearAllSaved(){ saveSaved([]); renderSaved(); }
     function renderSaved(){
       const list=loadSaved(); const empty=(list.length===0);
-      els.savedList.innerHTML="";
-      els.savedEmpty.style.display=empty?"block":"none";
+      els.savedList.innerHTML=""; els.savedEmpty.style.display=empty?"block":"none";
       list.forEach((it,idx)=>{
         const wrap=document.createElement('div'); wrap.className="saved-item";
         wrap.innerHTML=`<div><strong>“${it.q}”</strong></div>
           <div class="saved-meta"><span>— ${it.a||"Unknown"}</span><span>${new Date(it.ts).toLocaleString()}</span></div>
-          <div class="row" style="margin-top:10px">
-            <button class="btn ghost" data-act="copy" data-i="${idx}">Copy</button>
-            <button class="btn" data-act="del" data-i="${idx}">Delete</button>
-          </div>`;
+          <div class="row" style="margin-top:10px"><button class="btn ghost" data-act="copy" data-i="${idx}">Copy</button><button class="btn" data-act="del" data-i="${idx}">Delete</button></div>`;
         els.savedList.appendChild(wrap);
       });
     }
     els.savedList?.addEventListener('click',e=>{
       const btn=e.target.closest('button'); if(!btn) return;
-      const idx=+btn.dataset.i; const list=loadSaved(); const it=list[idx]; if(!it) return;
-      if(btn.dataset.act==='del') deleteSaved(idx);
-      if(btn.dataset.act==='copy') navigator.clipboard.writeText(`“${it.q}” — ${it.a||"Unknown"}`);
-       
+      const idx=+btn.dataset.i; if(btn.dataset.act==='del') deleteSaved(idx);
+      if(btn.dataset.act==='copy') { const list=loadSaved(); navigator.clipboard.writeText(`“${list[idx].q}” — ${list[idx].a||"Unknown"}`); }
     });
     els.exportSaved?.addEventListener('click',()=>{
-      const list=loadSaved();
-      const text=list.map(it=>`“${it.q}” — ${it.a||"Unknown"}`).join("\n\n"); // fixed
-      const blob=new Blob([text],{type:'text/plain'});
-      const url=URL.createObjectURL(blob);
+      const list=loadSaved(); const text=list.map(it=>`“${it.q}” — ${it.a||"Unknown"}`).join("\n\n");
+      const blob=new Blob([text],{type:'text/plain'}); const url=URL.createObjectURL(blob);
       const a=document.createElement('a'); a.href=url; a.download='saved-quotes.txt'; a.click(); URL.revokeObjectURL(url);
     });
-    els.clearSaved?.addEventListener('click',clearAllSaved);
-    els.save.addEventListener("click",addCurrentToSaved);
+    els.clearSaved?.addEventListener('click',clearAllSaved); els.save.addEventListener("click",addCurrentToSaved);
+    els.refresh.click(); renderSaved();
 
-    /* initial display – fetch immediately */
-    els.refresh.click(); 
-    renderSaved();
-  </script>
-  
-  <script>
-    /* Breathing Logic */
-    const bCircle = document.getElementById('b-circle');
-    const bBtn = document.getElementById('b-toggle');
-    let bInterval = null;
-    let bState = 0; // 0=idle, 1=inhale, 2=hold, 3=exhale, 4=hold
-
-    function runBreathing() {
-      if(bInterval) {
-         clearInterval(bInterval); bInterval=null;
-         bCircle.className = 'breathing-circle';
-         bCircle.textContent = "Ready";
-         bBtn.textContent = "Start Breathing";
-         return;
-      }
-      bBtn.textContent = "Stop";
-      let step = 0;
-      const cycle = () => {
-        bCircle.className = 'breathing-circle'; // reset
-        if(step===0) { bCircle.classList.add('b-inhale'); bCircle.textContent="Inhale (4s)"; }
-        if(step===1) { bCircle.classList.add('b-hold'); bCircle.textContent="Hold (4s)"; }
-        if(step===2) { bCircle.classList.add('b-exhale'); bCircle.textContent="Exhale (4s)"; }
-        if(step===3) { bCircle.classList.add('b-hold'); bCircle.textContent="Hold (4s)"; }
-        step = (step+1)%4;
-      };
-      cycle();
-      bInterval = setInterval(cycle, 4000);
+    /* 5. FOCUS LAB LOGIC */
+    // Focus Dot
+    const btnFocusDot = document.getElementById("btn-focus-dot");
+    const overlay = document.getElementById("focus-overlay");
+    if(btnFocusDot && overlay) {
+      btnFocusDot.addEventListener("click", () => {
+        overlay.style.display = "grid";
+        if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(e=>{});
+      });
+      overlay.addEventListener("click", () => {
+        overlay.style.display = "none";
+        if(document.exitFullscreen) document.exitFullscreen().catch(e=>{});
+      });
     }
-    bBtn.addEventListener('click', runBreathing);
-
-    /* Zen Mode Logic */
-    const zenBtn = document.getElementById('zen-btn');
-    const zenOverlay = document.getElementById('zen-overlay');
-    const zenText = document.getElementById('zen-text');
-    const zenInput = document.getElementById('zen-input');
-    const zenExit = document.getElementById('zen-exit');
-
-    zenBtn.addEventListener('click', () => {
-      const goal = zenInput.value.trim() || "FOCUS";
-      zenText.textContent = goal;
-      zenOverlay.style.display = "flex";
-      document.documentElement.requestFullscreen().catch(()=>{});
-    });
-    zenExit.addEventListener('click', () => {
-      zenOverlay.style.display = "none";
-      if(document.exitFullscreen) document.exitFullscreen().catch(()=>{});
-    });
+    // Zen Mode
+    const zenBtn = document.getElementById("btn-zen");
+    const zenExit = document.getElementById("zen-exit");
+    const zenOverlay = document.getElementById("zen-overlay");
+    const zenInput = document.getElementById("zen-input");
+    const zenText = document.getElementById("zen-text");
+    if(zenBtn && zenOverlay) {
+        zenBtn.addEventListener("click", () => {
+            const goal = zenInput.value.trim() || "FOCUS";
+            zenText.textContent = goal;
+            zenOverlay.style.display = "flex";
+            if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(e=>{});
+        });
+        zenExit.addEventListener("click", () => {
+            zenOverlay.style.display = "none";
+            if(document.exitFullscreen) document.exitFullscreen().catch(e=>{});
+        });
+    }
+    // Brain Dump
+    const txtDump = document.getElementById("brain-dump");
+    const dumpStatus = document.getElementById("dump-status");
+    if(txtDump) {
+        txtDump.value = localStorage.getItem("homer-brain-dump") || "";
+        txtDump.addEventListener("input", () => {
+            localStorage.setItem("homer-brain-dump", txtDump.value);
+            dumpStatus.textContent = "Saving...";
+            setTimeout(() => dumpStatus.textContent = "Saved", 1000);
+        });
+    }
+    // Box Breathing
+    const btnBox = document.getElementById("b-toggle");
+    const boxCircle = document.getElementById("b-circle");
+    let bInterval = null, bStep = 0;
+    if(btnBox && boxCircle) {
+        btnBox.addEventListener("click", () => {
+            if(bInterval) {
+                clearInterval(bInterval); bInterval = null;
+                btnBox.textContent = "Start Breathing";
+                boxCircle.className = "breathing-circle";
+                boxCircle.textContent = "Ready";
+            } else {
+                btnBox.textContent = "Stop";
+                bStep = 0;
+                const cycle = () => {
+                    boxCircle.className = "breathing-circle";
+                    if(bStep===0) { boxCircle.classList.add('b-inhale'); boxCircle.textContent="Inhale"; }
+                    if(bStep===1) { boxCircle.classList.add('b-hold'); boxCircle.textContent="Hold"; }
+                    if(bStep===2) { boxCircle.classList.add('b-exhale'); boxCircle.textContent="Exhale"; }
+                    if(bStep===3) { boxCircle.classList.add('b-hold'); boxCircle.textContent="Hold"; }
+                    bStep = (bStep + 1) % 4;
+                };
+                cycle();
+                bInterval = setInterval(cycle, 4000);
+            }
+        });
+    }
   </script>
 
   <script>
@@ -991,7 +1023,6 @@
       function updateMeta(){ elCount.textContent=state.pomodoros; elCycle.textContent=((state.pomodoros % settings.longEvery)||settings.longEvery); }
       function save(){ saveJSON(SKEY,state); }
 
-      /* sound + voice */
       let ac;
       function ensureAC(){ if(!ac){ ac = new (window.AudioContext||window.webkitAudioContext)(); } if(ac.state==='suspended'){ ac.resume(); } }
       function speak(text){ if(!elVoice?.checked) return; if(!('speechSynthesis' in window)) return; const u=new SpeechSynthesisUtterance(text); u.rate=1.05; u.pitch=text.includes('Woo')?1.3:0.8; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }
@@ -1145,7 +1176,7 @@
 
   <script>
     (function(){
-      // Only register service worker if on HTTP/HTTPS (Prevents local file error)
+      // Only register service worker if on HTTP/HTTPS
       if('serviceWorker'in navigator && location.protocol.startsWith('http')){
         const swCode=`const CACHE='homer-v1'; const APP_SHELL=['/','/index.html'];
           self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(APP_SHELL)).then(()=>self.skipWaiting())); })
@@ -1171,7 +1202,6 @@
   </script>
 <script>
 // 🔵 OPTIMIZED AUDIO PLAYER (Lazy Load)
-// This keeps the CPU idle. Video players are only created when YOU click play.
 const tracks = {
   ocean: { id:"WHPEKLQID4U", btn:"btn-ocean", vol:"vol-ocean", labelPlay:"▶️ Play Ocean 🌊", labelPause:"⏸️ Pause Ocean 🌊", holder:"yt-ocean" },
   fire:  { id:"UgHKb_7884o", btn:"btn-fire",  vol:"vol-fire",  labelPlay:"▶️ Play Fireplace 🔥", labelPause:"⏸️ Pause Fireplace 🔥", holder:"yt-fire" },
@@ -1184,10 +1214,9 @@ const tracks = {
   weightless: { id:"vYIYIVmOo3Q", btn:null, vol:null, holder:"yt-weightless" } 
 };
 
-// We DO NOT load all players at start. We wait for clicks.
 function createPlayer(k) {
   const t = tracks[k];
-  if(t.player) return; // already created
+  if(t.player) return;
   t.player = new YT.Player(t.holder, {
     height: "0", width: "0",
     videoId: t.id,
@@ -1204,14 +1233,11 @@ function createPlayer(k) {
 function togglePlay(k) {
   const t = tracks[k];
   const btn = document.getElementById(t.btn);
-   
-  // Initialize on first click (Lazy Load)
   if (!t.player) {
     createPlayer(k);
     if(btn) btn.textContent = t.labelPause;
     return;
   }
-   
   const st = t.player.getPlayerState();
   if (st === YT.PlayerState.PLAYING) {
     t.player.pauseVideo();
@@ -1235,16 +1261,10 @@ function stopAll() {
   });
 }
 
-// Mixes - these trigger creation if needed
 function playMix(list) {
   stopAll();
   list.forEach(item => {
-    // If not created, create it
     if(!tracks[item.k].player) createPlayer(item.k);
-    
-    // Wait small bit for init, or if ready set vol
-    // Because lazy load is async, precise mix start might delay slightly on first run
-    // but usually Youtube API queues the play command.
     setTimeout(() => {
         const t = tracks[item.k];
         if(t.player && typeof t.player.setVolume === 'function') {
@@ -1263,7 +1283,6 @@ document.addEventListener("click", e => {
   if (id === "mix-rainy") playMix([{k:'rain',vol:70}, {k:'ocean',vol:40}]);
   if (id === "mix-reading") playMix([{k:'lofi',vol:50}, {k:'fire',vol:10}, {k:'wind',vol:10}, {k:'rain',vol:10}]);
   if (id === "mix-cozy") playMix([{k:'fire',vol:40}, {k:'rain',vol:40}, {k:'rainywindow',vol:30}]);
-   
   Object.keys(tracks).forEach(k => {
     if (id === tracks[k].btn) togglePlay(k);
   });
@@ -1278,116 +1297,66 @@ document.addEventListener("input", e => {
 <script src="https://www.youtube.com/iframe_api"></script>
 
 <script>
-  // 1. Setup NoSleep (Video method backup for iOS/Mobile)
   let noSleep = null;
-  if (typeof NoSleep !== 'undefined') {
-    noSleep = new NoSleep();
-  } else {
-    console.error("NoSleep.js failed to load. Check internet.");
-  }
+  if (typeof NoSleep !== 'undefined') { noSleep = new NoSleep(); }
 
-  // 2. Variables for Native Lock (Chrome/Android/PC)
   let wakeLockSentinel = null;
   let isKeepingAwake = false;
   const btnWake = document.getElementById('btn-wake');
 
-  // --- CORE FUNCTION: REQUEST LOCK ---
   async function enableWakeLock() {
     try {
-      // A. Enable NoSleep (iOS/Safari requirement: MUST be first)
-      if (noSleep) {
-        noSleep.enable(); // This starts the hidden video loop
-      }
-
-      // B. Request Native Lock (PC/Android/Desktop)
+      if (noSleep) { noSleep.enable(); }
       if ('wakeLock' in navigator) {
         try {
           wakeLockSentinel = await navigator.wakeLock.request('screen');
-          console.log('Native Wake Lock: ACQUIRED');
-           
-          // Listen for involuntary release (e.g. system kills it, user tabs away)
           wakeLockSentinel.addEventListener('release', async () => {
-            console.log('Native Wake Lock: RELEASED (System/Tab Switch)');
             wakeLockSentinel = null;
-            // Immediate re-acquire attempt if we still want it and are visible
-            if(isKeepingAwake && document.visibilityState === 'visible') {
-               console.log('Re-acquiring lock immediately...');
-               await enableWakeLock();
-            }
+            if(isKeepingAwake && document.visibilityState === 'visible') { await enableWakeLock(); }
           });
-        } catch(err) {
-          console.warn("Native Lock failed, relying on NoSleep:", err);
-        }
+        } catch(err) {}
       }
-
-      // C. Update UI
       isKeepingAwake = true;
       if (btnWake) {
         btnWake.textContent = '👀 Keeping Awake...';
         btnWake.classList.remove('danger');
         btnWake.classList.add('secondary');
       }
-
-    } catch (err) {
-      console.error(`Wake Lock failed: ${err.name}, ${err.message}`);
-      // alert("Wake Lock failed. Check browser settings.");
-    }
+    } catch (err) {}
   }
 
-  // --- CORE FUNCTION: RELEASE LOCK ---
   async function disableWakeLock() {
-    // A. Disable NoSleep
     if (noSleep) noSleep.disable();
-
-    // B. Release Native Lock
     if (wakeLockSentinel) {
-      // Remove listener so we don't auto-reacquire
       wakeLockSentinel.onrelease = null; 
-      try {
-        await wakeLockSentinel.release();
-      } catch(e){}
+      try { await wakeLockSentinel.release(); } catch(e){}
       wakeLockSentinel = null;
     }
-
-    // C. Update UI
     isKeepingAwake = false;
     if (btnWake) {
       btnWake.textContent = 'Enable Wake Lock';
       btnWake.classList.add('danger');
       btnWake.classList.remove('secondary');
     }
-    console.log('Wake Lock: DISABLED (User)');
   }
 
-  // --- BUTTON CLICK HANDLER ---
   if (btnWake) {
     btnWake.addEventListener('click', async () => {
-      if (!isKeepingAwake) {
-        await enableWakeLock();
-      } else {
-        await disableWakeLock();
-      }
+      if (!isKeepingAwake) { await enableWakeLock(); } else { await disableWakeLock(); }
     });
   }
 
-  // --- CRITICAL FIX FOR PC: RE-ACQUIRE ON TAB SWITCH ---
-  // If you switch tabs, the Native Lock dies. We must restore it when you come back.
   document.addEventListener('visibilitychange', async () => {
     if (isKeepingAwake && document.visibilityState === 'visible' && !wakeLockSentinel) {
-      console.log('Page visible again. Re-acquiring Native Lock...');
       await enableWakeLock(); 
     }
   });
 
-  // --- HEARTBEAT FIX ---
-  // Force check every 10s. If system killed it, get it back.
   setInterval(async () => {
     if (isKeepingAwake && !wakeLockSentinel && 'wakeLock' in navigator && document.visibilityState === 'visible') {
-      console.log("Heartbeat: Re-acquiring lock...");
       await enableWakeLock();
     }
   }, 10000);
-
 </script>
 
   <script>
