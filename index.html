@@ -6,7 +6,7 @@
   <title>Homer — Focus Dashboard</title>
 
   <link rel="apple-touch-icon" sizes="180x180"
-        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
+        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAB1s8HqAAAACXBIWXMAAAsSAAALEgHS3X78AAABZElEQVR4nO3RMQEAIAzAsI/9GQkqgD5L6hQd0qgH1xgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8Kz3kAQbqgJ1Qw0QpAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAA9EoQAPRKFAD0ShAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgG8yNQm0wqOeWAAAAABJRU5ErkJggg==" />
 
   <meta name="theme-color" content="#0f172a">
   <meta name="mobile-web-app-capable" content="yes">
@@ -574,7 +574,7 @@
 </section>
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
-      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v2.2 (No DummyJSON)</span>
+      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v2.7 (Garden + Humor)</span>
     </footer>
   </div>
 
@@ -698,40 +698,60 @@
       setLoading(false); fadeIn(); pushSeen(txt); resetCountdown();
     }
     
-    /* --- UNIFIED API LOGIC (thequoteshub.com) --- */
+    /* --- REAL INSPIRE API LOGIC & FALLBACKS --- */
     
-    const HUB_BASE = "https://thequoteshub.com/api/tags/";
+    // 1. Primary Motivation (Quote Garden)
+    const API_MAIN = "https://quote-garden.onrender.com/api/v3/quotes/random?genre=motivation";
+    // 2. Humor API (Official Joke API)
+    const API_HUMOR = "https://official-joke-api.appspot.com/random_joke";
 
-    async function fetchFromHub(tag) {
+    // Helper: Fetch with timeout to prevent waiting too long
+    async function fetchWithTimeout(resource, options = {}) {
+      const { timeout = 3500 } = options;
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeout);
+      const response = await fetch(resource, {
+        ...options,
+        signal: controller.signal  
+      });
+      clearTimeout(id);
+      return response;
+    }
+
+    async function fetchMotivation() {
       try {
-        // 1. Fetch from TheQuotesHub
-        const r = await fetch(`${HUB_BASE}${tag}?limit=1`);
-        if (!r.ok) throw new Error("API Error");
-        
-        // 2. Smart Parse (Handle different JSON structures)
+        // Try Primary (Quote Garden)
+        const r = await fetchWithTimeout(API_MAIN);
+        if (!r.ok) throw new Error("Primary API Failed");
         const data = await r.json();
-        let item = null;
         
-        if (Array.isArray(data) && data.length > 0) item = data[0];
-        else if (data.data && Array.isArray(data.data) && data.data.length > 0) item = data.data[0];
-        else if (data.quote || data.text) item = data;
-
-        if (item) {
-          const content = item.text || item.quote || item.content;
-          const author = item.author || item.from || "Unknown";
-          if (content) return { content, author };
+        // Quote Garden returns { data: [ { quoteText: "...", quoteAuthor: "..." } ] }
+        if(data.data && data.data.length > 0) {
+           return { content: data.data[0].quoteText, author: data.data[0].quoteAuthor };
         }
-        throw new Error("Invalid Data");
+        throw new Error("Invalid structure");
 
       } catch (e) {
-        console.warn(`Hub failed for ${tag}, using local backup.`, e);
+        console.warn("Primary fetch failed, using local backup.", e);
+        // Direct Fallback to Local Backup (No DummyJSON)
+        return BACKUP_MOTIVATION[Math.floor(Math.random() * BACKUP_MOTIVATION.length)];
+      }
+    }
+
+    async function fetchHumor() {
+      try {
+        const r = await fetch(API_HUMOR);
+        if (!r.ok) throw new Error("Humor API Failed");
+        const data = await r.json();
         
-        // 3. Fallback Strategies (OFFLINE MODE)
-        if(tag === 'humor') {
-           return BACKUP_HUMOR[Math.floor(Math.random() * BACKUP_HUMOR.length)];
-        } else {
-           return BACKUP_MOTIVATION[Math.floor(Math.random() * BACKUP_MOTIVATION.length)];
+        // Official Joke API returns { setup: "...", punchline: "..." }
+        if(data.setup && data.punchline) {
+           return { content: `${data.setup} ... ${data.punchline}`, author: "Daily Joke" };
         }
+        throw new Error("Invalid structure");
+      } catch (e) {
+        console.warn("Humor fetch failed, using backup.", e);
+        return BACKUP_HUMOR[Math.floor(Math.random() * BACKUP_HUMOR.length)];
       }
     }
 
@@ -741,9 +761,9 @@
     els.refresh.addEventListener("click", async () => {
       setLoading(true);
       const statusText = document.querySelector("#status");
-      if(statusText) statusText.innerHTML = '<span class="spinner"></span>Fetching wisdom…';
+      if(statusText) statusText.innerHTML = '<span class="spinner"></span>Fetching inspiration…';
       
-      const q = await fetchFromHub('motivation');
+      const q = await fetchMotivation();
       renderQuote(q);
     });
 
@@ -755,7 +775,7 @@
         const statusText = document.querySelector("#status");
         if(statusText) statusText.innerHTML = '<span class="spinner"></span>Fetching a laugh…';
 
-        const q = await fetchFromHub('humor');
+        const q = await fetchHumor();
         renderQuote(q);
       });
     }
@@ -1063,7 +1083,8 @@
           const isAPI=url.hostname.includes('open-meteo.com')
                     || url.hostname.includes('youtube.com')
                     || url.hostname.includes('googlevideo.com')
-                    || url.hostname.includes('thequoteshub.com')
+                    || url.hostname.includes('quote-garden')
+                    || url.hostname.includes('official-joke-api')
                     || url.hostname.includes('cdnjs.cloudflare.com');
           if(isExternal||isAPI){
             e.respondWith(fetch(e.request).catch(()=>new Response('',{status:503}))); return;
