@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Homer</title>
+  <title>Homer — Focus Dashboard</title>
 
   <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAAZklEQVRYhe3WMQ6AIBQF0W+F4/iZruI4OAoLE21dY4yQ8CvkF4H5b0CRgZk1v40D4A14A54CA+gCDKADMICeAAPoAgygAzCADsAAugAD6AAMoAswgA7AADoAA+gCDKADMICeAAP4A2932wKjM7B9zwAAAABJRU5ErkJggg==">
 
@@ -354,7 +354,7 @@
     .site-footer a{ color: var(--accent-2); font-weight: 700; text-decoration: none; }
     .site-footer a:hover{ text-decoration: underline; }
 
-    /* ===== Home: Focus Tasks Mini Circle (VISUAL FIX) ===== */
+    /* ===== Home: Focus Tasks Mini Circle ===== */
     .htasklist{
       display:grid;
       grid-template-columns: repeat( auto-fit, minmax(260px, 1fr) );
@@ -365,11 +365,9 @@
       padding:12px; border:1px solid var(--border); border-radius:12px;
       background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
     }
-    /* Updated Mini Circle to match Dashboard Dark Look */
     .mini-circle{
       --size:86px; 
       width:var(--size); height:var(--size); border-radius:50%; flex:0 0 var(--size);
-      /* Dark Grey Track + Green Progress (var(--accent)) */
       background:
         radial-gradient(closest-side, #1e293b 76%, transparent 77%),
         conic-gradient(var(--accent) var(--prog), #334155 0);
@@ -377,7 +375,6 @@
       border: 2px solid #334155; 
       box-shadow:0 10px 28px rgba(0,0,0,.25);
       font-weight:900; letter-spacing:.02em; font-variant-numeric: tabular-nums;
-      font-size: 1.2rem;
       color: #fff;
     }
     .htask .meta{display:flex; flex-direction:column; gap:4px}
@@ -393,7 +390,7 @@
       .htask .sub{ font-size:.9rem; }
     }
 
-    /* Simple tool cards extra (CENTERED TEXT FIX) */
+    /* Simple tool cards */
     .tool-card {
       text-align: center;
       display: flex;
@@ -408,9 +405,8 @@
     .tool-card a.btn, .tool-card button.btn {
       display: inline-block;
       width: 100%;
-      margin-top: auto; /* Push to bottom if needed */
+      margin-top: auto;
     }
-
   </style>
 </head>
 <body>
@@ -630,7 +626,7 @@
       <div class="span-4 card tool-card">
         <h3>📚 Docs</h3>
         <p class="muted">Access personal documentation.</p>
-        <a href="https://docs.b4it.ro/" target="_blank" rel="noopener" class="btn secondary">Open Notifications</a>
+        <a href="https://docs.b4it.ro/" target="_blank" rel="noopener" class="btn secondary">Open Docs</a>
       </div>
 
       <div class="span-4 card tool-card">
@@ -756,7 +752,7 @@
 </section>
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
-      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v5.7 (Visual Polish)</span>
+      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v5.4 (Fully Synced)</span>
     </footer>
   </div>
 
@@ -767,15 +763,57 @@
     <a class="tool-btn" href="https://www.google.com" target="_blank" rel="noopener">🔎 Google</a>
   </nav>
 
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+
   <script>
-    /* 1. TABS */
+    /* 1. TABS & INVESTING INITIALIZATION */
+    let tvWidgetCreated = false;
+    function initInvestingTab() {
+      if (!tvWidgetCreated && typeof TradingView !== 'undefined') {
+        new TradingView.widget({
+          "autosize": true,
+          "symbol": "AMEX:SPY",
+          "interval": "D",
+          "timezone": "Etc/UTC",
+          "theme": "dark",
+          "style": "1",
+          "locale": "en",
+          "enable_publishing": false,
+          "backgroundColor": "rgba(15, 23, 42, 1)",
+          "gridColor": "rgba(255, 255, 255, 0.06)",
+          "hide_top_toolbar": false,
+          "hide_legend": false,
+          "save_image": false,
+          "container_id": "tv_chart_container",
+          "studies": ["Volume@tv-basicstudies", "MASimple@tv-basicstudies", "RSI@tv-basicstudies"]
+        });
+        tvWidgetCreated = true;
+      }
+
+      const newsList = document.getElementById('investing-news-list');
+      if (newsList && newsList.innerHTML.includes('spinner')) {
+        fetch('https://api.rss2json.com/v1/api.json?rss_url=https://www.investing.com/rss/news_25.rss')
+          .then(res => res.json())
+          .then(data => {
+            newsList.innerHTML = '';
+            data.items.slice(0, 5).forEach(item => {
+              const div = document.createElement('div');
+              div.className = 'saved-item fade-in';
+              div.innerHTML = `<div style="font-weight:800; margin-bottom:4px;"><a href="${item.link}" target="_blank" style="color:var(--accent-2); text-decoration:none;">${item.title}</a></div><div class="saved-meta" style="margin-top:0;">${item.pubDate}</div>`;
+              newsList.appendChild(div);
+            });
+          })
+          .catch(() => { newsList.innerHTML = '<p class="muted">Failed to load news.</p>'; });
+      }
+    }
+
     const tabBtns = [...document.querySelectorAll('.tab-btn')];
     const tabs = {
       home: document.getElementById('tab-home'),
       saved: document.getElementById('tab-saved'),
       pomodoro: document.getElementById('tab-pomodoro'),
       focuslab: document.getElementById('tab-focuslab'),
-      investing: document.getElementById('tab-investing'), // ADDED INVESTING TAB HERE
+      investing: document.getElementById('tab-investing'),
       tools: document.getElementById('tab-tools')
     };
     function showTab(name) {
@@ -784,10 +822,7 @@
       });
       tabBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === name));
       
-      // FIXED: Only initialize the chart AFTER the display is set to block
-      if(name === 'investing') {
-        setTimeout(initInvestingTab, 50);
-      }
+      if(name === 'investing') { setTimeout(initInvestingTab, 50); }
     }
     tabBtns.forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
@@ -835,7 +870,7 @@
     detectWeather();
 
     /* 4. QUOTES (Hybrid Static Logic) */
-    const AUTO_MS = 900_000; // 15 min
+    const AUTO_MS = 900_000;
     const DB_URL = "https://raw.githubusercontent.com/JamesFT/Database-Quotes-JSON/master/quotes.json";
     let globalQuotes = null;
     const TOPICS = ["wisdom", "success", "courage", "happiness", "time", "freedom", "philosophy"];
@@ -875,20 +910,16 @@
       setLoading(false); fadeIn(); resetCountdown();
     }
     
-    /* --- API LOGIC (SMART LOCAL PROXY + HTML TRAP) --- */
     const IS_LOCAL = window.location.protocol === 'file:' || window.location.hostname === 'localhost';
     const API_HUMOR = "https://official-joke-api.appspot.com/random_joke";
 
     async function fetchMotivation() {
       try {
-        const url = IS_LOCAL 
-          ? "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(DB_URL)
-          : DB_URL;
-
+        const url = IS_LOCAL ? "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(DB_URL) : DB_URL;
         if (!globalQuotes) {
            const r = await fetch(url);
            const text = await r.text();
-           if(text.trim().startsWith("<")) throw new Error("Received HTML instead of JSON");
+           if(text.trim().startsWith("<")) throw new Error("Received HTML");
            globalQuotes = JSON.parse(text);
         }
         const topic = TOPICS[Math.floor(Math.random() * TOPICS.length)];
@@ -988,31 +1019,26 @@
     els.clearSaved?.addEventListener('click',clearAllSaved); els.save.addEventListener("click",addCurrentToSaved);
     els.refresh.click(); renderSaved();
 
-    /* 5. FOCUS LAB LOGIC */
-    
-    // Focus Dot (Trataka) Logic - FIXED
+  </script>
+
+  <script>
     const btnFocusDot = document.getElementById("btn-focus-dot");
     const focusOverlay = document.getElementById("focus-overlay");
-    
     if(btnFocusDot && focusOverlay) {
       btnFocusDot.addEventListener("click", () => {
         focusOverlay.style.display = "grid";
-        // Try fullscreen
         if(document.documentElement.requestFullscreen) {
             document.documentElement.requestFullscreen().catch(e => console.log(e));
         }
       });
-      
       focusOverlay.addEventListener("click", () => {
         focusOverlay.style.display = "none";
-        // Exit fullscreen
         if(document.exitFullscreen) {
             document.exitFullscreen().catch(e => console.log(e));
         }
       });
     }
 
-    // Zen Mode Logic - FIXED
     const zenBtn = document.getElementById("zen-btn");
     const zenExit = document.getElementById("zen-exit");
     const zenOverlay = document.getElementById("zen-overlay");
@@ -1023,34 +1049,22 @@
         zenBtn.addEventListener("click", () => {
             const goal = zenInput.value.trim() || "FOCUS";
             zenText.textContent = goal;
-            
-            // Add class to body to hide everything else via CSS
             document.body.classList.add("zen-active");
-            
-            // Show overlay
             zenOverlay.style.display = "flex";
-            
-            // Fullscreen
             if(document.documentElement.requestFullscreen) {
                 document.documentElement.requestFullscreen().catch(e => console.log(e));
             }
         });
 
         zenExit.addEventListener("click", () => {
-            // Remove class to restore everything
             document.body.classList.remove("zen-active");
-            
-            // Hide overlay
             zenOverlay.style.display = "none";
-            
-            // Exit fullscreen
             if(document.exitFullscreen) {
                 document.exitFullscreen().catch(e => console.log(e));
             }
         });
     }
 
-    // Brain Dump
     const txtDump = document.getElementById("brain-dump");
     const dumpStatus = document.getElementById("dump-status");
     if(txtDump) {
@@ -1061,7 +1075,7 @@
             setTimeout(() => dumpStatus.textContent = "Saved", 1000);
         });
     }
-    // Box Breathing
+
     const btnBox = document.getElementById("b-toggle");
     const boxCircle = document.getElementById("b-circle");
     let bInterval = null, bStep = 0;
@@ -1116,13 +1130,102 @@
       const settings=loadJSON(PKEY,{focus:25, short:5, long:15, longEvery:4});
       const state=loadJSON(SKEY,{mode:'focus', remaining:settings.focus*60, running:false, pomodoros:0});
       elSetFocus.value=settings.focus; elSetShort.value=settings.short; elSetLong.value=settings.long;
-      elMode.textContent=cap(state.mode); updateTime(); updateRing(); updateMeta();
+
+      /* =========================================
+         NEW: SYNCHRONIZED HOME GADGET UPDATER
+      ========================================= */
+      function fmtMMSS(totalSeconds){ 
+          const s=Math.max(0,Math.floor(totalSeconds)); 
+          const m=Math.floor(s/60).toString().padStart(2,'0'); 
+          const ss=(s%60).toString().padStart(2,'0'); 
+          return `${m}:${ss}`; 
+      }
+
+      function updateHomeGadget() {
+          const tasks = loadJSON(TKEY, []);
+          const openTasks = tasks.filter(t => !t.done);
+          const wrap = document.getElementById('home-tasks');
+          const emptyMsg = document.getElementById('home-tasks-empty');
+          const tasksCard = document.getElementById('home-tasks-card');
+
+          if (openTasks.length === 0) {
+              tasksCard.style.display = 'block';
+              emptyMsg.style.display = 'block';
+              wrap.innerHTML = '';
+          } else {
+              tasksCard.style.display = 'block';
+              emptyMsg.style.display = 'none';
+
+              const isFocus = state.mode === 'focus';
+              const totalFocus = settings.focus * 60;
+              // FIXED: No longer falls back to totalFocus when remaining is 0!
+              const remaining = Math.max(0, state.remaining); 
+              const progressDeg = 360 * (1 - (remaining / totalFocus));
+
+              let html = '';
+              openTasks.forEach((t, i) => {
+                  const isFirst = (i === 0);
+                  const isF = (isFirst && isFocus);
+                  const timeStr = isFocus ? fmtMMSS(remaining) : '☕ Break';
+                  
+                  let subText = 'Queued';
+                  if (isFirst) {
+                      subText = isFocus ? (state.running ? 'Focus • running' : 'Focus • paused') : 'Taking a break';
+                  }
+
+                  html += `
+                  <div class="htask-card htask">
+                      <div class="mini-circle" style="--prog:${isF ? progressDeg + 'deg' : '0deg'}">
+                          <span style="font-size:${isFocus?'1.1rem':'0.8rem'}">${isFirst ? timeStr : '--:--'}</span>
+                      </div>
+                      <div class="meta">
+                          <div class="name">${t.text}</div>
+                          <div class="sub">${subText}</div>
+                      </div>
+                  </div>`;
+              });
+              wrap.innerHTML = html;
+          }
+          
+          // Done List Logic
+          const done = tasks.filter(t => t.done).sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,3);
+          const doneCard = document.getElementById('home-done-card');
+          const doneList = document.getElementById('home-done-list');
+          if(done.length === 0) {
+              doneCard.style.display = 'none';
+              doneList.innerHTML = '';
+          } else {
+              doneCard.style.display = 'block';
+              let dHtml = '';
+              done.forEach(t => {
+                  dHtml += `<div class="done-item"><span>${t.text}</span><span class="pill">${new Date(t.ts||Date.now()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></div>`;
+              });
+              doneList.innerHTML = dHtml;
+          }
+      }
+
+      /* End Sync */
 
       function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
       function durFor(mode){ return (mode==='focus'?settings.focus:mode==='short'?settings.short:settings.long)*60; }
       function setMode(next){ state.mode=next; state.remaining=durFor(next); elMode.textContent=cap(next); updateTime(); updateRing(); save(); }
-      function updateTime(){ const m=Math.floor(state.remaining/60).toString().padStart(2,'0'); const s=Math.floor(state.remaining%60).toString().padStart(2,'0'); elTime.textContent=`${m}:${s}`; }
-      function updateRing(){ const total=durFor(state.mode); const progress=1-(state.remaining/total); const deg=Math.max(0,Math.min(360,progress*360)); elRing.style.setProperty('--pom-progress',`${deg}deg`); }
+      
+      function updateTime(){ 
+          const m=Math.floor(state.remaining/60).toString().padStart(2,'0'); 
+          const s=Math.floor(state.remaining%60).toString().padStart(2,'0'); 
+          elTime.textContent=`${m}:${s}`; 
+          
+          // Trigger Home Gadget Update whenever time changes
+          updateHomeGadget();
+      }
+      
+      function updateRing(){ 
+          const total=durFor(state.mode); 
+          const progress=1-(state.remaining/total); 
+          const deg=Math.max(0,Math.min(360,progress*360)); 
+          elRing.style.setProperty('--pom-progress',`${deg}deg`); 
+      }
+      
       function updateMeta(){ elCount.textContent=state.pomodoros; elCycle.textContent=((state.pomodoros % settings.longEvery)||settings.longEvery); }
       function save(){ saveJSON(SKEY,state); }
 
@@ -1138,8 +1241,8 @@
       });
 
       let tick=null;
-      function start(){ if(state.running) return; state.running=true; save(); if(elNotify?.checked && 'Notification' in window && Notification.permission!=='granted'){ Notification.requestPermission(); } ensureAC(); tick=setInterval(()=>{ state.remaining--; if(state.remaining<=0){ advance(); } updateTime(); updateRing(); save(); window.dispatchEvent(new Event('pom-tick')); },1000); }
-      function pause(){ state.running=false; clearInterval(tick); save(); }
+      function start(){ if(state.running) return; state.running=true; save(); if(elNotify?.checked && 'Notification' in window && Notification.permission!=='granted'){ Notification.requestPermission(); } ensureAC(); tick=setInterval(()=>{ state.remaining--; if(state.remaining<=0){ advance(); } updateTime(); updateRing(); save(); },1000); }
+      function pause(){ state.running=false; clearInterval(tick); save(); updateHomeGadget(); }
       function reset(){ pause(); state.remaining=durFor(state.mode); updateTime(); updateRing(); save(); }
       function skip(){ pause(); advance(true); }
 
@@ -1183,10 +1286,9 @@
       const taskInput=document.getElementById('task-input');
       const taskAdd=document.getElementById('task-add');
       const taskList=document.getElementById('task-list');
-      function loadTasks(){ return loadJSON(TKEY,[]); }
-      function saveTasks(list){ saveJSON(TKEY,list); }
+      
       function renderTasks(){
-        const list=loadTasks();
+        const list=loadJSON(TKEY,[]);
         taskList.innerHTML='';
         list.forEach((t,i)=>{
           const li=document.createElement('li');
@@ -1196,122 +1298,31 @@
             <button class="btn ghost" data-act="del" data-i="${i}">Delete</button>`;
           taskList.appendChild(li);
         });
-        window.dispatchEvent(new Event('tasks-changed'));
+        updateHomeGadget();
       }
       function addTask(){
         const text=taskInput.value.trim(); if(!text) return;
-        const list=loadTasks(); list.unshift({text,done:false,ts:Date.now()});
-        saveTasks(list); taskInput.value=''; renderTasks();
+        const list=loadJSON(TKEY,[]); list.unshift({text,done:false,ts:Date.now()});
+        saveJSON(TKEY,list); taskInput.value=''; renderTasks();
       }
       taskAdd.addEventListener('click',addTask);
       taskInput.addEventListener('keydown',e=>{ if(e.key==='Enter') addTask(); });
       taskList.addEventListener('click',e=>{
         const i=e.target.dataset.i; if(i==null) return;
-        const list=loadTasks();
+        const list=loadJSON(TKEY,[]);
         if(e.target.matches('input[type="checkbox"]')){ list[i].done=e.target.checked; list[i].ts=Date.now(); }
         if(e.target.dataset.act==='del'){ list.splice(i,1); }
-        saveTasks(list); renderTasks();
+        saveJSON(TKEY,list); renderTasks();
       });
 
-      if(state.running){ start(); }
+      // Initialize
+      elMode.textContent=cap(state.mode); 
+      updateTime(); 
+      updateRing(); 
+      updateMeta();
       renderTasks();
+      if(state.running){ start(); }
     });
-  </script>
-
-  <script>
-    function fmtMMSS(totalSeconds){ const s=Math.max(0,Math.floor(totalSeconds)); const m=Math.floor(s/60).toString().padStart(2,'0'); const ss=(s%60).toString().padStart(2,'0'); return `${m}:${ss}`; }
-    const LS='pom.state.v1', LS_SETTINGS='pom.settings.v1', LS_TASKS='pom.tasks.v1';
-    function ls(k,def){ try{return JSON.parse(localStorage.getItem(k)||JSON.stringify(def));}catch{return def;} }
-    function getOpenTasks(){ const tasks=ls(LS_TASKS,[]); return tasks.filter(t=>!t.done); }
-    function getDoneTop3(){ const tasks=ls(LS_TASKS,[]); return tasks.filter(t=>t.done).sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,3); }
-
-    function renderHomeFromPom(){
-      const state=ls(LS, null);
-      const settings=ls(LS_SETTINGS,{focus:25, short:5, long:15});
-      const openTasks=getOpenTasks();
-      const done=getDoneTop3();
-
-      const tasksCard=document.getElementById('home-tasks-card');
-      const tasksWrap=document.getElementById('home-tasks');
-      const tasksEmpty=document.getElementById('home-tasks-empty');
-      const doneCard=document.getElementById('home-done-card');
-      const doneList=document.getElementById('home-done-list');
-
-      tasksWrap.innerHTML='';
-      if(openTasks.length===0){
-        tasksCard.style.display='block'; tasksEmpty.style.display='block';
-      }else{
-        tasksCard.style.display='block'; tasksEmpty.style.display='none';
-        
-        // FIX: Handle null state gracefully so time shows up before user clicks Start
-        const isFocus = (state && state.mode === 'focus') || (!state); 
-        const isRunning = state && state.running;
-        const totalFocus = (settings.focus || 25) * 60;
-        const remaining = Math.max(0, (state && state.remaining ? state.remaining : totalFocus));
-        const progressDeg = 360 * (1 - (remaining / totalFocus));
-
-        openTasks.forEach((t,i)=>{
-          const card=document.createElement('div'); card.className='htask-card htask';
-          const circle=document.createElement('div'); circle.className='mini-circle';
-          const leftSpan=document.createElement('span');
-          
-          /* SMART CLOCK LOGIC:
-             1. Only show time if task is actively RUNNING in Focus mode.
-             2. If Paused/Ready: Show Play Icon.
-             3. If Break: Show Coffee Icon.
-          */
-          let displayContent = '▶'; 
-          
-          if (isFocus) {
-             if (isRunning) {
-                 displayContent = fmtMMSS(remaining);
-             } else {
-                 displayContent = '▶'; 
-             }
-          } else {
-             displayContent = '☕'; 
-          }
-
-          // Apply to first task only
-          leftSpan.textContent = (i === 0) ? displayContent : (i + 1);
-          
-          circle.appendChild(leftSpan);
-          // Only show progress bar if running
-          circle.style.setProperty('--prog',(i===0 && isFocus && isRunning) ? `${progressDeg}deg` : '0deg');
-          
-          const meta=document.createElement('div'); meta.className='meta';
-          const name=document.createElement('div'); name.className='name'; name.textContent=t.text;
-          const sub=document.createElement('div'); sub.className='sub';
-          
-          // Subtitle Logic
-          if(i===0) {
-             if(isFocus) {
-                sub.textContent = isRunning ? 'Focusing...' : 'Ready to Start';
-             } else {
-                sub.textContent = 'On Break ☕';
-             }
-          } else {
-             sub.textContent = 'Queued';
-          }
-
-          meta.appendChild(name); meta.appendChild(sub);
-          card.appendChild(circle); card.appendChild(meta);
-          tasksWrap.appendChild(card);
-        });
-      }
-
-      doneList.innerHTML='';
-      if(done.length===0) doneCard.style.display='none';
-      else{
-        doneCard.style.display='block';
-        done.forEach(t=>{ const row=document.createElement('div'); row.className='done-item'; row.innerHTML=`<span>${t.text}</span><span class="pill">${new Date(t.ts||Date.now()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>`; doneList.appendChild(row); });
-      }
-    }
-
-    renderHomeFromPom();
-    setInterval(renderHomeFromPom,1000);
-    window.addEventListener('pom-tick',renderHomeFromPom);
-    window.addEventListener('tasks-changed',renderHomeFromPom);
   </script>
 
   <script>
@@ -1340,6 +1351,7 @@
       }
     })();
   </script>
+
 <script>
 // 🔵 OPTIMIZED AUDIO PLAYER (Lazy Load)
 const tracks = {
@@ -1434,7 +1446,6 @@ document.addEventListener("input", e => {
   });
 });
 </script>
-<script src="https://www.youtube.com/iframe_api"></script>
 
 <script>
   let noSleep = null;
@@ -1499,64 +1510,5 @@ document.addEventListener("input", e => {
   }, 10000);
 </script>
 
-  <script>
-    if('serviceWorker'in navigator){ navigator.serviceWorker.getRegistrations().then(regs=>regs.forEach(r=>r.update())); }
-  </script>
-
-  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-  <script>
-    let tvWidgetCreated = false;
-
-    function initInvestingTab() {
-      // 1. Fire up the Advanced Chart
-      if (!tvWidgetCreated && typeof TradingView !== 'undefined') {
-        new TradingView.widget({
-          "autosize": true,
-          "symbol": "AMEX:SPY", // Default to S&P 500 ETF
-          "interval": "D",      // Daily candles
-          "timezone": "Etc/UTC",
-          "theme": "dark",
-          "style": "1",         // Changed to '1' for Candlesticks
-          "locale": "en",
-          "enable_publishing": false,
-          "backgroundColor": "rgba(15, 23, 42, 1)", // Matches your --bg #0f172a
-          "gridColor": "rgba(255, 255, 255, 0.06)", // Matches your var(--border)
-          "hide_top_toolbar": false, // ENABLED: Lets you search tickers & change timeframes
-          "hide_legend": false,      // ENABLED: Shows you the exact values of your indicators
-          "save_image": false,
-          "container_id": "tv_chart_container",
-          "studies": [
-            "Volume@tv-basicstudies",   // Adds Volume bars to the bottom
-            "MASimple@tv-basicstudies", // Adds a Moving Average trend line
-            "RSI@tv-basicstudies"       // Adds Relative Strength Index momentum oscillator
-          ]
-        });
-        tvWidgetCreated = true;A
-      }
-
-      // 2. Fetch Market News 
-      const newsList = document.getElementById('investing-news-list');
-      if (newsList && newsList.innerHTML.includes('spinner')) {
-        fetch('https://api.rss2json.com/v1/api.json?rss_url=https://www.investing.com/rss/news_25.rss')
-          .then(res => res.json())
-          .then(data => {
-            newsList.innerHTML = '';A
-            data.items.slice(0, 5).forEach(item => {
-              const div = document.createElement('div');
-              div.className = 'saved-item fade-in';
-              div.innerHTML = `
-                <div style="font-weight:800; margin-bottom:4px;">
-                  <a href="${item.link}" target="_blank" style="color:var(--accent-2); text-decoration:none;">${item.title}</a>
-                </div>
-                <div class="saved-meta" style="margin-top:0;">${item.pubDate}</div>`;
-              newsList.appendChild(div);
-            });
-          })
-          .catch(() => {
-            newsList.innerHTML = '<p class="muted">Failed to load news.</p>';
-          });
-      }
-    }
-  </script>
 </body>
 </html>
