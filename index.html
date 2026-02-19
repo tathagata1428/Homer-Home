@@ -975,11 +975,63 @@
         els.savedList.appendChild(wrap);
       });
     }
-    els.savedList?.addEventListener('click',e=>{
-      const btn=e.target.closest('button'); if(!btn) return;
-      const idx=+btn.dataset.i; if(btn.dataset.act==='del') deleteSaved(idx);
-      if(btn.dataset.act==='copy') { const list=loadSaved(); navigator.clipboard.writeText(`“${list[idx].q}” — ${list[idx].a||"Unknown"}`); }
+   els.savedList?.addEventListener('click', e => {
+      const btn = e.target.closest('button'); 
+      if(!btn) return;
+      
+      const idx = +btn.dataset.i; 
+      
+      // Handle Delete
+      if(btn.dataset.act === 'del') { 
+        deleteSaved(idx); 
+      }
+      
+      // Handle Copy
+      if(btn.dataset.act === 'copy') { 
+        const list = loadSaved(); 
+        const textToCopy = `“${list[idx].q}” — ${list[idx].a || "Unknown"}`;
+        
+        // 1. Try modern clipboard API (using .then instead of async/await to preserve user gesture)
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showCopiedFeedback(btn);
+            }).catch(() => {
+                fallbackCopy(textToCopy, btn);
+            });
+        } else {
+            fallbackCopy(textToCopy, btn);
+        }
+      }
     });
+
+    // Helper for visual feedback
+    function showCopiedFeedback(btn) {
+        const originalText = btn.textContent;
+        btn.textContent = "Copied ✓";
+        btn.style.color = "var(--accent)"; // Green text
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.color = "";
+        }, 1500);
+    }
+
+    // Helper for old-school fallback copy
+    function fallbackCopy(text, btn) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed"; // Avoid scrolling to bottom
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            showCopiedFeedback(btn);
+        } catch (err) {
+            console.error("Fallback copy failed", err);
+        }
+        document.body.removeChild(textArea);
+    }
     els.exportSaved?.addEventListener('click',()=>{
       const list=loadSaved(); const text=list.map(it=>`“${it.q}” — ${it.a||"Unknown"}`).join("\n\n");
       const blob=new Blob([text],{type:'text/plain'}); const url=URL.createObjectURL(blob);
