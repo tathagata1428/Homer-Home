@@ -1502,8 +1502,7 @@ document.addEventListener("input", e => {
   <script>
     if('serviceWorker'in navigator){ navigator.serviceWorker.getRegistrations().then(regs=>regs.forEach(r=>r.update())); }
   </script>
-
-  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
   <script>
     let tvWidgetCreated = false;
 
@@ -1516,19 +1515,21 @@ document.addEventListener("input", e => {
           "interval": "D",      // Daily candles
           "timezone": "Etc/UTC",
           "theme": "dark",
-          "style": "1",         // Changed to '1' for Candlesticks
+          "style": "1",         // Candlesticks
           "locale": "en",
           "enable_publishing": false,
           "backgroundColor": "rgba(15, 23, 42, 1)", // Matches your --bg #0f172a
           "gridColor": "rgba(255, 255, 255, 0.06)", // Matches your var(--border)
-          "hide_top_toolbar": false, // ENABLED: Lets you search tickers & change timeframes
-          "hide_legend": false,      // ENABLED: Shows you the exact values of your indicators
+          "hide_top_toolbar": false,  // Enables timeframe & ticker search
+          "hide_legend": false,       // Shows indicator values
+          "hide_side_toolbar": false, // 🔴 THE FIX: Unhides the drawing tools (Trend lines, etc.)
+          "allow_symbol_change": true, // Lets you freely type new tickers
           "save_image": false,
           "container_id": "tv_chart_container",
           "studies": [
-            "Volume@tv-basicstudies",   // Adds Volume bars to the bottom
-            "MASimple@tv-basicstudies", // Adds a Moving Average trend line
-            "RSI@tv-basicstudies"       // Adds Relative Strength Index momentum oscillator
+            "Volume@tv-basicstudies",   // Volume
+            "MASimple@tv-basicstudies", // Moving Average
+            "RSI@tv-basicstudies"       // RSI
           ]
         });
         tvWidgetCreated = true;
@@ -1558,5 +1559,6 @@ document.addEventListener("input", e => {
       }
     }
   </script>
+  
 </body>
 </html>
