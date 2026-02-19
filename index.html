@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Homer — Focus Dashboard</title>
+  <title>Homer</title>
 
   <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAAZklEQVRYhe3WMQ6AIBQF0W+F4/iZruI4OAoLE21dY4yQ8CvkF4H5b0CRgZk1v40D4A14A54CA+gCDKADMICeAAPoAgygAzCADsAAugAD6AAMoAswgA7AADoAA+gCDKADMICeAAP4A2932wKjM7B9zwAAAABJRU5ErkJggg==">
 
@@ -49,6 +49,8 @@
     body.zen-active #tab-home,
     body.zen-active #tab-saved,
     body.zen-active #tab-pomodoro,
+    body.zen-active #tab-focuslab,
+    body.zen-active #tab-investing,
     body.zen-active #tab-tools,
     body.zen-active .ambient-section,
     body.zen-active .focus-grid-wrapper { 
@@ -430,7 +432,7 @@
 
   <div class="shell">
     <header class="hero">
-      <div class="title"><span id="greeting">Hello</span> <span class="title-badge">safe place</span></div>
+      <div class="title">Homer <span id="greeting" class="title-badge">Hello</span></div>
       <div class="subtitle">“Trying is the first step towards failure.” — Homer Simpson</div>
     </header>
 
@@ -439,6 +441,7 @@
       <button class="tab-btn" data-tab="saved">Saved Quotes</button>
       <button class="tab-btn" data-tab="pomodoro">Pomodoro</button>
       <button class="tab-btn" data-tab="focuslab">Focus Lab</button>
+      <button class="tab-btn" data-tab="investing">Investing</button>
       <button class="tab-btn" data-tab="tools">Tools</button>
     </div>
 
@@ -596,6 +599,21 @@
            <div id="dump-status" class="muted" style="font-size:0.8rem; margin-top:6px; text-align:right;">Saved</div>
          </div>
        </div>
+    </section>
+
+    <section id="tab-investing" class="tab card" style="display:none">
+      <h2 class="section">Market Intelligence</h2>
+      <div class="grid">
+        <div class="span-12 card" style="height: 450px; padding: 0; overflow: hidden; position: relative; background: #000;">
+          <div id="tv_chart_container" style="width: 100%; height: 100%;"></div>
+        </div>
+        <div class="span-12 card">
+          <h3 style="margin-top:0">🗞️ Market News (S&P 500)</h3>
+          <div id="investing-news-list" class="saved-list">
+             <p class="muted"><span class="spinner"></span> Parsing financial trends...</p>
+          </div>
+        </div>
+      </div>
     </section>
 
  <section id="tab-tools" class="tab card" style="display:none">
@@ -757,6 +775,7 @@
       saved: document.getElementById('tab-saved'),
       pomodoro: document.getElementById('tab-pomodoro'),
       focuslab: document.getElementById('tab-focuslab'),
+      investing: document.getElementById('tab-investing'), // ADDED INVESTING TAB HERE
       tools: document.getElementById('tab-tools')
     };
     function showTab(name) {
@@ -764,6 +783,11 @@
         if(el) el.style.display = (k === name) ? 'block' : 'none';
       });
       tabBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+      
+      // FIXED: Only initialize the chart AFTER the display is set to block
+      if(name === 'investing') {
+        setTimeout(initInvestingTab, 50);
+      }
     }
     tabBtns.forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
@@ -1477,6 +1501,57 @@ document.addEventListener("input", e => {
 
   <script>
     if('serviceWorker'in navigator){ navigator.serviceWorker.getRegistrations().then(regs=>regs.forEach(r=>r.update())); }
+  </script>
+
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+  <script>
+    let tvWidgetCreated = false;
+
+    function initInvestingTab() {
+      // 1. Fire up the Chart
+      if (!tvWidgetCreated && typeof TradingView !== 'undefined') {
+        new TradingView.widget({
+          "autosize": true,
+          "symbol": "AMEX:SPY", // S&P 500 ETF
+          "interval": "D",
+          "timezone": "Etc/UTC",
+          "theme": "dark",
+          "style": "3", // Area style
+          "locale": "en",
+          "enable_publishing": false,
+          "backgroundColor": "rgba(15, 23, 42, 1)", // Matches your --bg #0f172a
+          "gridColor": "rgba(255, 255, 255, 0.06)", // Matches your var(--border)
+          "hide_top_toolbar": true,
+          "hide_legend": true,
+          "save_image": false,
+          "container_id": "tv_chart_container"
+        });
+        tvWidgetCreated = true;
+      }
+
+      // 2. Fetch Market News 
+      const newsList = document.getElementById('investing-news-list');
+      if (newsList && newsList.innerHTML.includes('spinner')) {
+        fetch('https://api.rss2json.com/v1/api.json?rss_url=https://www.investing.com/rss/news_25.rss')
+          .then(res => res.json())
+          .then(data => {
+            newsList.innerHTML = '';
+            data.items.slice(0, 5).forEach(item => {
+              const div = document.createElement('div');
+              div.className = 'saved-item fade-in';
+              div.innerHTML = `
+                <div style="font-weight:800; margin-bottom:4px;">
+                  <a href="${item.link}" target="_blank" style="color:var(--accent-2); text-decoration:none;">${item.title}</a>
+                </div>
+                <div class="saved-meta" style="margin-top:0;">${item.pubDate}</div>`;
+              newsList.appendChild(div);
+            });
+          })
+          .catch(() => {
+            newsList.innerHTML = '<p class="muted">Failed to load news.</p>';
+          });
+      }
+    }
   </script>
 </body>
 </html>
