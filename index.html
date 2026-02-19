@@ -1508,25 +1508,30 @@ document.addEventListener("input", e => {
     let tvWidgetCreated = false;
 
     function initInvestingTab() {
-      // 1. Fire up the Chart
+      // 1. Fire up the Advanced Chart
       if (!tvWidgetCreated && typeof TradingView !== 'undefined') {
         new TradingView.widget({
           "autosize": true,
-          "symbol": "AMEX:SPY", // S&P 500 ETF
-          "interval": "D",
+          "symbol": "AMEX:SPY", // Default to S&P 500 ETF
+          "interval": "D",      // Daily candles
           "timezone": "Etc/UTC",
           "theme": "dark",
-          "style": "3", // Area style
+          "style": "1",         // Changed to '1' for Candlesticks
           "locale": "en",
           "enable_publishing": false,
           "backgroundColor": "rgba(15, 23, 42, 1)", // Matches your --bg #0f172a
           "gridColor": "rgba(255, 255, 255, 0.06)", // Matches your var(--border)
-          "hide_top_toolbar": true,
-          "hide_legend": true,
+          "hide_top_toolbar": false, // ENABLED: Lets you search tickers & change timeframes
+          "hide_legend": false,      // ENABLED: Shows you the exact values of your indicators
           "save_image": false,
-          "container_id": "tv_chart_container"
+          "container_id": "tv_chart_container",
+          "studies": [
+            "Volume@tv-basicstudies",   // Adds Volume bars to the bottom
+            "MASimple@tv-basicstudies", // Adds a Moving Average trend line
+            "RSI@tv-basicstudies"       // Adds Relative Strength Index momentum oscillator
+          ]
         });
-        tvWidgetCreated = true;
+        tvWidgetCreated = true;A
       }
 
       // 2. Fetch Market News 
@@ -1535,7 +1540,7 @@ document.addEventListener("input", e => {
         fetch('https://api.rss2json.com/v1/api.json?rss_url=https://www.investing.com/rss/news_25.rss')
           .then(res => res.json())
           .then(data => {
-            newsList.innerHTML = '';
+            newsList.innerHTML = '';A
             data.items.slice(0, 5).forEach(item => {
               const div = document.createElement('div');
               div.className = 'saved-item fade-in';
