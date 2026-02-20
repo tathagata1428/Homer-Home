@@ -1186,7 +1186,8 @@
       function setMode(next){ state.mode=next; state.remaining=durFor(next); elMode.textContent=cap(next); updateTime(); updateRing(); save(); }
       function updateTime(){ const m=Math.floor(state.remaining/60).toString().padStart(2,'0'); const s=Math.floor(state.remaining%60).toString().padStart(2,'0'); elTime.textContent=`${m}:${s}`; }
       function updateRing(){ const total=durFor(state.mode); const progress=1-(state.remaining/total); const deg=Math.max(0,Math.min(360,progress*360)); elRing.style.setProperty('--pom-progress',`${deg}deg`); }
-      function updateMeta(){ elCount.textContent=state.pomodoros; elCycle.textContent=((state.pomodoros % settings.longEvery)||settings.longEvery); }
+      // FIX: Cycle math correctly computes "1/4" when pomodoros is 0
+      function updateMeta(){ elCount.textContent=state.pomodoros; elCycle.textContent=(state.pomodoros % settings.longEvery) + 1; }
       function save(){ saveJSON(SKEY,state); }
 
       let ac;
@@ -1241,6 +1242,7 @@
         }
       }
 
+      // Safe JS Event listeners that rely on CSS for the visual pop
       btnStart.addEventListener('click',start);
       btnPause.addEventListener('click',pause);
       btnReset.addEventListener('click',reset);
@@ -1418,17 +1420,17 @@
     })();
   </script>
 <script>
-// 🔵 OPTIMIZED AUDIO PLAYER (Lazy Load)
+// 🔵 AUDIO PLAYER WITH BULLETPROOF STATE TRACKING
 const tracks = {
-  ocean: { id:"WHPEKLQID4U", btn:"btn-ocean", vol:"vol-ocean", labelPlay:"▶️ Play Ocean 🌊", labelPause:"⏸️ Pause Ocean 🌊", holder:"yt-ocean" },
-  fire:  { id:"UgHKb_7884o", btn:"btn-fire",  vol:"vol-fire",  labelPlay:"▶️ Play Fireplace 🔥", labelPause:"⏸️ Pause Fireplace 🔥", holder:"yt-fire" },
-  rain:  { id:"mPZkdNFkNps", btn:"btn-rain",  vol:"vol-rain",  labelPlay:"▶️ Play Rain 🌧️", labelPause:"⏸️ Pause Rain 🌧️", holder:"yt-rain" },
-  rainywindow: { id:"Dx5qFachd3A", btn:"btn-rainywindow", vol:"vol-rainywindow", labelPlay:"▶️ Play Jazz 🌧️🪟", labelPause:"⏸️ Pause Jazz 🌧️🪟", holder:"yt-rainywindow" },
-  cafe:  { id:"uiMXGIG_DQo", btn:"btn-cafe",  vol:"vol-cafe",  labelPlay:"▶️ Play Café ☕", labelPause:"⏸️ Pause Café ☕", holder:"yt-cafe" },
-  lofi:  { id:"Na0w3Mz46GA", btn:"btn-lofi",  vol:"vol-lofi",  labelPlay:"▶️ Play Lo-Fi 🎶", labelPause:"⏸️ Pause Lo-Fi 🎶", holder:"yt-lofi" },
-  wind: { id:"jYu1-CxNqks", btn:"btn-wind", vol:"vol-wind", labelPlay:"▶️ Play wind 🍃", labelPause:"⏸️ Pause wind🍃 ", holder:"yt-wind" },
-  synthwave: { id:"4xDzrJKXOOY", btn:"btn-synthwave", vol:"vol-synthwave", labelPlay:"▶️ Play Synthwave 📚", labelPause:"⏸️ Pause Synthwave 📚", holder:"yt-synthwave" },
-  weightless: { id:"vYIYIVmOo3Q", btn:null, vol:null, holder:"yt-weightless" } 
+  ocean: { id:"WHPEKLQID4U", btn:"btn-ocean", vol:"vol-ocean", labelPlay:"▶️ Play Ocean", labelPause:"⏸️ Pause Ocean", holder:"yt-ocean", isPlaying: false },
+  fire:  { id:"UgHKb_7884o", btn:"btn-fire",  vol:"vol-fire",  labelPlay:"▶️ Play Fireplace", labelPause:"⏸️ Pause Fireplace", holder:"yt-fire", isPlaying: false },
+  rain:  { id:"mPZkdNFkNps", btn:"btn-rain",  vol:"vol-rain",  labelPlay:"▶️ Play Rain", labelPause:"⏸️ Pause Rain", holder:"yt-rain", isPlaying: false },
+  rainywindow: { id:"Dx5qFachd3A", btn:"btn-rainywindow", vol:"vol-rainywindow", labelPlay:"▶️ Play Jazz", labelPause:"⏸️ Pause Jazz", holder:"yt-rainywindow", isPlaying: false },
+  cafe:  { id:"uiMXGIG_DQo", btn:"btn-cafe",  vol:"vol-cafe",  labelPlay:"▶️ Play Café", labelPause:"⏸️ Pause Café", holder:"yt-cafe", isPlaying: false },
+  lofi:  { id:"Na0w3Mz46GA", btn:"btn-lofi",  vol:"vol-lofi",  labelPlay:"▶️ Play Lo-Fi", labelPause:"⏸️ Pause Lo-Fi", holder:"yt-lofi", isPlaying: false },
+  wind: { id:"jYu1-CxNqks", btn:"btn-wind", vol:"vol-wind", labelPlay:"▶️ Play Wind", labelPause:"⏸️ Pause Wind", holder:"yt-wind", isPlaying: false },
+  synthwave: { id:"4xDzrJKXOOY", btn:"btn-synthwave", vol:"vol-synthwave", labelPlay:"▶️ Play Synthwave", labelPause:"⏸️ Pause Synthwave", holder:"yt-synthwave", isPlaying: false },
+  weightless: { id:"vYIYIVmOo3Q", btn:null, vol:null, holder:"yt-weightless", isPlaying: false } 
 };
 
 function createPlayer(k) {
@@ -1442,6 +1444,10 @@ function createPlayer(k) {
       onReady: e => {
         const volEl = t.vol ? document.getElementById(t.vol) : null;
         if(volEl) e.target.setVolume(+volEl.value);
+        // FIX: If the user toggled it off before it even finished loading, pause it immediately
+        if(!t.isPlaying) {
+            e.target.pauseVideo();
+        }
       }
     }
   });
@@ -1450,19 +1456,22 @@ function createPlayer(k) {
 function togglePlay(k) {
   const t = tracks[k];
   const btn = document.getElementById(t.btn);
+  
   if (!t.player) {
     createPlayer(k);
+    t.isPlaying = true;
     if(btn) btn.textContent = t.labelPause;
     return;
   }
-  const st = t.player.getPlayerState();
   
-  // FIX: If the video is playing OR buffering, pressing the button pauses it and resets text to Play
-  if (st === YT.PlayerState.PLAYING || st === YT.PlayerState.BUFFERING) {
+  // FIX: Rely on our strict internal state, not YouTube's delayed API state
+  if (t.isPlaying) {
     t.player.pauseVideo();
-    if(btn) btn.textContent = t.labelPlay; 
+    t.isPlaying = false;
+    if(btn) btn.textContent = t.labelPlay;
   } else {
     t.player.playVideo();
+    t.isPlaying = true;
     if(btn) btn.textContent = t.labelPause;
   }
 }
@@ -1475,23 +1484,39 @@ function setVolume(k, v) {
 function stopAll() {
   Object.keys(tracks).forEach(k => {
     const t = tracks[k];
+    t.isPlaying = false;
     if (t.player && typeof t.player.pauseVideo === 'function') t.player.pauseVideo();
-    if (t.btn) document.getElementById(t.btn).textContent = t.labelPlay;
+    if (t.btn) {
+        const btnEl = document.getElementById(t.btn);
+        if(btnEl) btnEl.textContent = t.labelPlay;
+    }
   });
 }
 
 function playMix(list) {
   stopAll();
   list.forEach(item => {
-    if(!tracks[item.k].player) createPlayer(item.k);
-    setTimeout(() => {
-        const t = tracks[item.k];
-        if(t.player && typeof t.player.setVolume === 'function') {
-          t.player.setVolume(item.vol);
-          t.player.playVideo();
-          if(t.btn) document.getElementById(t.btn).textContent = t.labelPause;
-        }
-    }, 100);
+    const t = tracks[item.k];
+    t.isPlaying = true;
+    
+    // Visually update the UI Slider to match the mix
+    const volEl = document.getElementById(t.vol);
+    if(volEl) volEl.value = item.vol;
+    
+    // Visually update the UI Button to show it is playing
+    const btnEl = document.getElementById(t.btn);
+    if(btnEl) btnEl.textContent = t.labelPause;
+
+    if(!t.player) {
+        createPlayer(item.k);
+    } else {
+        setTimeout(() => {
+            if(typeof t.player.setVolume === 'function') {
+                t.player.setVolume(item.vol);
+                t.player.playVideo();
+            }
+        }, 100);
+    }
   });
 }
 
@@ -1516,71 +1541,71 @@ document.addEventListener("input", e => {
 <script src="https://www.youtube.com/iframe_api"></script>
 
 <script>
-  let noSleep = null;
-  if (typeof NoSleep !== 'undefined') { noSleep = new NoSleep(); }
-
+  let noSleep = typeof NoSleep !== 'undefined' ? new NoSleep() : null;
   let wakeLockSentinel = null;
   let isKeepingAwake = false;
   const btnWake = document.getElementById('btn-wake');
 
-  // FIX: Bulletproof Toggle for Keep Awake
+  // FIX: Bulletproof Toggle for Keep Awake that won't conflict with background loops
+  async function acquireWakeLock() {
+      if ('wakeLock' in navigator) {
+          try {
+              wakeLockSentinel = await navigator.wakeLock.request('screen');
+              wakeLockSentinel.addEventListener('release', () => { 
+                  wakeLockSentinel = null; 
+              });
+          } catch (err) {}
+      }
+  }
+
   async function toggleWakeLock() {
-    if (!isKeepingAwake) {
-      // Turn ON
-      try {
-        if (noSleep) noSleep.enable();
-        if ('wakeLock' in navigator) {
-          wakeLockSentinel = await navigator.wakeLock.request('screen');
-          wakeLockSentinel.addEventListener('release', () => {
-            wakeLockSentinel = null;
-          });
-        }
-        isKeepingAwake = true;
-        if (btnWake) {
-          btnWake.textContent = '👀 Keeping Awake...';
-          btnWake.classList.remove('danger');
-          btnWake.classList.add('secondary');
-        }
-      } catch (err) {
-        console.error(err);
+      if (!isKeepingAwake) {
+          // Turn ON
+          isKeepingAwake = true;
+          if (noSleep) noSleep.enable();
+          await acquireWakeLock();
+          
+          if (btnWake) {
+              btnWake.textContent = '👀 Keeping Awake...';
+              btnWake.classList.remove('danger');
+              btnWake.classList.add('secondary');
+          }
+      } else {
+          // Turn OFF
+          isKeepingAwake = false;
+          if (noSleep) noSleep.disable();
+          
+          if (wakeLockSentinel) {
+              try { await wakeLockSentinel.release(); } catch(e) {}
+              wakeLockSentinel = null;
+          }
+          
+          if (btnWake) {
+              btnWake.textContent = '☕ Keep Awake';
+              btnWake.classList.add('danger');
+              btnWake.classList.remove('secondary');
+          }
       }
-    } else {
-      // Turn OFF
-      if (noSleep) noSleep.disable();
-      if (wakeLockSentinel) {
-        try {
-          await wakeLockSentinel.release();
-        } catch(e) {}
-        wakeLockSentinel = null;
-      }
-      isKeepingAwake = false;
-      if (btnWake) {
-        btnWake.textContent = '☕ Keep Awake';
-        btnWake.classList.add('danger');
-        btnWake.classList.remove('secondary');
-      }
-    }
   }
 
   if (btnWake) {
-    btnWake.addEventListener('click', toggleWakeLock);
+      btnWake.addEventListener('click', toggleWakeLock);
   }
 
-  // Restore wake lock if user tabs away and comes back
+  // Restore wake lock only if the user actively wants it kept awake
   document.addEventListener('visibilitychange', async () => {
-    if (isKeepingAwake && document.visibilityState === 'visible' && !wakeLockSentinel) {
-       try {
-           if ('wakeLock' in navigator) {
-               wakeLockSentinel = await navigator.wakeLock.request('screen');
-           }
-       } catch(e) {}
-    }
+      if (isKeepingAwake && document.visibilityState === 'visible' && !wakeLockSentinel) {
+         await acquireWakeLock();
+      }
   });
+
+  setInterval(async () => {
+      if (isKeepingAwake && document.visibilityState === 'visible' && !wakeLockSentinel) {
+          await acquireWakeLock();
+      }
+  }, 10000);
 </script>
 
-  <script>
-    if('serviceWorker'in navigator){ navigator.serviceWorker.getRegistrations().then(regs=>regs.forEach(r=>r.update())); }
-  </script>
 <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
   <script>
     let tvWidgetCreated = false;
