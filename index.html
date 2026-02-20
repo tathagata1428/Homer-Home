@@ -683,7 +683,7 @@
       <div class="span-4 card tool-card">
         <h3>☕ Keep Awake</h3>
         <p class="muted">Prevents screen from sleeping.</p>
-        <button id="btn-wake" class="btn danger">Enable Wake Lock</button>
+        <button id="btn-wake" class="btn danger">☕ Keep Awake</button>
       </div>
 
     </div>
@@ -1203,10 +1203,10 @@
       let tick=null;
       function start(){ if(state.running) return; state.running=true; save(); if(elNotify?.checked && 'Notification' in window && Notification.permission!=='granted'){ Notification.requestPermission(); } ensureAC(); tick=setInterval(()=>{ state.remaining--; if(state.remaining<=0){ advance(false); } updateTime(); updateRing(); save(); window.dispatchEvent(new Event('pom-tick')); },1000); }
       function pause(){ state.running=false; clearInterval(tick); save(); window.dispatchEvent(new Event('pom-tick')); }
-      function skip(){ pause(); advance(true); } // Pass true to silenty skip
+      function skip(){ pause(); advance(true); } 
       function reset(){ 
           pause(); 
-          state.pomodoros = 0; // FULLY RESET POMODORO COUNT
+          state.pomodoros = 0; 
           setMode('focus'); 
           updateMeta(); 
           updateTime(); 
@@ -1221,13 +1221,13 @@
           const n=state.pomodoros % settings.longEvery;
           setMode(n===0?'long':'short');
           
-          if(!isSkip) { // Don't shout if skipped manually
+          if(!isSkip) {
             notify('Break time', n===0?`Long break (${settings.long}m)`:`Short break (${settings.short}m)`);
             sfxWooHoo();
           }
         }else{
           setMode('focus');
-          if(!isSkip) { // Don't shout if skipped manually
+          if(!isSkip) {
             notify('Focus time', `${settings.focus} minutes — go!`);
             sfxDoh();
           }
@@ -1241,7 +1241,6 @@
         }
       }
 
-      // Safe JS Event listeners that rely on CSS for the visual pop
       btnStart.addEventListener('click',start);
       btnPause.addEventListener('click',pause);
       btnReset.addEventListener('click',reset);
@@ -1457,9 +1456,11 @@ function togglePlay(k) {
     return;
   }
   const st = t.player.getPlayerState();
-  if (st === YT.PlayerState.PLAYING) {
+  
+  // FIX: If the video is playing OR buffering, pressing the button pauses it and resets text to Play
+  if (st === YT.PlayerState.PLAYING || st === YT.PlayerState.BUFFERING) {
     t.player.pauseVideo();
-    if(btn) btn.textContent = t.labelPause;
+    if(btn) btn.textContent = t.labelPlay; 
   } else {
     t.player.playVideo();
     if(btn) btn.textContent = t.labelPause;
@@ -1522,59 +1523,59 @@ document.addEventListener("input", e => {
   let isKeepingAwake = false;
   const btnWake = document.getElementById('btn-wake');
 
-  async function enableWakeLock() {
-    try {
-      if (noSleep) { noSleep.enable(); }
-      if ('wakeLock' in navigator) {
-        try {
+  // FIX: Bulletproof Toggle for Keep Awake
+  async function toggleWakeLock() {
+    if (!isKeepingAwake) {
+      // Turn ON
+      try {
+        if (noSleep) noSleep.enable();
+        if ('wakeLock' in navigator) {
           wakeLockSentinel = await navigator.wakeLock.request('screen');
-          wakeLockSentinel.addEventListener('release', async () => {
+          wakeLockSentinel.addEventListener('release', () => {
             wakeLockSentinel = null;
-            if(isKeepingAwake && document.visibilityState === 'visible') { await enableWakeLock(); }
           });
-        } catch(err) {}
+        }
+        isKeepingAwake = true;
+        if (btnWake) {
+          btnWake.textContent = '👀 Keeping Awake...';
+          btnWake.classList.remove('danger');
+          btnWake.classList.add('secondary');
+        }
+      } catch (err) {
+        console.error(err);
       }
-      isKeepingAwake = true;
+    } else {
+      // Turn OFF
+      if (noSleep) noSleep.disable();
+      if (wakeLockSentinel) {
+        try {
+          await wakeLockSentinel.release();
+        } catch(e) {}
+        wakeLockSentinel = null;
+      }
+      isKeepingAwake = false;
       if (btnWake) {
-        btnWake.textContent = '👀 Keeping Awake...';
-        btnWake.classList.remove('danger');
-        btnWake.classList.add('secondary');
+        btnWake.textContent = '☕ Keep Awake';
+        btnWake.classList.add('danger');
+        btnWake.classList.remove('secondary');
       }
-    } catch (err) {}
-  }
-
-  async function disableWakeLock() {
-    if (noSleep) noSleep.disable();
-    if (wakeLockSentinel) {
-      wakeLockSentinel.onrelease = null; 
-      try { await wakeLockSentinel.release(); } catch(e){}
-      wakeLockSentinel = null;
-    }
-    isKeepingAwake = false;
-    if (btnWake) {
-      btnWake.textContent = 'Enable Wake Lock';
-      btnWake.classList.add('danger');
-      btnWake.classList.remove('secondary');
     }
   }
 
   if (btnWake) {
-    btnWake.addEventListener('click', async () => {
-      if (!isKeepingAwake) { await enableWakeLock(); } else { await disableWakeLock(); }
-    });
+    btnWake.addEventListener('click', toggleWakeLock);
   }
 
+  // Restore wake lock if user tabs away and comes back
   document.addEventListener('visibilitychange', async () => {
     if (isKeepingAwake && document.visibilityState === 'visible' && !wakeLockSentinel) {
-      await enableWakeLock(); 
+       try {
+           if ('wakeLock' in navigator) {
+               wakeLockSentinel = await navigator.wakeLock.request('screen');
+           }
+       } catch(e) {}
     }
   });
-
-  setInterval(async () => {
-    if (isKeepingAwake && !wakeLockSentinel && 'wakeLock' in navigator && document.visibilityState === 'visible') {
-      await enableWakeLock();
-    }
-  }, 10000);
 </script>
 
   <script>
