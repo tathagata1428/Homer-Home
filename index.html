@@ -641,7 +641,7 @@
       <div class="span-4 card tool-card">
         <h3>📚 Docs</h3>
         <p class="muted">Access personal documentation.</p>
-        <a href="https://docs.b4it.ro/" target="_blank" rel="noopener" class="btn secondary">Open Docs</a>
+        <a href="https://docs.b4it.ro/" target="_blank" rel="noopener" class="btn secondary">Open Notifications</a>
       </div>
 
       <div class="span-4 card tool-card">
@@ -1322,41 +1322,47 @@
       }else{
         tasksCard.style.display='block'; tasksEmpty.style.display='none';
         
-        // FIX: Handle null state gracefully so time shows up before user clicks Start
-        const isFocus = (state && state.mode === 'focus') || (!state); 
+        // FIX: Calculate total seconds correctly based on the current mode (Focus vs Break)
+        const mode = state ? state.mode : 'focus';
+        const isFocus = mode === 'focus';
         const isRunning = state && state.running;
-        const totalFocus = (settings.focus || 25) * 60;
-        const remaining = Math.max(0, (state && state.remaining ? state.remaining : totalFocus));
-        const progressDeg = 360 * (1 - (remaining / totalFocus));
+        
+        let totalSeconds = (settings.focus || 25) * 60;
+        if (mode === 'short') totalSeconds = (settings.short || 5) * 60;
+        if (mode === 'long') totalSeconds = (settings.long || 15) * 60;
+
+        const remaining = Math.max(0, (state && state.remaining != null ? state.remaining : totalSeconds));
+        const progressDeg = 360 * (1 - (remaining / totalSeconds));
 
         openTasks.forEach((t,i)=>{
           const card=document.createElement('div'); card.className='htask-card htask';
           const circle=document.createElement('div'); circle.className='mini-circle';
           const leftSpan=document.createElement('span');
           
-          /* SMART CLOCK LOGIC:
-             1. Only show time if task is actively RUNNING in Focus mode.
-             2. If Paused/Ready: Show Play Icon.
-             3. If Break: Show Coffee Icon.
-          */
+          /* SMART CLOCK LOGIC: Show time if running (Focus OR Break) */
           let displayContent = '▶'; 
           
-          if (isFocus) {
-             if (isRunning) {
+          if (isRunning) {
+             if (isFocus) {
                  displayContent = fmtMMSS(remaining);
              } else {
-                 displayContent = '▶'; 
+                 // Break mode running: Mug + Timer perfectly centered in the circle
+                 displayContent = `<div style="display:flex; flex-direction:column; align-items:center; line-height:1.1; margin-top:-2px"><span style="font-size:0.75em;">☕</span><span style="font-size:0.85em;">${fmtMMSS(remaining)}</span></div>`;
              }
           } else {
-             displayContent = '☕'; 
+             displayContent = isFocus ? '▶' : '☕'; 
           }
 
           // Apply to first task only
-          leftSpan.textContent = (i === 0) ? displayContent : (i + 1);
+          if (i === 0) {
+              leftSpan.innerHTML = displayContent;
+          } else {
+              leftSpan.textContent = (i + 1);
+          }
           
           circle.appendChild(leftSpan);
-          // Only show progress bar if running
-          circle.style.setProperty('--prog',(i===0 && isFocus && isRunning) ? `${progressDeg}deg` : '0deg');
+          // Show progress bar if running (works for focus and breaks now)
+          circle.style.setProperty('--prog',(i===0 && isRunning) ? `${progressDeg}deg` : '0deg');
           
           const meta=document.createElement('div'); meta.className='meta';
           const name=document.createElement('div'); name.className='name'; name.textContent=t.text;
@@ -1367,7 +1373,7 @@
              if(isFocus) {
                 sub.textContent = isRunning ? 'Focusing...' : 'Ready to Start';
              } else {
-                sub.textContent = 'On Break ☕';
+                sub.textContent = isRunning ? 'On Break ☕' : 'Break Paused ☕';
              }
           } else {
              sub.textContent = 'Queued';
