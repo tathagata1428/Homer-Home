@@ -224,8 +224,19 @@
       padding:6px 10px; border-radius:999px; font-weight:900; font-size:.85rem; color:#041106;
       background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%);
     }
+    
+    /* POMODORO CONTROLS WITH CSS ACTIVE STATE FIX */
     .pom-controls{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
-    .pom-controls .btn{font-weight:900}
+    .pom-controls .btn{
+       font-weight:900; 
+       transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), filter 0.1s ease;
+    }
+    /* This creates the visual feedback without breaking JavaScript */
+    .pom-controls .btn:active {
+       transform: scale(0.92);
+       filter: brightness(1.3);
+    }
+    
     .preset-row{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
     .preset input{width:70px; border-radius:8px; background:#0b1220; border:1px solid var(--border); color:#fff; padding:6px 8px}
     .meta-row{display:flex; gap:16px; justify-content:center; color:var(--muted); font-size:.95rem; flex-wrap:wrap}
@@ -1190,22 +1201,36 @@
       });
 
       let tick=null;
-      function start(){ if(state.running) return; state.running=true; save(); if(elNotify?.checked && 'Notification' in window && Notification.permission!=='granted'){ Notification.requestPermission(); } ensureAC(); tick=setInterval(()=>{ state.remaining--; if(state.remaining<=0){ advance(); } updateTime(); updateRing(); save(); window.dispatchEvent(new Event('pom-tick')); },1000); }
-      function pause(){ state.running=false; clearInterval(tick); save(); }
-      function reset(){ pause(); state.remaining=durFor(state.mode); updateTime(); updateRing(); save(); }
-      function skip(){ pause(); advance(true); }
+      function start(){ if(state.running) return; state.running=true; save(); if(elNotify?.checked && 'Notification' in window && Notification.permission!=='granted'){ Notification.requestPermission(); } ensureAC(); tick=setInterval(()=>{ state.remaining--; if(state.remaining<=0){ advance(false); } updateTime(); updateRing(); save(); window.dispatchEvent(new Event('pom-tick')); },1000); }
+      function pause(){ state.running=false; clearInterval(tick); save(); window.dispatchEvent(new Event('pom-tick')); }
+      function skip(){ pause(); advance(true); } // Pass true to silenty skip
+      function reset(){ 
+          pause(); 
+          state.pomodoros = 0; // FULLY RESET POMODORO COUNT
+          setMode('focus'); 
+          updateMeta(); 
+          updateTime(); 
+          updateRing(); 
+          save();
+          window.dispatchEvent(new Event('pom-tick'));
+      }
 
-      function advance(){
+      function advance(isSkip = false){
         if(state.mode==='focus'){
           state.pomodoros++;
           const n=state.pomodoros % settings.longEvery;
           setMode(n===0?'long':'short');
-          notify('Break time', n===0?`Long break (${settings.long}m)`:`Short break (${settings.short}m)`);
-          sfxWooHoo();
+          
+          if(!isSkip) { // Don't shout if skipped manually
+            notify('Break time', n===0?`Long break (${settings.long}m)`:`Short break (${settings.short}m)`);
+            sfxWooHoo();
+          }
         }else{
           setMode('focus');
-          notify('Focus time', `${settings.focus} minutes — go!`);
-          sfxDoh();
+          if(!isSkip) { // Don't shout if skipped manually
+            notify('Focus time', `${settings.focus} minutes — go!`);
+            sfxDoh();
+          }
         }
         updateMeta(); save(); if(state.running) start();
       }
@@ -1216,6 +1241,7 @@
         }
       }
 
+      // Safe JS Event listeners that rely on CSS for the visual pop
       btnStart.addEventListener('click',start);
       btnPause.addEventListener('click',pause);
       btnReset.addEventListener('click',reset);
