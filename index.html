@@ -879,13 +879,20 @@
 
     function setLoading(show){ els.status.style.display=show?"block":"none"; els.quote.style.display=show?"none":"block"; els.byline.style.display=show?"none":"block"; }
     function fadeIn(){ els.quote.classList.remove('fade-in'); els.byline.classList.remove('fade-in'); void els.quote.offsetWidth; els.quote.classList.add('fade-in'); els.byline.classList.add('fade-in'); }
-    function renderQuote(q){
-      const txt=q.content||q.quoteText||"Stay motivated."; 
-      const ath=q.author||q.quoteAuthor||"Unknown";
-      els.quote.textContent=txt; els.author.textContent=ath;
-      setLoading(false); fadeIn(); resetCountdown();
-    }
-    
+ function renderQuote(q) {
+  let txt = q.content || q.quoteText || "Stay motivated.";
+  const ath = q.author || q.quoteAuthor || "Unknown";
+
+  // 🛠️ THE FIX: Replace the broken characters with standard ones
+  txt = txt.replace(//g, "'") // Fixes most apostrophes
+           .replace(/\uFFFD/g, '"'); // Fixes double quotes
+
+  els.quote.textContent = txt; 
+  els.author.textContent = ath;
+  setLoading(false); 
+  fadeIn(); 
+  resetCountdown();
+}
     /* --- API LOGIC (SMART LOCAL PROXY + HTML TRAP) --- */
     const IS_LOCAL = window.location.protocol === 'file:' || window.location.hostname === 'localhost';
     const API_HUMOR = "https://official-joke-api.appspot.com/random_joke";
