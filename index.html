@@ -2025,8 +2025,17 @@ document.addEventListener("input", e => {
           iconHtml +
           '<a href="' + escAttr(lnk.url) + '" target="_blank" rel="noopener" style="color:var(--accent-2);font-weight:700;text-decoration:none;flex:1;">' + escHtml(lnk.name) + '</a>' +
           '<span style="color:var(--muted);font-size:.85rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(lnk.url) + '</span>' +
+          '<button class="link-copy btn ghost" data-url="' + escAttr(lnk.url) + '" style="padding:4px 10px;font-size:.8rem;flex-shrink:0;" title="Copy URL">📋</button>' +
           '<button class="link-del btn" data-idx="' + item.idx + '" style="padding:4px 10px;font-size:.8rem;flex-shrink:0;">✕</button>';
         grid.appendChild(div);
+      });
+    });
+
+    grid.querySelectorAll('.link-copy').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        navigator.clipboard.writeText(btn.dataset.url).then(function(){
+          btn.textContent = '✅'; setTimeout(function(){ btn.textContent = '📋'; }, 1200);
+        });
       });
     });
 
