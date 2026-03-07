@@ -1,3 +1,16 @@
+import https from 'https';
+
+function fetchURL(url) {
+  return new Promise(function(resolve, reject) {
+    https.get(url, function(res) {
+      let data = '';
+      res.on('data', function(chunk) { data += chunk; });
+      res.on('end', function() { resolve(data); });
+      res.on('error', reject);
+    }).on('error', reject);
+  });
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -5,14 +18,12 @@ export default async function handler(req, res) {
 
   const { id } = req.query;
   if (!id || !/^UC[\w-]{22}$/.test(id)) {
-    return res.status(400).json({ error: 'Invalid channel ID' });
+    return res.status(400).json({ error: 'Invalid channel ID: ' + id });
   }
 
   try {
     const feedUrl = 'https://www.youtube.com/feeds/videos.xml?channel_id=' + id;
-    const r = await fetch(feedUrl);
-    if (!r.ok) throw new Error('YouTube returned ' + r.status);
-    const xml = await r.text();
+    const xml = await fetchURL(feedUrl);
 
     const videos = [];
     const entryRx = /<entry>([\s\S]*?)<\/entry>/g;

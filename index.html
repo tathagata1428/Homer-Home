@@ -1023,7 +1023,7 @@
     const SEEN_MAX = 2; // reset seen list after this many
 
     const QUOTE_SOURCES = [
-      "https://raw.githubusercontent.com/lukePeavey/quotable/master/data/quotes.json",
+      "https://raw.githubusercontent.com/dwyl/quotes/main/quotes.json",
       "https://raw.githubusercontent.com/JamesFT/Database-Quotes-JSON/master/quotes.json"
     ];
 
@@ -1124,8 +1124,8 @@ function renderQuote(q) {
     function normalizeQuotes(arr, sourceIdx){
       return arr.map(function(q){
         if(sourceIdx === 0){
-          // lukePeavey/quotable format: {content, author}
-          return {t: q.content || '', a: q.author || 'Unknown'};
+          // dwyl/quotes format: {text, author}
+          return {t: q.text || q.content || '', a: q.author || 'Unknown'};
         } else {
           // JamesFT format: {quoteText, quoteAuthor}
           return {t: q.quoteText || '', a: q.quoteAuthor || 'Unknown'};
@@ -2704,8 +2704,8 @@ document.addEventListener("input", e => {
           });
         });
       })
-      .catch(function(){
-        ytEmpty.textContent = 'Failed to load videos: ' + (err.message || 'Unknown error');
+      .catch(function(err){
+        ytEmpty.textContent = 'Failed to load videos: ' + (err && err.message || 'Unknown error');
       });
   }
 
