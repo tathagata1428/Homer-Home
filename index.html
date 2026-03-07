@@ -416,7 +416,6 @@
       height: 100%;
       padding: 24px 16px;
     }
-    .tool-card:hover .link-del { opacity:1 !important; }
     .tool-card h3 { margin: 0 0 10px 0; }
     .tool-card p { margin: 0 0 16px 0; flex-grow: 1; display:flex; align-items:center; justify-content:center; }
     .tool-card a.btn, .tool-card button.btn {
@@ -814,7 +813,7 @@
     <input id="link-use-icon" type="checkbox" checked style="accent-color:var(--accent);width:16px;height:16px;"> Show site favicon as icon
   </label>
 
-  <div id="links-grid" class="grid"></div>
+  <div id="links-grid"></div>
   <p id="links-empty" class="empty" style="display:none">No links saved yet. Add one above!</p>
 </section>
 
@@ -2003,32 +2002,30 @@ document.addEventListener("input", e => {
     Object.keys(groups).sort().forEach(function(cat){
       var heading = document.createElement('h2');
       heading.className = 'section';
-      heading.style.gridColumn = 'span 12';
-      heading.style.marginTop = '12px';
+      heading.style.marginTop = '16px';
       heading.textContent = cat;
       grid.appendChild(heading);
 
       groups[cat].forEach(function(item){
         var lnk = item.lnk;
         var div = document.createElement('div');
-        div.className = 'span-4 card tool-card';
-        div.style.position = 'relative';
+        div.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin-bottom:8px;';
 
-        var iconHtml;
         var showFavicon = lnk.useFavicon !== false;
         var faviconUrl = getFavicon(lnk.url);
+        var iconHtml;
         if(showFavicon && faviconUrl){
-          iconHtml = '<img src="' + escAttr(faviconUrl) + '" alt="" style="width:32px;height:32px;border-radius:6px;margin-bottom:6px;background:#fff;padding:2px;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\';">' +
-                     '<span style="display:none;font-size:1.8rem;margin-bottom:4px;">' + (lnk.emoji || '🔗') + '</span>';
+          iconHtml = '<img src="' + escAttr(faviconUrl) + '" alt="" style="width:22px;height:22px;border-radius:4px;background:#fff;padding:1px;flex-shrink:0;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline\';">' +
+                     '<span style="display:none;font-size:1.2rem;flex-shrink:0;">' + (lnk.emoji || '🔗') + '</span>';
         } else {
-          iconHtml = '<span style="font-size:1.8rem;margin-bottom:4px;">' + (lnk.emoji || '🔗') + '</span>';
+          iconHtml = '<span style="font-size:1.2rem;flex-shrink:0;">' + (lnk.emoji || '🔗') + '</span>';
         }
 
         div.innerHTML =
-          '<button class="link-del" data-idx="' + item.idx + '" style="position:absolute;top:6px;left:8px;padding:0;width:18px;height:18px;line-height:18px;font-size:.65rem;border:none;border-radius:50%;background:rgba(239,68,68,.8);color:#fff;cursor:pointer;opacity:0;transition:opacity .2s;" title="Remove">✕</button>' +
           iconHtml +
-          '<h3 style="margin-top:0;">' + escHtml(lnk.name) + '</h3>' +
-          '<a href="' + escAttr(lnk.url) + '" target="_blank" rel="noopener" class="btn primary" style="margin-top:8px;display:inline-block;">Open</a>';
+          '<a href="' + escAttr(lnk.url) + '" target="_blank" rel="noopener" style="color:var(--accent-2);font-weight:700;text-decoration:none;flex:1;">' + escHtml(lnk.name) + '</a>' +
+          '<span style="color:var(--muted);font-size:.85rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(lnk.url) + '</span>' +
+          '<button class="link-del btn" data-idx="' + item.idx + '" style="padding:4px 10px;font-size:.8rem;flex-shrink:0;">✕</button>';
         grid.appendChild(div);
       });
     });
