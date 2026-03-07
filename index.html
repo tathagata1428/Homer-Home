@@ -1949,10 +1949,11 @@ document.addEventListener("input", e => {
       if(!rssUrl) return;
       var newsList = document.getElementById('investing-news-list');
       newsList.innerHTML = '<p class="muted"><span class="spinner"></span> Loading news...</p>';
-      fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(rssUrl))
+      fetch('/api/rssfeed?url=' + encodeURIComponent(rssUrl))
         .then(function(res){ return res.json(); })
         .then(function(data){
           newsList.innerHTML = '';
+          if(data.error){ newsList.innerHTML = '<p class="muted">Error: ' + data.error + '</p>'; return; }
           if(!data.items || !data.items.length){
             newsList.innerHTML = '<p class="muted">No articles found from this source.</p>';
             return;
@@ -2562,17 +2563,18 @@ document.addEventListener("input", e => {
     var rss = sourceSel.value;
     if(!rss) return;
     newsList.innerHTML = '<p class="muted"><span class="spinner"></span> Loading news...</p>';
-    fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(rss))
+    fetch('/api/rssfeed?url=' + encodeURIComponent(rss))
       .then(function(r){ return r.json(); })
       .then(function(data){
         newsList.innerHTML = '';
+        if(data.error){ newsList.innerHTML = '<p class="muted">Error: ' + data.error + '</p>'; return; }
         if(!data.items || !data.items.length){
           newsList.innerHTML = '<p class="muted">No articles found.</p>'; return;
         }
         data.items.slice(0,10).forEach(function(item){
           var div = document.createElement('div');
           div.className = 'saved-item fade-in';
-          var thumb = item.thumbnail || item.enclosure && item.enclosure.link || '';
+          var thumb = item.thumbnail || '';
           div.innerHTML =
             '<div style="display:flex;gap:12px;align-items:flex-start;">' +
               (thumb ? '<img src="'+thumb.replace(/"/g,'&quot;')+'" alt="" style="width:80px;height:55px;object-fit:cover;border-radius:8px;flex-shrink:0;" onerror="this.style.display=\'none\'">' : '') +
@@ -2580,7 +2582,7 @@ document.addEventListener("input", e => {
                 '<div style="font-weight:800;margin-bottom:4px;">' +
                   '<a href="'+(item.link||'#').replace(/"/g,'&quot;')+'" target="_blank" style="color:var(--accent-2);text-decoration:none;">'+(item.title||'Untitled').replace(/</g,'&lt;')+'</a>' +
                 '</div>' +
-                '<div style="color:var(--muted);font-size:.85rem;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">'+(item.description||'').replace(/<[^>]*>/g,'').slice(0,160)+'</div>' +
+                '<div style="color:var(--muted);font-size:.85rem;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">'+(item.description||'')+'</div>' +
                 '<div class="saved-meta" style="margin-top:4px;">'+(item.pubDate||'')+'</div>' +
               '</div>' +
             '</div>';
