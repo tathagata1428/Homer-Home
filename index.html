@@ -2646,42 +2646,52 @@ document.addEventListener("input", e => {
     ytEmpty.textContent = 'Loading videos...';
     ytEmpty.style.display = 'block';
 
-    // Use RSS feed for channel videos (no API key needed)
-    fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent('https://www.youtube.com/feeds/videos.xml?channel_id=' + channelId))
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        if(!data.items || !data.items.length){
+    // Fetch YouTube Atom feed via CORS proxy and parse XML
+    var feedUrl = 'https://www.youtube.com/feeds/videos.xml?channel_id=' + channelId;
+    fetch('https://corsproxy.io/?' + encodeURIComponent(feedUrl))
+      .then(function(r){ return r.text(); })
+      .then(function(xml){
+        // Parse video IDs and titles with regex (reliable across namespace handling)
+        var vidIds = [], titles = [], dates = [];
+        var idRx = /<yt:videoId>([^<]+)<\/yt:videoId>/g, m;
+        while((m = idRx.exec(xml)) !== null) vidIds.push(m[1]);
+        var titleRx = /<media:title>([^<]+)<\/media:title>/g;
+        while((m = titleRx.exec(xml)) !== null) titles.push(m[1]);
+        var dateRx = /<published>([^<]+)<\/published>/g;
+        // skip the first <published> (channel-level)
+        dateRx.exec(xml);
+        while((m = dateRx.exec(xml)) !== null) dates.push(m[1].split('T')[0]);
+
+        if(!vidIds.length){
           ytEmpty.textContent = 'No videos found.'; return;
         }
         ytEmpty.style.display = 'none';
-        data.items.slice(0,12).forEach(function(vid){
-          // Extract video ID from link
-          var vidId = '';
-          try{
-            var u = new URL(vid.link);
-            vidId = u.searchParams.get('v') || '';
-          }catch(e){}
+
+        var count = Math.min(vidIds.length, 15);
+        for(var i = 0; i < count; i++){
+          var vidId = vidIds[i];
+          var title = titles[i] || '';
+          var date = dates[i] || '';
+
+          if(!vidId) continue;
 
           var card = document.createElement('div');
           card.style.cssText = 'flex:0 0 320px;scroll-snap-align:start;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);';
-
-          if(vidId){
-            card.innerHTML =
-              '<div style="position:relative;cursor:pointer;" class="yt-thumb-wrap" data-vid="'+vidId+'">' +
-                '<img src="https://img.youtube.com/vi/'+vidId+'/mqdefault.jpg" alt="" style="width:100%;display:block;aspect-ratio:16/9;object-fit:cover;">' +
-                '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3);transition:background .2s;">' +
-                  '<div style="width:50px;height:50px;background:rgba(255,0,0,.9);border-radius:12px;display:flex;align-items:center;justify-content:center;">' +
-                    '<div style="width:0;height:0;border-left:18px solid #fff;border-top:10px solid transparent;border-bottom:10px solid transparent;margin-left:4px;"></div>' +
-                  '</div>' +
+          card.innerHTML =
+            '<div style="position:relative;cursor:pointer;" class="yt-thumb-wrap" data-vid="'+vidId+'">' +
+              '<img src="https://img.youtube.com/vi/'+vidId+'/mqdefault.jpg" alt="" style="width:100%;display:block;aspect-ratio:16/9;object-fit:cover;">' +
+              '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3);transition:background .2s;">' +
+                '<div style="width:50px;height:50px;background:rgba(255,0,0,.9);border-radius:12px;display:flex;align-items:center;justify-content:center;">' +
+                  '<div style="width:0;height:0;border-left:18px solid #fff;border-top:10px solid transparent;border-bottom:10px solid transparent;margin-left:4px;"></div>' +
                 '</div>' +
               '</div>' +
-              '<div style="padding:10px 12px;">' +
-                '<div style="font-weight:700;font-size:.9rem;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">'+(vid.title||'').replace(/</g,'&lt;')+'</div>' +
-                '<div style="color:var(--muted);font-size:.8rem;margin-top:4px;">'+(vid.pubDate||'').split(' ')[0]+'</div>' +
-              '</div>';
-          }
+            '</div>' +
+            '<div style="padding:10px 12px;">' +
+              '<div style="font-weight:700;font-size:.9rem;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">'+title.replace(/</g,'&lt;')+'</div>' +
+              '<div style="color:var(--muted);font-size:.8rem;margin-top:4px;">'+date+'</div>' +
+            '</div>';
           ytTrack.appendChild(card);
-        });
+        }
 
         // Click thumbnail to play inline
         ytTrack.querySelectorAll('.yt-thumb-wrap').forEach(function(wrap){
