@@ -54,6 +54,7 @@
     body.zen-active #tab-tools,
     body.zen-active #tab-links,
     body.zen-active #tab-vault,
+    body.zen-active #tab-news,
     body.zen-active .ambient-section,
     body.zen-active .focus-grid-wrapper { 
         display: none !important; 
@@ -458,6 +459,7 @@
       <button class="tab-btn" data-tab="tools">Tools</button>
       <button class="tab-btn" data-tab="links">Links</button>
       <button class="tab-btn" data-tab="vault">🔒 Vault</button>
+      <button class="tab-btn" data-tab="news">📰 News</button>
     </div>
 
     <section id="tab-home" class="tab card">
@@ -887,6 +889,50 @@
   </div>
 </section>
 
+<section id="tab-news" class="tab card" style="display:none">
+  <h2 class="section">📰 News & Videos</h2>
+
+  <!-- NEWS -->
+  <div class="card" style="padding:18px;margin-bottom:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+      <h3 style="margin:0;">🗞️ Latest News</h3>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="news-tab-region" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;">
+          <option value="ro">🇷🇴 Romania</option>
+          <option value="int">🌍 International</option>
+        </select>
+        <select id="news-tab-source" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;max-width:220px;">
+        </select>
+        <button id="news-tab-refresh" class="btn secondary" style="padding:8px 14px;font-size:.85rem;">Refresh</button>
+      </div>
+    </div>
+    <div id="news-tab-list" class="saved-list">
+      <p class="muted"><span class="spinner"></span> Select a source and hit Refresh...</p>
+    </div>
+  </div>
+
+  <!-- YOUTUBE CAROUSEL -->
+  <div class="card" style="padding:18px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+      <h3 style="margin:0;">▶️ Video Channels</h3>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="yt-region" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;">
+          <option value="ro">🇷🇴 Romania</option>
+          <option value="int">🌍 International</option>
+        </select>
+        <select id="yt-channel" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;max-width:220px;">
+        </select>
+        <button id="yt-load" class="btn secondary" style="padding:8px 14px;font-size:.85rem;">Load</button>
+      </div>
+    </div>
+    <div id="yt-carousel" style="position:relative;overflow:hidden;">
+      <div id="yt-carousel-track" style="display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:10px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent;">
+      </div>
+      <p id="yt-empty" class="muted" style="text-align:center;padding:20px;">Select a channel and hit Load to see videos.</p>
+    </div>
+  </div>
+</section>
+
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
       <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v5.82 (Visual Polish)</span>
@@ -911,7 +957,8 @@
       investing: document.getElementById('tab-investing'),
       tools: document.getElementById('tab-tools'),
       links: document.getElementById('tab-links'),
-      vault: document.getElementById('tab-vault')
+      vault: document.getElementById('tab-vault'),
+      news: document.getElementById('tab-news')
     };
     function showTab(name) {
       Object.entries(tabs).forEach(([k, el]) => {
@@ -2463,6 +2510,200 @@ document.addEventListener("input", e => {
     el.addEventListener('keydown', function(e){ if(e.key==='Enter') credAddBtn.click(); });
   });
 
+})();
+</script>
+
+<script>
+(function(){
+  // === NEWS TAB ===
+  var newsTabSources = {
+    ro: [
+      {name:'Digi24', rss:'https://www.digi24.ro/rss'},
+      {name:'Profit.ro', rss:'https://www.profit.ro/rss'},
+      {name:'HotNews', rss:'https://www.hotnews.ro/rss'},
+      {name:'Mediafax', rss:'https://www.mediafax.ro/rss'},
+      {name:'Ziarul Financiar', rss:'https://www.zf.ro/rss'},
+      {name:'Adevarul', rss:'https://adevarul.ro/rss'},
+      {name:'Libertatea', rss:'https://www.libertatea.ro/rss'},
+      {name:'G4Media', rss:'https://www.g4media.ro/feed'},
+      {name:'Wall-Street.ro', rss:'https://www.wall-street.ro/rss/articole-noi.xml'},
+      {name:'Bursa', rss:'https://www.bursa.ro/rss'}
+    ],
+    int: [
+      {name:'BBC World', rss:'https://feeds.bbci.co.uk/news/world/rss.xml'},
+      {name:'Reuters', rss:'https://www.reutersagency.com/feed/?best-topics=business-finance'},
+      {name:'CNN', rss:'http://rss.cnn.com/rss/edition.rss'},
+      {name:'Al Jazeera', rss:'https://www.aljazeera.com/xml/rss/all.xml'},
+      {name:'The Guardian', rss:'https://www.theguardian.com/world/rss'},
+      {name:'France24', rss:'https://www.france24.com/en/rss'},
+      {name:'DW News', rss:'https://rss.dw.com/rdf/rss-en-all'},
+      {name:'NPR', rss:'https://feeds.npr.org/1001/rss.xml'},
+      {name:'TechCrunch', rss:'https://techcrunch.com/feed/'},
+      {name:'Ars Technica', rss:'https://feeds.arstechnica.com/arstechnica/index'}
+    ]
+  };
+
+  var regionSel = document.getElementById('news-tab-region');
+  var sourceSel = document.getElementById('news-tab-source');
+  var refreshBtn = document.getElementById('news-tab-refresh');
+  var newsList = document.getElementById('news-tab-list');
+
+  function populateNewsSources(){
+    var sources = newsTabSources[regionSel.value] || [];
+    sourceSel.innerHTML = '';
+    sources.forEach(function(s){
+      var o = document.createElement('option');
+      o.value = s.rss; o.textContent = s.name;
+      sourceSel.appendChild(o);
+    });
+  }
+
+  function fetchTabNews(){
+    var rss = sourceSel.value;
+    if(!rss) return;
+    newsList.innerHTML = '<p class="muted"><span class="spinner"></span> Loading news...</p>';
+    fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(rss))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        newsList.innerHTML = '';
+        if(!data.items || !data.items.length){
+          newsList.innerHTML = '<p class="muted">No articles found.</p>'; return;
+        }
+        data.items.slice(0,10).forEach(function(item){
+          var div = document.createElement('div');
+          div.className = 'saved-item fade-in';
+          var thumb = item.thumbnail || item.enclosure && item.enclosure.link || '';
+          div.innerHTML =
+            '<div style="display:flex;gap:12px;align-items:flex-start;">' +
+              (thumb ? '<img src="'+thumb.replace(/"/g,'&quot;')+'" alt="" style="width:80px;height:55px;object-fit:cover;border-radius:8px;flex-shrink:0;" onerror="this.style.display=\'none\'">' : '') +
+              '<div style="flex:1;min-width:0;">' +
+                '<div style="font-weight:800;margin-bottom:4px;">' +
+                  '<a href="'+(item.link||'#').replace(/"/g,'&quot;')+'" target="_blank" style="color:var(--accent-2);text-decoration:none;">'+(item.title||'Untitled').replace(/</g,'&lt;')+'</a>' +
+                '</div>' +
+                '<div style="color:var(--muted);font-size:.85rem;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">'+(item.description||'').replace(/<[^>]*>/g,'').slice(0,160)+'</div>' +
+                '<div class="saved-meta" style="margin-top:4px;">'+(item.pubDate||'')+'</div>' +
+              '</div>' +
+            '</div>';
+          newsList.appendChild(div);
+        });
+      })
+      .catch(function(){
+        newsList.innerHTML = '<p class="muted">Failed to load news. Try another source.</p>';
+      });
+  }
+
+  regionSel.addEventListener('change', function(){ populateNewsSources(); });
+  sourceSel.addEventListener('change', function(){ fetchTabNews(); });
+  refreshBtn.addEventListener('click', fetchTabNews);
+  populateNewsSources();
+
+  // === YOUTUBE CAROUSEL ===
+  var ytChannels = {
+    ro: [
+      {name:'Digi24', id:'UCGBMsGOhCFA2jg-Dbg8JEyg'},
+      {name:'Recorder', id:'UCawMGRJgxz1JDGMfSWNgNKg'},
+      {name:'HotNews', id:'UCAWGxm0w2Rqzk9FG1VYXuRA'},
+      {name:'G4Media', id:'UCxr71zuG3BHLm8S_SfYYvHg'},
+      {name:'Zaiafet', id:'UCHJzPFg3MCgyj0E-ywVLHDA'},
+      {name:'BRomania', id:'UCBYJSqkBFLKWviLO1H4u4gA'},
+      {name:'Selly', id:'UCTmoxOGPi3bOMSx0VnmWKww'},
+      {name:'iUmor', id:'UC4OyLFJ13BcfW40a43nDUow'}
+    ],
+    int: [
+      {name:'BBC News', id:'UC16niRr50-MSBwiO3YDb3RA'},
+      {name:'CNN', id:'UCupvZG-5ko_eiXAupbDfxWw'},
+      {name:'TED', id:'UCAuUUnT6oDeKwE6v1NGQxug'},
+      {name:'Veritasium', id:'UCHnyfMqiRRG1u-2MsSQLbXA'},
+      {name:'Kurzgesagt', id:'UCsXVk37bltHxD1rDPwtNM8Q'},
+      {name:'Fireship', id:'UCsBjURrPoezykLs9EqgamOA'},
+      {name:'MKBHD', id:'UCBJycsmduvYEL83R_U4JriQ'},
+      {name:'Linus Tech Tips', id:'UCXuqSBlHAE6Xw-yeJA0Tunw'},
+      {name:'Joe Rogan', id:'UCzQUP1qoWDoEbmsQxvdjxgQ'},
+      {name:'Lex Fridman', id:'UCSHZKJJfhK61IS3bOQS0I9A'}
+    ]
+  };
+
+  var ytRegion = document.getElementById('yt-region');
+  var ytChSel = document.getElementById('yt-channel');
+  var ytLoadBtn = document.getElementById('yt-load');
+  var ytTrack = document.getElementById('yt-carousel-track');
+  var ytEmpty = document.getElementById('yt-empty');
+
+  function populateYtChannels(){
+    var chs = ytChannels[ytRegion.value] || [];
+    ytChSel.innerHTML = '';
+    chs.forEach(function(c){
+      var o = document.createElement('option');
+      o.value = c.id; o.textContent = c.name;
+      ytChSel.appendChild(o);
+    });
+  }
+
+  function loadYtVideos(){
+    var channelId = ytChSel.value;
+    if(!channelId) return;
+    ytTrack.innerHTML = '';
+    ytEmpty.textContent = 'Loading videos...';
+    ytEmpty.style.display = 'block';
+
+    // Use RSS feed for channel videos (no API key needed)
+    fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent('https://www.youtube.com/feeds/videos.xml?channel_id=' + channelId))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(!data.items || !data.items.length){
+          ytEmpty.textContent = 'No videos found.'; return;
+        }
+        ytEmpty.style.display = 'none';
+        data.items.slice(0,12).forEach(function(vid){
+          // Extract video ID from link
+          var vidId = '';
+          try{
+            var u = new URL(vid.link);
+            vidId = u.searchParams.get('v') || '';
+          }catch(e){}
+
+          var card = document.createElement('div');
+          card.style.cssText = 'flex:0 0 320px;scroll-snap-align:start;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);';
+
+          if(vidId){
+            card.innerHTML =
+              '<div style="position:relative;cursor:pointer;" class="yt-thumb-wrap" data-vid="'+vidId+'">' +
+                '<img src="https://img.youtube.com/vi/'+vidId+'/mqdefault.jpg" alt="" style="width:100%;display:block;aspect-ratio:16/9;object-fit:cover;">' +
+                '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3);transition:background .2s;">' +
+                  '<div style="width:50px;height:50px;background:rgba(255,0,0,.9);border-radius:12px;display:flex;align-items:center;justify-content:center;">' +
+                    '<div style="width:0;height:0;border-left:18px solid #fff;border-top:10px solid transparent;border-bottom:10px solid transparent;margin-left:4px;"></div>' +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+              '<div style="padding:10px 12px;">' +
+                '<div style="font-weight:700;font-size:.9rem;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">'+(vid.title||'').replace(/</g,'&lt;')+'</div>' +
+                '<div style="color:var(--muted);font-size:.8rem;margin-top:4px;">'+(vid.pubDate||'').split(' ')[0]+'</div>' +
+              '</div>';
+          }
+          ytTrack.appendChild(card);
+        });
+
+        // Click thumbnail to play inline
+        ytTrack.querySelectorAll('.yt-thumb-wrap').forEach(function(wrap){
+          wrap.addEventListener('click', function(){
+            var id = wrap.dataset.vid;
+            var iframe = document.createElement('iframe');
+            iframe.src = 'https://www.youtube.com/embed/'+id+'?autoplay=1';
+            iframe.style.cssText = 'width:100%;aspect-ratio:16/9;border:none;display:block;';
+            iframe.allow = 'autoplay;encrypted-media';
+            iframe.allowFullscreen = true;
+            wrap.parentNode.replaceChild(iframe, wrap);
+          });
+        });
+      })
+      .catch(function(){
+        ytEmpty.textContent = 'Failed to load videos. Try another channel.';
+      });
+  }
+
+  ytRegion.addEventListener('change', function(){ populateYtChannels(); });
+  ytLoadBtn.addEventListener('click', loadYtVideos);
+  populateYtChannels();
 })();
 </script>
 </body>
