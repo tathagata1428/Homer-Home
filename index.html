@@ -971,14 +971,38 @@
 
     /* 4. QUOTES (Hybrid Static Logic) */
     const AUTO_MS = 900_000; // 15 min
-    const DB_URL = "https://raw.githubusercontent.com/JamesFT/Database-Quotes-JSON/master/quotes.json";
+    const QUOTES_CACHE_KEY = 'homer-quotes-cache';
+    const SEEN_KEY = 'homer-quotes-seen';
+    const SEEN_MAX = 2; // reset seen list after this many
+
+    const QUOTE_SOURCES = [
+      "https://raw.githubusercontent.com/lukePeavey/quotable/master/data/quotes.json",
+      "https://raw.githubusercontent.com/JamesFT/Database-Quotes-JSON/master/quotes.json"
+    ];
+
     let globalQuotes = null;
-    const TOPICS = ["wisdom", "success", "courage", "happiness", "time", "freedom", "philosophy"];
-    
+
     const BACKUP_MOTIVATION = [
-      {quoteText:"Success is not final, failure is not fatal: it is the courage to continue that counts.", quoteAuthor:"Winston Churchill"},
-      {quoteText:"Life is simple. Are you happy? Yes? Keep going. No? Change something.", quoteAuthor:"Bogdan Radu"},
-      {quoteText:"The only way to do great work is to love what you do.", quoteAuthor:"Steve Jobs"}
+      {t:"The impediment to action advances action. What stands in the way becomes the way.", a:"Marcus Aurelius"},
+      {t:"We suffer more often in imagination than in reality.", a:"Seneca"},
+      {t:"Waste no more time arguing about what a good man should be. Be one.", a:"Marcus Aurelius"},
+      {t:"It is not that we have a short time to live, but that we waste a great deal of it.", a:"Seneca"},
+      {t:"The happiness of your life depends upon the quality of your thoughts.", a:"Marcus Aurelius"},
+      {t:"No man is free who is not master of himself.", a:"Epictetus"},
+      {t:"Man is not worried by real problems so much as by his imagined anxieties about real problems.", a:"Epictetus"},
+      {t:"Success is not final, failure is not fatal: it is the courage to continue that counts.", a:"Winston Churchill"},
+      {t:"Life is simple. Are you happy? Yes? Keep going. No? Change something.", a:"Bogdan Radu"},
+      {t:"The only way to do great work is to love what you do.", a:"Steve Jobs"},
+      {t:"In the middle of difficulty lies opportunity.", a:"Albert Einstein"},
+      {t:"He who has a why to live can bear almost any how.", a:"Friedrich Nietzsche"},
+      {t:"The best time to plant a tree was 20 years ago. The second best time is now.", a:"Chinese Proverb"},
+      {t:"What we do in life echoes in eternity.", a:"Marcus Aurelius"},
+      {t:"Luck is what happens when preparation meets opportunity.", a:"Seneca"},
+      {t:"First say to yourself what you would be; and then do what you have to do.", a:"Epictetus"},
+      {t:"The mind is everything. What you think you become.", a:"Buddha"},
+      {t:"Do not go where the path may lead, go instead where there is no path and leave a trail.", a:"Ralph Waldo Emerson"},
+      {t:"It does not matter how slowly you go as long as you do not stop.", a:"Confucius"},
+      {t:"Everything has beauty, but not everyone sees it.", a:"Confucius"}
     ];
     const BACKUP_HUMOR = [
       {content: "I am so clever that sometimes I don't understand a single word of what I am saying.", author: "Oscar Wilde"},
@@ -1003,44 +1027,94 @@
 
     function setLoading(show){ els.status.style.display=show?"block":"none"; els.quote.style.display=show?"none":"block"; els.byline.style.display=show?"none":"block"; }
     function fadeIn(){ els.quote.classList.remove('fade-in'); els.byline.classList.remove('fade-in'); void els.quote.offsetWidth; els.quote.classList.add('fade-in'); els.byline.classList.add('fade-in'); }
-function renderQuote(q) {
-  let txt = q.content || q.quoteText || "Stay motivated.";
-  const ath = q.author || q.quoteAuthor || "Unknown";
+    // --- Seen tracking (no repeats) ---
+    function getSeenSet(){
+      try{ return new Set(JSON.parse(localStorage.getItem(SEEN_KEY)||'[]')); }catch(e){ return new Set(); }
+    }
+    function markSeen(hash){
+      var seen = getSeenSet();
+      seen.add(hash);
+      if(seen.size > SEEN_MAX) seen = new Set([...seen].slice(-Math.floor(SEEN_MAX/2)));
+      localStorage.setItem(SEEN_KEY, JSON.stringify([...seen]));
+    }
+    function quoteHash(txt){ return txt.trim().toLowerCase().replace(/\s+/g,' ').slice(0,80); }
 
-  // Robust cleaning for broken encoding and "smart" characters
-  txt = txt.replace(/[\uFFFD\u00E2\u0080\u0099]/g, "'") // Fixes broken apostrophes
-           .replace(/[\u00E2\u0080\u009C\u00E2\u0080\u009D]/g, '"') // Fixes broken double quotes
+    function pickUnseen(pool){
+      var seen = getSeenSet();
+      var unseen = pool.filter(function(q){
+        var txt = q.t || q.content || q.quoteText || '';
+        return !seen.has(quoteHash(txt));
+      });
+      var pick = unseen.length > 0 ? unseen : pool; // reset if all seen
+      if(unseen.length === 0){
+        localStorage.removeItem(SEEN_KEY); // clear seen list
+      }
+      var chosen = pick[Math.floor(Math.random() * pick.length)];
+      var chosenTxt = chosen.t || chosen.content || chosen.quoteText || '';
+      markSeen(quoteHash(chosenTxt));
+      return chosen;
+    }
+
+function renderQuote(q) {
+  let txt = q.t || q.content || q.quoteText || "Stay motivated.";
+  const ath = q.a || q.author || q.quoteAuthor || "Unknown";
+
+  txt = txt.replace(/[\uFFFD\u00E2\u0080\u0099]/g, "'")
+           .replace(/[\u00E2\u0080\u009C\u00E2\u0080\u009D]/g, '"')
            .replace(/&quot;/g, '"')
            .replace(/&apos;/g, "'");
 
-  els.quote.textContent = txt; 
+  els.quote.textContent = txt;
   els.author.textContent = ath;
-  setLoading(false); 
-  fadeIn(); 
+  setLoading(false);
+  fadeIn();
   resetCountdown();
 }
-    /* --- API LOGIC (SMART LOCAL PROXY + HTML TRAP) --- */
-    const IS_LOCAL = window.location.protocol === 'file:' || window.location.hostname === 'localhost';
+
     const API_HUMOR = "https://official-joke-api.appspot.com/random_joke";
+
+    // Normalize quotes from different source formats into {t, a}
+    function normalizeQuotes(arr, sourceIdx){
+      return arr.map(function(q){
+        if(sourceIdx === 0){
+          // lukePeavey/quotable format: {content, author}
+          return {t: q.content || '', a: q.author || 'Unknown'};
+        } else {
+          // JamesFT format: {quoteText, quoteAuthor}
+          return {t: q.quoteText || '', a: q.quoteAuthor || 'Unknown'};
+        }
+      }).filter(function(q){ return q.t.length > 10 && q.t.length < 300; });
+    }
+
+    async function loadQuoteDB(){
+      // No long-term cache — always fetch fresh quotes
+
+      // Fetch from sources
+      for(var i=0; i<QUOTE_SOURCES.length; i++){
+        try{
+          var r = await fetch(QUOTE_SOURCES[i]);
+          var text = await r.text();
+          if(text.trim().startsWith("<")) continue;
+          var raw = JSON.parse(text);
+          var normalized = normalizeQuotes(raw, i);
+          if(normalized.length > 50){
+            globalQuotes = normalized;
+            // no cache — fresh fetch each session
+            return;
+          }
+        }catch(e){ continue; }
+      }
+
+      // Fallback to backups
+      globalQuotes = BACKUP_MOTIVATION;
+    }
 
     async function fetchMotivation() {
       try {
-        const url = IS_LOCAL 
-          ? "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(DB_URL)
-          : DB_URL;
-
-        if (!globalQuotes) {
-           const r = await fetch(url);
-           const text = await r.text();
-           if(text.trim().startsWith("<")) throw new Error("Received HTML instead of JSON");
-           globalQuotes = JSON.parse(text);
-        }
-        const topic = TOPICS[Math.floor(Math.random() * TOPICS.length)];
-        const candidates = globalQuotes.filter(q => q.quoteText.toLowerCase().includes(topic));
-        const pool = candidates.length > 0 ? candidates : globalQuotes;
-        return pool[Math.floor(Math.random() * pool.length)];
+        if (!globalQuotes) await loadQuoteDB();
+        return pickUnseen(globalQuotes);
       } catch (e) {
-        return BACKUP_MOTIVATION[Math.floor(Math.random() * BACKUP_MOTIVATION.length)];
+        return pickUnseen(BACKUP_MOTIVATION);
       }
     }
 
