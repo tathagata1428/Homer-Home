@@ -5,7 +5,16 @@ function fetchURL(url, maxRedirects) {
   if (maxRedirects === undefined) maxRedirects = 3;
   return new Promise(function(resolve, reject) {
     var mod = url.startsWith('https') ? https : http;
-    var req = mod.get(url, function(res) {
+    var parsed = new URL(url);
+    var opts = {
+      hostname: parsed.hostname,
+      path: parsed.pathname + parsed.search,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; HomerHome/1.0)',
+        'Accept': 'application/rss+xml, application/xml, text/xml, */*'
+      }
+    };
+    var req = mod.get(opts, function(res) {
       if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location && maxRedirects > 0) {
         var loc = res.headers.location;
         if (loc.startsWith('/')) {
