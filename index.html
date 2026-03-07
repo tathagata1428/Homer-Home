@@ -2647,16 +2647,21 @@ document.addEventListener("input", e => {
     ytEmpty.style.display = 'block';
 
     // Fetch YouTube feed via our own Vercel API proxy
-    fetch('/api/ytfeed?id=' + encodeURIComponent(channelId))
+    var apiUrl = '/api/ytfeed?id=' + encodeURIComponent(channelId);
+    console.log('[YT] Fetching:', apiUrl, 'channelId:', channelId);
+    fetch(apiUrl)
       .then(function(r){
+        console.log('[YT] Response status:', r.status, 'url:', r.url);
         if(!r.ok) throw new Error('API returned ' + r.status);
-        return r.json();
+        return r.text();
       })
-      .then(function(data){
+      .then(function(text){
+        console.log('[YT] Raw response:', text.slice(0, 500));
+        var data = JSON.parse(text);
         if(data.error){ ytEmpty.textContent = 'API error: ' + data.error; return; }
         var videos = data.videos || [];
         if(!videos.length){
-          ytEmpty.textContent = 'No videos found for this channel.'; return;
+          ytEmpty.textContent = 'No videos found. Debug: ' + text.slice(0, 200); return;
         }
         ytEmpty.style.display = 'none';
 
