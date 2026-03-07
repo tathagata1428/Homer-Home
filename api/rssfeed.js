@@ -72,13 +72,13 @@ export default async function handler(req, res) {
 
 function parseRSS(xml) {
   var items = [];
-  var itemRx = /<item>([\s\S]*?)<\/item>/gi;
+  var itemRx = /<item[^>]*>([\s\S]*?)<\/item>/gi;
   var m;
   while ((m = itemRx.exec(xml)) !== null) {
     var block = m[1];
     var title = extract(block, 'title');
     var link = extract(block, 'link');
-    var pubDate = extract(block, 'pubDate');
+    var pubDate = extract(block, 'pubDate') || extract(block, 'dc:date');
     var desc = extract(block, 'description');
     var thumb = (block.match(/<enclosure[^>]*url="([^"]*)"/) || [])[1] || '';
     if (!thumb) thumb = (block.match(/<media:thumbnail[^>]*url="([^"]*)"/) || [])[1] || '';
