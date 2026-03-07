@@ -620,13 +620,35 @@
     <section id="tab-investing" class="tab card" style="display:none">
       <h2 class="section">Market Intelligence</h2>
       <div class="grid">
-        <div class="span-12 card" style="height: 650px; padding: 0; overflow: hidden; position: relative; background: #000;">
+        <!-- S&P 500 Chart -->
+        <div class="span-6 card" style="height: 550px; padding: 0; overflow: hidden; position: relative; background: #000;">
           <div id="tv_chart_container" style="width: 100%; height: 100%;"></div>
         </div>
+        <!-- BET ROTX Chart -->
+        <div class="span-6 card" style="height: 550px; padding: 0; overflow: hidden; position: relative; background: #000;">
+          <div id="tv_chart_rotx" style="width: 100%; height: 100%;"></div>
+        </div>
+
+        <!-- News Section -->
         <div class="span-12 card">
-          <h3 style="margin-top:0">🗞️ Market News (S&P 500)</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <h3 style="margin:0;">🗞️ Market News</h3>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <select id="news-country" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;">
+                <option value="us">🇺🇸 United States</option>
+                <option value="ro" selected>🇷🇴 Romania</option>
+                <option value="uk">🇬🇧 United Kingdom</option>
+                <option value="de">🇩🇪 Germany</option>
+                <option value="fr">🇫🇷 France</option>
+                <option value="eu">🇪🇺 European Union</option>
+              </select>
+              <select id="news-source" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;">
+              </select>
+              <button id="news-refresh" class="btn secondary" style="padding:8px 14px;font-size:.85rem;">Refresh</button>
+            </div>
+          </div>
           <div id="investing-news-list" class="saved-list">
-             <p class="muted"><span class="spinner"></span> Parsing financial trends...</p>
+             <p class="muted"><span class="spinner"></span> Loading news...</p>
           </div>
         </div>
       </div>
@@ -1745,57 +1767,163 @@ document.addEventListener("input", e => {
 <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
   <script>
     let tvWidgetCreated = false;
+    let tvRotxCreated = false;
+
+    // News sources by country
+    const newsSources = {
+      ro: [
+        {name:'Profit.ro', url:'https://www.profit.ro/rss'},
+        {name:'Digi24 Economie', url:'https://www.digi24.ro/rss/economie'},
+        {name:'Ziarul Financiar', url:'https://www.zf.ro/rss'},
+        {name:'Bursa', url:'https://www.bursa.ro/rss'},
+        {name:'Wall-Street.ro', url:'https://www.wall-street.ro/rss/articole-noi.xml'},
+      ],
+      us: [
+        {name:'Reuters Business', url:'https://www.reutersagency.com/feed/?best-topics=business-finance'},
+        {name:'CNBC', url:'https://www.cnbc.com/id/100003114/device/rss/rss.html'},
+        {name:'Bloomberg via Investing.com', url:'https://www.investing.com/rss/news_25.rss'},
+        {name:'MarketWatch', url:'https://feeds.marketwatch.com/marketwatch/topstories/'},
+        {name:'Yahoo Finance', url:'https://finance.yahoo.com/news/rssindex'},
+      ],
+      uk: [
+        {name:'BBC Business', url:'https://feeds.bbci.co.uk/news/business/rss.xml'},
+        {name:'Financial Times', url:'https://www.ft.com/rss/home/uk'},
+        {name:'The Guardian Business', url:'https://www.theguardian.com/uk/business/rss'},
+        {name:'Reuters UK', url:'https://www.reutersagency.com/feed/?best-topics=business-finance'},
+      ],
+      de: [
+        {name:'Handelsblatt', url:'https://www.handelsblatt.com/contentexport/feed/top-themen'},
+        {name:'Reuters', url:'https://www.reutersagency.com/feed/?best-topics=business-finance'},
+        {name:'DW Business', url:'https://rss.dw.com/rdf/rss-en-bus'},
+      ],
+      fr: [
+        {name:'Les Echos', url:'https://www.lesechos.fr/rss/rss_en_continu.xml'},
+        {name:'Reuters', url:'https://www.reutersagency.com/feed/?best-topics=business-finance'},
+        {name:'France24 Business', url:'https://www.france24.com/en/business/rss'},
+      ],
+      eu: [
+        {name:'ECB Press', url:'https://www.ecb.europa.eu/rss/press.html'},
+        {name:'Reuters', url:'https://www.reutersagency.com/feed/?best-topics=business-finance'},
+        {name:'Euronews Business', url:'https://www.euronews.com/rss?level=theme&name=business'},
+      ]
+    };
+
+    const countrySelect = document.getElementById('news-country');
+    const sourceSelect = document.getElementById('news-source');
+    const refreshBtn = document.getElementById('news-refresh');
+
+    function populateSources(){
+      var country = countrySelect.value;
+      var sources = newsSources[country] || [];
+      sourceSelect.innerHTML = '';
+      sources.forEach(function(s){
+        var opt = document.createElement('option');
+        opt.value = s.url;
+        opt.textContent = s.name;
+        sourceSelect.appendChild(opt);
+      });
+    }
+
+    function fetchNews(){
+      var rssUrl = sourceSelect.value;
+      if(!rssUrl) return;
+      var newsList = document.getElementById('investing-news-list');
+      newsList.innerHTML = '<p class="muted"><span class="spinner"></span> Loading news...</p>';
+      fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(rssUrl))
+        .then(function(res){ return res.json(); })
+        .then(function(data){
+          newsList.innerHTML = '';
+          if(!data.items || !data.items.length){
+            newsList.innerHTML = '<p class="muted">No articles found from this source.</p>';
+            return;
+          }
+          data.items.slice(0, 8).forEach(function(item){
+            var div = document.createElement('div');
+            div.className = 'saved-item fade-in';
+            var title = item.title || 'Untitled';
+            var link = item.link || '#';
+            var date = item.pubDate || '';
+            div.innerHTML =
+              '<div style="font-weight:800; margin-bottom:4px;">' +
+                '<a href="' + link.replace(/"/g,'&quot;') + '" target="_blank" style="color:var(--accent-2); text-decoration:none;">' + title.replace(/</g,'&lt;') + '</a>' +
+              '</div>' +
+              '<div class="saved-meta" style="margin-top:0;">' + date + '</div>';
+            newsList.appendChild(div);
+          });
+        })
+        .catch(function(){
+          newsList.innerHTML = '<p class="muted">Failed to load news. Try another source.</p>';
+        });
+    }
+
+    countrySelect.addEventListener('change', function(){ populateSources(); fetchNews(); });
+    sourceSelect.addEventListener('change', fetchNews);
+    refreshBtn.addEventListener('click', fetchNews);
+
+    // Initialize sources
+    populateSources();
 
     function initInvestingTab() {
-      // 1. Fire up the Advanced Chart
+      // S&P 500 Chart
       if (!tvWidgetCreated && typeof TradingView !== 'undefined') {
         new TradingView.widget({
           "autosize": true,
-          "symbol": "AMEX:SPY", // Default to S&P 500 ETF
-          "interval": "D",      // Daily candles
+          "symbol": "AMEX:SPY",
+          "interval": "D",
           "timezone": "Etc/UTC",
           "theme": "dark",
-          "style": "1",         // Candlesticks
+          "style": "1",
           "locale": "en",
           "enable_publishing": false,
-          "backgroundColor": "rgba(15, 23, 42, 1)", // Matches your --bg #0f172a
-          "gridColor": "rgba(255, 255, 255, 0.06)", // Matches your var(--border)
-          "hide_top_toolbar": false,  // Enables timeframe & ticker search
-          "hide_legend": false,       // Shows indicator values
-          "hide_side_toolbar": false, // 🔴 THE FIX: Unhides the drawing tools (Trend lines, etc.)
-          "allow_symbol_change": true, // Lets you freely type new tickers
+          "backgroundColor": "rgba(15, 23, 42, 1)",
+          "gridColor": "rgba(255, 255, 255, 0.06)",
+          "hide_top_toolbar": false,
+          "hide_legend": false,
+          "hide_side_toolbar": false,
+          "allow_symbol_change": true,
           "save_image": false,
           "container_id": "tv_chart_container",
           "studies": [
-            "Volume@tv-basicstudies",   // Volume
-            "MASimple@tv-basicstudies", // Moving Average
-            "RSI@tv-basicstudies"       // RSI
+            "Volume@tv-basicstudies",
+            "MASimple@tv-basicstudies",
+            "RSI@tv-basicstudies"
           ]
         });
         tvWidgetCreated = true;
       }
 
-      // 2. Fetch Market News 
-      const newsList = document.getElementById('investing-news-list');
+      // BET ROTX Chart
+      if (!tvRotxCreated && typeof TradingView !== 'undefined') {
+        new TradingView.widget({
+          "autosize": true,
+          "symbol": "EUREX:ROTX1!",
+          "interval": "D",
+          "timezone": "Europe/Bucharest",
+          "theme": "dark",
+          "style": "1",
+          "locale": "en",
+          "enable_publishing": false,
+          "backgroundColor": "rgba(15, 23, 42, 1)",
+          "gridColor": "rgba(255, 255, 255, 0.06)",
+          "hide_top_toolbar": false,
+          "hide_legend": false,
+          "hide_side_toolbar": false,
+          "allow_symbol_change": true,
+          "save_image": false,
+          "container_id": "tv_chart_rotx",
+          "studies": [
+            "Volume@tv-basicstudies",
+            "MASimple@tv-basicstudies",
+            "RSI@tv-basicstudies"
+          ]
+        });
+        tvRotxCreated = true;
+      }
+
+      // Load news on first open
+      var newsList = document.getElementById('investing-news-list');
       if (newsList && newsList.innerHTML.includes('spinner')) {
-        fetch('https://api.rss2json.com/v1/api.json?rss_url=https://www.investing.com/rss/news_25.rss')
-          .then(res => res.json())
-          .then(data => {
-            newsList.innerHTML = '';
-            data.items.slice(0, 5).forEach(item => {
-              const div = document.createElement('div');
-              div.className = 'saved-item fade-in';
-              div.innerHTML = `
-                <div style="font-weight:800; margin-bottom:4px;">
-                  <a href="${item.link}" target="_blank" style="color:var(--accent-2); text-decoration:none;">${item.title}</a>
-                </div>
-                <div class="saved-meta" style="margin-top:0;">${item.pubDate}</div>`;
-              newsList.appendChild(div);
-            });
-          })
-          .catch(() => {
-            newsList.innerHTML = '<p class="muted">Failed to load news.</p>';
-          });
+        fetchNews();
       }
     }
   </script>
