@@ -2,18 +2,28 @@ import https from 'https';
 
 function fetchURL(url) {
   return new Promise(function(resolve, reject) {
-    https.get(url, function(res) {
+    const req = https.get(url, function(res) {
+      if (res.statusCode === 301 || res.statusCode === 302) {
+        fetchURL(res.headers.location).then(resolve).catch(reject);
+        return;
+      }
+      if (res.statusCode !== 200) {
+        reject(new Error('HTTP ' + res.statusCode));
+        return;
+      }
       let data = '';
       res.on('data', function(chunk) { data += chunk; });
       res.on('end', function() { resolve(data); });
-      res.on('error', reject);
-    }).on('error', reject);
+    });
+    req.on('error', reject);
+    req.setTimeout(8000, function() { req.destroy(); reject(new Error('Timeout')); });
   });
 }
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { id } = req.query;
@@ -39,6 +49,6 @@ export default async function handler(req, res) {
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
     return res.status(200).json({ videos });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message || 'Unknown error' });
   }
 }
