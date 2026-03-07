@@ -621,11 +621,11 @@
       <h2 class="section">Market Intelligence</h2>
       <div class="grid">
         <!-- S&P 500 Chart -->
-        <div class="span-6 card" style="height: 550px; padding: 0; overflow: hidden; position: relative; background: #000;">
+        <div class="span-12 card" style="height: 550px; padding: 0; overflow: hidden; position: relative; background: #000;">
           <div id="tv_chart_container" style="width: 100%; height: 100%;"></div>
         </div>
-        <!-- BET ROTX Chart -->
-        <div class="span-6 card" style="height: 550px; padding: 0; overflow: hidden; position: relative; background: #000;">
+        <!-- BET Index Chart -->
+        <div class="span-12 card" style="height: 550px; padding: 0; overflow: hidden; position: relative; background: #000;">
           <div id="tv_chart_rotx" style="width: 100%; height: 100%;"></div>
         </div>
 
@@ -1896,7 +1896,7 @@ document.addEventListener("input", e => {
       if (!tvRotxCreated && typeof TradingView !== 'undefined') {
         new TradingView.widget({
           "autosize": true,
-          "symbol": "EUREX:ROTX1!",
+          "symbol": "BVB:BET",
           "interval": "D",
           "timezone": "Europe/Bucharest",
           "theme": "dark",
