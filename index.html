@@ -2646,32 +2646,21 @@ document.addEventListener("input", e => {
     ytEmpty.textContent = 'Loading videos...';
     ytEmpty.style.display = 'block';
 
-    // Fetch YouTube Atom feed via CORS proxy and parse XML
-    var feedUrl = 'https://www.youtube.com/feeds/videos.xml?channel_id=' + channelId;
-    fetch('https://corsproxy.io/?' + encodeURIComponent(feedUrl))
-      .then(function(r){ return r.text(); })
-      .then(function(xml){
-        // Parse video IDs and titles with regex (reliable across namespace handling)
-        var vidIds = [], titles = [], dates = [];
-        var idRx = /<yt:videoId>([^<]+)<\/yt:videoId>/g, m;
-        while((m = idRx.exec(xml)) !== null) vidIds.push(m[1]);
-        var titleRx = /<media:title>([^<]+)<\/media:title>/g;
-        while((m = titleRx.exec(xml)) !== null) titles.push(m[1]);
-        var dateRx = /<published>([^<]+)<\/published>/g;
-        // skip the first <published> (channel-level)
-        dateRx.exec(xml);
-        while((m = dateRx.exec(xml)) !== null) dates.push(m[1].split('T')[0]);
-
-        if(!vidIds.length){
+    // Fetch YouTube feed via our own Vercel API proxy
+    fetch('/api/ytfeed?id=' + encodeURIComponent(channelId))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var videos = data.videos || [];
+        if(!videos.length){
           ytEmpty.textContent = 'No videos found.'; return;
         }
         ytEmpty.style.display = 'none';
 
-        var count = Math.min(vidIds.length, 15);
+        var count = Math.min(videos.length, 15);
         for(var i = 0; i < count; i++){
-          var vidId = vidIds[i];
-          var title = titles[i] || '';
-          var date = dates[i] || '';
+          var vidId = videos[i].vidId;
+          var title = videos[i].title || '';
+          var date = videos[i].date || '';
 
           if(!vidId) continue;
 
