@@ -1,0 +1,5 @@
+{
+  "name": "homer-attachments-worker",
+  "private": true,
+  "type": "module"
+}

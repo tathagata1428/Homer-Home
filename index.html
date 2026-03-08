@@ -2605,14 +2605,142 @@ document.addEventListener("input", e => {
     return encrypt(cryptoKey, JSON.stringify(data)).then(function(enc){ return idb.set(DATA_KEY, enc); });
   }
 
-  // Cloud-safe vault: strip attachments to stay under Vercel's 4.5MB limit
+  // --- R2 Attachment Cloud Sync ---
+  var R2_WORKER_URL = ''; // Set after deploying: https://homer-attachments.YOUR.workers.dev
+
+  function getSyncPass(){ return localStorage.getItem('homer-sync-pass') || ''; }
+
+  function encryptBlob(key, buffer){
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    return crypto.subtle.encrypt({name:'AES-GCM', iv:iv}, key, buffer).then(function(ct){
+      var combined = new Uint8Array(iv.byteLength + ct.byteLength);
+      combined.set(iv, 0);
+      combined.set(new Uint8Array(ct), iv.byteLength);
+      return combined.buffer;
+    });
+  }
+  function decryptBlob(key, encBuf){
+    var data = new Uint8Array(encBuf);
+    return crypto.subtle.decrypt({name:'AES-GCM', iv:data.slice(0,12)}, key, data.slice(12));
+  }
+  function dataUrlToBuffer(dataUrl){
+    var parts = dataUrl.split(','); var bin = atob(parts[1]);
+    var buf = new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++) buf[i]=bin.charCodeAt(i);
+    return buf.buffer;
+  }
+  function bufferToDataUrl(buf, mime){
+    var bytes = new Uint8Array(buf); var s='';
+    for(var i=0;i<bytes.length;i++) s+=String.fromCharCode(bytes[i]);
+    return 'data:'+mime+';base64,'+btoa(s);
+  }
+
+  function uploadToR2(attachment, goalIdx, subtaskIdx){
+    var pass = getSyncPass();
+    if(!pass || !cryptoKey || !R2_WORKER_URL) return Promise.resolve(null);
+    return encryptBlob(cryptoKey, dataUrlToBuffer(attachment.data)).then(function(enc){
+      return fetch(R2_WORKER_URL+'/upload',{
+        method:'POST',
+        headers:{
+          'X-Sync-Key':pass,
+          'X-Filename':attachment.name,
+          'X-Mimetype':attachment.type,
+          'X-Goal-Idx':String(goalIdx),
+          'X-Subtask-Idx':subtaskIdx!==undefined?String(subtaskIdx):'',
+        },
+        body:enc,
+      });
+    }).then(function(r){return r.json();})
+      .then(function(d){return d.ok?d.id:null;})
+      .catch(function(){return null;});
+  }
+
+  function downloadFromR2(id){
+    var pass = getSyncPass();
+    if(!pass || !cryptoKey || !R2_WORKER_URL) return Promise.resolve(null);
+    return fetch(R2_WORKER_URL+'/download/'+id,{headers:{'X-Sync-Key':pass}})
+      .then(function(r){
+        if(!r.ok) return null;
+        var fname = r.headers.get('X-Filename')||'file';
+        var mime = r.headers.get('X-Mimetype')||'application/octet-stream';
+        return r.arrayBuffer().then(function(enc){
+          return decryptBlob(cryptoKey, enc).then(function(dec){
+            return {name:fname, type:mime, data:bufferToDataUrl(dec, mime)};
+          });
+        });
+      }).catch(function(){return null;});
+  }
+
+  function deleteFromR2(id){
+    var pass = getSyncPass();
+    if(!pass || !R2_WORKER_URL) return Promise.resolve();
+    return fetch(R2_WORKER_URL+'/delete/'+id,{method:'DELETE',headers:{'X-Sync-Key':pass}}).catch(function(){});
+  }
+
+  // Upload all attachments for a goal (and its subtasks) to R2, save r2ids back
+  function syncGoalAttachmentsToR2(goalIdx){
+    if(!R2_WORKER_URL || !getSyncPass()) return Promise.resolve();
+    return loadVault().then(function(data){
+      var g = data.goals[goalIdx];
+      if(!g) return;
+      var tasks = [];
+      (g.attachments||[]).forEach(function(a, ai){
+        if(a.data && !a.r2id){
+          tasks.push(uploadToR2(a, goalIdx).then(function(id){ if(id) data.goals[goalIdx].attachments[ai].r2id = id; }));
+        }
+      });
+      (g.subtasks||[]).forEach(function(s, si){
+        (s.attachments||[]).forEach(function(a, ai){
+          if(a.data && !a.r2id){
+            tasks.push(uploadToR2(a, goalIdx, si).then(function(id){ if(id) data.goals[goalIdx].subtasks[si].attachments[ai].r2id = id; }));
+          }
+        });
+      });
+      if(!tasks.length) return;
+      return Promise.all(tasks).then(function(){ return saveVault(data); });
+    });
+  }
+
+  // Restore attachments from R2 for all goals (call after vault unlock)
+  function restoreAttachmentsFromR2(){
+    if(!R2_WORKER_URL || !getSyncPass() || !cryptoKey) return Promise.resolve();
+    return loadVault().then(function(data){
+      var downloads = [];
+      data.goals.forEach(function(g, gi){
+        (g.attachments||[]).forEach(function(a, ai){
+          if(a.r2id && !a.data){
+            downloads.push(downloadFromR2(a.r2id).then(function(full){
+              if(full){ full.r2id = a.r2id; data.goals[gi].attachments[ai] = full; }
+            }));
+          }
+        });
+        (g.subtasks||[]).forEach(function(s, si){
+          (s.attachments||[]).forEach(function(a, ai){
+            if(a.r2id && !a.data){
+              downloads.push(downloadFromR2(a.r2id).then(function(full){
+                if(full){ full.r2id = a.r2id; data.goals[gi].subtasks[si].attachments[ai] = full; }
+              }));
+            }
+          });
+        });
+      });
+      if(!downloads.length) return;
+      return Promise.all(downloads).then(function(){ return saveVault(data); });
+    });
+  }
+
+  // Cloud-safe vault: strip attachment data, keep r2id references
   window._vaultCloudData = function(){
-    if(!cryptoKey) return idb.get(DATA_KEY); // vault locked — send raw
+    if(!cryptoKey) return idb.get(DATA_KEY);
     return loadVault().then(function(data){
       var clean = JSON.parse(JSON.stringify(data));
       if(clean.goals) clean.goals.forEach(function(g){
-        g.attachments = [];
-        if(g.subtasks) g.subtasks.forEach(function(s){ s.attachments = []; });
+        if(g.attachments) g.attachments = g.attachments.map(function(a){ return {name:a.name,type:a.type,r2id:a.r2id||''}; });
+        else g.attachments = [];
+        if(g.subtasks) g.subtasks.forEach(function(s){
+          if(s.attachments) s.attachments = s.attachments.map(function(a){ return {name:a.name,type:a.type,r2id:a.r2id||''}; });
+          else s.attachments = [];
+        });
       });
       return encrypt(cryptoKey, JSON.stringify(clean));
     });
@@ -3083,11 +3211,13 @@ document.addEventListener("input", e => {
           var gi = parseInt(this.dataset.gi);
           var si = this.dataset.si !== undefined ? parseInt(this.dataset.si) : -1;
           loadVault().then(function(data){
+            var removed;
             if(si >= 0 && data.goals[gi] && data.goals[gi].subtasks[si]){
-              data.goals[gi].subtasks[si].attachments.splice(ai, 1);
+              removed = data.goals[gi].subtasks[si].attachments.splice(ai, 1)[0];
             } else if(data.goals[gi]){
-              data.goals[gi].attachments.splice(ai, 1);
+              removed = data.goals[gi].attachments.splice(ai, 1)[0];
             }
+            if(removed && removed.r2id) deleteFromR2(removed.r2id);
             saveVault(data).then(function(){ renderGoals(data.goals); });
           });
         });
@@ -3104,7 +3234,10 @@ document.addEventListener("input", e => {
                 if(!data.goals[i].attachments) data.goals[i].attachments = [];
                 data.goals[i].attachments = data.goals[i].attachments.concat(files);
               }
-              saveVault(data).then(function(){ renderGoals(data.goals); });
+              saveVault(data).then(function(){
+                renderGoals(data.goals);
+                syncGoalAttachmentsToR2(i);
+              });
             });
           });
         });
@@ -3121,7 +3254,10 @@ document.addEventListener("input", e => {
                 if(!data.goals[i].subtasks[si].attachments) data.goals[i].subtasks[si].attachments = [];
                 data.goals[i].subtasks[si].attachments = data.goals[i].subtasks[si].attachments.concat(files);
               }
-              saveVault(data).then(function(){ renderGoals(data.goals); });
+              saveVault(data).then(function(){
+                renderGoals(data.goals);
+                syncGoalAttachmentsToR2(i);
+              });
             });
           });
         });
@@ -3220,11 +3356,13 @@ document.addEventListener("input", e => {
     };
     loadVault().then(function(data){
       data.goals.push(goal);
+      var goalIdx = data.goals.length - 1;
       saveVault(data).then(function(){
         renderGoals(data.goals);
         goalModalBg.classList.remove('open');
         pendingGoalFiles = [];
         goalFilesPreview.innerHTML = '';
+        syncGoalAttachmentsToR2(goalIdx);
       });
     });
   });
@@ -3257,6 +3395,7 @@ document.addEventListener("input", e => {
         subModalBg.classList.remove('open');
         pendingSubFiles = [];
         subFilesPreview.innerHTML = '';
+        syncGoalAttachmentsToR2(subModalGoalIdx);
       });
     });
   });
@@ -3299,6 +3438,8 @@ document.addEventListener("input", e => {
     lockScreen.style.display = 'none';
     content.style.display = 'block';
     renderVault();
+    // Silently restore any cloud-only attachments from R2
+    restoreAttachmentsFromR2().then(function(){ renderVault(); }).catch(function(){});
   }
 
   lockBtn.addEventListener('click', function(){
