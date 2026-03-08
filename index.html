@@ -466,9 +466,17 @@
     .kanban-card .k-st-body .k-st-fields input,.kanban-card .k-st-body .k-st-fields select{flex:1;padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.78rem;}
     .kanban-card .k-progress{height:4px;border-radius:4px;background:rgba(255,255,255,.08);margin-top:6px;overflow:hidden;}
     .kanban-card .k-progress-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent),#22c55e);transition:width .3s;}
-    .kanban-card .k-add-subtask{display:flex;gap:4px;margin-top:8px;}
-    .kanban-card .k-add-subtask input{flex:1;padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:#0b1220;color:var(--text);font-size:.8rem;}
-    .kanban-card .k-add-subtask button{padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:none;color:var(--accent);cursor:pointer;font-size:.8rem;font-weight:700;}
+    .k-attachments{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+    .k-attach-item{position:relative;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.1);background:#0b1220;}
+    .k-attach-item img{display:block;max-width:120px;max-height:80px;object-fit:cover;cursor:pointer;}
+    .k-attach-item .k-attach-file{display:flex;align-items:center;gap:4px;padding:6px 10px;font-size:.75rem;color:var(--muted);cursor:pointer;text-decoration:none;}
+    .k-attach-item .k-attach-file:hover{color:var(--text);}
+    .k-attach-rm{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.7);border:none;color:#ef4444;font-size:.65rem;cursor:pointer;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;}
+    .k-attach-btn{padding:6px 12px;border-radius:8px;border:1px dashed rgba(255,255,255,.15);background:none;color:var(--muted);cursor:pointer;font-size:.78rem;transition:color .15s;}
+    .k-attach-btn:hover{color:var(--text);}
+    .k-img-preview{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:9999;cursor:pointer;}
+    .k-img-preview.open{display:flex;}
+    .k-img-preview img{max-width:90vw;max-height:90vh;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.5);}
     @media(max-width:600px){#kanban{grid-template-columns:1fr;}}
 
     /* ── Floating Backup FAB ── */
@@ -1081,7 +1089,12 @@
           <option value="low">🟢 Low</option>
         </select>
         <textarea id="goal-notes-input" placeholder="Notes..." rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;font-family:inherit;resize:vertical;margin-bottom:10px;"></textarea>
-        <input id="goal-due" type="date" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:14px;">
+        <input id="goal-due" type="date" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
+        <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px dashed var(--border);background:rgba(255,255,255,.03);cursor:pointer;margin-bottom:4px;font-size:.85rem;color:var(--muted);">
+          📎 Attach files <span style="font-size:.7rem;opacity:.6;">(max 500KB each)</span>
+          <input id="goal-files" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;">
+        </label>
+        <div id="goal-files-preview" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
         <button id="goal-submit" class="btn primary" style="width:100%;padding:10px;font-size:.95rem;">Create Goal</button>
       </div>
     </div>
@@ -1102,11 +1115,18 @@
           <option value="xl">XL - Extra Large</option>
         </select>
         <input id="subtask-due" type="date" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
-        <textarea id="subtask-notes" placeholder="Notes..." rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>
+        <textarea id="subtask-notes" placeholder="Notes..." rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;font-family:inherit;resize:vertical;margin-bottom:10px;"></textarea>
+        <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px dashed var(--border);background:rgba(255,255,255,.03);cursor:pointer;margin-bottom:4px;font-size:.85rem;color:var(--muted);">
+          📎 Attach files <span style="font-size:.7rem;opacity:.6;">(max 500KB each)</span>
+          <input id="subtask-files" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;">
+        </label>
+        <div id="subtask-files-preview" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
         <button id="subtask-submit" class="btn primary" style="width:100%;padding:10px;font-size:.95rem;">Add Subtask</button>
       </div>
     </div>
   </div>
+<!-- Image preview lightbox -->
+<div id="img-lightbox" class="k-img-preview" onclick="this.classList.remove('open')"><img></div>
 </section>
 
     <footer class="site-footer">
@@ -2430,6 +2450,13 @@ document.addEventListener("input", e => {
   var subNotesInput = document.getElementById('subtask-notes');
   var subSubmitBtn = document.getElementById('subtask-submit');
   var subModalGoalIdx = -1; // tracks which goal the subtask is for
+  var goalFilesInput = document.getElementById('goal-files');
+  var goalFilesPreview = document.getElementById('goal-files-preview');
+  var subFilesInput = document.getElementById('subtask-files');
+  var subFilesPreview = document.getElementById('subtask-files-preview');
+  var imgLightbox = document.getElementById('img-lightbox');
+  var pendingGoalFiles = [];
+  var pendingSubFiles = [];
 
   var isNew = !localStorage.getItem(HASH_KEY);
   if(isNew){
@@ -2622,6 +2649,84 @@ document.addEventListener("input", e => {
     });
   }
 
+  // --- Attachment helpers ---
+  var MAX_FILE_SIZE = 500 * 1024; // 500KB
+
+  function readFilesAsBase64(fileList){
+    var promises = [];
+    for(var f = 0; f < fileList.length; f++){
+      (function(file){
+        promises.push(new Promise(function(resolve){
+          if(file.size > MAX_FILE_SIZE){
+            alert(file.name + ' exceeds 500KB limit and was skipped.');
+            resolve(null);
+            return;
+          }
+          var reader = new FileReader();
+          reader.onload = function(){ resolve({name:file.name, type:file.type, data:reader.result}); };
+          reader.readAsDataURL(file);
+        }));
+      })(fileList[f]);
+    }
+    return Promise.all(promises).then(function(results){
+      return results.filter(function(r){ return r !== null; });
+    });
+  }
+
+  function renderFilePreview(container, files, onRemove){
+    container.innerHTML = '';
+    files.forEach(function(f, idx){
+      var el = document.createElement('div');
+      el.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;background:rgba(255,255,255,.06);font-size:.75rem;color:var(--muted);';
+      var isImg = f.type && f.type.startsWith('image/');
+      el.innerHTML = (isImg ? '🖼' : '📄') + ' ' + escHtml(f.name) +
+        '<button style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.7rem;padding:0 2px;">✕</button>';
+      el.querySelector('button').addEventListener('click', function(){ onRemove(idx); });
+      container.appendChild(el);
+    });
+  }
+
+  goalFilesInput.addEventListener('change', function(){
+    readFilesAsBase64(goalFilesInput.files).then(function(files){
+      pendingGoalFiles = pendingGoalFiles.concat(files);
+      renderFilePreview(goalFilesPreview, pendingGoalFiles, function(idx){
+        pendingGoalFiles.splice(idx, 1);
+        renderFilePreview(goalFilesPreview, pendingGoalFiles, arguments.callee);
+      });
+      goalFilesInput.value = '';
+    });
+  });
+
+  subFilesInput.addEventListener('change', function(){
+    readFilesAsBase64(subFilesInput.files).then(function(files){
+      pendingSubFiles = pendingSubFiles.concat(files);
+      renderFilePreview(subFilesPreview, pendingSubFiles, function(idx){
+        pendingSubFiles.splice(idx, 1);
+        renderFilePreview(subFilesPreview, pendingSubFiles, arguments.callee);
+      });
+      subFilesInput.value = '';
+    });
+  });
+
+  function renderAttachments(attachments, container, goalIdx, subIdx){
+    if(!attachments || !attachments.length) return '';
+    var html = '<div class="k-attachments">';
+    attachments.forEach(function(a, ai){
+      var isImg = a.type && a.type.startsWith('image/');
+      if(isImg){
+        html += '<div class="k-attach-item">' +
+          '<img src="'+a.data+'" alt="'+escAttr(a.name)+'" data-full="'+a.data+'" class="k-attach-img">' +
+          '<button class="k-attach-rm" data-ai="'+ai+'" data-gi="'+goalIdx+'"'+(subIdx !== undefined ? ' data-si="'+subIdx+'"' : '')+'>✕</button></div>';
+      } else {
+        html += '<div class="k-attach-item">' +
+          '<a class="k-attach-file" href="'+a.data+'" download="'+escAttr(a.name)+'">📄 '+escHtml(a.name)+'</a>' +
+          '<button class="k-attach-rm" data-ai="'+ai+'" data-gi="'+goalIdx+'"'+(subIdx !== undefined ? ' data-si="'+subIdx+'"' : '')+'>✕</button></div>';
+      }
+    });
+    html += '</div>';
+    return html;
+  }
+
   // --- Goal Tracker (Kanban) ---
   function formatDue(d){
     if(!d) return '';
@@ -2682,6 +2787,7 @@ document.addEventListener("input", e => {
       if(g.title && !g.summary){ g.summary = g.title; delete g.title; }
       if(!g.subtasks) g.subtasks = [];
       if(!g.priority) g.priority = '';
+      if(!g.attachments) g.attachments = [];
 
       var card = document.createElement('div');
       card.className = 'kanban-card';
@@ -2709,6 +2815,7 @@ document.addEventListener("input", e => {
         if(!s.effort) s.effort = '';
         if(!s.due) s.due = '';
         if(!s.notes) s.notes = '';
+        if(!s.attachments) s.attachments = [];
 
         subtasksHtml += '<div class="k-subtask'+(s.done?' done-st':'')+'" data-si="'+si+'">' +
           '<div class="k-st-header">' +
@@ -2733,6 +2840,8 @@ document.addEventListener("input", e => {
               '<input type="date" class="k-st-due" data-si="'+si+'" value="'+(s.due||'')+'" title="Due date">' +
             '</div>' +
             '<textarea class="k-st-notes" data-si="'+si+'" placeholder="Subtask notes..." rows="2">'+escHtml(s.notes)+'</textarea>' +
+            renderAttachments(s.attachments, null, i, si) +
+            '<label class="k-attach-btn" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;">📎 Add file<input type="file" class="k-st-file-input" data-si="'+si+'" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;"></label>' +
           '</div>' +
         '</div>';
       });
@@ -2740,10 +2849,15 @@ document.addEventListener("input", e => {
 
       var addSubHtml = '<button class="k-sub-open" style="width:100%;padding:7px;border-radius:8px;border:1px dashed rgba(139,92,246,.3);background:none;color:#a78bfa;cursor:pointer;font-size:.8rem;font-weight:700;margin-top:8px;transition:background .15s;">+ Add Subtask</button>';
 
+      var goalAttachHtml = renderAttachments(g.attachments, null, i) +
+        '<label class="k-attach-btn" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;">📎 Add file<input type="file" class="k-goal-file-input" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;"></label>';
+
       card.innerHTML = titleRow + collapsedExtra +
         '<div class="k-body">' +
           descHtml +
           '<textarea class="k-field k-notes" placeholder="Notes..." rows="3">'+escHtml(g.notes||'')+'</textarea>' +
+          '<div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-top:10px;">Attachments</div>' +
+          goalAttachHtml +
           '<div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-top:10px;">Subtasks</div>' +
           subtasksHtml +
           addSubHtml +
@@ -2844,6 +2958,67 @@ document.addEventListener("input", e => {
         });
       });
 
+      // Image lightbox
+      card.querySelectorAll('.k-attach-img').forEach(function(img){
+        img.addEventListener('click', function(e){
+          e.stopPropagation();
+          imgLightbox.querySelector('img').src = this.dataset.full;
+          imgLightbox.classList.add('open');
+        });
+      });
+
+      // Remove attachment (goal or subtask)
+      card.querySelectorAll('.k-attach-rm').forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          var ai = parseInt(this.dataset.ai);
+          var gi = parseInt(this.dataset.gi);
+          var si = this.dataset.si !== undefined ? parseInt(this.dataset.si) : -1;
+          loadVault().then(function(data){
+            if(si >= 0 && data.goals[gi] && data.goals[gi].subtasks[si]){
+              data.goals[gi].subtasks[si].attachments.splice(ai, 1);
+            } else if(data.goals[gi]){
+              data.goals[gi].attachments.splice(ai, 1);
+            }
+            saveVault(data).then(function(){ renderGoals(data.goals); });
+          });
+        });
+      });
+
+      // Add file to goal (inline)
+      var goalFileInput = card.querySelector('.k-goal-file-input');
+      if(goalFileInput){
+        goalFileInput.addEventListener('change', function(){
+          var inp = this;
+          readFilesAsBase64(inp.files).then(function(files){
+            loadVault().then(function(data){
+              if(data.goals[i]){
+                if(!data.goals[i].attachments) data.goals[i].attachments = [];
+                data.goals[i].attachments = data.goals[i].attachments.concat(files);
+              }
+              saveVault(data).then(function(){ renderGoals(data.goals); });
+            });
+          });
+        });
+      }
+
+      // Add file to subtask (inline)
+      card.querySelectorAll('.k-st-file-input').forEach(function(inp){
+        inp.addEventListener('change', function(){
+          var si = parseInt(this.dataset.si);
+          var el = this;
+          readFilesAsBase64(el.files).then(function(files){
+            loadVault().then(function(data){
+              if(data.goals[i] && data.goals[i].subtasks[si]){
+                if(!data.goals[i].subtasks[si].attachments) data.goals[i].subtasks[si].attachments = [];
+                data.goals[i].subtasks[si].attachments = data.goals[i].subtasks[si].attachments.concat(files);
+              }
+              saveVault(data).then(function(){ renderGoals(data.goals); });
+            });
+          });
+        });
+      });
+
       // Remove subtask
       card.querySelectorAll('.k-st-del').forEach(function(btn){
         btn.addEventListener('click', function(e){
@@ -2861,6 +3036,7 @@ document.addEventListener("input", e => {
       card.querySelector('.k-sub-open').addEventListener('click', function(){
         subModalGoalIdx = i;
         subNameInput.value = ''; subEffortInput.value = ''; subDueInput.value = ''; subNotesInput.value = '';
+        pendingSubFiles = []; subFilesPreview.innerHTML = ''; subFilesInput.value = '';
         subModalBg.classList.add('open');
         setTimeout(function(){ subNameInput.focus(); }, 100);
       });
@@ -2913,6 +3089,7 @@ document.addEventListener("input", e => {
   goalAddBtn.addEventListener('click', function(){
     goalModalBg.classList.add('open');
     goalSummary.value = ''; goalDesc.value = ''; goalNotesInput.value = ''; goalDue.value = ''; goalPriority.value = '';
+    pendingGoalFiles = []; goalFilesPreview.innerHTML = ''; goalFilesInput.value = '';
     setTimeout(function(){ goalSummary.focus(); }, 100);
   });
   goalModalClose.addEventListener('click', function(){ goalModalBg.classList.remove('open'); });
@@ -2930,13 +3107,16 @@ document.addEventListener("input", e => {
       due: goalDue.value || '',
       priority: goalPriority.value || '',
       col: 'todo',
-      subtasks: []
+      subtasks: [],
+      attachments: pendingGoalFiles.slice()
     };
     loadVault().then(function(data){
       data.goals.push(goal);
       saveVault(data).then(function(){
         renderGoals(data.goals);
         goalModalBg.classList.remove('open');
+        pendingGoalFiles = [];
+        goalFilesPreview.innerHTML = '';
       });
     });
   });
@@ -2955,7 +3135,8 @@ document.addEventListener("input", e => {
       done: false,
       effort: subEffortInput.value || '',
       due: subDueInput.value || '',
-      notes: subNotesInput.value.trim()
+      notes: subNotesInput.value.trim(),
+      attachments: pendingSubFiles.slice()
     };
     loadVault().then(function(data){
       if(data.goals[subModalGoalIdx]){
@@ -2966,6 +3147,8 @@ document.addEventListener("input", e => {
       saveVault(data).then(function(){
         renderGoals(data.goals);
         subModalBg.classList.remove('open');
+        pendingSubFiles = [];
+        subFilesPreview.innerHTML = '';
       });
     });
   });
