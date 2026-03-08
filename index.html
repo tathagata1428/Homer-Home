@@ -425,6 +425,25 @@
       margin-top: auto; /* Push to bottom if needed */
     }
 
+    /* ── Kanban ── */
+    .kanban-card{
+      padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);margin-bottom:8px;cursor:grab;
+      transition:opacity .15s,box-shadow .15s;
+    }
+    .kanban-card:active{cursor:grabbing;}
+    .kanban-card.dragging{opacity:.4;}
+    .kanban-items.drag-over{background:rgba(255,255,255,.04);border-radius:10px;}
+    .kanban-card .k-title{font-weight:700;font-size:.9rem;display:flex;align-items:center;justify-content:space-between;gap:6px;}
+    .kanban-card .k-body{display:none;margin-top:10px;}
+    .kanban-card.expanded .k-body{display:block;}
+    .kanban-card .k-field{width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:#0b1220;color:var(--text);font-size:.85rem;font-family:inherit;resize:vertical;margin-top:6px;}
+    .kanban-card .k-move{display:flex;gap:4px;margin-top:8px;}
+    .kanban-card .k-move button{padding:3px 8px;font-size:.7rem;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:none;color:var(--muted);cursor:pointer;}
+    .kanban-card .k-move button:hover{background:rgba(255,255,255,.08);color:var(--text);}
+    .kanban-card .k-move button.active{border-color:var(--accent);color:var(--accent);}
+    @media(max-width:600px){#kanban{grid-template-columns:1fr;}}
+
     /* ── Floating Backup FAB ── */
     @keyframes fabSpin { to { transform:rotate(360deg); } }
     @keyframes fabSlideIn { from{opacity:0;transform:scale(.92) translateY(10px)} to{opacity:1;transform:none} }
@@ -957,9 +976,16 @@
 
     <!-- Vault Notes -->
     <div class="card" style="margin-bottom:18px;padding:18px;">
-      <h3 style="margin:0 0 12px;">📝 Secret Notes</h3>
-      <textarea id="vault-notes" placeholder="Write your private notes here..." style="width:100%;min-height:140px;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-size:.95rem;resize:vertical;font-family:inherit;"></textarea>
-      <button id="vault-save-notes" class="btn primary" style="margin-top:10px;padding:8px 18px;">Save Notes</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <h3 style="margin:0;">📝 Secret Notes</h3>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span id="vault-notes-status" style="color:var(--muted);font-size:.75rem;"></span>
+          <button id="vault-notes-toggle" class="btn ghost" style="padding:4px 10px;font-size:.8rem;">Hide</button>
+        </div>
+      </div>
+      <div id="vault-notes-wrap">
+        <textarea id="vault-notes" placeholder="Write your private notes here..." style="width:100%;min-height:140px;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-size:.95rem;resize:vertical;font-family:inherit;"></textarea>
+      </div>
     </div>
 
     <!-- Vault Links -->
@@ -979,15 +1005,42 @@
       <h3 style="margin:0 0 12px;">🔑 Passwords</h3>
       <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
         <input id="vault-cred-label" type="text" placeholder="Label (e.g. Gmail)" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;">
+        <input id="vault-cred-site" type="text" placeholder="Site URL" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
         <input id="vault-cred-user" type="text" placeholder="Username" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
         <div style="flex:1;min-width:100px;position:relative;">
           <input id="vault-cred-pass" type="password" placeholder="Password" style="width:100%;padding:10px 38px 10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
           <button type="button" class="pw-toggle" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'👁‍🗨'" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;padding:2px;">👁</button>
         </div>
+        <textarea id="vault-cred-details" placeholder="Details / notes..." rows="2" style="flex-basis:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-family:inherit;font-size:.9rem;resize:vertical;"></textarea>
         <button id="vault-cred-add" class="btn primary" style="padding:10px 18px;">+ Add</button>
       </div>
       <div id="vault-creds-list"></div>
       <p id="vault-creds-empty" class="empty" style="display:none;">No passwords saved yet.</p>
+    </div>
+
+    <!-- Goal Tracker (Kanban) -->
+    <div class="card" style="padding:18px;margin-top:18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+        <h3 style="margin:0;">🎯 Goal Tracker</h3>
+        <div style="display:flex;gap:6px;">
+          <input id="goal-input" type="text" placeholder="New goal..." style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-size:.9rem;width:180px;">
+          <button id="goal-add" class="btn primary" style="padding:8px 14px;font-size:.85rem;">+ Add</button>
+        </div>
+      </div>
+      <div id="kanban" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+        <div class="kanban-col" data-col="todo">
+          <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(96,165,250,.15);color:#60a5fa;text-align:center;margin-bottom:10px;">To Do</div>
+          <div class="kanban-items" data-col="todo" style="min-height:60px;"></div>
+        </div>
+        <div class="kanban-col" data-col="progress">
+          <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;text-align:center;margin-bottom:10px;">In Progress</div>
+          <div class="kanban-items" data-col="progress" style="min-height:60px;"></div>
+        </div>
+        <div class="kanban-col" data-col="done">
+          <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(34,197,94,.15);color:#22c55e;text-align:center;margin-bottom:10px;">Done</div>
+          <div class="kanban-items" data-col="done" style="min-height:60px;"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -2266,7 +2319,7 @@ document.addEventListener("input", e => {
   var HASH_KEY = 'homer-vault-hash';
   var DATA_KEY = 'homer-vault-data';
 
-  var cryptoKey = null; // derived key for this session
+  var cryptoKey = null;
 
   // DOM refs
   var lockScreen = document.getElementById('vault-lock');
@@ -2280,20 +2333,25 @@ document.addEventListener("input", e => {
   var changePwBtn = document.getElementById('vault-change-pw');
   var errorEl = document.getElementById('vault-error');
   var notesArea = document.getElementById('vault-notes');
-  var saveNotesBtn = document.getElementById('vault-save-notes');
+  var notesWrap = document.getElementById('vault-notes-wrap');
+  var notesToggle = document.getElementById('vault-notes-toggle');
+  var notesStatus = document.getElementById('vault-notes-status');
   var linkName = document.getElementById('vault-link-name');
   var linkUrl = document.getElementById('vault-link-url');
   var linkAddBtn = document.getElementById('vault-link-add');
   var linksList = document.getElementById('vault-links-list');
   var linksEmpty = document.getElementById('vault-links-empty');
   var credLabel = document.getElementById('vault-cred-label');
+  var credSite = document.getElementById('vault-cred-site');
   var credUser = document.getElementById('vault-cred-user');
   var credPass = document.getElementById('vault-cred-pass');
+  var credDetails = document.getElementById('vault-cred-details');
   var credAddBtn = document.getElementById('vault-cred-add');
   var credsList = document.getElementById('vault-creds-list');
   var credsEmpty = document.getElementById('vault-creds-empty');
+  var goalInput = document.getElementById('goal-input');
+  var goalAddBtn = document.getElementById('goal-add');
 
-  // First-time setup check
   var isNew = !localStorage.getItem(HASH_KEY);
   if(isNew){
     lockLabel.textContent = 'Create a master password for your vault';
@@ -2309,72 +2367,74 @@ document.addEventListener("input", e => {
     localStorage.setItem(SALT_KEY, bytesToBase64(salt));
     return salt;
   }
-
   function deriveKey(password, salt){
     return crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey'])
       .then(function(base){
-        return crypto.subtle.deriveKey(
-          {name:'PBKDF2', salt:salt, iterations:600000, hash:'SHA-256'},
-          base,
-          {name:'AES-GCM', length:256},
-          false,
-          ['encrypt','decrypt']
-        );
+        return crypto.subtle.deriveKey({name:'PBKDF2', salt:salt, iterations:600000, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
       });
   }
-
   function hashPassword(password, salt){
     return crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits'])
-      .then(function(base){
-        return crypto.subtle.deriveBits({name:'PBKDF2', salt:salt, iterations:600000, hash:'SHA-256'}, base, 256);
-      })
+      .then(function(base){ return crypto.subtle.deriveBits({name:'PBKDF2', salt:salt, iterations:600000, hash:'SHA-256'}, base, 256); })
       .then(function(bits){ return bytesToBase64(new Uint8Array(bits)); });
   }
-
   function encrypt(key, plaintext){
     var iv = crypto.getRandomValues(new Uint8Array(12));
     return crypto.subtle.encrypt({name:'AES-GCM', iv:iv}, key, new TextEncoder().encode(plaintext))
-      .then(function(ct){
-        var combined = new Uint8Array(iv.length + ct.byteLength);
-        combined.set(iv); combined.set(new Uint8Array(ct), iv.length);
-        return bytesToBase64(combined);
-      });
+      .then(function(ct){ var c=new Uint8Array(iv.length+ct.byteLength); c.set(iv); c.set(new Uint8Array(ct),iv.length); return bytesToBase64(c); });
   }
-
   function decrypt(key, cipherB64){
     var data = base64ToBytes(cipherB64);
-    var iv = data.slice(0,12);
-    var ct = data.slice(12);
-    return crypto.subtle.decrypt({name:'AES-GCM', iv:iv}, key, ct)
+    return crypto.subtle.decrypt({name:'AES-GCM', iv:data.slice(0,12)}, key, data.slice(12))
       .then(function(pt){ return new TextDecoder().decode(pt); });
   }
-
   function bytesToBase64(b){ var s=''; b.forEach(function(x){s+=String.fromCharCode(x);}); return btoa(s); }
   function base64ToBytes(s){ var d=atob(s); var a=new Uint8Array(d.length); for(var i=0;i<d.length;i++) a[i]=d.charCodeAt(i); return a; }
 
-  // --- Vault data helpers ---
-  function defaultData(){ return {notes:'', links:[], creds:[]}; }
-
+  // --- Vault data ---
+  function defaultData(){ return {notes:'', links:[], creds:[], goals:[]}; }
   function loadVault(){
     var stored = localStorage.getItem(DATA_KEY);
     if(!stored) return Promise.resolve(defaultData());
     return decrypt(cryptoKey, stored).then(function(json){
-      try{ return JSON.parse(json); }catch(e){ return defaultData(); }
+      try{ var d=JSON.parse(json); if(!d.goals) d.goals=[]; return d; }catch(e){ return defaultData(); }
     });
   }
-
   function saveVault(data){
-    return encrypt(cryptoKey, JSON.stringify(data)).then(function(enc){
-      localStorage.setItem(DATA_KEY, enc);
-    });
+    return encrypt(cryptoKey, JSON.stringify(data)).then(function(enc){ localStorage.setItem(DATA_KEY, enc); });
   }
 
-  // --- Render unlocked vault ---
+  // --- Notes autosave ---
+  var notesSaveTimer = null;
+  notesArea.addEventListener('input', function(){
+    clearTimeout(notesSaveTimer);
+    notesStatus.textContent = 'saving...';
+    notesSaveTimer = setTimeout(function(){
+      loadVault().then(function(data){
+        data.notes = notesArea.value;
+        saveVault(data).then(function(){
+          notesStatus.textContent = 'saved';
+          setTimeout(function(){ notesStatus.textContent=''; }, 2000);
+        });
+      });
+    }, 800);
+  });
+
+  // Notes toggle
+  var notesHidden = false;
+  notesToggle.addEventListener('click', function(){
+    notesHidden = !notesHidden;
+    notesWrap.style.display = notesHidden ? 'none' : 'block';
+    notesToggle.textContent = notesHidden ? 'Show' : 'Hide';
+  });
+
+  // --- Render vault ---
   function renderVault(){
     loadVault().then(function(data){
       notesArea.value = data.notes || '';
       renderLinks(data.links || []);
       renderCreds(data.creds || []);
+      renderGoals(data.goals || []);
     });
   }
 
@@ -2400,33 +2460,52 @@ document.addEventListener("input", e => {
     });
   }
 
+  // --- Credentials with site, details, per-field toggle+copy ---
   function renderCreds(creds){
     credsList.innerHTML = '';
     credsEmpty.style.display = creds.length ? 'none' : 'block';
     creds.forEach(function(c, i){
       var div = document.createElement('div');
-      div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin-bottom:8px;flex-wrap:wrap;';
-      div.innerHTML =
-        '<span style="font-weight:800;flex:0 0 auto;">'+escHtml(c.label)+'</span>' +
-        '<span style="color:var(--muted);flex:1;min-width:80px;">'+escHtml(c.user)+'</span>' +
-        '<code class="vault-pw-hidden" style="flex:1;min-width:80px;color:var(--accent);cursor:pointer;font-size:.9rem;" title="Click to reveal">••••••••</code>' +
-        '<code class="vault-pw-plain" style="flex:1;min-width:80px;color:var(--accent);cursor:pointer;font-size:.9rem;display:none;" title="Click to hide">'+escHtml(c.pass)+'</code>' +
-        '<button class="vault-copy-pw btn ghost" style="padding:4px 10px;font-size:.8rem;" title="Copy password">📋</button>' +
-        '<button class="vault-cred-del btn" data-idx="'+i+'" style="padding:4px 10px;font-size:.8rem;">✕</button>';
-      linksList;
+      div.style.cssText = 'padding:12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin-bottom:8px;';
+      // Header row: label + delete
+      var header = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
+        '<span style="font-weight:800;font-size:.95rem;">'+escHtml(c.label)+'</span>' +
+        '<button class="vault-cred-del btn" data-idx="'+i+'" style="padding:4px 10px;font-size:.8rem;">✕</button></div>';
+      // Hidden fields
+      var fields = '';
+      var fieldData = [
+        {lbl:'Site', val:c.site||'', cls:'cred-site'},
+        {lbl:'User', val:c.user||'', cls:'cred-user'},
+        {lbl:'Password', val:c.pass||'', cls:'cred-pass'},
+        {lbl:'Details', val:c.details||'', cls:'cred-details'}
+      ];
+      fieldData.forEach(function(f){
+        if(!f.val) return;
+        fields += '<div class="cred-field" style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
+          '<span style="color:var(--muted);font-size:.8rem;width:60px;flex-shrink:0;">'+f.lbl+'</span>' +
+          '<code class="cred-val" style="flex:1;color:var(--accent);font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:none;">'+escHtml(f.val)+'</code>' +
+          '<span class="cred-mask" style="flex:1;color:var(--muted);font-size:.85rem;">••••••</span>' +
+          '<button class="cred-toggle btn" style="padding:2px 6px;font-size:.75rem;background:none;border:1px solid rgba(255,255,255,.12);border-radius:6px;color:var(--muted);cursor:pointer;" title="Toggle">👁</button>' +
+          '<button class="cred-copy btn" style="padding:2px 6px;font-size:.75rem;background:none;border:1px solid rgba(255,255,255,.12);border-radius:6px;color:var(--muted);cursor:pointer;" data-val="'+escAttr(f.val)+'" title="Copy">📋</button>' +
+          '</div>';
+      });
+      div.innerHTML = header + fields;
       credsList.appendChild(div);
 
-      // toggle reveal
-      var hidden = div.querySelector('.vault-pw-hidden');
-      var plain = div.querySelector('.vault-pw-plain');
-      hidden.addEventListener('click', function(){ hidden.style.display='none'; plain.style.display='inline'; });
-      plain.addEventListener('click', function(){ plain.style.display='none'; hidden.style.display='inline'; });
-
-      // copy
-      div.querySelector('.vault-copy-pw').addEventListener('click', function(){
-        navigator.clipboard.writeText(c.pass).then(function(){
-          var b = div.querySelector('.vault-copy-pw');
-          b.textContent = '✅'; setTimeout(function(){ b.textContent = '📋'; }, 1200);
+      // Toggle show/hide per field
+      div.querySelectorAll('.cred-field').forEach(function(row){
+        var val = row.querySelector('.cred-val');
+        var mask = row.querySelector('.cred-mask');
+        row.querySelector('.cred-toggle').addEventListener('click', function(){
+          var showing = val.style.display !== 'none';
+          val.style.display = showing ? 'none' : 'inline';
+          mask.style.display = showing ? 'inline' : 'none';
+        });
+        row.querySelector('.cred-copy').addEventListener('click', function(){
+          var btn = this;
+          navigator.clipboard.writeText(btn.dataset.val).then(function(){
+            btn.textContent = '✅'; setTimeout(function(){ btn.textContent = '📋'; }, 1200);
+          });
         });
       });
     });
@@ -2440,6 +2519,111 @@ document.addEventListener("input", e => {
     });
   }
 
+  // --- Goal Tracker (Kanban) ---
+  function renderGoals(goals){
+    ['todo','progress','done'].forEach(function(col){
+      document.querySelector('.kanban-items[data-col="'+col+'"]').innerHTML = '';
+    });
+    goals.forEach(function(g, i){
+      var card = document.createElement('div');
+      card.className = 'kanban-card';
+      card.draggable = true;
+      card.dataset.idx = i;
+      var cols = {todo:'To Do', progress:'In Progress', done:'Done'};
+      card.innerHTML =
+        '<div class="k-title"><span>'+escHtml(g.title)+'</span><span style="font-size:.7rem;cursor:pointer;" class="k-expand" title="Expand">&#9660;</span></div>' +
+        '<div class="k-body">' +
+          '<textarea class="k-field k-notes" placeholder="Details / notes..." rows="3">'+escHtml(g.notes||'')+'</textarea>' +
+          '<div class="k-move">' +
+            '<button data-to="todo" class="'+(g.col==='todo'?'active':'')+'">To Do</button>' +
+            '<button data-to="progress" class="'+(g.col==='progress'?'active':'')+'">In Progress</button>' +
+            '<button data-to="done" class="'+(g.col==='done'?'active':'')+'">Done</button>' +
+            '<button class="k-del" style="margin-left:auto;color:#ef4444;border-color:rgba(239,68,68,.3);">Delete</button>' +
+          '</div>' +
+        '</div>';
+      var container = document.querySelector('.kanban-items[data-col="'+g.col+'"]');
+      if(container) container.appendChild(card);
+
+      // Expand/collapse
+      card.querySelector('.k-expand').addEventListener('click', function(e){
+        e.stopPropagation();
+        card.classList.toggle('expanded');
+        this.innerHTML = card.classList.contains('expanded') ? '&#9650;' : '&#9660;';
+      });
+      card.querySelector('.k-title').addEventListener('click', function(){
+        card.classList.toggle('expanded');
+        card.querySelector('.k-expand').innerHTML = card.classList.contains('expanded') ? '&#9650;' : '&#9660;';
+      });
+
+      // Autosave notes
+      var kt = null;
+      card.querySelector('.k-notes').addEventListener('input', function(){
+        var self = this;
+        clearTimeout(kt);
+        kt = setTimeout(function(){
+          loadVault().then(function(data){
+            if(data.goals[i]) data.goals[i].notes = self.value;
+            saveVault(data);
+          });
+        }, 800);
+      });
+
+      // Move buttons
+      card.querySelectorAll('.k-move button:not(.k-del)').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          loadVault().then(function(data){
+            if(data.goals[i]) data.goals[i].col = btn.dataset.to;
+            saveVault(data).then(function(){ renderGoals(data.goals); });
+          });
+        });
+      });
+
+      // Delete
+      card.querySelector('.k-del').addEventListener('click', function(){
+        loadVault().then(function(data){
+          data.goals.splice(i,1);
+          saveVault(data).then(function(){ renderGoals(data.goals); });
+        });
+      });
+
+      // Drag events
+      card.addEventListener('dragstart', function(e){
+        card.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', i);
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      card.addEventListener('dragend', function(){ card.classList.remove('dragging'); });
+    });
+
+    // Drop zones
+    document.querySelectorAll('.kanban-items').forEach(function(zone){
+      zone.addEventListener('dragover', function(e){ e.preventDefault(); zone.classList.add('drag-over'); });
+      zone.addEventListener('dragleave', function(){ zone.classList.remove('drag-over'); });
+      zone.addEventListener('drop', function(e){
+        e.preventDefault();
+        zone.classList.remove('drag-over');
+        var idx = parseInt(e.dataTransfer.getData('text/plain'));
+        var newCol = zone.dataset.col;
+        loadVault().then(function(data){
+          if(data.goals[idx]) data.goals[idx].col = newCol;
+          saveVault(data).then(function(){ renderGoals(data.goals); });
+        });
+      });
+    });
+  }
+
+  // Add goal
+  goalAddBtn.addEventListener('click', function(){
+    var t = goalInput.value.trim();
+    if(!t) return;
+    loadVault().then(function(data){
+      data.goals.push({title:t, col:'todo', notes:''});
+      goalInput.value = '';
+      saveVault(data).then(function(){ renderGoals(data.goals); });
+    });
+  });
+  goalInput.addEventListener('keydown', function(e){ if(e.key==='Enter') goalAddBtn.click(); });
+
   function escHtml(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
   function escAttr(s){ return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -2452,9 +2636,7 @@ document.addEventListener("input", e => {
     var pw = pwInput.value;
     if(!pw){ showError('Please enter a password.'); return; }
     var salt = getSalt();
-
     if(isNew){
-      // Creating vault
       if(pw !== pwConfirm.value){ showError('Passwords do not match.'); return; }
       if(pw.length < 4){ showError('Password must be at least 4 characters.'); return; }
       hashPassword(pw, salt).then(function(h){
@@ -2463,23 +2645,14 @@ document.addEventListener("input", e => {
       }).then(function(key){
         cryptoKey = key;
         return saveVault(defaultData());
-      }).then(function(){
-        unlock();
-      });
+      }).then(function(){ unlock(); });
     } else {
-      // Verify password
       hashPassword(pw, salt).then(function(h){
-        if(h !== localStorage.getItem(HASH_KEY)){
-          showError('Wrong password.'); return;
-        }
-        return deriveKey(pw, salt).then(function(key){
-          cryptoKey = key;
-          unlock();
-        });
+        if(h !== localStorage.getItem(HASH_KEY)){ showError('Wrong password.'); return; }
+        return deriveKey(pw, salt).then(function(key){ cryptoKey = key; unlock(); });
       });
     }
   });
-
   pwInput.addEventListener('keydown', function(e){ if(e.key==='Enter') unlockBtn.click(); });
   pwConfirm.addEventListener('keydown', function(e){ if(e.key==='Enter') unlockBtn.click(); });
 
@@ -2490,7 +2663,6 @@ document.addEventListener("input", e => {
     renderVault();
   }
 
-  // --- Lock ---
   lockBtn.addEventListener('click', function(){
     cryptoKey = null;
     content.style.display = 'none';
@@ -2498,19 +2670,18 @@ document.addEventListener("input", e => {
     notesArea.value = '';
     linksList.innerHTML = '';
     credsList.innerHTML = '';
+    ['todo','progress','done'].forEach(function(c){ document.querySelector('.kanban-items[data-col="'+c+'"]').innerHTML=''; });
     isNew = false;
     lockLabel.textContent = 'Enter your master password to unlock';
     pwConfirmWrap.style.display = 'none';
     unlockBtn.textContent = 'Unlock';
   });
 
-  // --- Change Password ---
   changePwBtn.addEventListener('click', function(){
     var newPw = prompt('Enter new master password:');
     if(!newPw || newPw.length < 4){ alert('Password must be at least 4 characters.'); return; }
     var confirmPw = prompt('Confirm new password:');
     if(newPw !== confirmPw){ alert('Passwords do not match.'); return; }
-    // Re-encrypt all data with new password
     loadVault().then(function(data){
       var salt = getSalt();
       return hashPassword(newPw, salt).then(function(h){
@@ -2519,20 +2690,7 @@ document.addEventListener("input", e => {
       }).then(function(key){
         cryptoKey = key;
         return saveVault(data);
-      }).then(function(){
-        alert('Password changed successfully!');
-      });
-    });
-  });
-
-  // --- Save Notes ---
-  saveNotesBtn.addEventListener('click', function(){
-    loadVault().then(function(data){
-      data.notes = notesArea.value;
-      saveVault(data).then(function(){
-        saveNotesBtn.textContent = '✅ Saved!';
-        setTimeout(function(){ saveNotesBtn.textContent = 'Save Notes'; }, 1200);
-      });
+      }).then(function(){ alert('Password changed successfully!'); });
     });
   });
 
@@ -2555,16 +2713,18 @@ document.addEventListener("input", e => {
   // --- Add Credential ---
   credAddBtn.addEventListener('click', function(){
     var label = credLabel.value.trim();
+    var site = credSite.value.trim();
     var user = credUser.value.trim();
     var pass = credPass.value.trim();
+    var details = credDetails.value.trim();
     if(!label || !pass) return;
     loadVault().then(function(data){
-      data.creds.push({label:label, user:user, pass:pass});
-      credLabel.value=''; credUser.value=''; credPass.value='';
+      data.creds.push({label:label, site:site, user:user, pass:pass, details:details});
+      credLabel.value=''; credSite.value=''; credUser.value=''; credPass.value=''; credDetails.value='';
       saveVault(data).then(function(){ renderCreds(data.creds); });
     });
   });
-  [credLabel, credUser, credPass].forEach(function(el){
+  [credLabel, credSite, credUser, credPass].forEach(function(el){
     el.addEventListener('keydown', function(e){ if(e.key==='Enter') credAddBtn.click(); });
   });
 
