@@ -2468,7 +2468,13 @@ document.addEventListener("input", e => {
       var div = document.createElement('div');
       div.style.cssText = 'border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin-bottom:8px;overflow:hidden;';
       // Collapsed row: just label, click to expand
+      var faviconUrl = '';
+      if(c.site){
+        try{ var u = new URL(/^https?:\/\//i.test(c.site) ? c.site : 'https://'+c.site); faviconUrl = 'https://www.google.com/s2/favicons?domain='+u.hostname+'&sz=32'; }catch(e){}
+      }
+      var ico = faviconUrl ? '<img src="'+escAttr(faviconUrl)+'" style="width:20px;height:20px;border-radius:4px;flex-shrink:0;" onerror="this.style.display=\'none\'">' : '<span style="font-size:1.1rem;flex-shrink:0;">🔑</span>';
       var header = '<div class="cred-header" style="display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;">' +
+        ico +
         '<span style="font-weight:800;font-size:.95rem;flex:1;">'+escHtml(c.label)+'</span>' +
         '<span class="cred-arrow" style="color:var(--muted);font-size:.7rem;transition:transform .15s;">&#9660;</span>' +
         '</div>';
