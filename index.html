@@ -1532,17 +1532,25 @@ function renderQuote(q) {
     const zenInput = document.getElementById("zen-input");
     const zenText = document.getElementById("zen-text");
 
+    // Restore saved zen goal
+    if(zenInput){
+        var savedZen = localStorage.getItem('homer-zen-goal');
+        if(savedZen) zenInput.value = savedZen;
+        zenInput.addEventListener('input', function(){ localStorage.setItem('homer-zen-goal', zenInput.value); });
+    }
+
     if(zenBtn && zenOverlay) {
         zenBtn.addEventListener("click", () => {
             const goal = zenInput.value.trim() || "FOCUS";
             zenText.textContent = goal;
-            
+            localStorage.setItem('homer-zen-goal', zenInput.value);
+
             // Add class to body to hide everything else via CSS
             document.body.classList.add("zen-active");
-            
+
             // Show overlay
             zenOverlay.style.display = "flex";
-            
+
             // Fullscreen
             if(document.documentElement.requestFullscreen) {
                 document.documentElement.requestFullscreen().catch(e => console.log(e));
@@ -3763,7 +3771,8 @@ document.addEventListener("input", e => {
   var LS_KEYS = [
     'motivator.savedQuotes.v1', 'homer-quotes-seen', 'homer-quotes-cache',
     'pom.settings.v1', 'pom.tasks.v1', 'pom.state.v1',
-    'homer-brain-dump', 'homer-links'
+    'homer-brain-dump', 'homer-links', 'homer-zen-goal',
+    'homer-sync-pass', 'homer-sync-auto'
   ];
   var IDB_KEYS = ['homer-vault-salt', 'homer-vault-hash', 'homer-vault-data'];
   var ALL_KEYS = LS_KEYS.concat(IDB_KEYS);
