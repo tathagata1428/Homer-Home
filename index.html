@@ -2466,22 +2466,23 @@ document.addEventListener("input", e => {
     credsEmpty.style.display = creds.length ? 'none' : 'block';
     creds.forEach(function(c, i){
       var div = document.createElement('div');
-      div.style.cssText = 'padding:12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin-bottom:8px;';
-      // Header row: label + delete
-      var header = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
-        '<span style="font-weight:800;font-size:.95rem;">'+escHtml(c.label)+'</span>' +
-        '<button class="vault-cred-del btn" data-idx="'+i+'" style="padding:4px 10px;font-size:.8rem;">✕</button></div>';
-      // Hidden fields
+      div.style.cssText = 'border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin-bottom:8px;overflow:hidden;';
+      // Collapsed row: just label, click to expand
+      var header = '<div class="cred-header" style="display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;">' +
+        '<span style="font-weight:800;font-size:.95rem;flex:1;">'+escHtml(c.label)+'</span>' +
+        '<span class="cred-arrow" style="color:var(--muted);font-size:.7rem;transition:transform .15s;">&#9660;</span>' +
+        '</div>';
+      // Expandable body
       var fields = '';
       var fieldData = [
-        {lbl:'Site', val:c.site||'', cls:'cred-site'},
-        {lbl:'User', val:c.user||'', cls:'cred-user'},
-        {lbl:'Password', val:c.pass||'', cls:'cred-pass'},
-        {lbl:'Details', val:c.details||'', cls:'cred-details'}
+        {lbl:'Site', val:c.site||''},
+        {lbl:'User', val:c.user||''},
+        {lbl:'Password', val:c.pass||''},
+        {lbl:'Details', val:c.details||''}
       ];
       fieldData.forEach(function(f){
         if(!f.val) return;
-        fields += '<div class="cred-field" style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
+        fields += '<div class="cred-field" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">' +
           '<span style="color:var(--muted);font-size:.8rem;width:60px;flex-shrink:0;">'+f.lbl+'</span>' +
           '<code class="cred-val" style="flex:1;color:var(--accent);font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:none;">'+escHtml(f.val)+'</code>' +
           '<span class="cred-mask" style="flex:1;color:var(--muted);font-size:.85rem;">••••••</span>' +
@@ -2489,30 +2490,47 @@ document.addEventListener("input", e => {
           '<button class="cred-copy btn" style="padding:2px 6px;font-size:.75rem;background:none;border:1px solid rgba(255,255,255,.12);border-radius:6px;color:var(--muted);cursor:pointer;" data-val="'+escAttr(f.val)+'" title="Copy">📋</button>' +
           '</div>';
       });
-      div.innerHTML = header + fields;
+      var body = '<div class="cred-body" style="display:none;padding:0 12px 12px;border-top:1px solid rgba(255,255,255,.06);padding-top:10px;">' +
+        fields +
+        '<div style="text-align:right;margin-top:6px;"><button class="vault-cred-del btn" data-idx="'+i+'" style="padding:4px 10px;font-size:.8rem;color:#ef4444;">✕ Delete</button></div>' +
+        '</div>';
+      div.innerHTML = header + body;
       credsList.appendChild(div);
+
+      // Expand/collapse on header click
+      var hdr = div.querySelector('.cred-header');
+      var bdy = div.querySelector('.cred-body');
+      var arrow = div.querySelector('.cred-arrow');
+      hdr.addEventListener('click', function(){
+        var open = bdy.style.display !== 'none';
+        bdy.style.display = open ? 'none' : 'block';
+        arrow.innerHTML = open ? '&#9660;' : '&#9650;';
+      });
 
       // Toggle show/hide per field
       div.querySelectorAll('.cred-field').forEach(function(row){
         var val = row.querySelector('.cred-val');
         var mask = row.querySelector('.cred-mask');
-        row.querySelector('.cred-toggle').addEventListener('click', function(){
+        row.querySelector('.cred-toggle').addEventListener('click', function(e){
+          e.stopPropagation();
           var showing = val.style.display !== 'none';
           val.style.display = showing ? 'none' : 'inline';
           mask.style.display = showing ? 'inline' : 'none';
         });
-        row.querySelector('.cred-copy').addEventListener('click', function(){
+        row.querySelector('.cred-copy').addEventListener('click', function(e){
+          e.stopPropagation();
           var btn = this;
           navigator.clipboard.writeText(btn.dataset.val).then(function(){
             btn.textContent = '✅'; setTimeout(function(){ btn.textContent = '📋'; }, 1200);
           });
         });
       });
-    });
-    credsList.querySelectorAll('.vault-cred-del').forEach(function(btn){
-      btn.addEventListener('click', function(){
+
+      // Delete
+      div.querySelector('.vault-cred-del').addEventListener('click', function(e){
+        e.stopPropagation();
         loadVault().then(function(data){
-          data.creds.splice(parseInt(btn.dataset.idx),1);
+          data.creds.splice(i,1);
           saveVault(data).then(function(){ renderCreds(data.creds); });
         });
       });
