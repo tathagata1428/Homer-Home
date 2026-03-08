@@ -1234,7 +1234,7 @@
 
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
-      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v6.2 (Custom Labels & People)</span>
+      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v6.3 (Performance)</span>
     </footer>
   </div>
 
@@ -2756,15 +2756,19 @@ document.addEventListener("input", e => {
 
   // --- Vault data ---
   function defaultData(){ return {notes:'', links:[], creds:[], goals:[], _nextId:1}; }
+  var _vaultCache = null;
   function loadVault(){
+    if(_vaultCache) return Promise.resolve(_vaultCache);
     return idb.get(DATA_KEY).then(function(stored){
-      if(!stored) return defaultData();
+      if(!stored){ _vaultCache = defaultData(); return _vaultCache; }
       return decrypt(cryptoKey, stored).then(function(json){
-        try{ var d=JSON.parse(json); if(!d.goals) d.goals=[]; return d; }catch(e){ return defaultData(); }
+        try{ _vaultCache = JSON.parse(json); if(!_vaultCache.goals) _vaultCache.goals=[]; }catch(e){ _vaultCache = defaultData(); }
+        return _vaultCache;
       });
     });
   }
   function saveVault(data){
+    _vaultCache = data;
     return encrypt(cryptoKey, JSON.stringify(data)).then(function(enc){ return idb.set(DATA_KEY, enc); });
   }
 
@@ -3117,18 +3121,24 @@ document.addEventListener("input", e => {
     });
   });
 
+  // Attachment data lookup — avoids embedding megabytes of base64 in DOM HTML
+  var _attachDataMap = {};
+  function _attachKey(gi, ai, si){ return gi+'-'+(si!==undefined?si:'g')+'-'+ai; }
+
   function renderAttachments(attachments, container, goalIdx, subIdx){
     if(!attachments || !attachments.length) return '';
     var html = '<div class="k-attachments">';
     attachments.forEach(function(a, ai){
+      var key = _attachKey(goalIdx, ai, subIdx);
+      _attachDataMap[key] = a.data || '';
       var isImg = a.type && a.type.startsWith('image/');
       if(isImg){
         html += '<div class="k-attach-item">' +
-          '<img src="'+a.data+'" alt="'+escAttr(a.name)+'" data-full="'+a.data+'" class="k-attach-img">' +
+          '<img loading="lazy" src="'+(_attachDataMap[key]?_attachDataMap[key]:'')+'" alt="'+escAttr(a.name)+'" data-akey="'+key+'" class="k-attach-img" style="max-width:120px;max-height:80px;object-fit:cover;cursor:pointer;">' +
           '<button class="k-attach-rm" data-ai="'+ai+'" data-gi="'+goalIdx+'"'+(subIdx !== undefined ? ' data-si="'+subIdx+'"' : '')+'>✕</button></div>';
       } else {
         html += '<div class="k-attach-item">' +
-          '<a class="k-attach-file" href="'+a.data+'" download="'+escAttr(a.name)+'">📄 '+escHtml(a.name)+'</a>' +
+          '<a class="k-attach-file" data-akey="'+key+'" data-fname="'+escAttr(a.name)+'">📄 '+escHtml(a.name)+'</a>' +
           '<button class="k-attach-rm" data-ai="'+ai+'" data-gi="'+goalIdx+'"'+(subIdx !== undefined ? ' data-si="'+subIdx+'"' : '')+'>✕</button></div>';
       }
     });
@@ -3332,7 +3342,14 @@ document.addEventListener("input", e => {
     goalFilterLabel.value = val;
   }
 
+  var _renderGoalsTimer = null;
   function renderGoals(goals){
+    // Debounce: batch rapid consecutive calls into one render
+    clearTimeout(_renderGoalsTimer);
+    _renderGoalsTimer = setTimeout(function(){ _renderGoalsNow(goals); }, 16);
+  }
+  function _renderGoalsNow(goals){
+    _attachDataMap = {}; // clear attachment data cache for fresh render
     ['todo','progress','pending','done'].forEach(function(col){
       document.querySelector('.kanban-items[data-col="'+col+'"]').innerHTML = '';
     });
@@ -3708,8 +3725,21 @@ document.addEventListener("input", e => {
       card.querySelectorAll('.k-attach-img').forEach(function(img){
         img.addEventListener('click', function(e){
           e.stopPropagation();
-          imgLightbox.querySelector('img').src = this.dataset.full;
+          var data = _attachDataMap[this.dataset.akey] || this.src;
+          imgLightbox.querySelector('img').src = data;
           imgLightbox.classList.add('open');
+        });
+      });
+
+      // File download via data map
+      card.querySelectorAll('.k-attach-file').forEach(function(link){
+        link.addEventListener('click', function(e){
+          e.preventDefault(); e.stopPropagation();
+          var data = _attachDataMap[this.dataset.akey];
+          if(!data) return;
+          var a = document.createElement('a');
+          a.href = data; a.download = this.dataset.fname || 'file';
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
         });
       });
 
@@ -4086,7 +4116,7 @@ document.addEventListener("input", e => {
   }
 
   lockBtn.addEventListener('click', function(){
-    cryptoKey = null;
+    cryptoKey = null; _vaultCache = null;
     content.style.display = 'none';
     lockScreen.style.display = 'block';
     notesArea.value = '';
