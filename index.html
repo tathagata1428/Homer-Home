@@ -2398,10 +2398,97 @@ document.addEventListener("input", e => {
 
 <script>
 (function(){
-  // === AES-256-GCM Vault with Web Crypto API ===
+  // === IndexedDB Storage (replaces localStorage for vault — supports hundreds of MB) ===
+  var IDB_NAME = 'homer-vault-idb';
+  var IDB_STORE = 'kv';
+  var idbReady = new Promise(function(resolve, reject){
+    var req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = function(e){ e.target.result.createObjectStore(IDB_STORE); };
+    req.onsuccess = function(e){ resolve(e.target.result); };
+    req.onerror = function(e){ reject(e.target.error); };
+  });
+  var idb = {
+    get: function(key){
+      return idbReady.then(function(db){
+        return new Promise(function(resolve, reject){
+          var tx = db.transaction(IDB_STORE, 'readonly');
+          var req = tx.objectStore(IDB_STORE).get(key);
+          req.onsuccess = function(){ resolve(req.result !== undefined ? req.result : null); };
+          req.onerror = function(){ reject(req.error); };
+        });
+      });
+    },
+    set: function(key, value){
+      return idbReady.then(function(db){
+        return new Promise(function(resolve, reject){
+          var tx = db.transaction(IDB_STORE, 'readwrite');
+          tx.objectStore(IDB_STORE).put(value, key);
+          tx.oncomplete = function(){ resolve(); };
+          tx.onerror = function(){ reject(tx.error); };
+        });
+      });
+    },
+    del: function(key){
+      return idbReady.then(function(db){
+        return new Promise(function(resolve, reject){
+          var tx = db.transaction(IDB_STORE, 'readwrite');
+          tx.objectStore(IDB_STORE).delete(key);
+          tx.oncomplete = function(){ resolve(); };
+          tx.onerror = function(){ reject(tx.error); };
+        });
+      });
+    },
+    getAll: function(){
+      return idbReady.then(function(db){
+        return new Promise(function(resolve, reject){
+          var tx = db.transaction(IDB_STORE, 'readonly');
+          var store = tx.objectStore(IDB_STORE);
+          var keys = store.getAllKeys();
+          var vals = store.getAll();
+          tx.oncomplete = function(){
+            var d = {};
+            for(var i = 0; i < keys.result.length; i++) d[keys.result[i]] = vals.result[i];
+            resolve(d);
+          };
+          tx.onerror = function(){ reject(tx.error); };
+        });
+      });
+    },
+    clear: function(){
+      return idbReady.then(function(db){
+        return new Promise(function(resolve, reject){
+          var tx = db.transaction(IDB_STORE, 'readwrite');
+          tx.objectStore(IDB_STORE).clear();
+          tx.oncomplete = function(){ resolve(); };
+          tx.onerror = function(){ reject(tx.error); };
+        });
+      });
+    }
+  };
+
+  // Vault keys — stored in IndexedDB for large storage capacity
   var SALT_KEY = 'homer-vault-salt';
   var HASH_KEY = 'homer-vault-hash';
   var DATA_KEY = 'homer-vault-data';
+  var IDB_KEYS = [SALT_KEY, HASH_KEY, DATA_KEY];
+
+  // Migrate existing localStorage vault data to IndexedDB (one-time)
+  function migrateToIdb(){
+    var tasks = [];
+    IDB_KEYS.forEach(function(k){
+      var v = localStorage.getItem(k);
+      if(v !== null){
+        tasks.push(idb.get(k).then(function(existing){
+          if(existing === null){
+            return idb.set(k, v).then(function(){ localStorage.removeItem(k); });
+          } else {
+            localStorage.removeItem(k);
+          }
+        }));
+      }
+    });
+    return Promise.all(tasks);
+  }
 
   var cryptoKey = null;
 
@@ -2458,20 +2545,27 @@ document.addEventListener("input", e => {
   var pendingGoalFiles = [];
   var pendingSubFiles = [];
 
-  var isNew = !localStorage.getItem(HASH_KEY);
-  if(isNew){
-    lockLabel.textContent = 'Create a master password for your vault';
-    pwConfirmWrap.style.display = 'block';
-    unlockBtn.textContent = 'Create Vault';
-  }
+  var isNew = true;
+
+  // Initialize: migrate localStorage → IndexedDB, then check if vault exists
+  migrateToIdb().then(function(){
+    return idb.get(HASH_KEY);
+  }).then(function(hash){
+    isNew = !hash;
+    if(isNew){
+      lockLabel.textContent = 'Create a master password for your vault';
+      pwConfirmWrap.style.display = 'block';
+      unlockBtn.textContent = 'Create Vault';
+    }
+  });
 
   // --- Crypto helpers ---
   function getSalt(){
-    var s = localStorage.getItem(SALT_KEY);
-    if(s) return base64ToBytes(s);
-    var salt = crypto.getRandomValues(new Uint8Array(16));
-    localStorage.setItem(SALT_KEY, bytesToBase64(salt));
-    return salt;
+    return idb.get(SALT_KEY).then(function(s){
+      if(s) return base64ToBytes(s);
+      var salt = crypto.getRandomValues(new Uint8Array(16));
+      return idb.set(SALT_KEY, bytesToBase64(salt)).then(function(){ return salt; });
+    });
   }
   function deriveKey(password, salt){
     return crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey'])
@@ -2500,14 +2594,15 @@ document.addEventListener("input", e => {
   // --- Vault data ---
   function defaultData(){ return {notes:'', links:[], creds:[], goals:[]}; }
   function loadVault(){
-    var stored = localStorage.getItem(DATA_KEY);
-    if(!stored) return Promise.resolve(defaultData());
-    return decrypt(cryptoKey, stored).then(function(json){
-      try{ var d=JSON.parse(json); if(!d.goals) d.goals=[]; return d; }catch(e){ return defaultData(); }
+    return idb.get(DATA_KEY).then(function(stored){
+      if(!stored) return defaultData();
+      return decrypt(cryptoKey, stored).then(function(json){
+        try{ var d=JSON.parse(json); if(!d.goals) d.goals=[]; return d; }catch(e){ return defaultData(); }
+      });
     });
   }
   function saveVault(data){
-    return encrypt(cryptoKey, JSON.stringify(data)).then(function(enc){ localStorage.setItem(DATA_KEY, enc); });
+    return encrypt(cryptoKey, JSON.stringify(data)).then(function(enc){ return idb.set(DATA_KEY, enc); });
   }
 
   // --- Notes autosave ---
@@ -3164,23 +3259,24 @@ document.addEventListener("input", e => {
     hideError();
     var pw = pwInput.value;
     if(!pw){ showError('Please enter a password.'); return; }
-    var salt = getSalt();
-    if(isNew){
-      if(pw !== pwConfirm.value){ showError('Passwords do not match.'); return; }
-      if(pw.length < 4){ showError('Password must be at least 4 characters.'); return; }
-      hashPassword(pw, salt).then(function(h){
-        localStorage.setItem(HASH_KEY, h);
-        return deriveKey(pw, salt);
-      }).then(function(key){
-        cryptoKey = key;
-        return saveVault(defaultData());
-      }).then(function(){ unlock(); });
-    } else {
-      hashPassword(pw, salt).then(function(h){
-        if(h !== localStorage.getItem(HASH_KEY)){ showError('Wrong password.'); return; }
-        return deriveKey(pw, salt).then(function(key){ cryptoKey = key; unlock(); });
-      });
-    }
+    getSalt().then(function(salt){
+      if(isNew){
+        if(pw !== pwConfirm.value){ showError('Passwords do not match.'); return; }
+        if(pw.length < 4){ showError('Password must be at least 4 characters.'); return; }
+        hashPassword(pw, salt).then(function(h){
+          return idb.set(HASH_KEY, h).then(function(){ return deriveKey(pw, salt); });
+        }).then(function(key){
+          cryptoKey = key;
+          return saveVault(defaultData());
+        }).then(function(){ unlock(); });
+      } else {
+        Promise.all([hashPassword(pw, salt), idb.get(HASH_KEY)]).then(function(results){
+          var h = results[0]; var storedHash = results[1];
+          if(h !== storedHash){ showError('Wrong password.'); return; }
+          return deriveKey(pw, salt).then(function(key){ cryptoKey = key; unlock(); });
+        });
+      }
+    });
   });
   pwInput.addEventListener('keydown', function(e){ if(e.key==='Enter') unlockBtn.click(); });
   pwConfirm.addEventListener('keydown', function(e){ if(e.key==='Enter') unlockBtn.click(); });
@@ -3212,14 +3308,14 @@ document.addEventListener("input", e => {
     var confirmPw = prompt('Confirm new password:');
     if(newPw !== confirmPw){ alert('Passwords do not match.'); return; }
     loadVault().then(function(data){
-      var salt = getSalt();
-      return hashPassword(newPw, salt).then(function(h){
-        localStorage.setItem(HASH_KEY, h);
-        return deriveKey(newPw, salt);
-      }).then(function(key){
-        cryptoKey = key;
-        return saveVault(data);
-      }).then(function(){ alert('Password changed successfully!'); });
+      return getSalt().then(function(salt){
+        return hashPassword(newPw, salt).then(function(h){
+          return idb.set(HASH_KEY, h).then(function(){ return deriveKey(newPw, salt); });
+        }).then(function(key){
+          cryptoKey = key;
+          return saveVault(data);
+        }).then(function(){ alert('Password changed successfully!'); });
+      });
     });
   });
 
@@ -3510,12 +3606,53 @@ document.addEventListener("input", e => {
 (function(){
   var SYNC_PASS_KEY = 'homer-sync-pass';
   var SYNC_AUTO_KEY = 'homer-sync-auto';
-  var ALL_KEYS = [
+  var LS_KEYS = [
     'motivator.savedQuotes.v1', 'homer-quotes-seen', 'homer-quotes-cache',
     'pom.settings.v1', 'pom.tasks.v1', 'pom.state.v1',
-    'homer-brain-dump', 'homer-links',
-    'homer-vault-salt', 'homer-vault-hash', 'homer-vault-data'
+    'homer-brain-dump', 'homer-links'
   ];
+  var IDB_KEYS = ['homer-vault-salt', 'homer-vault-hash', 'homer-vault-data'];
+  var ALL_KEYS = LS_KEYS.concat(IDB_KEYS);
+
+  // IndexedDB access for cloud sync
+  var IDB_NAME = 'homer-vault-idb';
+  var IDB_STORE = 'kv';
+  var syncIdbReady = new Promise(function(resolve, reject){
+    var req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = function(e){ e.target.result.createObjectStore(IDB_STORE); };
+    req.onsuccess = function(e){ resolve(e.target.result); };
+    req.onerror = function(e){ reject(e.target.error); };
+  });
+  function syncIdbGet(key){
+    return syncIdbReady.then(function(db){
+      return new Promise(function(resolve){
+        var tx = db.transaction(IDB_STORE,'readonly');
+        var req = tx.objectStore(IDB_STORE).get(key);
+        req.onsuccess = function(){ resolve(req.result !== undefined ? req.result : null); };
+        req.onerror = function(){ resolve(null); };
+      });
+    });
+  }
+  function syncIdbSet(key, value){
+    return syncIdbReady.then(function(db){
+      return new Promise(function(resolve){
+        var tx = db.transaction(IDB_STORE,'readwrite');
+        tx.objectStore(IDB_STORE).put(value, key);
+        tx.oncomplete = function(){ resolve(); };
+        tx.onerror = function(){ resolve(); };
+      });
+    });
+  }
+  function syncIdbClear(){
+    return syncIdbReady.then(function(db){
+      return new Promise(function(resolve){
+        var tx = db.transaction(IDB_STORE,'readwrite');
+        tx.objectStore(IDB_STORE).clear();
+        tx.oncomplete = function(){ resolve(); };
+        tx.onerror = function(){ resolve(); };
+      });
+    });
+  }
 
   // --- FAB Cloud ---
   var cloud = document.getElementById('fab-cloud');
@@ -3547,7 +3684,11 @@ document.addEventListener("input", e => {
   }
 
   function getAll(){
-    var d={}; ALL_KEYS.forEach(function(k){ var v=localStorage.getItem(k); if(v!==null) d[k]=v; }); return d;
+    var d={};
+    LS_KEYS.forEach(function(k){ var v=localStorage.getItem(k); if(v!==null) d[k]=v; });
+    return Promise.all(IDB_KEYS.map(function(k){
+      return syncIdbGet(k).then(function(v){ if(v!==null) d[k]=v; });
+    })).then(function(){ return d; });
   }
 
   function backup(){
@@ -3556,7 +3697,9 @@ document.addEventListener("input", e => {
     localStorage.setItem(SYNC_PASS_KEY,p);
     st('Backing up...');
     var svg=cloud.querySelector('svg'); svg.classList.add('fab-spinning');
-    return fetch('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:p,data:getAll()})})
+    return getAll().then(function(allData){
+      return fetch('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:p,data:allData})});
+    })
       .then(function(r){return r.json();})
       .then(function(d){
         svg.classList.remove('fab-spinning');
@@ -3576,9 +3719,20 @@ document.addEventListener("input", e => {
       .then(function(r){return r.json();})
       .then(function(d){
         if(d.error){ st(d.error); return; }
-        var c=0; Object.keys(d.data).forEach(function(k){ localStorage.setItem(k,d.data[k]); c++; });
-        st('Restored '+c+' items. Reloading...'); updDot();
-        setTimeout(function(){ location.reload(); },1000);
+        var c=0;
+        var idbWrites = [];
+        Object.keys(d.data).forEach(function(k){
+          c++;
+          if(IDB_KEYS.indexOf(k) >= 0){
+            idbWrites.push(syncIdbSet(k, d.data[k]));
+          } else {
+            localStorage.setItem(k, d.data[k]);
+          }
+        });
+        return Promise.all(idbWrites).then(function(){
+          st('Restored '+c+' items. Reloading...'); updDot();
+          setTimeout(function(){ location.reload(); },1000);
+        });
       })
       .catch(function(e){ st('Failed: '+e.message); });
   }
@@ -3604,11 +3758,13 @@ document.addEventListener("input", e => {
   document.getElementById('cc-cancel').addEventListener('click', function(){ ccBg.classList.remove('open'); });
   ccBg.addEventListener('click', function(e){ if(e.target===ccBg) ccBg.classList.remove('open'); });
   document.getElementById('cc-nuke').addEventListener('click', function(){
-    ALL_KEYS.forEach(function(k){ localStorage.removeItem(k); });
+    LS_KEYS.forEach(function(k){ localStorage.removeItem(k); });
     localStorage.removeItem(SYNC_PASS_KEY);
     localStorage.removeItem(SYNC_AUTO_KEY);
-    ccBg.classList.remove('open');
-    location.reload();
+    syncIdbClear().then(function(){
+      ccBg.classList.remove('open');
+      location.reload();
+    });
   });
 })();
 </script>
