@@ -477,7 +477,8 @@
     .k-img-preview{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:9999;cursor:pointer;}
     .k-img-preview.open{display:flex;}
     .k-img-preview img{max-width:90vw;max-height:90vh;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.5);}
-    @media(max-width:600px){#kanban{grid-template-columns:1fr;}}
+    @media(max-width:700px){#kanban{grid-template-columns:repeat(2,1fr);}}
+    @media(max-width:480px){#kanban{grid-template-columns:1fr;}}
 
     /* ── Floating Backup FAB ── */
     @keyframes fabSpin { to { transform:rotate(360deg); } }
@@ -1029,6 +1030,7 @@
       <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
         <input id="vault-link-name" type="text" placeholder="Name" style="flex:1;min-width:120px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;">
         <input id="vault-link-url" type="url" placeholder="https://..." style="flex:2;min-width:180px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
+        <textarea id="vault-link-desc" placeholder="Description (optional)" rows="1" style="flex-basis:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-family:inherit;font-size:.9rem;resize:vertical;"></textarea>
         <button id="vault-link-add" class="btn primary" style="padding:10px 18px;">+ Add</button>
       </div>
       <div id="vault-links-list"></div>
@@ -1056,7 +1058,7 @@
     <!-- Goal Tracker (Kanban) -->
     <div class="card" style="padding:18px;margin-top:18px;">
       <h3 style="margin:0 0 14px;">🎯 Goal Tracker</h3>
-      <div id="kanban" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+      <div id="kanban" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
         <div class="kanban-col" data-col="todo">
           <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(96,165,250,.15);color:#60a5fa;text-align:center;margin-bottom:10px;">To Do</div>
           <div class="kanban-items" data-col="todo" style="min-height:60px;"></div>
@@ -1065,6 +1067,10 @@
         <div class="kanban-col" data-col="progress">
           <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;text-align:center;margin-bottom:10px;">In Progress</div>
           <div class="kanban-items" data-col="progress" style="min-height:60px;"></div>
+        </div>
+        <div class="kanban-col" data-col="review">
+          <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(139,92,246,.15);color:#a78bfa;text-align:center;margin-bottom:10px;">Review</div>
+          <div class="kanban-items" data-col="review" style="min-height:60px;"></div>
         </div>
         <div class="kanban-col" data-col="done">
           <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(34,197,94,.15);color:#22c55e;text-align:center;margin-bottom:10px;">Done</div>
@@ -2517,6 +2523,7 @@ document.addEventListener("input", e => {
   var notesStatus = document.getElementById('vault-notes-status');
   var linkName = document.getElementById('vault-link-name');
   var linkUrl = document.getElementById('vault-link-url');
+  var linkDesc = document.getElementById('vault-link-desc');
   var linkAddBtn = document.getElementById('vault-link-add');
   var linksList = document.getElementById('vault-links-list');
   var linksEmpty = document.getElementById('vault-links-empty');
@@ -2788,16 +2795,26 @@ document.addEventListener("input", e => {
     });
   }
 
+  function getFavicon(url){
+    try{ var h = new URL(url).hostname; return 'https://www.google.com/s2/favicons?domain='+h+'&sz=32'; }catch(e){ return ''; }
+  }
   function renderLinks(links){
     linksList.innerHTML = '';
     linksEmpty.style.display = links.length ? 'none' : 'block';
     links.forEach(function(l, i){
       var div = document.createElement('div');
-      div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin-bottom:8px;';
+      div.style.cssText = 'border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin-bottom:8px;overflow:hidden;';
+      var fav = getFavicon(l.url);
+      var favHtml = fav ? '<img src="'+fav+'" style="width:18px;height:18px;border-radius:3px;flex-shrink:0;" onerror="this.style.display=\'none\'">' : '';
+      var descHtml = l.desc ? '<div style="color:var(--muted);font-size:.8rem;padding:0 12px 10px;line-height:1.4;">'+escHtml(l.desc)+'</div>' : '';
       div.innerHTML =
-        '<a href="'+escAttr(l.url)+'" target="_blank" rel="noopener" style="color:var(--accent-2);font-weight:700;text-decoration:none;flex:1;">'+escHtml(l.name)+'</a>' +
-        '<span style="color:var(--muted);font-size:.85rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(l.url)+'</span>' +
-        '<button class="vault-link-del btn" data-idx="'+i+'" style="padding:4px 10px;font-size:.8rem;">✕</button>';
+        '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;">' +
+          favHtml +
+          '<a href="'+escAttr(l.url)+'" target="_blank" rel="noopener" style="color:var(--accent-2);font-weight:700;text-decoration:none;flex:1;">'+escHtml(l.name)+'</a>' +
+          '<span style="color:var(--muted);font-size:.8rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(l.url)+'</span>' +
+          '<button class="vault-link-del btn" data-idx="'+i+'" style="padding:4px 10px;font-size:.8rem;">✕</button>' +
+        '</div>' +
+        descHtml;
       linksList.appendChild(div);
     });
     linksList.querySelectorAll('.vault-link-del').forEach(function(btn){
@@ -3017,13 +3034,13 @@ document.addEventListener("input", e => {
     if(!g.subtasks || g.subtasks.length === 0) return;
     var doneCount = g.subtasks.filter(function(s){ return s.done; }).length;
     var total = g.subtasks.length;
-    if(doneCount === total) g.col = 'done';
+    if(doneCount === total) g.col = 'review';
     else if(doneCount > 0) g.col = 'progress';
     else g.col = 'todo';
   }
 
   function renderGoals(goals){
-    ['todo','progress','done'].forEach(function(col){
+    ['todo','progress','review','done'].forEach(function(col){
       document.querySelector('.kanban-items[data-col="'+col+'"]').innerHTML = '';
     });
     goals.forEach(function(g, i){
@@ -3038,8 +3055,13 @@ document.addEventListener("input", e => {
       card.draggable = true;
       card.dataset.idx = i;
 
+      var statusBadge = '';
+      if(g.col==='review') statusBadge = '<span style="font-size:.6rem;padding:1px 6px;border-radius:5px;background:rgba(139,92,246,.15);color:#a78bfa;font-weight:700;">REVIEW</span>';
+      if(g.col==='done' && g.completedAt) statusBadge = '<span style="font-size:.6rem;padding:1px 6px;border-radius:5px;background:rgba(34,197,94,.15);color:#22c55e;font-weight:700;">✓ '+new Date(g.completedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</span>';
+
       var titleRow = '<div class="k-title"><span>'+escHtml(g.summary)+'</span>' +
         '<span style="display:flex;align-items:center;gap:5px;">' +
+        statusBadge +
         priorityBadge(g.priority) +
         formatDue(g.due) +
         '<span style="font-size:.7rem;cursor:pointer;" class="k-expand" title="Expand">&#9660;</span>' +
@@ -3108,6 +3130,7 @@ document.addEventListener("input", e => {
           '<div class="k-move">' +
             '<button data-to="todo" class="'+(g.col==='todo'?'active':'')+'">To Do</button>' +
             '<button data-to="progress" class="'+(g.col==='progress'?'active':'')+'">In Progress</button>' +
+            '<button data-to="review" class="'+(g.col==='review'?'active':'')+'">Review</button>' +
             '<button data-to="done" class="'+(g.col==='done'?'active':'')+'">Done</button>' +
             '<button class="k-del" style="margin-left:auto;color:#ef4444;border-color:rgba(239,68,68,.3);">Delete</button>' +
           '</div>' +
@@ -3297,7 +3320,11 @@ document.addEventListener("input", e => {
       card.querySelectorAll('.k-move button:not(.k-del)').forEach(function(btn){
         btn.addEventListener('click', function(){
           loadVault().then(function(data){
-            if(data.goals[i]) data.goals[i].col = btn.dataset.to;
+            if(data.goals[i]){
+              data.goals[i].col = btn.dataset.to;
+              if(btn.dataset.to === 'done' && !data.goals[i].completedAt) data.goals[i].completedAt = Date.now();
+              if(btn.dataset.to !== 'done') delete data.goals[i].completedAt;
+            }
             saveVault(data).then(function(){ renderGoals(data.goals); });
           });
         });
@@ -3330,7 +3357,11 @@ document.addEventListener("input", e => {
         var idx = parseInt(e.dataTransfer.getData('text/plain'));
         var newCol = zone.dataset.col;
         loadVault().then(function(data){
-          if(data.goals[idx]) data.goals[idx].col = newCol;
+          if(data.goals[idx]){
+            data.goals[idx].col = newCol;
+            if(newCol === 'done' && !data.goals[idx].completedAt) data.goals[idx].completedAt = Date.now();
+            if(newCol !== 'done') delete data.goals[idx].completedAt;
+          }
           saveVault(data).then(function(){ renderGoals(data.goals); });
         });
       });
@@ -3487,9 +3518,10 @@ document.addEventListener("input", e => {
     var url = linkUrl.value.trim();
     if(!name || !url) return;
     if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    var desc = linkDesc.value.trim();
     loadVault().then(function(data){
-      data.links.push({name:name, url:url});
-      linkName.value=''; linkUrl.value='';
+      data.links.push({name:name, url:url, desc:desc});
+      linkName.value=''; linkUrl.value=''; linkDesc.value='';
       saveVault(data).then(function(){ renderLinks(data.links); });
     });
   });
@@ -3746,7 +3778,7 @@ document.addEventListener("input", e => {
     </div>
     <label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.85rem;cursor:pointer;margin-bottom:10px;">
       <input id="fab-auto" type="checkbox" style="accent-color:var(--accent);width:16px;height:16px;">
-      Auto-backup every 60s
+      Auto-backup every 5 min
     </label>
     <div id="fab-status" style="color:var(--muted);font-size:.8rem;min-height:1.2em;"></div>
   </div>
@@ -3914,7 +3946,7 @@ document.addEventListener("input", e => {
     updDot();
   });
 
-  function startAuto(){ stopAuto(); timer=setInterval(function(){ if(pass.value.trim()) backup(); },60000); if(pass.value.trim()) backup(); }
+  function startAuto(){ stopAuto(); timer=setInterval(function(){ if(pass.value.trim()) backup(); },300000); if(pass.value.trim()) backup(); }
   function stopAuto(){ if(timer){clearInterval(timer);timer=null;} }
 
   if(autoChk.checked && pass.value.trim()) startAuto();
