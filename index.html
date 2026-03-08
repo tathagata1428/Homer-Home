@@ -425,6 +425,14 @@
       margin-top: auto; /* Push to bottom if needed */
     }
 
+    /* Cloud Sync */
+    @keyframes fadeSlide { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes syncSpin { to { transform:rotate(360deg); } }
+    .sync-spinning { animation: syncSpin .8s linear infinite; }
+    .sync-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-left:6px; vertical-align:middle; }
+    .sync-dot.ok { background:#22c55e; box-shadow:0 0 6px #22c55e; }
+    .sync-dot.off { background:var(--muted); opacity:.4; }
+
   </style>
 </head>
 <body>
@@ -445,10 +453,36 @@
   </div>
 
   <div class="shell">
-    <header class="hero">
-      <div class="title">Homer <span id="greeting" class="title-badge">Hello</span></div>
-      <div class="subtitle">“Trying is the first step towards failure.” — Homer Simpson</div>
+    <header class=”hero”>
+      <div class=”title”>Homer <span id=”greeting” class=”title-badge”>Hello</span>
+        <button id=”sync-hero-btn” title=”Cloud Sync” style=”margin-left:auto;background:none;border:none;cursor:pointer;font-size:1.3rem;padding:6px 10px;border-radius:12px;transition:background .2s;opacity:.6;” onmouseenter=”this.style.opacity='1';this.style.background='rgba(255,255,255,.08)'” onmouseleave=”this.style.opacity='.6';this.style.background='none'”>
+          <span id=”sync-icon” style=”display:inline-block;transition:transform .3s;”>&#9729;</span>
+        </button>
+      </div>
+      <div class=”subtitle”>”Trying is the first step towards failure.” — Homer Simpson</div>
     </header>
+
+    <!-- Cloud Sync Panel -->
+    <div id=”sync-panel” style=”display:none;margin-bottom:16px;border-radius:18px;padding:20px 22px;border:1px solid var(--border);background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));backdrop-filter:blur(10px);box-shadow:var(--shadow);animation:fadeSlide .25s ease;”>
+      <div style=”display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;”>
+        <h3 style=”margin:0;font-size:1.05rem;”>Cloud Sync</h3>
+        <button id=”sync-panel-close” style=”background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem;padding:4px 8px;”>&#10005;</button>
+      </div>
+      <div style=”display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;”>
+        <div style=”position:relative;flex:1;min-width:180px;”>
+          <input id=”sync-pass” type=”password” placeholder=”Sync passphrase” autocomplete=”off” style=”width:100%;padding:10px 40px 10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;”>
+          <button id=”sync-pass-toggle” type=”button” style=”position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;padding:2px;color:var(--muted);”>&#128065;</button>
+        </div>
+        <button id=”sync-backup” class=”btn primary” style=”padding:8px 16px;”>Backup</button>
+        <button id=”sync-restore” class=”btn secondary” style=”padding:8px 16px;”>Restore</button>
+      </div>
+      <div style=”display:flex;align-items:center;gap:12px;flex-wrap:wrap;”>
+        <label style=”display:flex;align-items:center;gap:6px;color:var(--muted);font-size:.85rem;cursor:pointer;”>
+          <input id=”sync-auto” type=”checkbox” style=”cursor:pointer;accent-color:var(--accent);”> Auto-sync every 60s
+        </label>
+        <span id=”sync-status” style=”color:var(--muted);font-size:.8rem;margin-left:auto;”></span>
+      </div>
+    </div>
 
     <div class="tabs">
       <button class="tab-btn active" data-tab="home">Home</button>
@@ -717,17 +751,7 @@
       <div class="span-4 card tool-card">
         <h3>Cloud Sync</h3>
         <p class="muted">Backup & restore all your data to the cloud.</p>
-        <input id="sync-pass" type="password" placeholder="Sync passphrase" autocomplete="off" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;margin-bottom:8px;">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button id="sync-backup" class="btn primary" style="flex:1;padding:8px 12px;">Backup</button>
-          <button id="sync-restore" class="btn secondary" style="flex:1;padding:8px 12px;">Restore</button>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
-          <label style="display:flex;align-items:center;gap:6px;color:var(--muted);font-size:.85rem;cursor:pointer;">
-            <input id="sync-auto" type="checkbox" style="cursor:pointer;"> Auto-sync
-          </label>
-          <span id="sync-status" style="color:var(--muted);font-size:.8rem;margin-left:auto;"></span>
-        </div>
+        <a href="#" id="sync-open-panel" style="color:var(--accent-2);font-weight:700;">Open Sync Settings</a>
       </div>
 
     </div>
@@ -2733,7 +2757,7 @@ document.addEventListener("input", e => {
   var SYNC_PASS_KEY = 'homer-sync-pass';
   var SYNC_AUTO_KEY = 'homer-sync-auto';
   var SYNC_KEYS = [
-    'motivator.savedQuotes.v1', 'homer-quotes-seen',
+    'motivator.savedQuotes.v1', 'homer-quotes-seen', 'homer-quotes-cache',
     'pom.settings.v1', 'pom.tasks.v1', 'pom.state.v1',
     'homer-brain-dump', 'homer-links',
     'homer-vault-salt', 'homer-vault-hash', 'homer-vault-data'
@@ -2744,14 +2768,51 @@ document.addEventListener("input", e => {
   var syncRestoreBtn = document.getElementById('sync-restore');
   var syncAutoChk = document.getElementById('sync-auto');
   var syncStatus = document.getElementById('sync-status');
+  var syncPanel = document.getElementById('sync-panel');
+  var syncHeroBtn = document.getElementById('sync-hero-btn');
+  var syncIcon = document.getElementById('sync-icon');
+  var syncPanelClose = document.getElementById('sync-panel-close');
+  var syncPassToggle = document.getElementById('sync-pass-toggle');
+  var syncOpenPanel = document.getElementById('sync-open-panel');
   var syncTimer = null;
 
   // Load saved passphrase and auto-sync preference
   syncPass.value = localStorage.getItem(SYNC_PASS_KEY) || '';
   syncAutoChk.checked = localStorage.getItem(SYNC_AUTO_KEY) === 'true';
 
-  function setStatus(msg) {
-    if (syncStatus) syncStatus.textContent = msg;
+  // --- Panel toggle ---
+  function togglePanel() {
+    var open = syncPanel.style.display === 'none' || !syncPanel.style.display;
+    syncPanel.style.display = open ? 'block' : 'none';
+  }
+  syncHeroBtn.addEventListener('click', togglePanel);
+  syncPanelClose.addEventListener('click', function() { syncPanel.style.display = 'none'; });
+  if (syncOpenPanel) syncOpenPanel.addEventListener('click', function(e) { e.preventDefault(); togglePanel(); });
+
+  // --- Password toggle ---
+  syncPassToggle.addEventListener('click', function() {
+    var isHidden = syncPass.type === 'password';
+    syncPass.type = isHidden ? 'text' : 'password';
+    syncPassToggle.innerHTML = isHidden ? '&#128065;&#8205;&#128488;' : '&#128065;';
+  });
+
+  // --- Status + icon helpers ---
+  function setStatus(msg) { if (syncStatus) syncStatus.textContent = msg; }
+  function setSyncing(on) {
+    if (on) syncIcon.classList.add('sync-spinning');
+    else syncIcon.classList.remove('sync-spinning');
+  }
+  function updateHeroIcon() {
+    var hasSyncPass = !!localStorage.getItem(SYNC_PASS_KEY);
+    var autoOn = localStorage.getItem(SYNC_AUTO_KEY) === 'true';
+    // Show green dot if auto-sync is active
+    var existing = syncHeroBtn.querySelector('.sync-dot');
+    if (existing) existing.remove();
+    if (hasSyncPass) {
+      var dot = document.createElement('span');
+      dot.className = 'sync-dot ' + (autoOn ? 'ok' : 'off');
+      syncHeroBtn.appendChild(dot);
+    }
   }
 
   function getAllData() {
@@ -2768,6 +2829,7 @@ document.addEventListener("input", e => {
     if (!pass) { setStatus('Enter a passphrase first'); return Promise.resolve(); }
     localStorage.setItem(SYNC_PASS_KEY, pass);
     setStatus('Backing up...');
+    setSyncing(true);
     return fetch('/api/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2775,14 +2837,16 @@ document.addEventListener("input", e => {
     })
     .then(function(r) { return r.json(); })
     .then(function(d) {
+      setSyncing(false);
       if (d.ok) {
         var t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        setStatus('Backed up at ' + t);
+        setStatus('Synced ' + t);
       } else {
         setStatus('Error: ' + (d.error || 'Unknown'));
       }
+      updateHeroIcon();
     })
-    .catch(function(e) { setStatus('Backup failed: ' + e.message); });
+    .catch(function(e) { setSyncing(false); setStatus('Backup failed: ' + e.message); });
   }
 
   function doRestore() {
@@ -2790,10 +2854,12 @@ document.addEventListener("input", e => {
     if (!pass) { setStatus('Enter a passphrase first'); return; }
     localStorage.setItem(SYNC_PASS_KEY, pass);
     setStatus('Restoring...');
+    setSyncing(true);
     fetch('/api/sync?key=' + encodeURIComponent(pass))
       .then(function(r) { return r.json(); })
       .then(function(d) {
-        if (d.error) { setStatus('Error: ' + d.error); return; }
+        setSyncing(false);
+        if (d.error) { setStatus(d.error); return; }
         var data = d.data;
         var count = 0;
         Object.keys(data).forEach(function(k) {
@@ -2801,9 +2867,10 @@ document.addEventListener("input", e => {
           count++;
         });
         setStatus('Restored ' + count + ' items. Reloading...');
+        updateHeroIcon();
         setTimeout(function() { location.reload(); }, 1000);
       })
-      .catch(function(e) { setStatus('Restore failed: ' + e.message); });
+      .catch(function(e) { setSyncing(false); setStatus('Restore failed: ' + e.message); });
   }
 
   syncBackupBtn.addEventListener('click', doBackup);
@@ -2813,15 +2880,14 @@ document.addEventListener("input", e => {
     localStorage.setItem(SYNC_AUTO_KEY, syncAutoChk.checked);
     if (syncAutoChk.checked) startAutoSync();
     else stopAutoSync();
+    updateHeroIcon();
   });
 
-  // Auto-sync: backup every 60 seconds if enabled
   function startAutoSync() {
     stopAutoSync();
     syncTimer = setInterval(function() {
       if (syncPass.value.trim()) doBackup();
     }, 60000);
-    // Also do an immediate backup
     if (syncPass.value.trim()) doBackup();
   }
 
@@ -2829,9 +2895,8 @@ document.addEventListener("input", e => {
     if (syncTimer) { clearInterval(syncTimer); syncTimer = null; }
   }
 
-  if (syncAutoChk.checked && syncPass.value.trim()) {
-    startAutoSync();
-  }
+  if (syncAutoChk.checked && syncPass.value.trim()) startAutoSync();
+  updateHeroIcon();
 })();
 </script>
 </body>
