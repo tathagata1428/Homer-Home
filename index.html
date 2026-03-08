@@ -2964,11 +2964,9 @@ document.addEventListener("input", e => {
   function st(m){ statusEl.textContent=m; }
 
   function updDot(){
-    if(!localStorage.getItem(SYNC_PASS_KEY)){ dot.className='fab-dot off'; return; }
-    dot.className='fab-dot off';
-    fetch('/api/sync?key=__ping__').then(function(r){
-      if(r.ok) dot.className='fab-dot ok';
-    }).catch(function(){});
+    var hasPass = !!localStorage.getItem(SYNC_PASS_KEY);
+    var autoOn = localStorage.getItem(SYNC_AUTO_KEY) === 'true';
+    dot.className = 'fab-dot ' + (hasPass && autoOn ? 'ok' : 'off');
   }
 
   function getAll(){
