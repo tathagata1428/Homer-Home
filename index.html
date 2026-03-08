@@ -2605,6 +2605,19 @@ document.addEventListener("input", e => {
     return encrypt(cryptoKey, JSON.stringify(data)).then(function(enc){ return idb.set(DATA_KEY, enc); });
   }
 
+  // Cloud-safe vault: strip attachments to stay under Vercel's 4.5MB limit
+  window._vaultCloudData = function(){
+    if(!cryptoKey) return idb.get(DATA_KEY); // vault locked — send raw
+    return loadVault().then(function(data){
+      var clean = JSON.parse(JSON.stringify(data));
+      if(clean.goals) clean.goals.forEach(function(g){
+        g.attachments = [];
+        if(g.subtasks) g.subtasks.forEach(function(s){ s.attachments = []; });
+      });
+      return encrypt(cryptoKey, JSON.stringify(clean));
+    });
+  };
+
   // --- Notes autosave ---
   var notesSaveTimer = null;
   notesArea.addEventListener('input', function(){
@@ -3686,9 +3699,14 @@ document.addEventListener("input", e => {
   function getAll(){
     var d={};
     LS_KEYS.forEach(function(k){ var v=localStorage.getItem(k); if(v!==null) d[k]=v; });
-    return Promise.all(IDB_KEYS.map(function(k){
+    // For vault data, use cloud-safe version (attachments stripped) to stay under size limits
+    var idbTasks = IDB_KEYS.map(function(k){
+      if(k === 'homer-vault-data' && window._vaultCloudData){
+        return window._vaultCloudData().then(function(v){ if(v!==null) d[k]=v; });
+      }
       return syncIdbGet(k).then(function(v){ if(v!==null) d[k]=v; });
-    })).then(function(){ return d; });
+    });
+    return Promise.all(idbTasks).then(function(){ return d; });
   }
 
   function backup(){
