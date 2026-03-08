@@ -2961,6 +2961,7 @@ document.addEventListener("input", e => {
       if(data.goals[subModalGoalIdx]){
         if(!data.goals[subModalGoalIdx].subtasks) data.goals[subModalGoalIdx].subtasks = [];
         data.goals[subModalGoalIdx].subtasks.push(sub);
+        autoMoveGoal(data.goals[subModalGoalIdx]);
       }
       saveVault(data).then(function(){
         renderGoals(data.goals);
