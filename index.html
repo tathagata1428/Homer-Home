@@ -447,9 +447,23 @@
     .kanban-card .k-due.done{background:rgba(34,197,94,.12);color:#22c55e;}
     .kanban-card .k-desc{font-size:.8rem;color:var(--muted);margin-top:6px;line-height:1.4;}
     .kanban-card .k-subtasks{margin-top:10px;}
-    .kanban-card .k-subtask{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:.82rem;}
-    .kanban-card .k-subtask input[type=checkbox]{accent-color:var(--accent);cursor:pointer;}
-    .kanban-card .k-subtask.done-st span{text-decoration:line-through;opacity:.5;}
+    .kanban-card .k-priority{font-size:.65rem;padding:1px 7px;border-radius:5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;}
+    .kanban-card .k-priority.p-high{background:rgba(239,68,68,.15);color:#ef4444;}
+    .kanban-card .k-priority.p-medium{background:rgba(251,191,36,.15);color:#fbbf24;}
+    .kanban-card .k-priority.p-low{background:rgba(34,197,94,.15);color:#22c55e;}
+    .kanban-card .k-subtask{border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:6px 8px;margin-bottom:4px;font-size:.82rem;transition:background .15s;}
+    .kanban-card .k-subtask:hover{background:rgba(255,255,255,.03);}
+    .kanban-card .k-st-header{display:flex;align-items:center;gap:6px;cursor:pointer;}
+    .kanban-card .k-subtask input[type=checkbox]{accent-color:var(--accent);cursor:pointer;flex-shrink:0;}
+    .kanban-card .k-subtask.done-st .k-st-name{text-decoration:line-through;opacity:.5;}
+    .kanban-card .k-st-badges{display:flex;gap:4px;margin-left:auto;align-items:center;flex-shrink:0;}
+    .kanban-card .k-effort{font-size:.6rem;padding:1px 6px;border-radius:4px;font-weight:700;background:rgba(139,92,246,.15);color:#a78bfa;}
+    .kanban-card .k-st-due{font-size:.6rem;color:var(--muted);}
+    .kanban-card .k-st-body{display:none;margin-top:6px;padding-left:24px;}
+    .kanban-card .k-subtask.st-expanded .k-st-body{display:block;}
+    .kanban-card .k-st-body textarea{width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.78rem;font-family:inherit;resize:vertical;margin-top:4px;}
+    .kanban-card .k-st-body .k-st-fields{display:flex;gap:6px;margin-top:4px;}
+    .kanban-card .k-st-body .k-st-fields input,.kanban-card .k-st-body .k-st-fields select{flex:1;padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.78rem;}
     .kanban-card .k-progress{height:4px;border-radius:4px;background:rgba(255,255,255,.08);margin-top:6px;overflow:hidden;}
     .kanban-card .k-progress-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent),#22c55e);transition:width .3s;}
     .kanban-card .k-add-subtask{display:flex;gap:4px;margin-top:8px;}
@@ -1060,9 +1074,36 @@
         </div>
         <input id="goal-summary" type="text" placeholder="Summary *" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem;margin-bottom:10px;font-weight:700;">
         <input id="goal-desc" type="text" placeholder="Description" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
+        <select id="goal-priority" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
+          <option value="">Priority (optional)</option>
+          <option value="high">🔴 High</option>
+          <option value="medium">🟡 Medium</option>
+          <option value="low">🟢 Low</option>
+        </select>
         <textarea id="goal-notes-input" placeholder="Notes..." rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;font-family:inherit;resize:vertical;margin-bottom:10px;"></textarea>
         <input id="goal-due" type="date" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:14px;">
         <button id="goal-submit" class="btn primary" style="width:100%;padding:10px;font-size:.95rem;">Create Goal</button>
+      </div>
+    </div>
+
+    <!-- New Subtask Modal -->
+    <div id="subtask-modal-bg" class="fab-overlay">
+      <div class="fab-dialog" style="width:min(400px,92vw);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <h3 style="margin:0;font-size:1.1rem;">📋 New Subtask</h3>
+          <button id="subtask-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
+        </div>
+        <input id="subtask-name" type="text" placeholder="Subtask name *" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem;margin-bottom:10px;font-weight:700;">
+        <select id="subtask-effort" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
+          <option value="">Effort (optional)</option>
+          <option value="s">S - Small</option>
+          <option value="m">M - Medium</option>
+          <option value="l">L - Large</option>
+          <option value="xl">XL - Extra Large</option>
+        </select>
+        <input id="subtask-due" type="date" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
+        <textarea id="subtask-notes" placeholder="Notes..." rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>
+        <button id="subtask-submit" class="btn primary" style="width:100%;padding:10px;font-size:.95rem;">Add Subtask</button>
       </div>
     </div>
   </div>
@@ -2379,7 +2420,16 @@ document.addEventListener("input", e => {
   var goalDesc = document.getElementById('goal-desc');
   var goalNotesInput = document.getElementById('goal-notes-input');
   var goalDue = document.getElementById('goal-due');
+  var goalPriority = document.getElementById('goal-priority');
   var goalSubmit = document.getElementById('goal-submit');
+  var subModalBg = document.getElementById('subtask-modal-bg');
+  var subModalClose = document.getElementById('subtask-modal-close');
+  var subNameInput = document.getElementById('subtask-name');
+  var subEffortInput = document.getElementById('subtask-effort');
+  var subDueInput = document.getElementById('subtask-due');
+  var subNotesInput = document.getElementById('subtask-notes');
+  var subSubmitBtn = document.getElementById('subtask-submit');
+  var subModalGoalIdx = -1; // tracks which goal the subtask is for
 
   var isNew = !localStorage.getItem(HASH_KEY);
   if(isNew){
@@ -2584,6 +2634,25 @@ document.addEventListener("input", e => {
     return '<span class="'+cls+'">📅 '+label+'</span>';
   }
 
+  function formatStDue(d){
+    if(!d) return '';
+    var today = new Date(); today.setHours(0,0,0,0);
+    var due = new Date(d+'T00:00:00'); var diff = Math.ceil((due-today)/(1000*60*60*24));
+    var color = diff < 0 ? '#ef4444' : 'var(--muted)';
+    return '<span class="k-st-due" style="color:'+color+'">'+due.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</span>';
+  }
+
+  function priorityBadge(p){
+    if(!p) return '';
+    var labels = {high:'High',medium:'Med',low:'Low'};
+    return '<span class="k-priority p-'+p+'">'+labels[p]+'</span>';
+  }
+
+  function effortBadge(e){
+    if(!e) return '';
+    return '<span class="k-effort">'+e.toUpperCase()+'</span>';
+  }
+
   function subtaskProgress(subs){
     if(!subs || !subs.length) return '';
     var done = subs.filter(function(s){ return s.done; }).length;
@@ -2594,6 +2663,16 @@ document.addEventListener("input", e => {
       '<span>'+done+'/'+subs.length+'</span></div>';
   }
 
+  // Auto-move goal based on subtask completion
+  function autoMoveGoal(g){
+    if(!g.subtasks || g.subtasks.length === 0) return;
+    var doneCount = g.subtasks.filter(function(s){ return s.done; }).length;
+    var total = g.subtasks.length;
+    if(doneCount === total) g.col = 'done';
+    else if(doneCount > 0) g.col = 'progress';
+    else g.col = 'todo';
+  }
+
   function renderGoals(goals){
     ['todo','progress','done'].forEach(function(col){
       document.querySelector('.kanban-items[data-col="'+col+'"]').innerHTML = '';
@@ -2602,6 +2681,7 @@ document.addEventListener("input", e => {
       // Migrate old format
       if(g.title && !g.summary){ g.summary = g.title; delete g.title; }
       if(!g.subtasks) g.subtasks = [];
+      if(!g.priority) g.priority = '';
 
       var card = document.createElement('div');
       card.className = 'kanban-card';
@@ -2609,7 +2689,8 @@ document.addEventListener("input", e => {
       card.dataset.idx = i;
 
       var titleRow = '<div class="k-title"><span>'+escHtml(g.summary)+'</span>' +
-        '<span style="display:flex;align-items:center;gap:6px;">' +
+        '<span style="display:flex;align-items:center;gap:5px;">' +
+        priorityBadge(g.priority) +
         formatDue(g.due) +
         '<span style="font-size:.7rem;cursor:pointer;" class="k-expand" title="Expand">&#9660;</span>' +
         '</span></div>';
@@ -2619,19 +2700,45 @@ document.addEventListener("input", e => {
 
       // Expanded body
       var descHtml = g.desc ? '<div class="k-desc">'+escHtml(g.desc)+'</div>' : '';
+
+      // Rich subtasks
       var subtasksHtml = '<div class="k-subtasks">';
       g.subtasks.forEach(function(s, si){
+        // Migrate simple subtasks
+        if(typeof s === 'string'){ s = {text:s, done:false}; g.subtasks[si] = s; }
+        if(!s.effort) s.effort = '';
+        if(!s.due) s.due = '';
+        if(!s.notes) s.notes = '';
+
         subtasksHtml += '<div class="k-subtask'+(s.done?' done-st':'')+'" data-si="'+si+'">' +
-          '<input type="checkbox" '+(s.done?'checked':'')+' data-si="'+si+'">' +
-          '<span>'+escHtml(s.text)+'</span>' +
-          '<button data-si="'+si+'" style="margin-left:auto;background:none;border:none;color:#ef4444;cursor:pointer;font-size:.75rem;padding:0 2px;" title="Remove">✕</button>' +
-          '</div>';
+          '<div class="k-st-header">' +
+            '<input type="checkbox" '+(s.done?'checked':'')+' data-si="'+si+'">' +
+            '<span class="k-st-name" style="flex:1;">'+escHtml(s.text)+'</span>' +
+            '<span class="k-st-badges">' +
+              effortBadge(s.effort) +
+              formatStDue(s.due) +
+              '<span class="k-st-toggle" style="font-size:.6rem;cursor:pointer;color:var(--muted);" title="Details">&#9660;</span>' +
+              '<button class="k-st-del" data-si="'+si+'" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.7rem;padding:0 2px;" title="Remove">✕</button>' +
+            '</span>' +
+          '</div>' +
+          '<div class="k-st-body">' +
+            '<div class="k-st-fields">' +
+              '<select class="k-st-effort" data-si="'+si+'" title="Effort">' +
+                '<option value="">Effort</option>' +
+                '<option value="s"'+(s.effort==='s'?' selected':'')+'>S - Small</option>' +
+                '<option value="m"'+(s.effort==='m'?' selected':'')+'>M - Medium</option>' +
+                '<option value="l"'+(s.effort==='l'?' selected':'')+'>L - Large</option>' +
+                '<option value="xl"'+(s.effort==='xl'?' selected':'')+'>XL - Extra Large</option>' +
+              '</select>' +
+              '<input type="date" class="k-st-due" data-si="'+si+'" value="'+(s.due||'')+'" title="Due date">' +
+            '</div>' +
+            '<textarea class="k-st-notes" data-si="'+si+'" placeholder="Subtask notes..." rows="2">'+escHtml(s.notes)+'</textarea>' +
+          '</div>' +
+        '</div>';
       });
       subtasksHtml += '</div>';
 
-      var addSubHtml = '<div class="k-add-subtask">' +
-        '<input type="text" placeholder="Add subtask..." class="k-sub-input">' +
-        '<button class="k-sub-add">+</button></div>';
+      var addSubHtml = '<button class="k-sub-open" style="width:100%;padding:7px;border-radius:8px;border:1px dashed rgba(139,92,246,.3);background:none;color:#a78bfa;cursor:pointer;font-size:.8rem;font-weight:700;margin-top:8px;transition:background .15s;">+ Add Subtask</button>';
 
       card.innerHTML = titleRow + collapsedExtra +
         '<div class="k-body">' +
@@ -2651,7 +2758,7 @@ document.addEventListener("input", e => {
       var container = document.querySelector('.kanban-items[data-col="'+g.col+'"]');
       if(container) container.appendChild(card);
 
-      // Expand/collapse
+      // Expand/collapse goal card
       card.querySelector('.k-expand').addEventListener('click', function(e){
         e.stopPropagation();
         card.classList.toggle('expanded');
@@ -2662,7 +2769,7 @@ document.addEventListener("input", e => {
         card.querySelector('.k-expand').innerHTML = card.classList.contains('expanded') ? '&#9650;' : '&#9660;';
       });
 
-      // Autosave notes
+      // Autosave goal notes
       var kt = null;
       card.querySelector('.k-notes').addEventListener('input', function(){
         var self = this;
@@ -2675,47 +2782,90 @@ document.addEventListener("input", e => {
         }, 800);
       });
 
-      // Subtask checkboxes
-      card.querySelectorAll('.k-subtask input[type=checkbox]').forEach(function(cb){
-        cb.addEventListener('change', function(){
+      // Subtask toggle expand (click on header or toggle arrow)
+      card.querySelectorAll('.k-st-header').forEach(function(hdr){
+        hdr.querySelector('.k-st-toggle').addEventListener('click', function(e){
+          e.stopPropagation();
+          hdr.closest('.k-subtask').classList.toggle('st-expanded');
+          this.innerHTML = hdr.closest('.k-subtask').classList.contains('st-expanded') ? '&#9650;' : '&#9660;';
+        });
+      });
+
+      // Subtask checkboxes — with auto-move
+      card.querySelectorAll('.k-st-header input[type=checkbox]').forEach(function(cb){
+        cb.addEventListener('change', function(e){
+          e.stopPropagation();
           var si = parseInt(this.dataset.si);
           loadVault().then(function(data){
             if(data.goals[i] && data.goals[i].subtasks[si] !== undefined){
               data.goals[i].subtasks[si].done = cb.checked;
+              autoMoveGoal(data.goals[i]);
             }
             saveVault(data).then(function(){ renderGoals(data.goals); });
           });
         });
       });
 
+      // Subtask effort change
+      card.querySelectorAll('.k-st-effort').forEach(function(sel){
+        sel.addEventListener('change', function(){
+          var si = parseInt(this.dataset.si);
+          loadVault().then(function(data){
+            if(data.goals[i] && data.goals[i].subtasks[si]) data.goals[i].subtasks[si].effort = sel.value;
+            saveVault(data);
+          });
+        });
+      });
+
+      // Subtask due date change
+      card.querySelectorAll('input.k-st-due').forEach(function(inp){
+        inp.addEventListener('change', function(){
+          var si = parseInt(this.dataset.si);
+          loadVault().then(function(data){
+            if(data.goals[i] && data.goals[i].subtasks[si]) data.goals[i].subtasks[si].due = inp.value;
+            saveVault(data);
+          });
+        });
+      });
+
+      // Subtask notes autosave
+      card.querySelectorAll('.k-st-notes').forEach(function(ta){
+        var stTimer = null;
+        ta.addEventListener('input', function(){
+          var self = this;
+          clearTimeout(stTimer);
+          stTimer = setTimeout(function(){
+            var si = parseInt(self.dataset.si);
+            loadVault().then(function(data){
+              if(data.goals[i] && data.goals[i].subtasks[si]) data.goals[i].subtasks[si].notes = self.value;
+              saveVault(data);
+            });
+          }, 800);
+        });
+      });
+
       // Remove subtask
-      card.querySelectorAll('.k-subtask button').forEach(function(btn){
-        btn.addEventListener('click', function(){
+      card.querySelectorAll('.k-st-del').forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
           var si = parseInt(this.dataset.si);
           loadVault().then(function(data){
             if(data.goals[i]) data.goals[i].subtasks.splice(si,1);
+            autoMoveGoal(data.goals[i]);
             saveVault(data).then(function(){ renderGoals(data.goals); });
           });
         });
       });
 
-      // Add subtask
-      var subInput = card.querySelector('.k-sub-input');
-      var subAddBtn = card.querySelector('.k-sub-add');
-      subAddBtn.addEventListener('click', function(){
-        var txt = subInput.value.trim();
-        if(!txt) return;
-        loadVault().then(function(data){
-          if(data.goals[i]){
-            if(!data.goals[i].subtasks) data.goals[i].subtasks = [];
-            data.goals[i].subtasks.push({text:txt, done:false});
-          }
-          saveVault(data).then(function(){ renderGoals(data.goals); });
-        });
+      // Add subtask — open modal
+      card.querySelector('.k-sub-open').addEventListener('click', function(){
+        subModalGoalIdx = i;
+        subNameInput.value = ''; subEffortInput.value = ''; subDueInput.value = ''; subNotesInput.value = '';
+        subModalBg.classList.add('open');
+        setTimeout(function(){ subNameInput.focus(); }, 100);
       });
-      subInput.addEventListener('keydown', function(e){ if(e.key==='Enter') subAddBtn.click(); });
 
-      // Move buttons
+      // Move buttons (manual override)
       card.querySelectorAll('.k-move button:not(.k-del)').forEach(function(btn){
         btn.addEventListener('click', function(){
           loadVault().then(function(data){
@@ -2762,7 +2912,7 @@ document.addEventListener("input", e => {
   // Goal modal open/close
   goalAddBtn.addEventListener('click', function(){
     goalModalBg.classList.add('open');
-    goalSummary.value = ''; goalDesc.value = ''; goalNotesInput.value = ''; goalDue.value = '';
+    goalSummary.value = ''; goalDesc.value = ''; goalNotesInput.value = ''; goalDue.value = ''; goalPriority.value = '';
     setTimeout(function(){ goalSummary.focus(); }, 100);
   });
   goalModalClose.addEventListener('click', function(){ goalModalBg.classList.remove('open'); });
@@ -2778,6 +2928,7 @@ document.addEventListener("input", e => {
       desc: goalDesc.value.trim(),
       notes: goalNotesInput.value.trim(),
       due: goalDue.value || '',
+      priority: goalPriority.value || '',
       col: 'todo',
       subtasks: []
     };
@@ -2786,6 +2937,34 @@ document.addEventListener("input", e => {
       saveVault(data).then(function(){
         renderGoals(data.goals);
         goalModalBg.classList.remove('open');
+      });
+    });
+  });
+
+  // Subtask modal open/close
+  subModalClose.addEventListener('click', function(){ subModalBg.classList.remove('open'); });
+  subModalBg.addEventListener('click', function(e){ if(e.target === subModalBg) subModalBg.classList.remove('open'); });
+
+  // Create subtask
+  subSubmitBtn.addEventListener('click', function(){
+    var name = subNameInput.value.trim();
+    if(!name){ subNameInput.style.borderColor='#ef4444'; return; }
+    subNameInput.style.borderColor='';
+    var sub = {
+      text: name,
+      done: false,
+      effort: subEffortInput.value || '',
+      due: subDueInput.value || '',
+      notes: subNotesInput.value.trim()
+    };
+    loadVault().then(function(data){
+      if(data.goals[subModalGoalIdx]){
+        if(!data.goals[subModalGoalIdx].subtasks) data.goals[subModalGoalIdx].subtasks = [];
+        data.goals[subModalGoalIdx].subtasks.push(sub);
+      }
+      saveVault(data).then(function(){
+        renderGoals(data.goals);
+        subModalBg.classList.remove('open');
       });
     });
   });
