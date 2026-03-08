@@ -458,8 +458,8 @@
       <button class="tab-btn" data-tab="investing">Investing</button>
       <button class="tab-btn" data-tab="tools">Tools</button>
       <button class="tab-btn" data-tab="links">Links</button>
-      <button class="tab-btn" data-tab="vault">🔒 Vault</button>
       <button class="tab-btn" data-tab="news">📰 News</button>
+      <button class="tab-btn" data-tab="vault">🔒 Vault</button>
     </div>
 
     <section id="tab-home" class="tab card">
@@ -819,6 +819,50 @@
   <p id="links-empty" class="empty" style="display:none">No links saved yet. Add one above!</p>
 </section>
 
+<section id="tab-news" class="tab card" style="display:none">
+  <h2 class="section">📰 News & Videos</h2>
+
+  <!-- NEWS -->
+  <div class="card" style="padding:18px;margin-bottom:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+      <h3 style="margin:0;">🗞️ Latest News</h3>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="news-tab-region" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;">
+          <option value="ro">🇷🇴 Romania</option>
+          <option value="int">🌍 International</option>
+        </select>
+        <select id="news-tab-source" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;max-width:220px;">
+        </select>
+        <button id="news-tab-refresh" class="btn secondary" style="padding:8px 14px;font-size:.85rem;">Refresh</button>
+      </div>
+    </div>
+    <div id="news-tab-list" class="saved-list">
+      <p class="muted"><span class="spinner"></span> Select a source and hit Refresh...</p>
+    </div>
+  </div>
+
+  <!-- YOUTUBE CAROUSEL -->
+  <div class="card" style="padding:18px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+      <h3 style="margin:0;">▶️ Video Channels</h3>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="yt-region" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;">
+          <option value="ro">🇷🇴 Romania</option>
+          <option value="int">🌍 International</option>
+        </select>
+        <select id="yt-channel" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;max-width:220px;">
+        </select>
+        <button id="yt-load" class="btn secondary" style="padding:8px 14px;font-size:.85rem;">Load</button>
+      </div>
+    </div>
+    <div id="yt-carousel" style="position:relative;overflow:hidden;">
+      <div id="yt-carousel-track" style="display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:10px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent;">
+      </div>
+      <p id="yt-empty" class="muted" style="text-align:center;padding:20px;">Select a channel and hit Load to see videos.</p>
+    </div>
+  </div>
+</section>
+
 <section id="tab-vault" class="tab card" style="display:none">
   <h2 class="section">🔒 Vault</h2>
 
@@ -885,50 +929,6 @@
       </div>
       <div id="vault-creds-list"></div>
       <p id="vault-creds-empty" class="empty" style="display:none;">No passwords saved yet.</p>
-    </div>
-  </div>
-</section>
-
-<section id="tab-news" class="tab card" style="display:none">
-  <h2 class="section">📰 News & Videos</h2>
-
-  <!-- NEWS -->
-  <div class="card" style="padding:18px;margin-bottom:20px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-      <h3 style="margin:0;">🗞️ Latest News</h3>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <select id="news-tab-region" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;">
-          <option value="ro">🇷🇴 Romania</option>
-          <option value="int">🌍 International</option>
-        </select>
-        <select id="news-tab-source" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;max-width:220px;">
-        </select>
-        <button id="news-tab-refresh" class="btn secondary" style="padding:8px 14px;font-size:.85rem;">Refresh</button>
-      </div>
-    </div>
-    <div id="news-tab-list" class="saved-list">
-      <p class="muted"><span class="spinner"></span> Select a source and hit Refresh...</p>
-    </div>
-  </div>
-
-  <!-- YOUTUBE CAROUSEL -->
-  <div class="card" style="padding:18px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-      <h3 style="margin:0;">▶️ Video Channels</h3>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <select id="yt-region" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;">
-          <option value="ro">🇷🇴 Romania</option>
-          <option value="int">🌍 International</option>
-        </select>
-        <select id="yt-channel" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;max-width:220px;">
-        </select>
-        <button id="yt-load" class="btn secondary" style="padding:8px 14px;font-size:.85rem;">Load</button>
-      </div>
-    </div>
-    <div id="yt-carousel" style="position:relative;overflow:hidden;">
-      <div id="yt-carousel-track" style="display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:10px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent;">
-      </div>
-      <p id="yt-empty" class="muted" style="text-align:center;padding:20px;">Select a channel and hit Load to see videos.</p>
     </div>
   </div>
 </section>
