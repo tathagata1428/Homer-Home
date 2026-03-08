@@ -2761,12 +2761,12 @@ document.addEventListener("input", e => {
 
   // Goal modal open/close
   goalAddBtn.addEventListener('click', function(){
-    goalModalBg.classList.add('active');
+    goalModalBg.classList.add('open');
     goalSummary.value = ''; goalDesc.value = ''; goalNotesInput.value = ''; goalDue.value = '';
     setTimeout(function(){ goalSummary.focus(); }, 100);
   });
-  goalModalClose.addEventListener('click', function(){ goalModalBg.classList.remove('active'); });
-  goalModalBg.addEventListener('click', function(e){ if(e.target === goalModalBg) goalModalBg.classList.remove('active'); });
+  goalModalClose.addEventListener('click', function(){ goalModalBg.classList.remove('open'); });
+  goalModalBg.addEventListener('click', function(e){ if(e.target === goalModalBg) goalModalBg.classList.remove('open'); });
 
   // Create goal
   goalSubmit.addEventListener('click', function(){
@@ -2785,7 +2785,7 @@ document.addEventListener("input", e => {
       data.goals.push(goal);
       saveVault(data).then(function(){
         renderGoals(data.goals);
-        goalModalBg.classList.remove('active');
+        goalModalBg.classList.remove('open');
       });
     });
   });
