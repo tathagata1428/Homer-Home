@@ -4,4 +4,4 @@ compatibility_date = "2024-09-23"
 
 [[r2_buckets]]
 binding = "ATTACHMENTS"
-bucket_name = "homer-attachments"
+bucket_name = "attachments"
