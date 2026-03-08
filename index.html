@@ -762,19 +762,15 @@
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>Cloud Sync</h3>
-        <p class="muted">Backup & restore all your data to the cloud.</p>
-        <input id="sync-pass" type="password" placeholder="Sync passphrase" autocomplete="off" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;margin-bottom:8px;">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button id="sync-backup" class="btn primary" style="flex:1;padding:8px 12px;">Backup</button>
-          <button id="sync-restore" class="btn secondary" style="flex:1;padding:8px 12px;">Restore</button>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
-          <label style="display:flex;align-items:center;gap:6px;color:var(--muted);font-size:.85rem;cursor:pointer;">
-            <input id="sync-auto" type="checkbox" style="cursor:pointer;"> Auto-sync
-          </label>
-          <span id="sync-status" style="color:var(--muted);font-size:.8rem;margin-left:auto;"></span>
-        </div>
+        <h3>🛠️ Omnitools</h3>
+        <p class="muted">All-in-one utility toolkit.</p>
+        <a href="https://omnitools.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Omnitools</a>
+      </div>
+
+      <div class="span-4 card tool-card">
+        <h3>🎬 YouTube Downloader</h3>
+        <p class="muted">Download videos & audio from YouTube.</p>
+        <a href="https://getyoutube.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Downloader</a>
       </div>
 
     </div>
@@ -2774,114 +2770,6 @@ document.addEventListener("input", e => {
 })();
 </script>
 
-<script>
-(function(){
-  // === CLOUD SYNC ===
-  var SYNC_PASS_KEY = 'homer-sync-pass';
-  var SYNC_AUTO_KEY = 'homer-sync-auto';
-  var SYNC_KEYS = [
-    'motivator.savedQuotes.v1', 'homer-quotes-seen', 'homer-quotes-cache',
-    'pom.settings.v1', 'pom.tasks.v1', 'pom.state.v1',
-    'homer-brain-dump', 'homer-links',
-    'homer-vault-salt', 'homer-vault-hash', 'homer-vault-data'
-  ];
-
-  var syncPass = document.getElementById('sync-pass');
-  var syncBackupBtn = document.getElementById('sync-backup');
-  var syncRestoreBtn = document.getElementById('sync-restore');
-  var syncAutoChk = document.getElementById('sync-auto');
-  var syncStatus = document.getElementById('sync-status');
-  var syncTimer = null;
-
-  // Load saved passphrase and auto-sync preference
-  syncPass.value = localStorage.getItem(SYNC_PASS_KEY) || '';
-  syncAutoChk.checked = localStorage.getItem(SYNC_AUTO_KEY) === 'true';
-
-  function setStatus(msg) {
-    if (syncStatus) syncStatus.textContent = msg;
-  }
-
-  function getAllData() {
-    var data = {};
-    SYNC_KEYS.forEach(function(k) {
-      var v = localStorage.getItem(k);
-      if (v !== null) data[k] = v;
-    });
-    return data;
-  }
-
-  function doBackup() {
-    var pass = syncPass.value.trim();
-    if (!pass) { setStatus('Enter a passphrase first'); return Promise.resolve(); }
-    localStorage.setItem(SYNC_PASS_KEY, pass);
-    setStatus('Backing up...');
-    return fetch('/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: pass, data: getAllData() })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      if (d.ok) {
-        var t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        setStatus('Backed up at ' + t);
-      } else {
-        setStatus('Error: ' + (d.error || 'Unknown'));
-      }
-    })
-    .catch(function(e) { setStatus('Backup failed: ' + e.message); });
-  }
-
-  function doRestore() {
-    var pass = syncPass.value.trim();
-    if (!pass) { setStatus('Enter a passphrase first'); return; }
-    localStorage.setItem(SYNC_PASS_KEY, pass);
-    setStatus('Restoring...');
-    fetch('/api/sync?key=' + encodeURIComponent(pass))
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        if (d.error) { setStatus('Error: ' + d.error); return; }
-        var data = d.data;
-        var count = 0;
-        Object.keys(data).forEach(function(k) {
-          localStorage.setItem(k, data[k]);
-          count++;
-        });
-        setStatus('Restored ' + count + ' items. Reloading...');
-        setTimeout(function() { location.reload(); }, 1000);
-      })
-      .catch(function(e) { setStatus('Restore failed: ' + e.message); });
-  }
-
-  syncBackupBtn.addEventListener('click', doBackup);
-  syncRestoreBtn.addEventListener('click', doRestore);
-
-  syncAutoChk.addEventListener('change', function() {
-    localStorage.setItem(SYNC_AUTO_KEY, syncAutoChk.checked);
-    if (syncAutoChk.checked) startAutoSync();
-    else stopAutoSync();
-  });
-
-  // Auto-sync: backup every 60 seconds if enabled
-  function startAutoSync() {
-    stopAutoSync();
-    syncTimer = setInterval(function() {
-      if (syncPass.value.trim()) doBackup();
-    }, 60000);
-    // Also do an immediate backup
-    if (syncPass.value.trim()) doBackup();
-  }
-
-  function stopAutoSync() {
-    if (syncTimer) { clearInterval(syncTimer); syncTimer = null; }
-  }
-
-  if (syncAutoChk.checked && syncPass.value.trim()) {
-    startAutoSync();
-  }
-})();
-</script>
-
 <!-- Floating Action Buttons -->
 <div class="fab-cluster">
   <button id="fab-cloud" class="fab-btn" title="Cloud Backup">
@@ -2977,8 +2865,6 @@ document.addEventListener("input", e => {
     var p=pass.value.trim();
     if(!p){ st('Enter a passphrase first'); return Promise.resolve(); }
     localStorage.setItem(SYNC_PASS_KEY,p);
-    // Keep Tools-tab passphrase in sync
-    var tp=document.getElementById('sync-pass'); if(tp) tp.value=p;
     st('Backing up...');
     var svg=cloud.querySelector('svg'); svg.classList.add('fab-spinning');
     return fetch('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:p,data:getAll()})})
