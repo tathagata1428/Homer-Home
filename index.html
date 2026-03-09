@@ -528,7 +528,8 @@
     .k-log-entry{font-size:.68rem;color:var(--muted);padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03);display:flex;gap:6px;}
     .k-log-entry .k-log-time{color:rgba(255,255,255,.25);flex-shrink:0;min-width:90px;}
     /* Goal ID */
-    .k-id{font-size:.6rem;color:rgba(255,255,255,.2);font-weight:800;margin-right:4px;}
+    .k-id{font-size:.6rem;color:rgba(255,255,255,.25);font-weight:800;margin-right:4px;transition:color .15s;}
+    .k-id:hover{color:var(--accent);}
     /* Archive section */
     .goal-archive{margin-top:14px;border-top:1px solid rgba(255,255,255,.08);padding-top:14px;}
     .goal-archive h4{margin:0 0 10px;color:var(--muted);font-size:.9rem;}
@@ -539,8 +540,83 @@
     /* Effort points summary */
     .k-points{font-size:.68rem;color:var(--muted);margin-top:3px;}
     .k-points strong{color:var(--accent);}
-    @media(max-width:700px){#kanban{grid-template-columns:repeat(2,1fr);}}
-    @media(max-width:480px){#kanban{grid-template-columns:1fr;}}
+    @media(max-width:700px){
+      #goal-tracker-card{padding:12px 6px!important;overflow:visible!important;}
+      #kanban{display:flex!important;overflow-x:auto!important;overflow-y:visible!important;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;gap:10px;padding-bottom:12px;margin:0 -6px;padding-left:6px;padding-right:6px;}
+      #kanban::-webkit-scrollbar{height:3px;}
+      #kanban::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px;}
+      #kanban .kanban-col{min-width:min(280px,85vw);flex-shrink:0;scroll-snap-align:start;}
+      .kanban-card{max-width:none!important;}
+      .kanban-card .k-title{font-size:.82rem;}
+      .kanban-card .k-move{flex-wrap:wrap;}
+      .goal-filters{flex-direction:column;gap:6px!important;}
+      .goal-filters input,.goal-filters select{width:100%;min-width:0!important;}
+      .goal-filters .archive-toggle{margin-left:0!important;width:100%;text-align:center;}
+    }
+    /* ── Fullscreen Issue View ── */
+    .issue-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9990;background:rgba(0,0,0,.7);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);overflow-y:auto;-webkit-overflow-scrolling:touch;}
+    .issue-overlay.open{display:block;}
+    .issue-panel{max-width:900px;margin:0 auto;padding:24px 20px 60px;animation:fabSlideIn .2s ease;}
+    .issue-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+    .issue-key{font-size:1rem;font-weight:900;color:var(--accent);cursor:default;letter-spacing:.5px;}
+    .issue-key.clickable{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;}
+    .issue-key.clickable:hover{color:#60a5fa;}
+    .issue-breadcrumb{font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:6px;}
+    .issue-breadcrumb a{color:var(--accent);cursor:pointer;text-decoration:none;font-weight:700;}
+    .issue-breadcrumb a:hover{text-decoration:underline;}
+    .issue-close{margin-left:auto;background:none;border:1px solid rgba(255,255,255,.15);color:var(--muted);font-size:1rem;cursor:pointer;padding:6px 14px;border-radius:8px;transition:all .15s;}
+    .issue-close:hover{color:var(--text);border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.05);}
+    .issue-layout{display:grid;grid-template-columns:1fr 260px;gap:24px;}
+    @media(max-width:700px){
+      .issue-layout{grid-template-columns:1fr;}
+      .issue-panel{padding:16px 10px 40px;}
+      .issue-summary-input{font-size:1.05rem;padding:10px 12px;}
+      .issue-desc-area{font-size:.85rem;min-height:80px;}
+      .issue-header{gap:8px;}
+      .issue-close{padding:5px 10px;font-size:.9rem;}
+      .issue-subtask-row{padding:8px 10px;gap:8px;}
+      .issue-st-key{min-width:auto;font-size:.62rem;}
+      .issue-sidebar-card{padding:12px;}
+      .issue-comment-form{flex-direction:column;}
+      .issue-comment-form button{align-self:stretch;text-align:center;}
+    }
+    .issue-main{min-width:0;}
+    .issue-sidebar{display:flex;flex-direction:column;gap:14px;}
+    .issue-sidebar-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:14px;}
+    .issue-sidebar-card h4{margin:0 0 10px;font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+    .issue-field-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);}
+    .issue-field-row:last-child{border-bottom:none;}
+    .issue-field-label{font-size:.78rem;color:var(--muted);font-weight:600;}
+    .issue-field-value{font-size:.82rem;color:var(--text);font-weight:600;}
+    .issue-summary-input{width:100%;padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--text);font-size:1.3rem;font-weight:800;font-family:inherit;margin-bottom:16px;}
+    .issue-summary-input:focus{border-color:var(--accent);outline:none;background:rgba(255,255,255,.06);}
+    .issue-desc-area{width:100%;padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--text);font-size:.9rem;font-family:inherit;resize:vertical;min-height:100px;margin-bottom:16px;line-height:1.5;}
+    .issue-desc-area:focus{border-color:var(--accent);outline:none;background:rgba(255,255,255,.06);}
+    .issue-section{margin-bottom:20px;}
+    .issue-section-title{font-size:.82rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,.06);}
+    .issue-subtask-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);margin-bottom:6px;transition:background .15s;cursor:pointer;}
+    .issue-subtask-row:hover{background:rgba(255,255,255,.06);}
+    .issue-subtask-row.done-row{opacity:.5;}
+    .issue-subtask-row.done-row .issue-st-name{text-decoration:line-through;}
+    .issue-st-key{font-size:.68rem;font-weight:800;color:var(--accent);min-width:80px;cursor:pointer;}
+    .issue-st-key:hover{text-decoration:underline;}
+    .issue-st-name{flex:1;font-size:.88rem;font-weight:600;}
+    .issue-status-badge{display:inline-block;padding:3px 10px;border-radius:6px;font-size:.72rem;font-weight:700;text-transform:uppercase;}
+    .issue-status-badge.s-todo{background:rgba(96,165,250,.15);color:#60a5fa;}
+    .issue-status-badge.s-progress{background:rgba(251,191,36,.15);color:#fbbf24;}
+    .issue-status-badge.s-pending{background:rgba(139,92,246,.15);color:#a78bfa;}
+    .issue-status-badge.s-done{background:rgba(34,197,94,.15);color:#22c55e;}
+    .issue-comment{padding:12px 14px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);margin-bottom:8px;position:relative;}
+    .issue-comment-meta{font-size:.72rem;color:rgba(255,255,255,.3);margin-bottom:4px;}
+    .issue-comment-text{font-size:.88rem;color:var(--text);line-height:1.5;white-space:pre-wrap;word-break:break-word;}
+    .issue-comment-del{position:absolute;top:8px;right:8px;background:none;border:none;color:rgba(239,68,68,.5);cursor:pointer;font-size:.7rem;padding:2px 5px;opacity:0;transition:opacity .15s;}
+    .issue-comment:hover .issue-comment-del{opacity:1;}
+    .issue-comment-form{display:flex;gap:8px;margin-top:10px;}
+    .issue-comment-form textarea{flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.88rem;font-family:inherit;resize:none;min-height:50px;}
+    .issue-comment-form button{padding:10px 18px;border-radius:10px;border:1px solid rgba(96,165,250,.3);background:none;color:#60a5fa;cursor:pointer;font-size:.85rem;font-weight:700;white-space:nowrap;transition:background .15s;align-self:flex-end;}
+    .issue-comment-form button:hover{background:rgba(96,165,250,.1);}
+    .issue-log-entry{font-size:.78rem;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(255,255,255,.03);display:flex;gap:8px;}
+    .issue-log-entry .issue-log-time{color:rgba(255,255,255,.25);flex-shrink:0;min-width:110px;}
 
     /* ── Floating Backup FAB ── */
     @keyframes fabSpin { to { transform:rotate(360deg); } }
@@ -1125,7 +1201,7 @@
     </div>
 
     <!-- Goal Tracker (Kanban) -->
-    <div class="card" style="padding:18px;margin-top:18px;">
+    <div class="card" id="goal-tracker-card" style="padding:18px;margin-top:18px;">
       <h3 style="margin:0 0 14px;">🎯 Goal Tracker</h3>
       <!-- Filter bar -->
       <div class="goal-filters">
@@ -1179,7 +1255,7 @@
           <button id="goal-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
         </div>
         <input id="goal-summary" type="text" placeholder="Summary *" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem;margin-bottom:10px;font-weight:700;">
-        <input id="goal-desc" type="text" placeholder="Description" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
+        <textarea id="goal-notes-input" placeholder="Description..." rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;font-family:inherit;resize:vertical;margin-bottom:10px;"></textarea>
         <select id="goal-priority" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
           <option value="">Priority (optional)</option>
           <option value="high">🔴 High</option>
@@ -1198,7 +1274,6 @@
             <button id="goal-custom-label-add" type="button" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(96,165,250,.3);background:none;color:#60a5fa;cursor:pointer;font-size:.78rem;font-weight:700;">+ Add</button>
           </div>
         </div>
-        <textarea id="goal-notes-input" placeholder="Description..." rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;font-family:inherit;resize:vertical;margin-bottom:10px;"></textarea>
         <input id="goal-due" type="date" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
         <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px dashed var(--border);background:rgba(255,255,255,.03);cursor:pointer;margin-bottom:4px;font-size:.85rem;color:var(--muted);">
           📎 Attach files <span style="font-size:.7rem;opacity:.6;">(max 25MB each)</span>
@@ -2212,7 +2287,7 @@ document.addEventListener("input", e => {
         {name:'Economica.net', url:'https://www.economica.net/rss'},
       ],
       us: [
-        {name:'Reuters Business', url:'https://www.reutersagency.com/feed/?best-topics=business-finance'},
+        {name:'Reuters Business', url:'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en'},
         {name:'CNBC', url:'https://www.cnbc.com/id/100003114/device/rss/rss.html'},
         {name:'Bloomberg via Investing.com', url:'https://www.investing.com/rss/news_25.rss'},
         {name:'MarketWatch', url:'https://feeds.marketwatch.com/marketwatch/topstories/'},
@@ -2222,20 +2297,20 @@ document.addEventListener("input", e => {
         {name:'BBC Business', url:'https://feeds.bbci.co.uk/news/business/rss.xml'},
         {name:'Financial Times', url:'https://www.ft.com/rss/home/uk'},
         {name:'The Guardian Business', url:'https://www.theguardian.com/uk/business/rss'},
-        {name:'Reuters UK', url:'https://www.reutersagency.com/feed/?best-topics=business-finance'},
+        {name:'Reuters UK', url:'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?hl=en-GB&gl=GB&ceid=GB:en'},
       ],
       de: [
         {name:'Handelsblatt', url:'https://www.handelsblatt.com/contentexport/feed/top-themen'},
-        {name:'Reuters', url:'https://www.reutersagency.com/feed/?best-topics=business-finance'},
+        {name:'Reuters', url:'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?hl=de&gl=DE&ceid=DE:de'},
       ],
       fr: [
         {name:'Les Echos', url:'https://www.lesechos.fr/rss/rss_en_continu.xml'},
-        {name:'Reuters', url:'https://www.reutersagency.com/feed/?best-topics=business-finance'},
+        {name:'Reuters', url:'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?hl=fr&gl=FR&ceid=FR:fr'},
         {name:'France24 Business', url:'https://www.france24.com/en/business/rss'},
       ],
       eu: [
         {name:'ECB Press', url:'https://www.ecb.europa.eu/rss/press.html'},
-        {name:'Reuters', url:'https://www.reutersagency.com/feed/?best-topics=business-finance'},
+        {name:'Reuters', url:'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en'},
         {name:'Euronews Business', url:'https://www.euronews.com/rss?level=theme&name=business'},
       ]
     };
@@ -2493,12 +2568,13 @@ document.addEventListener("input", e => {
     if(!name || !url) return;
     if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
     var links = load();
+    var chosenEmoji = inEmoji.value.trim() || '🔗';
     links.push({
-      emoji: inEmoji.value.trim() || '🔗',
+      emoji: chosenEmoji,
       name: name,
       url: url,
       cat: cat || 'Uncategorized',
-      useFavicon: useIcon.checked
+      useFavicon: (chosenEmoji !== '🔗') ? false : useIcon.checked
     });
     save(links);
     inEmoji.value = ''; inName.value = ''; inUrl.value = ''; inCat.value = '';
@@ -2643,7 +2719,6 @@ document.addEventListener("input", e => {
   var goalModalBg = document.getElementById('goal-modal-bg');
   var goalModalClose = document.getElementById('goal-modal-close');
   var goalSummary = document.getElementById('goal-summary');
-  var goalDesc = document.getElementById('goal-desc');
   var goalNotesInput = document.getElementById('goal-notes-input');
   var goalReporter = document.getElementById('goal-reporter');
   var goalAssignee = document.getElementById('goal-assignee');
@@ -3349,6 +3424,351 @@ document.addEventListener("input", e => {
     goalFilterLabel.value = val;
   }
 
+  // --- Fullscreen Issue View ---
+  function openIssueFullscreen(goalIdx, subIdx){
+    var ov = document.getElementById('issue-overlay');
+    if(!ov) return;
+    loadVault().then(function(data){
+      var g = data.goals[goalIdx];
+      if(!g) return;
+      var isSub = subIdx !== undefined && subIdx !== null;
+      var sub = isSub ? g.subtasks[subIdx] : null;
+      if(isSub && !sub) return;
+
+      var colLabels = {todo:'To Do',progress:'In Progress',pending:'Pending',done:'Done'};
+      var html = '<div class="issue-panel">';
+
+      // Header
+      html += '<div class="issue-header">';
+      if(isSub){
+        html += '<div class="issue-breadcrumb"><a class="issue-goto-parent" data-gi="'+goalIdx+'">TASK-'+g.id+'</a> <span style="opacity:.4;">/</span></div>';
+        html += '<span class="issue-key">SUBTASK-'+(sub.id||subIdx+1)+'</span>';
+      } else {
+        html += '<span class="issue-key">TASK-'+g.id+'</span>';
+        html += '<span class="issue-status-badge s-'+g.col+'">'+colLabels[g.col]+'</span>';
+      }
+      html += '<button class="issue-close" title="Close">&times; Close</button>';
+      html += '</div>';
+
+      html += '<div class="issue-layout">';
+
+      // === MAIN COLUMN ===
+      html += '<div class="issue-main">';
+
+      if(isSub){
+        // Subtask fullscreen
+        html += '<input class="issue-summary-input issue-sub-name" value="'+escAttr(sub.text)+'" placeholder="Subtask name">';
+        html += '<textarea class="issue-desc-area issue-sub-notes" placeholder="Notes..." rows="4">'+escHtml(sub.notes||'')+'</textarea>';
+
+        // Attachments
+        html += '<div class="issue-section">';
+        html += '<div class="issue-section-title">Attachments</div>';
+        html += renderAttachments(sub.attachments||[], null, goalIdx, subIdx);
+        html += '</div>';
+
+        // Parent task link
+        html += '<div class="issue-section">';
+        html += '<div class="issue-section-title">Parent Task</div>';
+        html += '<div class="issue-subtask-row issue-goto-parent" data-gi="'+goalIdx+'">';
+        html += '<span class="issue-st-key">TASK-'+g.id+'</span>';
+        html += '<span class="issue-st-name">'+escHtml(g.summary)+'</span>';
+        html += '<span class="issue-status-badge s-'+g.col+'">'+colLabels[g.col]+'</span>';
+        html += '</div></div>';
+
+      } else {
+        // Goal fullscreen
+        html += '<input class="issue-summary-input issue-goal-summary" value="'+escAttr(g.summary)+'" placeholder="Summary">';
+        html += '<textarea class="issue-desc-area issue-goal-notes" placeholder="Description..." rows="5">'+escHtml(g.notes||'')+'</textarea>';
+
+        // Subtasks
+        if(g.subtasks && g.subtasks.length){
+          html += '<div class="issue-section">';
+          html += '<div class="issue-section-title">Subtasks ('+g.subtasks.length+')</div>';
+          html += subtaskProgress(g.subtasks);
+          g.subtasks.forEach(function(s, si){
+            if(typeof s === 'string'){ s = {text:s, done:false}; g.subtasks[si] = s; }
+            var subKey = s.id ? 'SUBTASK-'+s.id : 'SUBTASK-'+(si+1);
+            html += '<div class="issue-subtask-row'+(s.done?' done-row':'')+'" data-gi="'+goalIdx+'" data-si="'+si+'">';
+            html += '<input type="checkbox" class="issue-st-check" data-si="'+si+'" '+(s.done?'checked':'')+' style="accent-color:var(--accent);cursor:pointer;flex-shrink:0;" onclick="event.stopPropagation()">';
+            html += '<span class="issue-st-key" data-gi="'+goalIdx+'" data-si="'+si+'">'+subKey+'</span>';
+            html += '<span class="issue-st-name">'+escHtml(s.text)+'</span>';
+            if(s.effort) html += effortBadge(s.effort);
+            if(s.due) html += formatStDue(s.due);
+            html += '</div>';
+          });
+          html += '</div>';
+        }
+
+        // Attachments
+        if(g.attachments && g.attachments.length){
+          html += '<div class="issue-section">';
+          html += '<div class="issue-section-title">Attachments</div>';
+          html += renderAttachments(g.attachments, null, goalIdx);
+          html += '</div>';
+        }
+
+        // Comments
+        html += '<div class="issue-section">';
+        html += '<div class="issue-section-title">Comments ('+(g.comments?g.comments.length:0)+')</div>';
+        if(g.comments && g.comments.length){
+          g.comments.forEach(function(c, ci){
+            var t = new Date(c.ts);
+            var ts = t.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' '+t.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+            var author = c.author ? escHtml(c.author)+' — ' : '';
+            html += '<div class="issue-comment" data-ci="'+ci+'">' +
+              '<div class="issue-comment-meta">'+author+ts+'</div>' +
+              '<div class="issue-comment-text">'+escHtml(c.text)+'</div>' +
+              '<button class="issue-comment-del" data-ci="'+ci+'" title="Delete">✕</button></div>';
+          });
+        }
+        html += '<div class="issue-comment-form">' +
+          '<textarea class="issue-comment-input" placeholder="Add a comment..." rows="2"></textarea>' +
+          '<button class="issue-comment-add">Post</button></div>';
+        html += '</div>';
+
+        // Activity Log
+        if(g.log && g.log.length){
+          html += '<div class="issue-section">';
+          html += '<div class="issue-section-title">Activity Log ('+g.log.length+')</div>';
+          for(var li = g.log.length - 1; li >= 0; li--){
+            var e = g.log[li];
+            var t2 = new Date(e.ts);
+            var ts2 = t2.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' '+t2.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+            html += '<div class="issue-log-entry"><span class="issue-log-time">'+ts2+'</span><span>'+escHtml(e.action)+'</span></div>';
+          }
+          html += '</div>';
+        }
+      }
+      html += '</div>'; // end issue-main
+
+      // === SIDEBAR ===
+      html += '<div class="issue-sidebar">';
+
+      if(isSub){
+        // Subtask sidebar
+        html += '<div class="issue-sidebar-card"><h4>Details</h4>';
+        html += '<div class="issue-field-row"><span class="issue-field-label">Status</span><span class="issue-field-value">'+(sub.done?'<span class="issue-status-badge s-done">Done</span>':'<span class="issue-status-badge s-todo">Open</span>')+'</span></div>';
+        html += '<div class="issue-field-row"><span class="issue-field-label">Effort</span><span class="issue-field-value">'+(sub.effort?sub.effort.toUpperCase():'—')+'</span></div>';
+        html += '<div class="issue-field-row"><span class="issue-field-label">Due Date</span><span class="issue-field-value">'+(sub.due?new Date(sub.due+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—')+'</span></div>';
+        html += '</div>';
+
+        html += '<div class="issue-sidebar-card"><h4>Actions</h4>';
+        html += '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem;color:var(--text);"><input type="checkbox" class="issue-sub-done-toggle" '+(sub.done?'checked':'')+' style="accent-color:var(--accent);"> Mark as Done</label>';
+        html += '</div>';
+
+      } else {
+        // Goal sidebar
+        html += '<div class="issue-sidebar-card"><h4>Details</h4>';
+        html += '<div class="issue-field-row"><span class="issue-field-label">Status</span><span class="issue-field-value"><span class="issue-status-badge s-'+g.col+'">'+colLabels[g.col]+'</span></span></div>';
+        html += '<div class="issue-field-row"><span class="issue-field-label">Priority</span><span class="issue-field-value">'+(g.priority?priorityBadge(g.priority):'—')+'</span></div>';
+        html += '<div class="issue-field-row"><span class="issue-field-label">Due Date</span><span class="issue-field-value">'+(g.due?new Date(g.due+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—')+'</span></div>';
+        html += '<div class="issue-field-row"><span class="issue-field-label">Reporter</span><span class="issue-field-value">'+(g.reporter?escHtml(g.reporter):'—')+'</span></div>';
+        html += '<div class="issue-field-row"><span class="issue-field-label">Assignee</span><span class="issue-field-value">'+(g.assignee?escHtml(g.assignee):'—')+'</span></div>';
+        html += '</div>';
+
+        // Labels
+        if(g.labels && g.labels.length){
+          html += '<div class="issue-sidebar-card"><h4>Labels</h4>';
+          g.labels.forEach(function(name){
+            var lbl = getLabelDef(name);
+            html += '<span class="k-label" style="background:'+lbl.bg+';color:'+lbl.color+';margin:0 4px 4px 0;display:inline-block;">'+lbl.name+'</span>';
+          });
+          html += '</div>';
+        }
+
+        // Effort points
+        var pts = goalPoints(g);
+        if(pts){
+          html += '<div class="issue-sidebar-card"><h4>Effort</h4>';
+          html += '<div style="font-size:1.1rem;font-weight:800;color:var(--accent);">'+pts.done+'<span style="color:var(--muted);font-weight:400;font-size:.85rem;"> / '+pts.total+' pts</span></div>';
+          html += subtaskProgress(g.subtasks);
+          html += '</div>';
+        }
+
+        // Move / Status
+        html += '<div class="issue-sidebar-card"><h4>Move To</h4>';
+        html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+        ['todo','progress','pending','done'].forEach(function(col){
+          var active = g.col === col;
+          html += '<button class="issue-move-btn" data-to="'+col+'" style="padding:6px 12px;border-radius:8px;border:1px solid '+(active?'var(--accent)':'rgba(255,255,255,.15)')+';background:'+(active?'rgba(96,165,250,.1)':'none')+';color:'+(active?'var(--accent)':'var(--muted)')+';cursor:pointer;font-size:.78rem;font-weight:700;transition:all .15s;">'+colLabels[col]+'</button>';
+        });
+        html += '</div></div>';
+      }
+
+      html += '</div>'; // end sidebar
+      html += '</div>'; // end layout
+      html += '</div>'; // end panel
+
+      ov.innerHTML = html;
+      ov.scrollTop = 0;
+      ov.classList.add('open');
+      document.body.style.overflow = 'hidden';
+
+      // --- Wire fullscreen events ---
+
+      // Close
+      function closeIssue(){
+        ov.classList.remove('open');
+        document.body.style.overflow = '';
+        loadVault().then(function(d){ renderGoals(d.goals); });
+      }
+      ov.querySelector('.issue-close').addEventListener('click', closeIssue);
+      ov.addEventListener('click', function(ev){ if(ev.target === ov) closeIssue(); });
+      function onEsc(ev){ if(ev.key==='Escape'){ closeIssue(); document.removeEventListener('keydown',onEsc); } }
+      document.addEventListener('keydown', onEsc);
+
+      if(isSub){
+        // --- Subtask fullscreen events ---
+        var subNameTimer = null;
+        ov.querySelector('.issue-sub-name').addEventListener('input', function(){
+          var self = this;
+          clearTimeout(subNameTimer);
+          subNameTimer = setTimeout(function(){
+            loadVault().then(function(d){ if(d.goals[goalIdx] && d.goals[goalIdx].subtasks[subIdx]){ d.goals[goalIdx].subtasks[subIdx].text = self.value; saveVault(d); } });
+          }, 800);
+        });
+        var subNotesTimer = null;
+        ov.querySelector('.issue-sub-notes').addEventListener('input', function(){
+          var self = this;
+          clearTimeout(subNotesTimer);
+          subNotesTimer = setTimeout(function(){
+            loadVault().then(function(d){ if(d.goals[goalIdx] && d.goals[goalIdx].subtasks[subIdx]){ d.goals[goalIdx].subtasks[subIdx].notes = self.value; saveVault(d); } });
+          }, 800);
+        });
+        var doneToggle = ov.querySelector('.issue-sub-done-toggle');
+        if(doneToggle){
+          doneToggle.addEventListener('change', function(){
+            var checked = this.checked;
+            loadVault().then(function(d){
+              if(d.goals[goalIdx] && d.goals[goalIdx].subtasks[subIdx]){
+                d.goals[goalIdx].subtasks[subIdx].done = checked;
+                autoMoveGoal(d.goals[goalIdx]);
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx, subIdx); });
+              }
+            });
+          });
+        }
+        // Navigate to parent
+        ov.querySelectorAll('.issue-goto-parent').forEach(function(el){
+          el.addEventListener('click', function(ev){
+            ev.stopPropagation();
+            openIssueFullscreen(parseInt(this.dataset.gi));
+          });
+        });
+
+      } else {
+        // --- Goal fullscreen events ---
+        var summaryTimer = null;
+        ov.querySelector('.issue-goal-summary').addEventListener('input', function(){
+          var self = this;
+          clearTimeout(summaryTimer);
+          summaryTimer = setTimeout(function(){
+            loadVault().then(function(d){ if(d.goals[goalIdx]){ d.goals[goalIdx].summary = self.value; saveVault(d); } });
+          }, 800);
+        });
+        var notesTimer = null;
+        ov.querySelector('.issue-goal-notes').addEventListener('input', function(){
+          var self = this;
+          clearTimeout(notesTimer);
+          notesTimer = setTimeout(function(){
+            loadVault().then(function(d){ if(d.goals[goalIdx]){ d.goals[goalIdx].notes = self.value; saveVault(d); } });
+          }, 800);
+        });
+
+        // Subtask clicks → open subtask fullscreen
+        ov.querySelectorAll('.issue-st-key').forEach(function(el){
+          el.addEventListener('click', function(ev){
+            ev.stopPropagation();
+            openIssueFullscreen(parseInt(this.dataset.gi), parseInt(this.dataset.si));
+          });
+        });
+        ov.querySelectorAll('.issue-subtask-row').forEach(function(row){
+          row.addEventListener('click', function(){
+            var gi = parseInt(this.dataset.gi), si = parseInt(this.dataset.si);
+            if(!isNaN(gi) && !isNaN(si)) openIssueFullscreen(gi, si);
+          });
+        });
+
+        // Subtask checkbox toggle
+        ov.querySelectorAll('.issue-st-check').forEach(function(cb){
+          cb.addEventListener('change', function(){
+            var si = parseInt(this.dataset.si), checked = this.checked;
+            loadVault().then(function(d){
+              if(d.goals[goalIdx] && d.goals[goalIdx].subtasks[si]){
+                d.goals[goalIdx].subtasks[si].done = checked;
+                autoMoveGoal(d.goals[goalIdx]);
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx); });
+              }
+            });
+          });
+        });
+
+        // Move buttons
+        ov.querySelectorAll('.issue-move-btn').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var newCol = this.dataset.to;
+            loadVault().then(function(d){
+              if(d.goals[goalIdx]){
+                var oldCol = d.goals[goalIdx].col;
+                d.goals[goalIdx].col = newCol;
+                if(newCol==='done' && oldCol!=='done') d.goals[goalIdx].completedAt = Date.now();
+                addLogEntry(d.goals[goalIdx], 'Moved to '+colLabels[newCol]);
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx); });
+              }
+            });
+          });
+        });
+
+        // Comments
+        var addBtn = ov.querySelector('.issue-comment-add');
+        if(addBtn){
+          addBtn.addEventListener('click', function(){
+            var input = ov.querySelector('.issue-comment-input');
+            var text = input.value.trim();
+            if(!text) return;
+            loadVault().then(function(d){
+              if(d.goals[goalIdx]){
+                if(!d.goals[goalIdx].comments) d.goals[goalIdx].comments = [];
+                d.goals[goalIdx].comments.push({text:text, ts:Date.now(), author:d.goals[goalIdx].assignee||''});
+                addLogEntry(d.goals[goalIdx], 'Comment added');
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx); });
+              }
+            });
+          });
+        }
+        ov.querySelectorAll('.issue-comment-del').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var ci = parseInt(this.dataset.ci);
+            loadVault().then(function(d){
+              if(d.goals[goalIdx] && d.goals[goalIdx].comments){
+                d.goals[goalIdx].comments.splice(ci, 1);
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx); });
+              }
+            });
+          });
+        });
+
+        // Attachment image clicks
+        ov.querySelectorAll('.k-attach-img').forEach(function(img){
+          img.addEventListener('click', function(){
+            var lb = document.getElementById('img-lightbox');
+            lb.querySelector('img').src = _attachDataMap[this.dataset.akey] || this.src;
+            lb.classList.add('open');
+          });
+        });
+        ov.querySelectorAll('.k-attach-file').forEach(function(a){
+          a.addEventListener('click', function(){
+            var d64 = _attachDataMap[this.dataset.akey];
+            if(!d64) return;
+            var link = document.createElement('a');
+            link.href = d64; link.download = this.dataset.fname || 'file';
+            link.click();
+          });
+        });
+      }
+    });
+  }
+
   var _renderGoalsTimer = null;
   function renderGoals(goals){
     // Debounce: batch rapid consecutive calls into one render
@@ -3408,7 +3828,7 @@ document.addEventListener("input", e => {
       card.draggable = !g.archived;
       card.dataset.idx = i;
 
-      var idBadge = '<span class="k-id">#'+g.id+'</span>';
+      var idBadge = '<span class="k-id" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" data-gi="'+i+'" title="Open TASK-'+g.id+'">TASK-'+g.id+'</span>';
 
       var statusBadge = '';
       if(g.col==='pending') statusBadge = '<span style="font-size:.6rem;padding:1px 6px;border-radius:5px;background:rgba(139,92,246,.15);color:#a78bfa;font-weight:700;">PENDING</span>';
@@ -3430,8 +3850,7 @@ document.addEventListener("input", e => {
       var pts = goalPoints(g);
       if(pts) collapsedExtra += '<div class="k-points"><strong>'+pts.done+'</strong>/'+pts.total+' pts</div>';
 
-      // Expanded body
-      var descHtml = g.desc ? '<div class="k-desc">'+escHtml(g.desc)+'</div>' : '';
+      // Expanded body (editable summary + description textarea only)
 
       // Rich subtasks
       var subtasksHtml = '<div class="k-subtasks">';
@@ -3442,9 +3861,12 @@ document.addEventListener("input", e => {
         if(!s.notes) s.notes = '';
         if(!s.attachments) s.attachments = [];
 
+        var subIdBadge = s.id ? '<span class="k-id k-sub-id" style="font-size:.6rem;margin-right:4px;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" data-gi="'+i+'" data-si="'+si+'" title="Open SUBTASK-'+s.id+'">SUBTASK-'+s.id+'</span>' : '';
+
         subtasksHtml += '<div class="k-subtask'+(s.done?' done-st':'')+'" data-si="'+si+'">' +
           '<div class="k-st-header">' +
             '<input type="checkbox" '+(s.done?'checked':'')+' data-si="'+si+'">' +
+            subIdBadge +
             '<span class="k-st-name" style="flex:1;">'+escHtml(s.text)+'</span>' +
             '<span class="k-st-badges">' +
               effortBadge(s.effort) +
@@ -3509,7 +3931,7 @@ document.addEventListener("input", e => {
 
       card.innerHTML = titleRow + labelsHtml + peopleHtml + collapsedExtra +
         '<div class="k-body">' +
-          descHtml +
+          '<input class="k-field k-summary" value="'+escAttr(g.summary||'')+'" placeholder="Summary" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.95rem;font-weight:700;margin-bottom:8px;">' +
           '<textarea class="k-field k-notes" placeholder="Description..." rows="3">'+escHtml(g.notes||'')+'</textarea>' +
           labelEditorHtml +
           '<div style="display:flex;gap:6px;margin-top:8px;">' +
@@ -3535,6 +3957,18 @@ document.addEventListener("input", e => {
 
       // --- Event wiring ---
 
+      // Issue key click → open fullscreen
+      card.querySelector('.k-id').addEventListener('click', function(e){
+        e.stopPropagation();
+        openIssueFullscreen(parseInt(this.dataset.gi));
+      });
+      card.querySelectorAll('.k-sub-id').forEach(function(el){
+        el.addEventListener('click', function(e){
+          e.stopPropagation();
+          openIssueFullscreen(parseInt(this.dataset.gi), parseInt(this.dataset.si));
+        });
+      });
+
       // Expand/collapse goal card
       card.querySelector('.k-expand').addEventListener('click', function(e){
         e.stopPropagation();
@@ -3555,6 +3989,24 @@ document.addEventListener("input", e => {
           this.innerHTML = 'Activity Log (' + g.log.length + ') ' + (list.classList.contains('open') ? '&#9650;' : '&#9660;');
         });
       }
+
+      // Autosave goal summary
+      var kst = null;
+      card.querySelector('.k-summary').addEventListener('input', function(){
+        var self = this;
+        clearTimeout(kst);
+        kst = setTimeout(function(){
+          loadVault().then(function(data){
+            if(data.goals[i]){
+              data.goals[i].summary = self.value;
+              // Update title text without full re-render to keep focus
+              var titleSpan = card.querySelector('.k-title > span');
+              if(titleSpan) titleSpan.innerHTML = '<span class="k-id" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" data-gi="'+i+'" title="Open TASK-'+g.id+'">TASK-'+g.id+'</span>' + escHtml(self.value);
+              saveVault(data);
+            }
+          });
+        }, 800);
+      });
 
       // Autosave goal notes
       var kt = null;
@@ -3996,7 +4448,7 @@ document.addEventListener("input", e => {
   // Goal modal open/close
   goalAddBtn.addEventListener('click', function(){
     goalModalBg.classList.add('open');
-    goalSummary.value = ''; goalDesc.value = ''; goalNotesInput.value = ''; goalDue.value = ''; goalPriority.value = '';
+    goalSummary.value = ''; goalNotesInput.value = ''; goalDue.value = ''; goalPriority.value = '';
     goalReporter.value = ''; goalAssignee.value = '';
     pendingGoalFiles = []; goalFilesPreview.innerHTML = ''; goalFilesInput.value = '';
     goalCustomLabelInput.value = '';
@@ -4021,7 +4473,7 @@ document.addEventListener("input", e => {
       var goal = {
         id: data._nextId++,
         summary: s,
-        desc: goalDesc.value.trim(),
+        desc: '',
         notes: goalNotesInput.value.trim(),
         due: goalDue.value || '',
         priority: goalPriority.value || '',
@@ -4055,15 +4507,17 @@ document.addEventListener("input", e => {
     var name = subNameInput.value.trim();
     if(!name){ subNameInput.style.borderColor='#ef4444'; return; }
     subNameInput.style.borderColor='';
-    var sub = {
-      text: name,
-      done: false,
-      effort: subEffortInput.value || '',
-      due: subDueInput.value || '',
-      notes: subNotesInput.value.trim(),
-      attachments: pendingSubFiles.slice()
-    };
     loadVault().then(function(data){
+      if(!data._nextSubId) data._nextSubId = 1;
+      var sub = {
+        id: data._nextSubId++,
+        text: name,
+        done: false,
+        effort: subEffortInput.value || '',
+        due: subDueInput.value || '',
+        notes: subNotesInput.value.trim(),
+        attachments: pendingSubFiles.slice()
+      };
       if(data.goals[subModalGoalIdx]){
         if(!data.goals[subModalGoalIdx].subtasks) data.goals[subModalGoalIdx].subtasks = [];
         data.goals[subModalGoalIdx].subtasks.push(sub);
@@ -4208,7 +4662,7 @@ document.addEventListener("input", e => {
     ],
     int: [
       {name:'BBC World', rss:'https://feeds.bbci.co.uk/news/world/rss.xml'},
-      {name:'Reuters', rss:'https://www.reutersagency.com/feed/?best-topics=business-finance'},
+      {name:'Reuters', rss:'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en'},
       {name:'CNN', rss:'http://rss.cnn.com/rss/edition.rss'},
       {name:'Al Jazeera', rss:'https://www.aljazeera.com/xml/rss/all.xml'},
       {name:'The Guardian', rss:'https://www.theguardian.com/world/rss'},
@@ -4609,5 +5063,7 @@ document.addEventListener("input", e => {
   });
 })();
 </script>
+<!-- Fullscreen Issue View (outside all cards to avoid backdrop-filter containing block) -->
+<div id="issue-overlay" class="issue-overlay"></div>
 </body>
 </html>

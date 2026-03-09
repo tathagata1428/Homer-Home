@@ -44,7 +44,8 @@ export default async function handler(req, res) {
     'www.ecb.europa.eu', 'ecb.europa.eu',
     'www.euronews.com', 'euronews.com',
     'www.handelsblatt.com', 'handelsblatt.com',
-    'www.lesechos.fr', 'lesechos.fr'
+    'www.lesechos.fr', 'lesechos.fr',
+    'news.google.com'
   ];
 
   if (!allowed.includes(hostname)) {
