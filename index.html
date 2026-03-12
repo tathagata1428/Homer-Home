@@ -47,7 +47,6 @@
     body.zen-active .toolbar, 
     body.zen-active .site-footer, 
     body.zen-active #tab-home,
-    body.zen-active #tab-saved,
     body.zen-active #tab-pomodoro,
     body.zen-active #tab-focuslab,
     body.zen-active #tab-investing,
@@ -692,7 +691,6 @@
 
     <div class="tabs">
       <button class="tab-btn active" data-tab="home">Home</button>
-      <button class="tab-btn" data-tab="saved">Saved Quotes</button>
       <button class="tab-btn" data-tab="pomodoro">Pomodoro</button>
       <button class="tab-btn" data-tab="focuslab">Focus Lab</button>
       <button class="tab-btn" data-tab="investing">Investing</button>
@@ -744,6 +742,21 @@
             <button id="save" class="btn ghost">Save</button>
             <button id="copy" class="btn ghost">Copy</button>
           </div>
+
+          <div style="border-top:1px solid var(--border);margin-top:18px;padding-top:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" id="saved-toggle">
+              <h2 class="section" style="margin:0;">Saved Quotes</h2>
+              <span id="saved-arrow" style="font-size:.75rem;color:var(--muted);transition:transform .2s ease;">&#9660;</span>
+            </div>
+            <div id="saved-body" style="display:none;margin-top:12px;">
+              <div class="row" style="margin-bottom:10px">
+                <button id="exportSaved" class="btn">Export (.txt)</button>
+                <button id="clearSaved" class="btn ghost">Clear All</button>
+              </div>
+              <div id="savedList" class="saved-list"></div>
+              <div id="savedEmpty" class="empty" style="display:none">No saved quotes yet.</div>
+            </div>
+          </div>
         </div>
 
         <div class="span-12 card" id="home-tasks-card" style="display:none">
@@ -759,15 +772,6 @@
       </div>
     </section>
 
-    <section id="tab-saved" class="tab card" style="display:none">
-      <h2 class="section">Saved Quotes</h2>
-      <div class="row" style="margin-bottom:10px">
-        <button id="exportSaved" class="btn">Export (.txt)</button>
-        <button id="clearSaved" class="btn ghost">Clear All</button>
-      </div>
-      <div id="savedList" class="saved-list"></div>
-      <div id="savedEmpty" class="empty" style="display:none">No saved quotes yet. Save your favorites from the Home tab.</div>
-    </section>
 
     <section id="tab-pomodoro" class="tab card" style="display:none">
       <div class="pom-wrap">
@@ -1332,7 +1336,6 @@
     const tabBtns = [...document.querySelectorAll('.tab-btn')];
     const tabs = {
       home: document.getElementById('tab-home'),
-      saved: document.getElementById('tab-saved'),
       pomodoro: document.getElementById('tab-pomodoro'),
       focuslab: document.getElementById('tab-focuslab'),
       investing: document.getElementById('tab-investing'),
@@ -1685,6 +1688,18 @@ function renderQuote(q) {
     });
     els.clearSaved?.addEventListener('click',clearAllSaved); els.save.addEventListener("click",addCurrentToSaved);
     els.refresh.click(); renderSaved();
+
+    /* Saved Quotes collapsible toggle */
+    const savedToggle=document.getElementById('saved-toggle');
+    const savedBody=document.getElementById('saved-body');
+    const savedArrow=document.getElementById('saved-arrow');
+    if(savedToggle){
+      savedToggle.addEventListener('click',()=>{
+        const open=savedBody.style.display!=='none';
+        savedBody.style.display=open?'none':'block';
+        savedArrow.style.transform=open?'':'rotate(180deg)';
+      });
+    }
 
     /* 5. FOCUS LAB LOGIC */
     
