@@ -1,0 +1,77 @@
+import crypto from 'crypto';
+
+const ADMIN_HASH = 'e5d510e7c10f6dbafca09488da4fe64b08518188b9b061c3b5d0ef62a103e914';
+
+function verifyAdmin(user, pass) {
+  if (!user || !pass) return false;
+  var h = crypto.createHash('sha256').update(user.toLowerCase().trim() + ':' + pass).digest('hex');
+  return h === ADMIN_HASH;
+}
+
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  var REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  var REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!REDIS_URL || !REDIS_TOKEN) return res.status(500).json({ error: 'Redis not configured' });
+
+  var body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+  if (!verifyAdmin(body.user, body.pass)) return res.status(403).json({ error: 'Unauthorized' });
+
+  async function redis(cmd) {
+    var r = await fetch(REDIS_URL, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN },
+      body: JSON.stringify(cmd)
+    });
+    return r.json();
+  }
+
+  try {
+    var action = body.action;
+
+    if (action === 'list') {
+      var keys = await redis(['KEYS', 'homer:*']);
+      var entries = [];
+      if (keys.result && keys.result.length > 0) {
+        for (var i = 0; i < keys.result.length; i++) {
+          var k = keys.result[i];
+          var data = await redis(['GET', k]);
+          var parsed = null;
+          var size = 0;
+          try {
+            parsed = JSON.parse(data.result);
+            size = data.result.length;
+          } catch (e) {}
+          var username = parsed && parsed['homer-auth-user'] ? parsed['homer-auth-user'] : null;
+          var itemCount = parsed ? Object.keys(parsed).length : 0;
+          entries.push({ key: k, username: username, items: itemCount, size: size });
+        }
+      }
+      return res.status(200).json({ ok: true, entries: entries });
+    }
+
+    if (action === 'inspect') {
+      if (!body.target) return res.status(400).json({ error: 'Missing target key' });
+      var result = await redis(['GET', body.target]);
+      if (!result.result) return res.status(404).json({ error: 'Key not found' });
+      var parsed = null;
+      try { parsed = JSON.parse(result.result); } catch (e) {}
+      return res.status(200).json({ ok: true, data: parsed });
+    }
+
+    if (action === 'delete') {
+      if (!body.target) return res.status(400).json({ error: 'Missing target key' });
+      await redis(['DEL', body.target]);
+      return res.status(200).json({ ok: true });
+    }
+
+    return res.status(400).json({ error: 'Unknown action' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Unknown error' });
+  }
+}

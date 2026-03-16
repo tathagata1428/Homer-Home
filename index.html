@@ -55,8 +55,8 @@
     body.zen-active #tab-vault,
     body.zen-active #tab-news,
     body.zen-active .ambient-section,
-    body.zen-active .focus-grid-wrapper { 
-        display: none !important; 
+    body.zen-active .focus-grid-wrapper {
+        display: none !important;
     }
     
     /* Show Zen Overlay */
@@ -664,6 +664,33 @@
       box-shadow:0 24px 60px rgba(0,0,0,.7); animation:fabSlideIn .2s ease;
     }
 
+    /* === ACCOUNT FAB === */
+    #fab-account{
+      width:58px; height:58px;
+      background:linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+      border:1px solid rgba(139,92,246,.35);
+      box-shadow:0 4px 24px rgba(139,92,246,.4), 0 0 0 1px rgba(139,92,246,.15);
+    }
+    #fab-account svg{ width:28px; height:28px; fill:none; stroke:#fff; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+    #fab-account .fab-user-dot{
+      position:absolute; top:2px; right:2px; width:12px; height:12px; border-radius:50%;
+      border:2px solid #6d28d9; background:#ef4444;
+    }
+    #fab-account .fab-user-dot.logged-in{ background:#22c55e; box-shadow:0 0 8px rgba(34,197,94,.6); }
+    .acct-field{
+      width:100%; padding:12px 14px; border-radius:10px;
+      border:1px solid rgba(255,255,255,.18); background:#0b1220;
+      color:var(--text); font-size:.95rem; margin-bottom:10px; outline:none;
+    }
+    .acct-field:focus{ border-color:var(--accent-2); }
+    .acct-field-wrap{ position:relative; margin-bottom:10px; }
+    .acct-field-wrap .acct-field{ margin-bottom:0; padding-right:40px; }
+    .acct-field-wrap .pw-toggle{
+      position:absolute; right:10px; top:50%; transform:translateY(-50%);
+      background:none; border:none; cursor:pointer; font-size:1.1rem; padding:2px; color:var(--muted);
+    }
+    .acct-error{ color:#ef4444; font-size:.85rem; min-height:1.2em; margin-top:4px; }
+
   </style>
 </head>
 <body>
@@ -1130,23 +1157,27 @@
   <h2 class="section">🔒 Vault</h2>
 
   <!-- Lock Screen -->
-  <div id="vault-lock" style="text-align:center;padding:40px 20px;">
-    <div style="font-size:4rem;margin-bottom:16px;">🔐</div>
-    <p id="vault-lock-label" style="color:var(--muted);margin-bottom:16px;">Enter your master password to unlock</p>
-    <div style="display:inline-block;position:relative;width:min(320px,80%);">
-      <input id="vault-pw" type="password" placeholder="Master password" autocomplete="off" style="width:100%;padding:12px 42px 12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-size:1rem;text-align:center;">
-      <button type="button" class="pw-toggle" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'👁‍🗨'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;padding:2px;">👁</button>
-    </div>
-    <div id="vault-pw-confirm-wrap" style="display:none;margin-top:10px;">
-      <div style="display:inline-block;position:relative;width:min(320px,80%);">
-        <input id="vault-pw-confirm" type="password" placeholder="Confirm password" autocomplete="off" style="width:100%;padding:12px 42px 12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-size:1rem;text-align:center;">
-        <button type="button" class="pw-toggle" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'👁‍🗨'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;padding:2px;">👁</button>
+  <div id="vault-lock" style="display:flex;align-items:center;justify-content:center;min-height:340px;padding:40px 20px;">
+    <div style="width:min(360px,100%);text-align:center;">
+      <div style="width:72px;height:72px;margin:0 auto 20px;border-radius:50%;background:linear-gradient(135deg,rgba(96,165,250,.15),rgba(139,92,246,.15));border:1px solid rgba(96,165,250,.2);display:grid;place-items:center;font-size:2rem;">🔐</div>
+      <h3 id="vault-lock-label" style="margin:0 0 6px;font-size:1.15rem;font-weight:800;color:var(--text);">Unlock Vault</h3>
+      <p style="color:var(--muted);font-size:.88rem;margin:0 0 24px;">Enter your account credentials to access encrypted data</p>
+
+      <div id="vault-no-account" style="display:none;margin-bottom:20px;padding:12px 16px;border-radius:10px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);">
+        <p style="color:#fbbf24;font-size:.88rem;margin:0;line-height:1.5;">No account found. Create one via the <strong style="color:#fcd34d;">Account</strong> button first.</p>
       </div>
+
+      <div id="vault-login-fields" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+        <input id="vault-pw-user" type="text" placeholder="Username" autocomplete="username" class="acct-field" style="text-align:center;margin-bottom:0;">
+        <div class="acct-field-wrap" style="margin-bottom:0;">
+          <input id="vault-pw" type="password" placeholder="Password" autocomplete="current-password" class="acct-field" style="text-align:center;margin-bottom:0;">
+          <button type="button" class="pw-toggle" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'👁‍🗨'">👁</button>
+        </div>
+      </div>
+
+      <button id="vault-unlock" class="btn primary" style="width:100%;padding:12px;font-size:1rem;font-weight:800;">Unlock</button>
+      <p id="vault-error" style="color:#ef4444;font-size:.88rem;margin:10px 0 0;min-height:1.2em;display:none;"></p>
     </div>
-    <div style="margin-top:16px;">
-      <button id="vault-unlock" class="btn primary" style="padding:10px 24px;">Unlock</button>
-    </div>
-    <p id="vault-error" style="color:#ef4444;margin-top:12px;display:none;"></p>
   </div>
 
   <!-- Unlocked Content -->
@@ -1154,7 +1185,6 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
       <p style="color:var(--muted);margin:0;">🔓 Vault unlocked</p>
       <div style="display:flex;gap:8px;">
-        <button id="vault-change-pw" class="btn ghost" style="padding:6px 14px;font-size:.85rem;">Change Password</button>
         <button id="vault-lock-btn" class="btn danger" style="padding:6px 14px;font-size:.85rem;">Lock</button>
       </div>
     </div>
@@ -2704,13 +2734,13 @@ document.addEventListener("input", e => {
   // DOM refs
   var lockScreen = document.getElementById('vault-lock');
   var content = document.getElementById('vault-content');
+  var vaultUserInput = document.getElementById('vault-pw-user');
   var pwInput = document.getElementById('vault-pw');
-  var pwConfirmWrap = document.getElementById('vault-pw-confirm-wrap');
-  var pwConfirm = document.getElementById('vault-pw-confirm');
+  var vaultNoAccount = document.getElementById('vault-no-account');
+  var vaultLoginFields = document.getElementById('vault-login-fields');
   var lockLabel = document.getElementById('vault-lock-label');
   var unlockBtn = document.getElementById('vault-unlock');
   var lockBtn = document.getElementById('vault-lock-btn');
-  var changePwBtn = document.getElementById('vault-change-pw');
   var errorEl = document.getElementById('vault-error');
   var notesArea = document.getElementById('vault-notes');
   var notesWrap = document.getElementById('vault-notes-wrap');
@@ -2812,10 +2842,21 @@ document.addEventListener("input", e => {
     return idb.get(HASH_KEY);
   }).then(function(hash){
     isNew = !hash;
-    if(isNew){
-      lockLabel.textContent = 'Create a master password for your vault';
-      pwConfirmWrap.style.display = 'block';
-      unlockBtn.textContent = 'Create Vault';
+    // Pre-fill username from account if logged in
+    var acctUser = localStorage.getItem('homer-auth-user');
+    if(acctUser){
+      vaultUserInput.value = acctUser;
+      vaultNoAccount.style.display = 'none';
+      vaultLoginFields.style.display = '';
+      unlockBtn.style.display = '';
+      if(isNew){
+        lockLabel.textContent = 'Create Vault';
+        unlockBtn.textContent = 'Create Vault';
+      }
+    } else {
+      vaultNoAccount.style.display = '';
+      vaultLoginFields.style.display = 'none';
+      unlockBtn.style.display = 'none';
     }
   });
 
@@ -4556,34 +4597,51 @@ document.addEventListener("input", e => {
   function showError(msg){ errorEl.textContent=msg; errorEl.style.display='block'; }
   function hideError(){ errorEl.style.display='none'; }
 
+  // Hash credentials the same way the Account system does (SHA-256)
+  function hashAccountCreds(user, pass){
+    var data = new TextEncoder().encode(user.toLowerCase() + ':' + pass);
+    return crypto.subtle.digest('SHA-256', data).then(function(buf){
+      return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+    });
+  }
+
   unlockBtn.addEventListener('click', function(){
     hideError();
+    var user = vaultUserInput.value.trim();
     var pw = pwInput.value;
-    if(!pw){ showError('Please enter a password.'); return; }
-    getSalt().then(function(salt){
-      if(isNew){
-        if(pw !== pwConfirm.value){ showError('Passwords do not match.'); return; }
-        if(pw.length < 4){ showError('Password must be at least 4 characters.'); return; }
-        hashPassword(pw, salt).then(function(h){
-          return idb.set(HASH_KEY, h).then(function(){ return deriveKey(pw, salt); });
-        }).then(function(key){
-          cryptoKey = key;
-          return saveVault(defaultData());
-        }).then(function(){ unlock(); });
-      } else {
-        Promise.all([hashPassword(pw, salt), idb.get(HASH_KEY)]).then(function(results){
-          var h = results[0]; var storedHash = results[1];
-          if(h !== storedHash){ showError('Wrong password.'); return; }
-          return deriveKey(pw, salt).then(function(key){ cryptoKey = key; unlock(); });
-        });
-      }
+    if(!user){ showError('Please enter your username.'); return; }
+    if(!pw){ showError('Please enter your password.'); return; }
+
+    // Verify against stored account credentials
+    var storedUser = localStorage.getItem('homer-auth-user');
+    var storedAcctHash = localStorage.getItem('homer-auth-hash');
+    if(!storedUser || !storedAcctHash){ showError('No account found. Create one first.'); return; }
+    if(storedUser.toLowerCase() !== user.toLowerCase()){ showError('Invalid username or password.'); return; }
+
+    hashAccountCreds(user, pw).then(function(acctHash){
+      if(acctHash !== storedAcctHash){ showError('Invalid username or password.'); return; }
+
+      // Account verified — use credentials to derive vault encryption key
+      var vaultPw = user.toLowerCase() + ':' + pw;
+      getSalt().then(function(salt){
+        if(isNew){
+          hashPassword(vaultPw, salt).then(function(h){
+            return idb.set(HASH_KEY, h).then(function(){ return deriveKey(vaultPw, salt); });
+          }).then(function(key){
+            cryptoKey = key;
+            return saveVault(defaultData());
+          }).then(function(){ unlock(); });
+        } else {
+          deriveKey(vaultPw, salt).then(function(key){ cryptoKey = key; unlock(); });
+        }
+      });
     });
   });
+  vaultUserInput.addEventListener('keydown', function(e){ if(e.key==='Enter') unlockBtn.click(); });
   pwInput.addEventListener('keydown', function(e){ if(e.key==='Enter') unlockBtn.click(); });
-  pwConfirm.addEventListener('keydown', function(e){ if(e.key==='Enter') unlockBtn.click(); });
 
   function unlock(){
-    pwInput.value = ''; pwConfirm.value = '';
+    pwInput.value = '';
     lockScreen.style.display = 'none';
     content.style.display = 'block';
     renderVault();
@@ -4600,27 +4658,14 @@ document.addEventListener("input", e => {
     credsList.innerHTML = '';
     ['todo','progress','pending','done'].forEach(function(c){ document.querySelector('.kanban-items[data-col="'+c+'"]').innerHTML=''; });
     isNew = false;
-    lockLabel.textContent = 'Enter your master password to unlock';
-    pwConfirmWrap.style.display = 'none';
+    lockLabel.textContent = 'Unlock Vault';
     unlockBtn.textContent = 'Unlock';
+    // Re-fill username
+    var acctUser = localStorage.getItem('homer-auth-user');
+    if(acctUser) vaultUserInput.value = acctUser;
+    pwInput.value = '';
   });
 
-  changePwBtn.addEventListener('click', function(){
-    var newPw = prompt('Enter new master password:');
-    if(!newPw || newPw.length < 4){ alert('Password must be at least 4 characters.'); return; }
-    var confirmPw = prompt('Confirm new password:');
-    if(newPw !== confirmPw){ alert('Passwords do not match.'); return; }
-    loadVault().then(function(data){
-      return getSalt().then(function(salt){
-        return hashPassword(newPw, salt).then(function(h){
-          return idb.set(HASH_KEY, h).then(function(){ return deriveKey(newPw, salt); });
-        }).then(function(key){
-          cryptoKey = key;
-          return saveVault(data);
-        }).then(function(){ alert('Password changed successfully!'); });
-      });
-    });
-  });
 
   // --- Add Link ---
   linkAddBtn.addEventListener('click', function(){
@@ -4861,6 +4906,10 @@ document.addEventListener("input", e => {
 
 <!-- Floating Action Buttons -->
 <div class="fab-cluster">
+  <button id="fab-account" class="fab-btn" title="Account">
+    <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <span class="fab-user-dot"></span>
+  </button>
   <button id="fab-cloud" class="fab-btn" title="Cloud Backup">
     <svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
     <span class="fab-dot off"></span>
@@ -4870,6 +4919,75 @@ document.addEventListener("input", e => {
   </button>
 </div>
 
+<!-- Account Modal -->
+<div id="acct-modal-bg" class="fab-overlay">
+  <div class="fab-dialog">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+      <h3 id="acct-title" style="margin:0;font-size:1.15rem;">👤 Account</h3>
+      <button id="acct-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
+    </div>
+
+    <!-- Logged-out view: create / sign-in -->
+    <div id="acct-form">
+      <input id="acct-user" class="acct-field" type="text" placeholder="Username" autocomplete="username">
+      <div class="acct-field-wrap">
+        <input id="acct-pass" class="acct-field" type="password" placeholder="Password" autocomplete="current-password">
+        <button type="button" class="pw-toggle" onclick="var i=document.getElementById('acct-pass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'👁‍🗨'">👁</button>
+      </div>
+      <div id="acct-confirm-wrap" style="display:none;">
+        <div class="acct-field-wrap">
+          <input id="acct-confirm" class="acct-field" type="password" placeholder="Confirm password" autocomplete="new-password">
+          <button type="button" class="pw-toggle" onclick="var i=document.getElementById('acct-confirm');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'👁‍🗨'">👁</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button id="acct-submit" class="btn primary" style="flex:1;padding:10px;font-size:.95rem;">Sign In</button>
+      </div>
+      <div id="acct-error" class="acct-error"></div>
+      <div style="text-align:center;margin-top:12px;">
+        <button id="acct-mode-toggle" style="background:none;border:none;color:var(--accent-2);cursor:pointer;font-size:.85rem;text-decoration:underline;">Don't have an account? Create one</button>
+      </div>
+    </div>
+
+    <!-- Logged-in view -->
+    <div id="acct-info" style="display:none;">
+      <div style="text-align:center;margin-bottom:18px;">
+        <div style="font-size:3rem;margin-bottom:8px;">👤</div>
+        <div style="font-size:1.2rem;font-weight:800;color:var(--text);" id="acct-display-name"></div>
+        <div style="color:var(--muted);font-size:.85rem;margin-top:4px;">Signed in</div>
+      </div>
+      <p style="color:var(--muted);font-size:.85rem;margin:0 0 16px;text-align:center;">Your credentials are used as the cloud sync key.</p>
+      <button id="acct-logout" class="btn" style="width:100%;padding:10px;font-size:.95rem;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;color:#fff;">Sign Out</button>
+    </div>
+
+    <!-- Super Admin -->
+    <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:14px;">
+      <div id="admin-gate" style="text-align:center;">
+        <button id="admin-toggle-btn" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.78rem;opacity:.4;transition:opacity .2s;">Super Admin</button>
+      </div>
+
+      <div id="admin-login" style="display:none;margin-top:12px;">
+        <input id="admin-user" class="acct-field" type="text" placeholder="Admin email" autocomplete="off" style="font-size:.88rem;">
+        <div class="acct-field-wrap">
+          <input id="admin-pass" class="acct-field" type="password" placeholder="Admin password" autocomplete="off" style="font-size:.88rem;">
+          <button type="button" class="pw-toggle" onclick="var i=document.getElementById('admin-pass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'👁‍🗨'">👁</button>
+        </div>
+        <button id="admin-signin" class="btn" style="width:100%;padding:9px;font-size:.88rem;background:linear-gradient(135deg,#8b5cf6,#6d28d9);border:none;color:#fff;">Authenticate</button>
+        <p id="admin-error" style="color:#ef4444;font-size:.82rem;min-height:1em;margin:6px 0 0;text-align:center;"></p>
+      </div>
+
+      <div id="admin-panel" style="display:none;margin-top:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-size:.82rem;font-weight:800;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;">Admin Panel</span>
+          <button id="admin-refresh" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--muted);cursor:pointer;font-size:.75rem;font-weight:700;">Refresh</button>
+        </div>
+        <div id="admin-status" style="color:var(--muted);font-size:.8rem;min-height:1em;margin-bottom:8px;"></div>
+        <div id="admin-list" style="display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Cloud Backup Modal -->
 <div id="fab-modal-bg" class="fab-overlay">
   <div class="fab-dialog">
@@ -4877,11 +4995,9 @@ document.addEventListener("input", e => {
       <h3 style="margin:0;font-size:1.15rem;">&#x2601; Cloud Backup</h3>
       <button id="fab-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
     </div>
-    <label style="display:block;color:var(--muted);font-size:.85rem;margin-bottom:6px;">Passphrase</label>
-    <div style="display:flex;gap:6px;margin-bottom:14px;">
-      <input id="fab-pass" type="password" placeholder="Enter sync passphrase" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem;outline:none;">
-      <button id="fab-pass-toggle" style="background:none;border:1px solid var(--border);border-radius:10px;padding:8px 10px;cursor:pointer;color:var(--muted);font-size:1rem;">&#128065;</button>
-    </div>
+    <p id="fab-sync-info" style="color:var(--muted);font-size:.85rem;margin-bottom:14px;">Syncing as <strong id="fab-sync-user" style="color:var(--text);"></strong>. Your account credentials are used as the sync key.</p>
+    <p id="fab-sync-warn" style="color:#f59e0b;font-size:.85rem;margin-bottom:14px;display:none;">No account set up. Create one via the Account button to enable sync.</p>
+    <input id="fab-pass" type="hidden">
     <div style="display:flex;gap:8px;margin-bottom:14px;">
       <button id="fab-backup" class="btn primary" style="flex:1;padding:10px;font-size:.9rem;">Backup Now</button>
       <button id="fab-restore" class="btn ghost" style="flex:1;padding:10px;font-size:.9rem;">Restore</button>
@@ -4907,6 +5023,281 @@ document.addEventListener("input", e => {
 </div>
 
 <script>
+/* ACCOUNT MANAGEMENT */
+(function(){
+  var AUTH_USER_KEY = 'homer-auth-user';
+  var AUTH_HASH_KEY = 'homer-auth-hash';
+
+  var fabAcct = document.getElementById('fab-account');
+  var modalBg = document.getElementById('acct-modal-bg');
+  var form = document.getElementById('acct-form');
+  var info = document.getElementById('acct-info');
+  var userInput = document.getElementById('acct-user');
+  var passInput = document.getElementById('acct-pass');
+  var confirmWrap = document.getElementById('acct-confirm-wrap');
+  var confirmInput = document.getElementById('acct-confirm');
+  var submitBtn = document.getElementById('acct-submit');
+  var errorEl = document.getElementById('acct-error');
+  var modeToggle = document.getElementById('acct-mode-toggle');
+  var displayName = document.getElementById('acct-display-name');
+  var logoutBtn = document.getElementById('acct-logout');
+  var userDot = fabAcct.querySelector('.fab-user-dot');
+  var titleEl = document.getElementById('acct-title');
+  var isRegister = false;
+
+  async function hashCreds(user, pass){
+    var data = new TextEncoder().encode(user.toLowerCase() + ':' + pass);
+    var buf = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+  }
+
+  function updateUI(){
+    var user = localStorage.getItem(AUTH_USER_KEY);
+    var hash = localStorage.getItem(AUTH_HASH_KEY);
+    if(user && hash){
+      form.style.display = 'none';
+      info.style.display = 'block';
+      displayName.textContent = user;
+      userDot.className = 'fab-user-dot logged-in';
+      titleEl.innerHTML = '👤 Account';
+      // Update sync passphrase
+      localStorage.setItem('homer-sync-pass', hash);
+      // Update fab-sync-user if exists
+      var su = document.getElementById('fab-sync-user');
+      if(su) su.textContent = user;
+    } else {
+      form.style.display = 'block';
+      info.style.display = 'none';
+      userDot.className = 'fab-user-dot';
+    }
+  }
+
+  // Open/close modal
+  fabAcct.addEventListener('click', function(){ modalBg.classList.add('open'); });
+  document.getElementById('acct-modal-close').addEventListener('click', function(){ modalBg.classList.remove('open'); });
+  modalBg.addEventListener('click', function(e){ if(e.target===modalBg) modalBg.classList.remove('open'); });
+
+  // Toggle register/sign-in
+  modeToggle.addEventListener('click', function(){
+    isRegister = !isRegister;
+    confirmWrap.style.display = isRegister ? 'block' : 'none';
+    submitBtn.textContent = isRegister ? 'Create Account' : 'Sign In';
+    modeToggle.textContent = isRegister ? 'Already have an account? Sign in' : "Don't have an account? Create one";
+    errorEl.textContent = '';
+  });
+
+  // Submit
+  submitBtn.addEventListener('click', async function(){
+    var user = userInput.value.trim();
+    var pass = passInput.value;
+    errorEl.textContent = '';
+
+    if(!user){ errorEl.textContent = 'Username is required'; return; }
+    if(user.length < 3){ errorEl.textContent = 'Username must be at least 3 characters'; return; }
+    if(!pass){ errorEl.textContent = 'Password is required'; return; }
+    if(pass.length < 4){ errorEl.textContent = 'Password must be at least 4 characters'; return; }
+
+    var hash = await hashCreds(user, pass);
+
+    if(isRegister){
+      if(pass !== confirmInput.value){ errorEl.textContent = 'Passwords do not match'; return; }
+      var existing = localStorage.getItem(AUTH_USER_KEY);
+      if(existing){ errorEl.textContent = 'An account already exists. Sign in or sign out first.'; return; }
+      localStorage.setItem(AUTH_USER_KEY, user);
+      localStorage.setItem(AUTH_HASH_KEY, hash);
+      localStorage.setItem('homer-sync-pass', hash);
+      localStorage.setItem('homer-sync-auto', 'true');
+      updateUI();
+      userInput.value = ''; passInput.value = ''; confirmInput.value = '';
+      modalBg.classList.remove('open');
+      // Backup current data to cloud immediately
+      window.dispatchEvent(new CustomEvent('homer-auth', {detail: {action: 'register'}}));
+    } else {
+      var storedUser = localStorage.getItem(AUTH_USER_KEY);
+      var storedHash = localStorage.getItem(AUTH_HASH_KEY);
+      if(!storedUser || !storedHash){ errorEl.textContent = 'No account found. Create one first.'; return; }
+      if(storedUser.toLowerCase() !== user.toLowerCase()){ errorEl.textContent = 'Invalid username or password'; return; }
+      if(storedHash !== hash){ errorEl.textContent = 'Invalid username or password'; return; }
+      localStorage.setItem('homer-sync-pass', hash);
+      localStorage.setItem('homer-sync-auto', 'true');
+      updateUI();
+      userInput.value = ''; passInput.value = '';
+      modalBg.classList.remove('open');
+      // Restore data from cloud on sign-in
+      window.dispatchEvent(new CustomEvent('homer-auth', {detail: {action: 'signin'}}));
+    }
+  });
+
+  // Enter key
+  [userInput, passInput, confirmInput].forEach(function(el){
+    el.addEventListener('keydown', function(e){ if(e.key === 'Enter') submitBtn.click(); });
+  });
+
+  // Logout — backup first, then clear credentials
+  logoutBtn.addEventListener('click', function(){
+    window.dispatchEvent(new CustomEvent('homer-auth', {detail: {action: 'logout'}}));
+    localStorage.removeItem(AUTH_USER_KEY);
+    localStorage.removeItem(AUTH_HASH_KEY);
+    localStorage.removeItem('homer-sync-pass');
+    localStorage.removeItem('homer-sync-auto');
+    updateUI();
+    modalBg.classList.remove('open');
+  });
+
+  // Init
+  updateUI();
+})();
+</script>
+
+<script>
+/* SUPER ADMIN */
+(function(){
+  var toggleBtn = document.getElementById('admin-toggle-btn');
+  var loginSection = document.getElementById('admin-login');
+  var panel = document.getElementById('admin-panel');
+  var userInput = document.getElementById('admin-user');
+  var passInput = document.getElementById('admin-pass');
+  var signinBtn = document.getElementById('admin-signin');
+  var errorEl = document.getElementById('admin-error');
+  var refreshBtn = document.getElementById('admin-refresh');
+  var listEl = document.getElementById('admin-list');
+  var statusEl = document.getElementById('admin-status');
+  var adminUser = '';
+  var adminPass = '';
+
+  toggleBtn.addEventListener('click', function(){
+    if(panel.style.display === 'block') return;
+    loginSection.style.display = loginSection.style.display === 'none' ? 'block' : 'none';
+  });
+
+  function adminFetch(action, target){
+    return fetch('/api/admin', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({user: adminUser, pass: adminPass, action: action, target: target||undefined})
+    }).then(function(r){ return r.json(); });
+  }
+
+  function formatSize(bytes){
+    if(bytes < 1024) return bytes + ' B';
+    if(bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+    return (bytes/1048576).toFixed(1) + ' MB';
+  }
+
+  function loadEntries(){
+    statusEl.textContent = 'Loading...';
+    listEl.innerHTML = '';
+    adminFetch('list').then(function(d){
+      if(d.error){ statusEl.textContent = 'Error: ' + d.error; return; }
+      var entries = d.entries || [];
+      statusEl.textContent = entries.length + ' backup' + (entries.length !== 1 ? 's' : '') + ' in database';
+      if(!entries.length){ listEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:16px;font-size:.85rem;">No backups found</div>'; return; }
+      entries.forEach(function(e){
+        var card = document.createElement('div');
+        card.style.cssText = 'padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);';
+        var name = e.username || 'Unknown';
+        var shortKey = e.key.length > 18 ? e.key.substring(0,18) + '...' : e.key;
+        card.innerHTML =
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
+            '<div style="min-width:0;">' +
+              '<div style="font-weight:800;font-size:.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escH(name) + '</div>' +
+              '<div style="font-size:.7rem;color:rgba(255,255,255,.25);font-family:monospace;margin-top:2px;">' + escH(shortKey) + '</div>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
+              '<span style="font-size:.72rem;color:var(--muted);white-space:nowrap;">' + e.items + ' items &middot; ' + formatSize(e.size) + '</span>' +
+              '<button class="admin-inspect-btn" data-key="' + escH(e.key) + '" style="background:none;border:1px solid rgba(96,165,250,.25);border-radius:6px;padding:3px 8px;color:#60a5fa;cursor:pointer;font-size:.7rem;font-weight:700;">View</button>' +
+              '<button class="admin-del-btn" data-key="' + escH(e.key) + '" data-name="' + escH(name) + '" style="background:none;border:1px solid rgba(239,68,68,.25);border-radius:6px;padding:3px 8px;color:#ef4444;cursor:pointer;font-size:.7rem;font-weight:700;">Del</button>' +
+            '</div>' +
+          '</div>';
+        listEl.appendChild(card);
+      });
+    }).catch(function(err){ statusEl.textContent = 'Failed: ' + err.message; });
+  }
+
+  function escH(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+  signinBtn.addEventListener('click', function(){
+    adminUser = userInput.value.trim();
+    adminPass = passInput.value;
+    errorEl.textContent = '';
+    if(!adminUser || !adminPass){ errorEl.textContent = 'Enter admin credentials'; return; }
+    statusEl.textContent = 'Authenticating...';
+    adminFetch('list').then(function(d){
+      if(d.error){
+        errorEl.textContent = d.error === 'Unauthorized' ? 'Invalid admin credentials' : d.error;
+        panel.style.display = 'none';
+        return;
+      }
+      loginSection.style.display = 'none';
+      panel.style.display = 'block';
+      var entries = d.entries || [];
+      statusEl.textContent = entries.length + ' backup' + (entries.length !== 1 ? 's' : '') + ' in database';
+      // render
+      listEl.innerHTML = '';
+      if(!entries.length){ listEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:16px;font-size:.85rem;">No backups found</div>'; return; }
+      entries.forEach(function(e){
+        var card = document.createElement('div');
+        card.style.cssText = 'padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);';
+        var name = e.username || 'Unknown';
+        var shortKey = e.key.length > 18 ? e.key.substring(0,18) + '...' : e.key;
+        card.innerHTML =
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
+            '<div style="min-width:0;">' +
+              '<div style="font-weight:800;font-size:.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escH(name) + '</div>' +
+              '<div style="font-size:.7rem;color:rgba(255,255,255,.25);font-family:monospace;margin-top:2px;">' + escH(shortKey) + '</div>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
+              '<span style="font-size:.72rem;color:var(--muted);white-space:nowrap;">' + e.items + ' items &middot; ' + formatSize(e.size) + '</span>' +
+              '<button class="admin-inspect-btn" data-key="' + escH(e.key) + '" style="background:none;border:1px solid rgba(96,165,250,.25);border-radius:6px;padding:3px 8px;color:#60a5fa;cursor:pointer;font-size:.7rem;font-weight:700;">View</button>' +
+              '<button class="admin-del-btn" data-key="' + escH(e.key) + '" data-name="' + escH(name) + '" style="background:none;border:1px solid rgba(239,68,68,.25);border-radius:6px;padding:3px 8px;color:#ef4444;cursor:pointer;font-size:.7rem;font-weight:700;">Del</button>' +
+            '</div>' +
+          '</div>';
+        listEl.appendChild(card);
+      });
+    }).catch(function(err){ errorEl.textContent = 'Failed: ' + err.message; });
+  });
+
+  [userInput, passInput].forEach(function(el){
+    el.addEventListener('keydown', function(e){ if(e.key === 'Enter') signinBtn.click(); });
+  });
+
+  refreshBtn.addEventListener('click', loadEntries);
+
+  // Delegate clicks for inspect/delete
+  listEl.addEventListener('click', function(ev){
+    var btn = ev.target.closest('.admin-del-btn');
+    if(btn){
+      var key = btn.dataset.key;
+      var name = btn.dataset.name;
+      if(!confirm('Delete backup for "' + name + '"?\nThis cannot be undone.')) return;
+      btn.textContent = '...';
+      adminFetch('delete', key).then(function(d){
+        if(d.ok){ btn.closest('div[style]').remove(); loadEntries(); }
+        else { alert('Error: ' + (d.error || 'Unknown')); btn.textContent = 'Del'; }
+      }).catch(function(){ btn.textContent = 'Del'; });
+      return;
+    }
+    var ibtn = ev.target.closest('.admin-inspect-btn');
+    if(ibtn){
+      var ikey = ibtn.dataset.key;
+      ibtn.textContent = '...';
+      adminFetch('inspect', ikey).then(function(d){
+        ibtn.textContent = 'View';
+        if(d.error){ alert('Error: ' + d.error); return; }
+        var keys = Object.keys(d.data || {});
+        var info = keys.map(function(k){
+          var v = d.data[k];
+          var preview = typeof v === 'string' ? v.substring(0, 80) : JSON.stringify(v).substring(0, 80);
+          return k + ': ' + preview;
+        }).join('\n');
+        alert('Backup contents (' + keys.length + ' keys):\n\n' + info);
+      }).catch(function(){ ibtn.textContent = 'View'; });
+    }
+  });
+})();
+</script>
+
+<script>
 (function(){
   var SYNC_PASS_KEY = 'homer-sync-pass';
   var SYNC_AUTO_KEY = 'homer-sync-auto';
@@ -4914,7 +5305,8 @@ document.addEventListener("input", e => {
     'motivator.savedQuotes.v1', 'homer-quotes-seen', 'homer-quotes-cache',
     'pom.settings.v1', 'pom.tasks.v1', 'pom.state.v1',
     'homer-brain-dump', 'homer-links', 'homer-zen-goal',
-    'homer-sync-pass', 'homer-sync-auto'
+    'homer-sync-pass', 'homer-sync-auto',
+    'homer-auth-user', 'homer-auth-hash'
   ];
   var IDB_KEYS = ['homer-vault-salt', 'homer-vault-hash', 'homer-vault-data'];
   var ALL_KEYS = LS_KEYS.concat(IDB_KEYS);
@@ -4968,17 +5360,27 @@ document.addEventListener("input", e => {
   var autoChk = document.getElementById('fab-auto');
   var timer = null;
 
+  // Use login credentials as sync key
   pass.value = localStorage.getItem(SYNC_PASS_KEY) || '';
   autoChk.checked = localStorage.getItem(SYNC_AUTO_KEY) === 'true';
+
+  // Show username in sync modal or warning
+  var fabSyncUser = document.getElementById('fab-sync-user');
+  var fabSyncInfo = document.getElementById('fab-sync-info');
+  var fabSyncWarn = document.getElementById('fab-sync-warn');
+  var authName = localStorage.getItem('homer-auth-user');
+  if(authName){
+    if(fabSyncUser) fabSyncUser.textContent = authName;
+    if(fabSyncInfo) fabSyncInfo.style.display = '';
+    if(fabSyncWarn) fabSyncWarn.style.display = 'none';
+  } else {
+    if(fabSyncInfo) fabSyncInfo.style.display = 'none';
+    if(fabSyncWarn) fabSyncWarn.style.display = '';
+  }
 
   cloud.addEventListener('click', function(){ modalBg.classList.add('open'); });
   document.getElementById('fab-modal-close').addEventListener('click', function(){ modalBg.classList.remove('open'); });
   modalBg.addEventListener('click', function(e){ if(e.target===modalBg) modalBg.classList.remove('open'); });
-
-  document.getElementById('fab-pass-toggle').addEventListener('click', function(){
-    var h = pass.type==='password'; pass.type = h?'text':'password';
-    this.innerHTML = h ? '&#128065;&#8205;&#128488;' : '&#128065;';
-  });
 
   function st(m){ statusEl.textContent=m; }
 
@@ -5003,7 +5405,7 @@ document.addEventListener("input", e => {
 
   function backup(){
     var p=pass.value.trim();
-    if(!p){ st('Enter a passphrase first'); return Promise.resolve(); }
+    if(!p){ st('Not logged in — please sign in first'); return Promise.resolve(); }
     localStorage.setItem(SYNC_PASS_KEY,p);
     st('Backing up...');
     var svg=cloud.querySelector('svg'); svg.classList.add('fab-spinning');
@@ -5022,7 +5424,7 @@ document.addEventListener("input", e => {
 
   function restore(){
     var p=pass.value.trim();
-    if(!p){ st('Enter a passphrase first'); return; }
+    if(!p){ st('Not logged in — please sign in first'); return; }
     localStorage.setItem(SYNC_PASS_KEY,p);
     st('Restoring...');
     fetch('/api/sync?key='+encodeURIComponent(p))
@@ -5059,7 +5461,81 @@ document.addEventListener("input", e => {
   function startAuto(){ stopAuto(); timer=setInterval(function(){ if(pass.value.trim()) backup(); },300000); if(pass.value.trim()) backup(); }
   function stopAuto(){ if(timer){clearInterval(timer);timer=null;} }
 
-  if(autoChk.checked && pass.value.trim()) startAuto();
+  function updateSyncUI(){
+    pass.value = localStorage.getItem(SYNC_PASS_KEY) || '';
+    autoChk.checked = localStorage.getItem(SYNC_AUTO_KEY) === 'true';
+    var name = localStorage.getItem('homer-auth-user');
+    if(name){
+      if(fabSyncUser) fabSyncUser.textContent = name;
+      if(fabSyncInfo) fabSyncInfo.style.display = '';
+      if(fabSyncWarn) fabSyncWarn.style.display = 'none';
+    } else {
+      if(fabSyncInfo) fabSyncInfo.style.display = 'none';
+      if(fabSyncWarn) fabSyncWarn.style.display = '';
+    }
+    updDot();
+  }
+
+  // Listen for auth events from Account system
+  window.addEventListener('homer-auth', function(e){
+    var action = e.detail && e.detail.action;
+    updateSyncUI();
+    if(action === 'register'){
+      // New account — backup current data to cloud
+      backup().then(function(){
+        startAuto();
+      });
+    } else if(action === 'signin'){
+      // Existing account — restore from cloud, then enable auto-backup
+      var p = pass.value.trim();
+      if(!p) return;
+      st('Restoring your data...');
+      fetch('/api/sync?key='+encodeURIComponent(p))
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if(d.error || !d.data){
+            // No cloud data yet — just backup current data
+            st('No cloud data found — backing up...');
+            return backup().then(function(){ startAuto(); });
+          }
+          // Cloud data exists — restore it
+          var c = 0;
+          var idbWrites = [];
+          Object.keys(d.data).forEach(function(k){
+            c++;
+            if(IDB_KEYS.indexOf(k) >= 0){
+              idbWrites.push(syncIdbSet(k, d.data[k]));
+            } else {
+              localStorage.setItem(k, d.data[k]);
+            }
+          });
+          return Promise.all(idbWrites).then(function(){
+            st('Restored '+c+' items. Reloading...');
+            updDot();
+            startAuto();
+            setTimeout(function(){ location.reload(); }, 1000);
+          });
+        })
+        .catch(function(err){
+          st('Restore failed — backing up instead...');
+          backup().then(function(){ startAuto(); });
+        });
+    } else if(action === 'logout'){
+      // Final backup before credentials are cleared
+      backup().then(function(){
+        stopAuto();
+        updateSyncUI();
+      });
+    }
+  });
+
+  // On page load: if logged in, ensure auto-backup is running
+  if(pass.value.trim()){
+    // Always enable auto-backup when logged in
+    autoChk.checked = true;
+    localStorage.setItem(SYNC_AUTO_KEY, 'true');
+    startAuto();
+  }
   updDot();
 
   // --- Clear Cache ---
