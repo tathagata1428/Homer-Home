@@ -2353,20 +2353,22 @@ document.addEventListener("input", e => {
       }
   }, 10000);
 
-  // FAB Keep Awake button
-  var fabWake = document.getElementById('fab-wake');
-  var fabWakeDot = fabWake ? fabWake.querySelector('.fab-dot') : null;
+  // FAB Keep Awake button - query DOM lazily since button is below this script
   function updateWakeDot(){
-    if(fabWakeDot) fabWakeDot.className = 'fab-dot ' + (isKeepingAwake ? 'ok' : 'off');
+    var d = document.querySelector('#fab-wake .fab-dot');
+    if(d) d.className = 'fab-dot ' + (isKeepingAwake ? 'ok' : 'off');
   }
-  if(fabWake){
-    fabWake.addEventListener('click', function(){
-      toggleWakeLock(); setTimeout(updateWakeDot, 150);
-    });
-  }
-  updateWakeDot();
+  document.addEventListener('DOMContentLoaded', function(){
+    var fabWake = document.getElementById('fab-wake');
+    if(fabWake){
+      fabWake.addEventListener('click', function(){
+        toggleWakeLock(); setTimeout(updateWakeDot, 150);
+      });
+    }
+    updateWakeDot();
+  });
   if(btnWake){
-    btnWake.addEventListener('click', function(){ setTimeout(updateWakeDot, 50); });
+    btnWake.addEventListener('click', function(){ setTimeout(updateWakeDot, 100); });
   }
 </script>
 
