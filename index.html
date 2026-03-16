@@ -5161,8 +5161,30 @@ document.addEventListener("input", e => {
                 submitBtn.textContent = 'Sign In';
                 return;
               }
-              // Restore account credentials locally
-              localStorage.setItem(AUTH_USER_KEY, d.data['homer-auth-user']);
+              // Restore ALL data from cloud directly (no second fetch needed)
+              var idbK = ['homer-vault-salt','homer-vault-hash','homer-vault-data'];
+              var rc = 0;
+              var idbW = [];
+              Object.keys(d.data).forEach(function(k){
+                rc++;
+                if(idbK.indexOf(k) >= 0){
+                  var iReq = indexedDB.open('homer-vault-idb', 1);
+                  iReq.onupgradeneeded = function(ev){ ev.target.result.createObjectStore('kv'); };
+                  idbW.push(new Promise(function(res){
+                    iReq.onsuccess = function(ev){
+                      var tx = ev.target.result.transaction('kv','readwrite');
+                      tx.objectStore('kv').put(d.data[k], k);
+                      tx.oncomplete = res;
+                      tx.onerror = res;
+                    };
+                    iReq.onerror = res;
+                  }));
+                } else {
+                  localStorage.setItem(k, d.data[k]);
+                }
+              });
+              // Ensure auth credentials are set (even if missing from cloud data)
+              localStorage.setItem(AUTH_USER_KEY, d.data[AUTH_USER_KEY] || user);
               localStorage.setItem(AUTH_HASH_KEY, hash);
               localStorage.setItem('homer-sync-pass', hash);
               localStorage.setItem('homer-sync-auto', 'true');
@@ -5171,8 +5193,9 @@ document.addEventListener("input", e => {
               submitBtn.disabled = false;
               submitBtn.textContent = 'Sign In';
               modalBg.classList.remove('open');
-              // Restore all data from cloud
-              window.dispatchEvent(new CustomEvent('homer-auth', {detail: {action: 'signin'}}));
+              Promise.all(idbW).then(function(){
+                location.reload();
+              });
             } else {
               errorEl.textContent = 'No account found. Create one first.';
               submitBtn.disabled = false;
@@ -5586,7 +5609,7 @@ document.addEventListener("input", e => {
     updateSyncUI();
     if(action === 'register'){
       // New account — backup current data to cloud
-      backup().then(function(){
+      backup(true).then(function(){
         startAuto();
       });
     } else if(action === 'signin'){
