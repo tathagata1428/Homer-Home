@@ -2316,6 +2316,7 @@ document.addEventListener("input", e => {
               btnWake.classList.remove('danger');
               btnWake.classList.add('secondary');
           }
+          if(typeof updateWakeDot==='function') updateWakeDot();
       } else {
           // Turn OFF
           isKeepingAwake = false;
@@ -2331,6 +2332,7 @@ document.addEventListener("input", e => {
               btnWake.classList.add('danger');
               btnWake.classList.remove('secondary');
           }
+          if(typeof updateWakeDot==='function') updateWakeDot();
       }
   }
 
@@ -2359,7 +2361,7 @@ document.addEventListener("input", e => {
   }
   if(fabWake){
     fabWake.addEventListener('click', function(){
-      toggleWakeLock().finally(updateWakeDot);
+      toggleWakeLock(); setTimeout(updateWakeDot, 150);
     });
   }
   updateWakeDot();
