@@ -644,6 +644,20 @@
     }
     #fab-cloud .fab-dot.ok{ background:#22c55e; box-shadow:0 0 8px rgba(34,197,94,.6); }
     #fab-cloud .fab-dot.off{ background:#ef4444; box-shadow:0 0 6px rgba(239,68,68,.4); }
+    #fab-wake{
+      width:42px; height:42px;
+      background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);
+      border:1px solid rgba(234,179,8,.2);
+      box-shadow:0 4px 18px rgba(0,0,0,.45);
+    }
+    #fab-wake svg{ width:18px; height:18px; fill:none; stroke:#eab308; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+    #fab-wake:hover svg{ stroke:#facc15; }
+    #fab-wake .fab-dot{
+      position:absolute; top:2px; right:2px; width:9px; height:9px; border-radius:50%;
+      border:2px solid #0f172a;
+    }
+    #fab-wake .fab-dot.ok{ background:#22c55e; box-shadow:0 0 8px rgba(34,197,94,.6); }
+    #fab-wake .fab-dot.off{ background:#ef4444; box-shadow:0 0 6px rgba(239,68,68,.4); }
     #fab-clear{
       width:38px; height:38px;
       background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);
@@ -2336,6 +2350,22 @@ document.addEventListener("input", e => {
           await acquireWakeLock();
       }
   }, 10000);
+
+  // FAB Keep Awake button
+  var fabWake = document.getElementById('fab-wake');
+  var fabWakeDot = fabWake ? fabWake.querySelector('.fab-dot') : null;
+  function updateWakeDot(){
+    if(fabWakeDot) fabWakeDot.className = 'fab-dot ' + (isKeepingAwake ? 'ok' : 'off');
+  }
+  if(fabWake){
+    fabWake.addEventListener('click', function(){
+      toggleWakeLock().then(updateWakeDot);
+    });
+  }
+  updateWakeDot();
+  if(btnWake){
+    btnWake.addEventListener('click', function(){ setTimeout(updateWakeDot, 50); });
+  }
 </script>
 
 <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
@@ -4932,6 +4962,10 @@ document.addEventListener("input", e => {
   </button>
   <button id="fab-cloud" class="fab-btn" title="Cloud Backup">
     <svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+    <span class="fab-dot off"></span>
+  </button>
+  <button id="fab-wake" class="fab-btn" title="Keep Awake">
+    <svg viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 7.66l-.71-.71M4.05 4.05l-.71-.71"/><circle cx="12" cy="12" r="4"/></svg>
     <span class="fab-dot off"></span>
   </button>
   <button id="fab-clear" class="fab-btn" title="Clear Cache">
