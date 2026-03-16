@@ -5403,15 +5403,23 @@ document.addEventListener("input", e => {
     return Promise.all(idbTasks).then(function(){ return d; });
   }
 
-  function backup(){
-    var p=pass.value.trim();
-    if(!p){ st('Not logged in — please sign in first'); return Promise.resolve(); }
-    localStorage.setItem(SYNC_PASS_KEY,p);
+  // Keys that represent real user data (not auth/sync metadata)
+  var DATA_KEYS = [
+    'motivator.savedQuotes.v1', 'homer-quotes-seen', 'homer-quotes-cache',
+    'pom.settings.v1', 'pom.tasks.v1', 'pom.state.v1',
+    'homer-brain-dump', 'homer-links', 'homer-zen-goal'
+  ];
+
+  function countLocalData(){
+    var c = 0;
+    DATA_KEYS.forEach(function(k){ if(localStorage.getItem(k)) c++; });
+    return c;
+  }
+
+  function doBackup(p, allData){
     st('Backing up...');
     var svg=cloud.querySelector('svg'); svg.classList.add('fab-spinning');
-    return getAll().then(function(allData){
-      return fetch('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:p,data:allData})});
-    })
+    return fetch('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:p,data:allData})})
       .then(function(r){return r.json();})
       .then(function(d){
         svg.classList.remove('fab-spinning');
@@ -5420,6 +5428,42 @@ document.addEventListener("input", e => {
         updDot();
       })
       .catch(function(e){ svg.classList.remove('fab-spinning'); st('Failed: '+e.message); });
+  }
+
+  function backup(force){
+    var p=pass.value.trim();
+    if(!p){ st('Not logged in — please sign in first'); return Promise.resolve(); }
+    localStorage.setItem(SYNC_PASS_KEY,p);
+
+    return getAll().then(function(allData){
+      var localCount = countLocalData();
+
+      // If local data looks empty, check cloud before overwriting
+      if(!force && localCount < 2){
+        return fetch('/api/sync?key='+encodeURIComponent(p))
+          .then(function(r){ return r.json(); })
+          .then(function(d){
+            if(d.data){
+              // Count meaningful keys in cloud
+              var cloudDataCount = 0;
+              DATA_KEYS.forEach(function(k){ if(d.data[k]) cloudDataCount++; });
+              if(cloudDataCount > localCount){
+                st('Skipped — cloud has more data (' + cloudDataCount + ' vs ' + localCount + ' local). Use Restore instead.');
+                return;
+              }
+            }
+            // Cloud is empty or has less — safe to push
+            return doBackup(p, allData);
+          })
+          .catch(function(){
+            // Can't reach cloud — skip to be safe
+            st('Skipped — could not verify cloud data');
+          });
+      }
+
+      // Local has real data — safe to push
+      return doBackup(p, allData);
+    });
   }
 
   function restore(){
@@ -5449,7 +5493,7 @@ document.addEventListener("input", e => {
       .catch(function(e){ st('Failed: '+e.message); });
   }
 
-  document.getElementById('fab-backup').addEventListener('click', backup);
+  document.getElementById('fab-backup').addEventListener('click', function(){ backup(true); });
   document.getElementById('fab-restore').addEventListener('click', restore);
 
   autoChk.addEventListener('change', function(){
@@ -5517,8 +5561,9 @@ document.addEventListener("input", e => {
           });
         })
         .catch(function(err){
-          st('Restore failed — backing up instead...');
-          backup().then(function(){ startAuto(); });
+          st('Restore failed: ' + (err.message || 'network error'));
+          // Don't backup on restore failure — could overwrite cloud with empty data
+          startAuto();
         });
     } else if(action === 'logout'){
       // Final backup before credentials are cleared
