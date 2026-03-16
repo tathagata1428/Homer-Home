@@ -2308,7 +2308,7 @@ document.addEventListener("input", e => {
       if (!isKeepingAwake) {
           // Turn ON
           isKeepingAwake = true;
-          if (noSleep) noSleep.enable();
+          try { if (noSleep) noSleep.enable(); } catch(_e){}
           await acquireWakeLock();
           
           if (btnWake) {
@@ -2319,7 +2319,7 @@ document.addEventListener("input", e => {
       } else {
           // Turn OFF
           isKeepingAwake = false;
-          if (noSleep) noSleep.disable();
+          try { if (noSleep) noSleep.disable(); } catch(_e){}
           
           if (wakeLockSentinel) {
               try { await wakeLockSentinel.release(); } catch(e) {}
@@ -2359,7 +2359,7 @@ document.addEventListener("input", e => {
   }
   if(fabWake){
     fabWake.addEventListener('click', function(){
-      toggleWakeLock().then(updateWakeDot);
+      toggleWakeLock().finally(updateWakeDot);
     });
   }
   updateWakeDot();
