@@ -705,6 +705,44 @@
     }
     .acct-error{ color:#ef4444; font-size:.85rem; min-height:1.2em; margin-top:4px; }
 
+    /* === CALENDAR === */
+    #homer-cal { position:relative; }
+    #homer-cal .cal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+    #homer-cal .cal-header h3 { margin:0; font-size:1.15rem; font-weight:900; color:var(--text); }
+    #homer-cal .cal-nav { background:none; border:1px solid var(--border); color:var(--text); width:36px; height:36px; border-radius:10px; cursor:pointer; font-size:1.2rem; display:grid; place-items:center; transition:background .15s, border-color .2s; }
+    #homer-cal .cal-nav:hover { background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.25); }
+    #homer-cal .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; text-align:center; }
+    #homer-cal .cal-dow { font-size:.72rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; padding:6px 0; }
+    #homer-cal .cal-day { position:relative; aspect-ratio:1; display:grid; place-items:center; border-radius:12px; font-size:.88rem; font-weight:600; color:var(--text); cursor:default; transition:background .15s; user-select:none; }
+    #homer-cal .cal-day.other { color:rgba(148,163,184,.3); }
+    #homer-cal .cal-day.today { background:rgba(96,165,250,.18); color:#60a5fa; font-weight:900; box-shadow:inset 0 0 0 2px rgba(96,165,250,.4); }
+    #homer-cal .cal-day.has-goals { cursor:pointer; }
+    #homer-cal .cal-day.has-goals:hover { background:rgba(255,255,255,.08); }
+    #homer-cal .cal-dots { position:absolute; bottom:4px; left:50%; transform:translateX(-50%); display:flex; gap:3px; }
+    #homer-cal .cal-dot { width:6px; height:6px; border-radius:50%; }
+    #homer-cal .cal-dot.p-high { background:#ef4444; }
+    #homer-cal .cal-dot.p-medium { background:#fbbf24; }
+    #homer-cal .cal-dot.p-low { background:#22c55e; }
+    #homer-cal .cal-dot.p-none { background:var(--muted); }
+    #homer-cal .cal-popover { position:absolute; z-index:100; background:#1e293b; border:1px solid var(--border); border-radius:14px; padding:14px 16px; min-width:220px; max-width:300px; box-shadow:0 16px 48px rgba(0,0,0,.55); animation:fadeIn .15s ease both; }
+    #homer-cal .cal-pop-date { font-weight:800; font-size:.9rem; margin-bottom:8px; color:#60a5fa; }
+    #homer-cal .cal-pop-item { display:flex; align-items:flex-start; gap:8px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,.06); font-size:.85rem; }
+    #homer-cal .cal-pop-item:last-child { border-bottom:none; }
+    #homer-cal .cal-pop-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:5px; }
+    #homer-cal .cal-pop-close { position:absolute; top:8px; right:10px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:1.1rem; line-height:1; }
+    #homer-cal .cal-pop-close:hover { color:var(--text); }
+    #homer-cal .cal-pop-badge { font-size:.68rem; padding:1px 6px; border-radius:5px; font-weight:700; margin-left:6px; }
+    #homer-cal .cal-pop-badge.s-todo { background:rgba(96,165,250,.15); color:#60a5fa; }
+    #homer-cal .cal-pop-badge.s-progress { background:rgba(251,191,36,.15); color:#fbbf24; }
+    #homer-cal .cal-pop-badge.s-pending { background:rgba(139,92,246,.15); color:#a78bfa; }
+    #homer-cal .cal-pop-badge.s-done { background:rgba(34,197,94,.15); color:#22c55e; }
+    #homer-cal .cal-empty { color:var(--muted); text-align:center; padding:20px 0; font-size:.9rem; }
+    @media (max-width:430px) {
+      #homer-cal .cal-day { font-size:.78rem; border-radius:8px; }
+      #homer-cal .cal-dot { width:5px; height:5px; }
+      #homer-cal .cal-popover { left:8px!important; right:8px!important; min-width:0; transform:none!important; }
+    }
+
   </style>
 </head>
 <body>
@@ -798,6 +836,17 @@
               <div id="savedEmpty" class="empty" style="display:none">No saved quotes yet.</div>
             </div>
           </div>
+        </div>
+
+        <div class="span-12 card" id="homer-cal">
+          <h2 class="section">Calendar</h2>
+          <div class="cal-header">
+            <button class="cal-nav" id="cal-prev" aria-label="Previous month">&#8249;</button>
+            <h3 id="cal-title"></h3>
+            <button class="cal-nav" id="cal-next" aria-label="Next month">&#8250;</button>
+          </div>
+          <div class="cal-grid" id="cal-grid"></div>
+          <div class="cal-empty" id="cal-empty" style="display:none">Unlock the vault to see goal deadlines.</div>
         </div>
 
         <div class="span-12 card" id="home-tasks-card" style="display:none">
@@ -4756,6 +4805,179 @@ document.addEventListener("input", e => {
     el.addEventListener('keydown', function(e){ if(e.key==='Enter') credAddBtn.click(); });
   });
 
+
+  window._calendarLoadVault = function(){ if(!cryptoKey) return Promise.resolve(null); return loadVault(); };
+})();
+</script>
+
+<script>
+(function(){
+  var calGrid = document.getElementById('cal-grid');
+  var calTitle = document.getElementById('cal-title');
+  var calEmpty = document.getElementById('cal-empty');
+  var calCard = document.getElementById('homer-cal');
+  if(!calGrid || !calTitle) return;
+
+  var now = new Date();
+  var viewYear = now.getFullYear();
+  var viewMonth = now.getMonth();
+  var activePop = null;
+
+  var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  function pad2(n){ return n < 10 ? '0'+n : ''+n; }
+  function dk(y,m,d){ return y+'-'+pad2(m+1)+'-'+pad2(d); }
+
+  function pCls(p){
+    if(p==='high') return 'p-high';
+    if(p==='medium') return 'p-medium';
+    if(p==='low') return 'p-low';
+    return 'p-none';
+  }
+  function pColor(p){
+    if(p==='high') return '#ef4444';
+    if(p==='medium') return '#fbbf24';
+    if(p==='low') return '#22c55e';
+    return '#94a3b8';
+  }
+  var colLbl = {todo:'To Do', progress:'In Progress', pending:'Pending', done:'Done'};
+
+  function buildMap(goals){
+    var m = {};
+    if(!goals) return m;
+    goals.forEach(function(g){
+      if(g.archived) return;
+      if(g.due){
+        if(!m[g.due]) m[g.due] = [];
+        m[g.due].push({summary:g.summary, priority:g.priority||'', col:g.col, type:'goal'});
+      }
+      (g.subtasks||[]).forEach(function(s){
+        if(s.due && !s.done){
+          if(!m[s.due]) m[s.due] = [];
+          m[s.due].push({summary:s.text, priority:g.priority||'', col:g.col, type:'subtask'});
+        }
+      });
+    });
+    return m;
+  }
+
+  function closePop(){ if(activePop){ activePop.remove(); activePop=null; } }
+
+  function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+  function showPop(dayEl, items, key){
+    closePop();
+    var pop = document.createElement('div');
+    pop.className = 'cal-popover';
+    var dt = new Date(key+'T00:00:00');
+    var lbl = dt.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    var h = '<button class="cal-pop-close">&times;</button>';
+    h += '<div class="cal-pop-date">'+lbl+'</div>';
+    items.forEach(function(it){
+      var badge = '<span class="cal-pop-badge s-'+it.col+'">'+colLbl[it.col]+'</span>';
+      var sub = it.type==='subtask' ? ' <span style="color:var(--muted);font-size:.72rem">(subtask)</span>' : '';
+      h += '<div class="cal-pop-item">';
+      h += '<div class="cal-pop-dot" style="background:'+pColor(it.priority)+'"></div>';
+      h += '<div>'+esc(it.summary)+sub+badge+'</div>';
+      h += '</div>';
+    });
+    pop.innerHTML = h;
+    pop.style.top = (dayEl.offsetTop + dayEl.offsetHeight + 6) + 'px';
+    pop.style.left = '50%';
+    pop.style.transform = 'translateX(-50%)';
+    calCard.appendChild(pop);
+    activePop = pop;
+    pop.querySelector('.cal-pop-close').addEventListener('click', closePop);
+  }
+
+  function render(dueMap){
+    calTitle.textContent = MONTHS[viewMonth] + ' ' + viewYear;
+    calGrid.innerHTML = '';
+    DAYS.forEach(function(d){
+      var el = document.createElement('div');
+      el.className = 'cal-dow';
+      el.textContent = d;
+      calGrid.appendChild(el);
+    });
+    var first = new Date(viewYear, viewMonth, 1);
+    var startDow = (first.getDay() + 6) % 7;
+    var dim = new Date(viewYear, viewMonth+1, 0).getDate();
+    var prevDim = new Date(viewYear, viewMonth, 0).getDate();
+    for(var i = startDow-1; i >= 0; i--){
+      var el = document.createElement('div');
+      el.className = 'cal-day other';
+      el.textContent = prevDim - i;
+      calGrid.appendChild(el);
+    }
+    var today = new Date();
+    for(var d = 1; d <= dim; d++){
+      var key = dk(viewYear, viewMonth, d);
+      var el = document.createElement('div');
+      el.className = 'cal-day';
+      el.textContent = d;
+      if(viewYear===today.getFullYear() && viewMonth===today.getMonth() && d===today.getDate()){
+        el.classList.add('today');
+      }
+      var items = dueMap[key];
+      if(items && items.length){
+        el.classList.add('has-goals');
+        var dots = document.createElement('div');
+        dots.className = 'cal-dots';
+        var cnt = 0;
+        items.forEach(function(it){
+          if(cnt >= 4) return;
+          var dot = document.createElement('div');
+          dot.className = 'cal-dot '+pCls(it.priority);
+          dots.appendChild(dot);
+          cnt++;
+        });
+        el.appendChild(dots);
+        (function(dayEl, dayItems, dayKey){
+          dayEl.addEventListener('click', function(e){ e.stopPropagation(); showPop(dayEl, dayItems, dayKey); });
+        })(el, items, key);
+      }
+      calGrid.appendChild(el);
+    }
+    var total = startDow + dim;
+    var rem = (7 - (total % 7)) % 7;
+    for(var i = 1; i <= rem; i++){
+      var el = document.createElement('div');
+      el.className = 'cal-day other';
+      el.textContent = i;
+      calGrid.appendChild(el);
+    }
+  }
+
+  function refresh(){
+    closePop();
+    if(typeof window._calendarLoadVault === 'function'){
+      window._calendarLoadVault().then(function(data){
+        if(!data){ calEmpty.style.display='block'; render({}); return; }
+        calEmpty.style.display='none';
+        render(buildMap(data.goals));
+      }).catch(function(){ calEmpty.style.display='block'; render({}); });
+    } else {
+      calEmpty.style.display='block';
+      render({});
+    }
+  }
+
+  document.getElementById('cal-prev').addEventListener('click', function(){
+    viewMonth--; if(viewMonth<0){viewMonth=11;viewYear--;} refresh();
+  });
+  document.getElementById('cal-next').addEventListener('click', function(){
+    viewMonth++; if(viewMonth>11){viewMonth=0;viewYear++;} refresh();
+  });
+  document.addEventListener('click', function(e){
+    if(activePop && !activePop.contains(e.target)) closePop();
+  });
+
+  refresh();
+  setInterval(refresh, 15000);
+  document.querySelectorAll('.tab-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){ setTimeout(refresh, 300); });
+  });
 })();
 </script>
 
