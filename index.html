@@ -1882,39 +1882,31 @@ function renderQuote(q) {
       function ensureAC(){ if(!ac){ ac = new (window.AudioContext||window.webkitAudioContext)(); } if(ac.state==='suspended'){ ac.resume(); } }
       function speak(text){ if(!elVoice?.checked) return; if(!('speechSynthesis' in window)) return; const u=new SpeechSynthesisUtterance(text); u.rate=1.05; u.pitch=text.includes('Woo')?1.3:0.8; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }
       function tone(freq,dur,type='triangle',vol=0.22,when=0){ if(!elSfx?.checked) return; ensureAC(); const t=ac.currentTime+when; const o=ac.createOscillator(); const g=ac.createGain(); o.type=type; o.frequency.setValueAtTime(freq,t); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); o.connect(g).connect(ac.destination); o.start(t); o.stop(t+dur+0.02); }
-      /* Homer audio clips – served as static files from /sounds/ on Vercel.
-         Drop your MP3s into the sounds/ folder:  woohoo.mp3  and  doh.mp3
-         Falls back to synth beeps if the files are missing or fail to load. */
-      const HOMER_WOOHOO_URI = '/sounds/woohoo.mp3';
-      const HOMER_DOH_URI    = '/sounds/doh.mp3';
-
-      function playClip(uri){
-        return new Promise((resolve,reject)=>{
-          const a = new Audio(uri);
-          a.volume = 0.7;
-          a.onended = resolve;
-          a.onerror = reject;
-          a.play().catch(reject);
+      /* Homer audio clips - preloaded into AudioContext buffer for autoplay compliance */
+      var homerBuf = { woohoo: null, doh: null };
+      function preloadHomer() {
+        ensureAC();
+        [['woohoo','/sounds/woohoo.mp3'],['doh','/sounds/doh.mp3']].forEach(function(pair) {
+          fetch(pair[1]).then(function(r){ return r.arrayBuffer(); }).then(function(buf){ return ac.decodeAudioData(buf); }).then(function(decoded){ homerBuf[pair[0]] = decoded; }).catch(function(){});
         });
       }
-
-      function sfxWooHoo(){
-        if(HOMER_WOOHOO_URI){
-          playClip(HOMER_WOOHOO_URI).catch(()=>{ /* fallback */ speak("Woo-hoo!"); tone(880,0.12,'triangle',0.25,0); tone(1046.5,0.12,'triangle',0.22,0.10); tone(1318.5,0.18,'triangle',0.22,0.22); });
-        } else {
-          speak("Woo-hoo!"); tone(880,0.12,'triangle',0.25,0); tone(1046.5,0.12,'triangle',0.22,0.10); tone(1318.5,0.18,'triangle',0.22,0.22);
-        }
+      function playBuf(key, vol) {
+        if(!elSfx || !elSfx.checked) return false;
+        if(!homerBuf[key]) return false;
+        ensureAC();
+        var src = ac.createBufferSource();
+        var g = ac.createGain();
+        src.buffer = homerBuf[key];
+        g.gain.value = vol || 0.7;
+        src.connect(g).connect(ac.destination);
+        src.start(0);
+        return true;
       }
-      function sfxDoh(){
-        if(HOMER_DOH_URI){
-          playClip(HOMER_DOH_URI).catch(()=>{ /* fallback */ speak("D'oh!"); tone(196,0.18,'sawtooth',0.25,0); tone(147,0.18,'sawtooth',0.20,0.10); });
-        } else {
-          speak("D'oh!"); tone(196,0.18,'sawtooth',0.25,0); tone(147,0.18,'sawtooth',0.20,0.10);
-        }
-      }
+      function sfxWooHoo(){ if(!playBuf('woohoo',0.7)){ speak("Woo-hoo!"); tone(880,0.12,'triangle',0.25,0); tone(1046.5,0.12,'triangle',0.22,0.10); tone(1318.5,0.18,'triangle',0.22,0.22); } }
+      function sfxDoh(){ if(!playBuf('doh',0.7)){ speak("D'oh!"); tone(196,0.18,'sawtooth',0.25,0); tone(147,0.18,'sawtooth',0.20,0.10); } }
 
       ['click','keydown','touchstart'].forEach(evt=>{
-        window.addEventListener(evt,()=>{ try{ ensureAC(); if('speechSynthesis' in window) speechSynthesis.resume(); }catch(_){ } },{once:true, passive:true});
+        window.addEventListener(evt,function(){ try{ ensureAC(); preloadHomer(); if('speechSynthesis' in window) speechSynthesis.resume(); }catch(_){ } },{once:true, passive:true});
       });
 
       let tick=null;
