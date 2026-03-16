@@ -1978,7 +1978,12 @@ function renderQuote(q) {
       function saveJSON(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
 
       const settings=loadJSON(PKEY,{focus:25, short:5, long:15, longEvery:4});
-      const state=loadJSON(SKEY,{mode:'focus', remaining:settings.focus*60, running:false, pomodoros:0});
+      const state=loadJSON(SKEY,{mode:'focus', remaining:settings.focus*60, running:false, pomodoros:0, endTime:0});
+      // Cross-device sync: recalculate remaining from absolute endTime
+      if(state.running && state.endTime){
+        var _left=Math.floor((state.endTime - Date.now())/1000);
+        if(_left > 0){ state.remaining = _left; } else { state.remaining = 0; }
+      }
       elSetFocus.value=settings.focus; elSetShort.value=settings.short; elSetLong.value=settings.long;
       elMode.textContent=cap(state.mode); updateTime(); updateRing(); updateMeta();
 
@@ -1989,7 +1994,10 @@ function renderQuote(q) {
       function updateRing(){ const total=durFor(state.mode); const progress=1-(state.remaining/total); const deg=Math.max(0,Math.min(360,progress*360)); elRing.style.setProperty('--pom-progress',`${deg}deg`); }
       // FIX: Cycle math correctly computes "1/4" when pomodoros is 0
       function updateMeta(){ elCount.textContent=state.pomodoros; elCycle.textContent=(state.pomodoros % settings.longEvery) + 1; }
-      function save(){ saveJSON(SKEY,state); }
+      function save(){
+        if(state.running){ state.endTime = Date.now() + (state.remaining * 1000); } else { state.endTime = 0; }
+        saveJSON(SKEY,state);
+      }
 
       let ac;
       function ensureAC(){ if(!ac){ ac = new (window.AudioContext||window.webkitAudioContext)(); } if(ac.state==='suspended'){ ac.resume(); } }
@@ -2131,8 +2139,78 @@ function renderQuote(q) {
         saveTasks(list); renderTasks();
       });
 
-      if(state.running){ start(); }
-      renderTasks();
+      // Handle timer that expired while page was closed
+      if(state.running && state.remaining <= 0){
+        state.running = false;
+        advance(false);
+      } else if(state.running){
+        start();
+      }
+
+      // Re-sync timer when tab becomes visible (switching back from other device/tab)
+      document.addEventListener('visibilitychange', function(){
+        if(document.visibilityState !== 'visible') return;
+        var fresh = loadJSON(SKEY, null);
+        if(!fresh) return;
+        if(fresh.running && fresh.endTime){
+          var left = Math.floor((fresh.endTime - Date.now()) / 1000);
+          if(left <= 0){
+            state.mode = fresh.mode;
+            state.pomodoros = fresh.pomodoros;
+            state.running = false;
+            state.remaining = 0;
+            if(tick){ clearInterval(tick); tick=null; }
+            advance(false);
+          } else if(left !== state.remaining || fresh.mode !== state.mode){
+            state.mode = fresh.mode;
+            state.pomodoros = fresh.pomodoros;
+            state.remaining = left;
+            state.running = fresh.running;
+            elMode.textContent = cap(state.mode);
+            updateTime(); updateRing(); updateMeta();
+            if(state.running && !tick) start();
+          }
+        } else if(!fresh.running && state.running){
+          state.mode = fresh.mode;
+          state.pomodoros = fresh.pomodoros;
+          state.remaining = fresh.remaining;
+          state.running = false;
+          if(tick){ clearInterval(tick); tick=null; }
+          elMode.textContent = cap(state.mode);
+          updateTime(); updateRing(); updateMeta();
+        } else if(!fresh.running){
+          state.mode = fresh.mode;
+          state.pomodoros = fresh.pomodoros;
+          state.remaining = fresh.remaining;
+          elMode.textContent = cap(state.mode);
+          updateTime(); updateRing(); updateMeta();
+        }
+      });
+
+      // Listen for storage changes from other tabs on same device
+      window.addEventListener('storage', function(e){
+        if(e.key !== SKEY) return;
+        var fresh = loadJSON(SKEY, null);
+        if(!fresh) return;
+        if(fresh.running && fresh.endTime){
+          var left = Math.floor((fresh.endTime - Date.now()) / 1000);
+          if(left > 0){
+            state.mode = fresh.mode;
+            state.pomodoros = fresh.pomodoros;
+            state.remaining = left;
+            if(!state.running){ state.running = true; start(); }
+          }
+        } else if(!fresh.running){
+          state.mode = fresh.mode;
+          state.pomodoros = fresh.pomodoros;
+          state.remaining = fresh.remaining;
+          if(state.running){ state.running = false; if(tick){ clearInterval(tick); tick=null; } }
+        }
+        elMode.textContent = cap(state.mode);
+        updateTime(); updateRing(); updateMeta();
+      });
+
+      renderTasks()
     });
   </script>
 
@@ -2170,7 +2248,13 @@ function renderQuote(q) {
         if (mode === 'short') totalSeconds = (settings.short || 5) * 60;
         if (mode === 'long') totalSeconds = (settings.long || 15) * 60;
 
-        const remaining = Math.max(0, (state && state.remaining != null ? state.remaining : totalSeconds));
+        // Use endTime for accurate cross-device remaining calculation
+        let remaining;
+        if(state && state.running && state.endTime){
+          remaining = Math.max(0, Math.floor((state.endTime - Date.now()) / 1000));
+        } else {
+          remaining = Math.max(0, (state && state.remaining != null ? state.remaining : totalSeconds));
+        }
         const progressDeg = 360 * (1 - (remaining / totalSeconds));
 
         openTasks.forEach((t,i)=>{
