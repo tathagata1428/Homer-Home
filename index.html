@@ -5115,16 +5115,56 @@ document.addEventListener("input", e => {
     } else {
       var storedUser = localStorage.getItem(AUTH_USER_KEY);
       var storedHash = localStorage.getItem(AUTH_HASH_KEY);
-      if(!storedUser || !storedHash){ errorEl.textContent = 'No account found. Create one first.'; return; }
-      if(storedUser.toLowerCase() !== user.toLowerCase()){ errorEl.textContent = 'Invalid username or password'; return; }
-      if(storedHash !== hash){ errorEl.textContent = 'Invalid username or password'; return; }
-      localStorage.setItem('homer-sync-pass', hash);
-      localStorage.setItem('homer-sync-auto', 'true');
-      updateUI();
-      userInput.value = ''; passInput.value = '';
-      modalBg.classList.remove('open');
-      // Restore data from cloud on sign-in
-      window.dispatchEvent(new CustomEvent('homer-auth', {detail: {action: 'signin'}}));
+
+      if(storedUser && storedHash){
+        // Local account exists — verify against it
+        if(storedUser.toLowerCase() !== user.toLowerCase()){ errorEl.textContent = 'Invalid username or password'; return; }
+        if(storedHash !== hash){ errorEl.textContent = 'Invalid username or password'; return; }
+        localStorage.setItem('homer-sync-pass', hash);
+        localStorage.setItem('homer-sync-auto', 'true');
+        updateUI();
+        userInput.value = ''; passInput.value = '';
+        modalBg.classList.remove('open');
+        window.dispatchEvent(new CustomEvent('homer-auth', {detail: {action: 'signin'}}));
+      } else {
+        // No local account — try cloud backup with these credentials
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Checking cloud...';
+        fetch('/api/sync?key='+encodeURIComponent(hash))
+          .then(function(r){ return r.json(); })
+          .then(function(d){
+            if(d.data && d.data['homer-auth-user']){
+              // Cloud account found — verify username matches
+              if(d.data['homer-auth-user'].toLowerCase() !== user.toLowerCase()){
+                errorEl.textContent = 'Invalid username or password';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Sign In';
+                return;
+              }
+              // Restore account credentials locally
+              localStorage.setItem(AUTH_USER_KEY, d.data['homer-auth-user']);
+              localStorage.setItem(AUTH_HASH_KEY, hash);
+              localStorage.setItem('homer-sync-pass', hash);
+              localStorage.setItem('homer-sync-auto', 'true');
+              updateUI();
+              userInput.value = ''; passInput.value = '';
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Sign In';
+              modalBg.classList.remove('open');
+              // Restore all data from cloud
+              window.dispatchEvent(new CustomEvent('homer-auth', {detail: {action: 'signin'}}));
+            } else {
+              errorEl.textContent = 'No account found. Create one first.';
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Sign In';
+            }
+          })
+          .catch(function(){
+            errorEl.textContent = 'Could not reach cloud. Check your connection.';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Sign In';
+          });
+      }
     }
   });
 
