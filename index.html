@@ -736,6 +736,18 @@
     #homer-cal .cal-pop-badge.s-progress { background:rgba(251,191,36,.15); color:#fbbf24; }
     #homer-cal .cal-pop-badge.s-pending { background:rgba(139,92,246,.15); color:#a78bfa; }
     #homer-cal .cal-pop-badge.s-done { background:rgba(34,197,94,.15); color:#22c55e; }
+    #homer-cal .cal-dot.p-ext { background:#3b82f6; }
+    #homer-cal .cal-pop-badge.s-ext { background:rgba(59,130,246,.15); color:#3b82f6; }
+    #homer-cal .cal-ics-row { display:flex; gap:8px; margin-bottom:10px; }
+    #homer-cal .cal-ics-input { flex:1; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:8px 12px; color:var(--text); font-size:.85rem; font-family:inherit; outline:none; min-width:0; }
+    #homer-cal .cal-ics-input:focus { border-color:#3b82f6; }
+    #homer-cal .cal-ics-btn { background:#3b82f6; color:#fff; border:none; border-radius:10px; padding:8px 14px; cursor:pointer; font-size:.82rem; font-weight:700; white-space:nowrap; transition:background .15s; }
+    #homer-cal .cal-ics-btn:hover { background:#2563eb; }
+    #homer-cal .cal-ics-status { font-size:.75rem; color:var(--muted); margin-bottom:8px; }
+    #homer-cal .cal-ics-status.ok { color:#22c55e; }
+    #homer-cal .cal-ics-status.err { color:#ef4444; }
+    #homer-cal .cal-ics-rm { background:none; border:none; color:#ef4444; cursor:pointer; font-size:.78rem; font-weight:600; padding:0 4px; }
+    #homer-cal .cal-ics-rm:hover { text-decoration:underline; }
     #homer-cal .cal-empty { color:var(--muted); text-align:center; padding:20px 0; font-size:.9rem; }
     @media (max-width:430px) {
       #homer-cal .cal-day { font-size:.78rem; border-radius:8px; }
@@ -1398,12 +1410,17 @@
   
     <!-- Calendar -->
     <div class="card" id="homer-cal" style="margin-top:18px;margin-bottom:0;padding:18px;">
-      <h3 style="margin:0 0 14px;">Calendar</h3>
+      <h3 style="margin:0 0 14px;">Calendar <button id="cal-ics-toggle" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;vertical-align:middle;" title="Sync external calendar">&#9881;</button></h3>
       <div class="cal-header">
         <button class="cal-nav" id="cal-prev" aria-label="Previous month">&#8249;</button>
         <h3 id="cal-title"></h3>
         <button class="cal-nav" id="cal-next" aria-label="Next month">&#8250;</button>
       </div>
+      <div class="cal-ics-row" id="cal-ics-row" style="display:none;">
+        <input type="text" class="cal-ics-input" id="cal-ics-url" placeholder="Paste Outlook ICS feed URL..." />
+        <button class="cal-ics-btn" id="cal-ics-save">Sync</button>
+      </div>
+      <div class="cal-ics-status" id="cal-ics-status"></div>
       <div class="cal-grid" id="cal-grid"></div>
     </div>
 </div>
@@ -4950,18 +4967,194 @@ document.addEventListener("input", e => {
     }
   }
 
+  // --- ICS Feed Integration ---
+  var ICS_KEY = 'homer-cal-ics';
+  var icsCache = null;
+  var icsCacheTs = 0;
+  var ICS_TTL = 5 * 60 * 1000; // 5 min client cache
+
+  var icsRow = document.getElementById('cal-ics-row');
+  var icsInput = document.getElementById('cal-ics-url');
+  var icsSaveBtn = document.getElementById('cal-ics-save');
+  var icsStatus = document.getElementById('cal-ics-status');
+  var icsToggle = document.getElementById('cal-ics-toggle');
+
+  function getSavedICS(){ return localStorage.getItem(ICS_KEY) || ''; }
+  function setSavedICS(url){ if(url) localStorage.setItem(ICS_KEY, url); else localStorage.removeItem(ICS_KEY); }
+
+  // Toggle ICS settings row
+  if(icsToggle){
+    icsToggle.addEventListener('click', function(){
+      var show = icsRow.style.display === 'none';
+      icsRow.style.display = show ? 'flex' : 'none';
+      if(show){
+        icsInput.value = getSavedICS();
+        updateIcsStatus();
+      }
+    });
+  }
+
+  function updateIcsStatus(){
+    var url = getSavedICS();
+    if(url){
+      icsStatus.textContent = 'Synced: ' + url.substring(0, 50) + (url.length > 50 ? '...' : '');
+      icsStatus.className = 'cal-ics-status ok';
+      if(!document.getElementById('cal-ics-rm-btn')){
+        var rm = document.createElement('button');
+        rm.className = 'cal-ics-rm';
+        rm.id = 'cal-ics-rm-btn';
+        rm.textContent = 'Remove';
+        rm.addEventListener('click', function(){
+          setSavedICS('');
+          icsCache = null;
+          icsCacheTs = 0;
+          icsInput.value = '';
+          updateIcsStatus();
+          refresh();
+        });
+        icsStatus.appendChild(document.createTextNode(' '));
+        icsStatus.appendChild(rm);
+      }
+    } else {
+      icsStatus.textContent = '';
+      icsStatus.className = 'cal-ics-status';
+      var rmBtn = document.getElementById('cal-ics-rm-btn');
+      if(rmBtn) rmBtn.remove();
+    }
+  }
+
+  // Save ICS URL
+  if(icsSaveBtn){
+    icsSaveBtn.addEventListener('click', function(){
+      var url = (icsInput.value || '').trim();
+      if(!url){
+        icsStatus.textContent = 'Please enter an ICS feed URL';
+        icsStatus.className = 'cal-ics-status err';
+        return;
+      }
+      if(!url.startsWith('https://')){
+        icsStatus.textContent = 'URL must start with https://';
+        icsStatus.className = 'cal-ics-status err';
+        return;
+      }
+      icsStatus.textContent = 'Checking feed...';
+      icsStatus.className = 'cal-ics-status';
+      icsSaveBtn.disabled = true;
+      fetchICSEvents(url).then(function(events){
+        icsSaveBtn.disabled = false;
+        if(events === null){
+          icsStatus.textContent = 'Failed to fetch calendar. Check the URL.';
+          icsStatus.className = 'cal-ics-status err';
+          return;
+        }
+        setSavedICS(url);
+        icsCache = events;
+        icsCacheTs = Date.now();
+        updateIcsStatus();
+        refresh();
+      });
+    });
+  }
+
+  function fetchICSEvents(url){
+    return fetch('/api/ical?url=' + encodeURIComponent(url))
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d.error) return null;
+        return d.events || [];
+      })
+      .catch(function(){ return null; });
+  }
+
+  function getICSEvents(){
+    var url = getSavedICS();
+    if(!url) return Promise.resolve([]);
+    if(icsCache && (Date.now() - icsCacheTs) < ICS_TTL){
+      return Promise.resolve(icsCache);
+    }
+    return fetchICSEvents(url).then(function(events){
+      if(events !== null){
+        icsCache = events;
+        icsCacheTs = Date.now();
+      }
+      return icsCache || [];
+    });
+  }
+
+  function mergeICSEvents(dueMap, icsEvents){
+    if(!icsEvents || !icsEvents.length) return dueMap;
+    icsEvents.forEach(function(ev){
+      if(!ev.start) return;
+      var dateKey = ev.start.substring(0, 10);
+      if(!dueMap[dateKey]) dueMap[dateKey] = [];
+      var time = ev.start.length > 10 ? ev.start.substring(11) : '';
+      dueMap[dateKey].push({
+        summary: ev.summary || 'Event',
+        priority: 'ext',
+        col: 'ext',
+        type: 'outlook',
+        time: time,
+        location: ev.location || '',
+        description: ev.description || ''
+      });
+    });
+    return dueMap;
+  }
+
+  // Updated showPop to handle external events
+  var origShowPop = showPop;
+  showPop = function(dayEl, items, key){
+    closePop();
+    var pop = document.createElement('div');
+    pop.className = 'cal-popover';
+    var dt = new Date(key+'T00:00:00');
+    var lbl = dt.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    var h = '<button class="cal-pop-close">&times;</button>';
+    h += '<div class="cal-pop-date">'+lbl+'</div>';
+    items.forEach(function(it){
+      if(it.type === 'outlook'){
+        var timeStr = it.time ? '<span style="color:#3b82f6;font-size:.72rem;font-weight:700;margin-right:4px;">' + it.time + '</span>' : '';
+        var locStr = it.location ? '<div style="color:var(--muted);font-size:.72rem;margin-top:2px;">' + esc(it.location) + '</div>' : '';
+        h += '<div class="cal-pop-item">';
+        h += '<div class="cal-pop-dot" style="background:#3b82f6"></div>';
+        h += '<div>' + timeStr + esc(it.summary) + '<span class="cal-pop-badge s-ext">Outlook</span>' + locStr + '</div>';
+        h += '</div>';
+      } else {
+        var badge = '<span class="cal-pop-badge s-'+it.col+'">'+colLbl[it.col]+'</span>';
+        var sub = it.type==='subtask' ? ' <span style="color:var(--muted);font-size:.72rem">(subtask)</span>' : '';
+        h += '<div class="cal-pop-item">';
+        h += '<div class="cal-pop-dot" style="background:'+pColor(it.priority)+'"></div>';
+        h += '<div>'+esc(it.summary)+sub+badge+'</div>';
+        h += '</div>';
+      }
+    });
+    pop.innerHTML = h;
+    pop.style.top = (dayEl.offsetTop + dayEl.offsetHeight + 6) + 'px';
+    pop.style.left = '50%';
+    pop.style.transform = 'translateX(-50%)';
+    calCard.appendChild(pop);
+    activePop = pop;
+    pop.querySelector('.cal-pop-close').addEventListener('click', closePop);
+  };
+
   function refresh(){
     closePop();
+    var vaultPromise;
     if(typeof window._calendarLoadVault === 'function'){
-      window._calendarLoadVault().then(function(data){
-        if(!data){ render({}); return; }
-        
-        render(buildMap(data.goals));
-      }).catch(function(){ render({}); });
+      vaultPromise = window._calendarLoadVault().then(function(data){
+        if(!data) return {};
+        return buildMap(data.goals);
+      }).catch(function(){ return {}; });
     } else {
-      
-      render({});
+      vaultPromise = Promise.resolve({});
     }
+
+    Promise.all([vaultPromise, getICSEvents()]).then(function(results){
+      var dueMap = results[0];
+      var icsEvents = results[1];
+      mergeICSEvents(dueMap, icsEvents);
+      render(dueMap);
+    }).catch(function(){ render({}); });
   }
 
   document.getElementById('cal-prev').addEventListener('click', function(){
@@ -4974,8 +5167,9 @@ document.addEventListener("input", e => {
     if(activePop && !activePop.contains(e.target)) closePop();
   });
 
+  updateIcsStatus();
   refresh();
-  setInterval(refresh, 15000);
+  setInterval(refresh, 300000);
   window.addEventListener('vault-goals-changed', refresh);
   document.querySelectorAll('.tab-btn').forEach(function(btn){
     btn.addEventListener('click', function(){ setTimeout(refresh, 300); });
