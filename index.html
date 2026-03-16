@@ -748,6 +748,33 @@
     #homer-cal .cal-ics-status.err { color:#ef4444; }
     #homer-cal .cal-ics-rm { background:none; border:none; color:#ef4444; cursor:pointer; font-size:.78rem; font-weight:600; padding:0 4px; }
     #homer-cal .cal-ics-rm:hover { text-decoration:underline; }
+    #homer-cal .cal-detail { position:absolute; z-index:101; background:#1e293b; border:1px solid var(--border); border-radius:14px; padding:18px 20px; min-width:260px; max-width:340px; box-shadow:0 16px 48px rgba(0,0,0,.55); animation:fadeIn .15s ease both; }
+    #homer-cal .cal-detail-title { font-weight:800; font-size:1rem; margin-bottom:4px; color:var(--text); }
+    #homer-cal .cal-detail-meta { font-size:.78rem; color:var(--muted); margin-bottom:6px; display:flex; flex-wrap:wrap; gap:6px 14px; }
+    #homer-cal .cal-detail-meta span { display:inline-flex; align-items:center; gap:4px; }
+    #homer-cal .cal-detail-desc { font-size:.82rem; color:var(--text); opacity:.85; line-height:1.5; margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,.06); white-space:pre-wrap; word-break:break-word; }
+    #homer-cal .cal-detail-close { position:absolute; top:8px; right:10px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:1.1rem; line-height:1; }
+    #homer-cal .cal-detail-close:hover { color:var(--text); }
+    #homer-cal .cal-detail-del { background:none; border:none; color:#ef4444; cursor:pointer; font-size:.75rem; font-weight:600; padding:0; margin-top:8px; }
+    #homer-cal .cal-detail-del:hover { text-decoration:underline; }
+    #homer-cal .cal-add-btn { position:absolute; bottom:8px; right:8px; background:#3b82f6; color:#fff; border:none; width:28px; height:28px; border-radius:50%; font-size:1.2rem; cursor:pointer; display:grid; place-items:center; line-height:1; transition:background .15s; box-shadow:0 2px 8px rgba(59,130,246,.3); }
+    #homer-cal .cal-add-btn:hover { background:#2563eb; }
+    #homer-cal .cal-add-form { position:absolute; z-index:102; background:#1e293b; border:1px solid var(--border); border-radius:14px; padding:16px 18px; min-width:280px; max-width:340px; box-shadow:0 16px 48px rgba(0,0,0,.55); animation:fadeIn .15s ease both; }
+    #homer-cal .cal-add-form h4 { margin:0 0 12px; font-size:.95rem; font-weight:800; color:var(--text); }
+    #homer-cal .cal-add-form input, #homer-cal .cal-add-form textarea { width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:rgba(255,255,255,.06); color:var(--text); font-size:.85rem; font-family:inherit; margin-bottom:8px; outline:none; box-sizing:border-box; }
+    #homer-cal .cal-add-form input:focus, #homer-cal .cal-add-form textarea:focus { border-color:#3b82f6; }
+    #homer-cal .cal-add-form textarea { resize:vertical; min-height:50px; }
+    #homer-cal .cal-add-form .cal-add-row { display:flex; gap:8px; margin-bottom:8px; }
+    #homer-cal .cal-add-form .cal-add-row input { margin-bottom:0; }
+    #homer-cal .cal-add-form .cal-add-submit { background:#3b82f6; color:#fff; border:none; border-radius:8px; padding:8px 16px; cursor:pointer; font-size:.85rem; font-weight:700; width:100%; transition:background .15s; }
+    #homer-cal .cal-add-form .cal-add-submit:hover { background:#2563eb; }
+    #homer-cal .cal-add-form .cal-add-cancel { position:absolute; top:8px; right:10px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:1.1rem; }
+    #homer-cal .cal-dot.p-custom { background:#a78bfa; }
+    #homer-cal .cal-pop-badge.s-custom { background:rgba(167,139,250,.15); color:#a78bfa; }
+    @media (max-width:430px) {
+      #homer-cal .cal-detail { left:8px!important; right:8px!important; min-width:0; transform:none!important; }
+      #homer-cal .cal-add-form { left:8px!important; right:8px!important; min-width:0; transform:none!important; }
+    }
     #homer-cal .cal-empty { color:var(--muted); text-align:center; padding:20px 0; font-size:.9rem; }
     @media (max-width:430px) {
       #homer-cal .cal-day { font-size:.78rem; border-radius:8px; }
@@ -4969,18 +4996,58 @@ document.addEventListener("input", e => {
 
   // --- ICS Feed Integration ---
   var ICS_KEY = 'homer-cal-ics';
+  var EVENTS_KEY = 'homer-cal-events';
   var icsCache = null;
   var icsCacheTs = 0;
-  var ICS_TTL = 5 * 60 * 1000; // 5 min client cache
+  var ICS_TTL = 5 * 60 * 1000;
 
   var icsRow = document.getElementById('cal-ics-row');
   var icsInput = document.getElementById('cal-ics-url');
   var icsSaveBtn = document.getElementById('cal-ics-save');
   var icsStatus = document.getElementById('cal-ics-status');
   var icsToggle = document.getElementById('cal-ics-toggle');
+  var activeDetail = null;
+  var activeAddForm = null;
 
   function getSavedICS(){ return localStorage.getItem(ICS_KEY) || ''; }
   function setSavedICS(url){ if(url) localStorage.setItem(ICS_KEY, url); else localStorage.removeItem(ICS_KEY); }
+
+  // --- Custom Events Storage ---
+  function getCustomEvents(){
+    try { return JSON.parse(localStorage.getItem(EVENTS_KEY) || '[]'); }
+    catch(e){ return []; }
+  }
+  function saveCustomEvents(evts){ localStorage.setItem(EVENTS_KEY, JSON.stringify(evts)); }
+  function addCustomEvent(evt){
+    var evts = getCustomEvents();
+    evt.id = Date.now() + '-' + Math.random().toString(36).substring(2, 8);
+    evts.push(evt);
+    saveCustomEvents(evts);
+    return evt;
+  }
+  function deleteCustomEvent(id){
+    var evts = getCustomEvents().filter(function(e){ return e.id !== id; });
+    saveCustomEvents(evts);
+  }
+
+  function mergeCustomEvents(dueMap){
+    var evts = getCustomEvents();
+    evts.forEach(function(ev){
+      if(!ev.date) return;
+      if(!dueMap[ev.date]) dueMap[ev.date] = [];
+      dueMap[ev.date].push({
+        summary: ev.title || 'Event',
+        priority: 'custom',
+        col: 'custom',
+        type: 'custom',
+        time: ev.time || '',
+        description: ev.description || '',
+        location: ev.location || '',
+        id: ev.id
+      });
+    });
+    return dueMap;
+  }
 
   // Toggle ICS settings row
   if(icsToggle){
@@ -4994,16 +5061,28 @@ document.addEventListener("input", e => {
     });
   }
 
+  function timeAgo(ts){
+    if(!ts) return '';
+    var diff = Math.floor((Date.now() - ts) / 1000);
+    if(diff < 60) return 'just now';
+    if(diff < 3600) return Math.floor(diff/60) + 'm ago';
+    if(diff < 86400) return Math.floor(diff/3600) + 'h ago';
+    return Math.floor(diff/86400) + 'd ago';
+  }
+
   function updateIcsStatus(){
     var url = getSavedICS();
     if(url){
-      icsStatus.textContent = 'Synced: ' + url.substring(0, 50) + (url.length > 50 ? '...' : '');
+      var ago = icsCacheTs ? ' (synced ' + timeAgo(icsCacheTs) + ')' : '';
+      icsStatus.innerHTML = '';
       icsStatus.className = 'cal-ics-status ok';
+      var txt = document.createTextNode('Auto-syncing' + ago + ' ');
+      icsStatus.appendChild(txt);
       if(!document.getElementById('cal-ics-rm-btn')){
         var rm = document.createElement('button');
         rm.className = 'cal-ics-rm';
         rm.id = 'cal-ics-rm-btn';
-        rm.textContent = 'Remove';
+        rm.textContent = 'Disconnect';
         rm.addEventListener('click', function(){
           setSavedICS('');
           icsCache = null;
@@ -5012,7 +5091,6 @@ document.addEventListener("input", e => {
           updateIcsStatus();
           refresh();
         });
-        icsStatus.appendChild(document.createTextNode(' '));
         icsStatus.appendChild(rm);
       }
     } else {
@@ -5023,7 +5101,6 @@ document.addEventListener("input", e => {
     }
   }
 
-  // Save ICS URL
   if(icsSaveBtn){
     icsSaveBtn.addEventListener('click', function(){
       var url = (icsInput.value || '').trim();
@@ -5037,7 +5114,7 @@ document.addEventListener("input", e => {
         icsStatus.className = 'cal-ics-status err';
         return;
       }
-      icsStatus.textContent = 'Checking feed...';
+      icsStatus.textContent = 'Connecting...';
       icsStatus.className = 'cal-ics-status';
       icsSaveBtn.disabled = true;
       fetchICSEvents(url).then(function(events){
@@ -5050,6 +5127,7 @@ document.addEventListener("input", e => {
         setSavedICS(url);
         icsCache = events;
         icsCacheTs = Date.now();
+        icsRow.style.display = 'none';
         updateIcsStatus();
         refresh();
       });
@@ -5076,6 +5154,7 @@ document.addEventListener("input", e => {
       if(events !== null){
         icsCache = events;
         icsCacheTs = Date.now();
+        updateIcsStatus();
       }
       return icsCache || [];
     });
@@ -5101,33 +5180,115 @@ document.addEventListener("input", e => {
     return dueMap;
   }
 
-  // Updated showPop to handle external events
-  var origShowPop = showPop;
+  // --- Close helpers ---
+  function closeDetail(){ if(activeDetail){ activeDetail.remove(); activeDetail=null; } }
+  function closeAddForm(){ if(activeAddForm){ activeAddForm.remove(); activeAddForm=null; } }
+
+  // --- Detail View (click on event item in popover) ---
+  function showDetail(item, refEl){
+    closeDetail(); closeAddForm();
+    var d = document.createElement('div');
+    d.className = 'cal-detail';
+    var h = '<button class="cal-detail-close">&times;</button>';
+    // Badge
+    var badgeClass = item.type === 'outlook' ? 's-ext' : item.type === 'custom' ? 's-custom' : 's-' + item.col;
+    var badgeLabel = item.type === 'outlook' ? 'Outlook' : item.type === 'custom' ? 'My Event' : (colLbl[item.col] || '');
+    h += '<div class="cal-detail-title">' + esc(item.summary) + ' <span class="cal-pop-badge ' + badgeClass + '">' + badgeLabel + '</span></div>';
+    // Meta row
+    h += '<div class="cal-detail-meta">';
+    if(item.time) h += '<span>&#128337; ' + esc(item.time) + '</span>';
+    if(item.location) h += '<span>&#128205; ' + esc(item.location) + '</span>';
+    if(item.col && colLbl[item.col]) h += '<span>&#9679; ' + colLbl[item.col] + '</span>';
+    if(item.priority && item.priority !== 'ext' && item.priority !== 'custom'){
+      h += '<span style="color:' + pColor(item.priority) + '">&#9650; ' + item.priority + ' priority</span>';
+    }
+    h += '</div>';
+    // Description
+    if(item.description){
+      h += '<div class="cal-detail-desc">' + esc(item.description) + '</div>';
+    }
+    // Delete button for custom events
+    if(item.type === 'custom' && item.id){
+      h += '<button class="cal-detail-del" data-del-id="' + esc(item.id) + '">Delete this event</button>';
+    }
+    d.innerHTML = h;
+    d.style.top = '50%';
+    d.style.left = '50%';
+    d.style.transform = 'translate(-50%, -50%)';
+    calCard.appendChild(d);
+    activeDetail = d;
+    d.querySelector('.cal-detail-close').addEventListener('click', function(){ closeDetail(); });
+    var delBtn = d.querySelector('.cal-detail-del');
+    if(delBtn){
+      delBtn.addEventListener('click', function(){
+        deleteCustomEvent(this.getAttribute('data-del-id'));
+        closeDetail(); closePop();
+        refresh();
+      });
+    }
+  }
+
+  // --- Add Event Form ---
+  function showAddForm(dateKey){
+    closePop(); closeDetail(); closeAddForm();
+    var af = document.createElement('div');
+    af.className = 'cal-add-form';
+    var h = '<button class="cal-add-cancel">&times;</button>';
+    h += '<h4>Add Event</h4>';
+    h += '<input type="text" id="cal-add-title" placeholder="Event title" maxlength="100" />';
+    h += '<div class="cal-add-row">';
+    h += '<input type="date" id="cal-add-date" value="' + dateKey + '" />';
+    h += '<input type="time" id="cal-add-time" placeholder="Time" />';
+    h += '</div>';
+    h += '<input type="text" id="cal-add-location" placeholder="Location (optional)" maxlength="100" />';
+    h += '<textarea id="cal-add-desc" placeholder="Description (optional)" maxlength="500" rows="2"></textarea>';
+    h += '<button class="cal-add-submit">Add to Calendar</button>';
+    af.innerHTML = h;
+    af.style.top = '50%';
+    af.style.left = '50%';
+    af.style.transform = 'translate(-50%, -50%)';
+    calCard.appendChild(af);
+    activeAddForm = af;
+    af.querySelector('.cal-add-cancel').addEventListener('click', closeAddForm);
+    af.querySelector('#cal-add-title').focus();
+    af.querySelector('.cal-add-submit').addEventListener('click', function(){
+      var title = af.querySelector('#cal-add-title').value.trim();
+      var date = af.querySelector('#cal-add-date').value;
+      var time = af.querySelector('#cal-add-time').value;
+      var loc = af.querySelector('#cal-add-location').value.trim();
+      var desc = af.querySelector('#cal-add-desc').value.trim();
+      if(!title){ af.querySelector('#cal-add-title').style.borderColor = '#ef4444'; return; }
+      if(!date){ af.querySelector('#cal-add-date').style.borderColor = '#ef4444'; return; }
+      addCustomEvent({ title: title, date: date, time: time, location: loc, description: desc });
+      closeAddForm();
+      refresh();
+    });
+  }
+
+  // --- Enhanced showPop with clickable items + add button ---
   showPop = function(dayEl, items, key){
-    closePop();
+    closePop(); closeDetail(); closeAddForm();
     var pop = document.createElement('div');
     pop.className = 'cal-popover';
     var dt = new Date(key+'T00:00:00');
     var lbl = dt.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
     var h = '<button class="cal-pop-close">&times;</button>';
-    h += '<div class="cal-pop-date">'+lbl+'</div>';
-    items.forEach(function(it){
-      if(it.type === 'outlook'){
-        var timeStr = it.time ? '<span style="color:#3b82f6;font-size:.72rem;font-weight:700;margin-right:4px;">' + it.time + '</span>' : '';
-        var locStr = it.location ? '<div style="color:var(--muted);font-size:.72rem;margin-top:2px;">' + esc(it.location) + '</div>' : '';
-        h += '<div class="cal-pop-item">';
-        h += '<div class="cal-pop-dot" style="background:#3b82f6"></div>';
-        h += '<div>' + timeStr + esc(it.summary) + '<span class="cal-pop-badge s-ext">Outlook</span>' + locStr + '</div>';
-        h += '</div>';
-      } else {
-        var badge = '<span class="cal-pop-badge s-'+it.col+'">'+colLbl[it.col]+'</span>';
-        var sub = it.type==='subtask' ? ' <span style="color:var(--muted);font-size:.72rem">(subtask)</span>' : '';
-        h += '<div class="cal-pop-item">';
-        h += '<div class="cal-pop-dot" style="background:'+pColor(it.priority)+'"></div>';
-        h += '<div>'+esc(it.summary)+sub+badge+'</div>';
-        h += '</div>';
-      }
+    h += '<div class="cal-pop-date">' + lbl + '</div>';
+    items.forEach(function(it, idx){
+      var dotColor = it.type === 'outlook' ? '#3b82f6' : it.type === 'custom' ? '#a78bfa' : pColor(it.priority);
+      var badgeClass = it.type === 'outlook' ? 's-ext' : it.type === 'custom' ? 's-custom' : 's-' + it.col;
+      var badgeLabel = it.type === 'outlook' ? 'Outlook' : it.type === 'custom' ? 'My Event' : (colLbl[it.col] || '');
+      var timeStr = it.time ? '<span style="color:' + dotColor + ';font-size:.72rem;font-weight:700;margin-right:4px;">' + esc(it.time) + '</span>' : '';
+      var sub = it.type === 'subtask' ? ' <span style="color:var(--muted);font-size:.72rem">(subtask)</span>' : '';
+      h += '<div class="cal-pop-item" data-item-idx="' + idx + '" style="cursor:pointer;border-radius:8px;padding:6px 8px;margin:0 -8px;transition:background .12s;">';
+      h += '<div class="cal-pop-dot" style="background:' + dotColor + '"></div>';
+      h += '<div>' + timeStr + esc(it.summary) + sub + '<span class="cal-pop-badge ' + badgeClass + '">' + badgeLabel + '</span></div>';
+      h += '</div>';
     });
+    // Add event button
+    h += '<div style="text-align:center;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);">';
+    h += '<button class="cal-add-btn" style="position:static;width:auto;height:auto;border-radius:8px;padding:5px 14px;font-size:.78rem;display:inline-flex;align-items:center;gap:4px;">+ Add Event</button>';
+    h += '</div>';
     pop.innerHTML = h;
     pop.style.top = (dayEl.offsetTop + dayEl.offsetHeight + 6) + 'px';
     pop.style.left = '50%';
@@ -5135,10 +5296,95 @@ document.addEventListener("input", e => {
     calCard.appendChild(pop);
     activePop = pop;
     pop.querySelector('.cal-pop-close').addEventListener('click', closePop);
+    // Click on items for detail
+    pop.querySelectorAll('.cal-pop-item').forEach(function(el){
+      el.addEventListener('mouseenter', function(){ this.style.background = 'rgba(255,255,255,.06)'; });
+      el.addEventListener('mouseleave', function(){ this.style.background = 'transparent'; });
+      el.addEventListener('click', function(e){
+        e.stopPropagation();
+        var idx = parseInt(this.getAttribute('data-item-idx'));
+        if(items[idx]) showDetail(items[idx], this);
+      });
+    });
+    // Add event button
+    pop.querySelector('.cal-add-btn').addEventListener('click', function(e){
+      e.stopPropagation();
+      showAddForm(key);
+    });
+  };
+
+  // --- Render: add "+" button on empty days ---
+  var origRender = render;
+  render = function(dueMap){
+    calTitle.textContent = MONTHS[viewMonth] + ' ' + viewYear;
+    calGrid.innerHTML = '';
+    DAYS.forEach(function(d){
+      var el = document.createElement('div');
+      el.className = 'cal-dow';
+      el.textContent = d;
+      calGrid.appendChild(el);
+    });
+    var first = new Date(viewYear, viewMonth, 1);
+    var startDow = (first.getDay() + 6) % 7;
+    var dim = new Date(viewYear, viewMonth+1, 0).getDate();
+    var prevDim = new Date(viewYear, viewMonth, 0).getDate();
+    for(var i = startDow-1; i >= 0; i--){
+      var el = document.createElement('div');
+      el.className = 'cal-day other';
+      el.textContent = prevDim - i;
+      calGrid.appendChild(el);
+    }
+    var today = new Date();
+    for(var d = 1; d <= dim; d++){
+      var key = dk(viewYear, viewMonth, d);
+      var el = document.createElement('div');
+      el.className = 'cal-day';
+      el.textContent = d;
+      if(viewYear===today.getFullYear() && viewMonth===today.getMonth() && d===today.getDate()){
+        el.classList.add('today');
+      }
+      var items = dueMap[key];
+      if(items && items.length){
+        el.classList.add('has-goals');
+        var dots = document.createElement('div');
+        dots.className = 'cal-dots';
+        var cnt = 0;
+        items.forEach(function(it){
+          if(cnt >= 4) return;
+          var dot = document.createElement('div');
+          var cls = it.priority === 'ext' ? 'p-ext' : it.priority === 'custom' ? 'p-custom' : pCls(it.priority);
+          dot.className = 'cal-dot ' + cls;
+          dots.appendChild(dot);
+          cnt++;
+        });
+        el.appendChild(dots);
+        (function(dayEl, dayItems, dayKey){
+          dayEl.addEventListener('click', function(e){ e.stopPropagation(); showPop(dayEl, dayItems, dayKey); });
+        })(el, items, key);
+      } else {
+        // Empty day - allow adding events
+        el.style.cursor = 'pointer';
+        (function(dayEl, dayKey){
+          dayEl.addEventListener('click', function(e){
+            e.stopPropagation();
+            showAddForm(dayKey);
+          });
+        })(el, key);
+      }
+      calGrid.appendChild(el);
+    }
+    var total = startDow + dim;
+    var rem = (7 - (total % 7)) % 7;
+    for(var i = 1; i <= rem; i++){
+      var el = document.createElement('div');
+      el.className = 'cal-day other';
+      el.textContent = i;
+      calGrid.appendChild(el);
+    }
   };
 
   function refresh(){
-    closePop();
+    closePop(); closeDetail(); closeAddForm();
     var vaultPromise;
     if(typeof window._calendarLoadVault === 'function'){
       vaultPromise = window._calendarLoadVault().then(function(data){
@@ -5153,6 +5399,7 @@ document.addEventListener("input", e => {
       var dueMap = results[0];
       var icsEvents = results[1];
       mergeICSEvents(dueMap, icsEvents);
+      mergeCustomEvents(dueMap);
       render(dueMap);
     }).catch(function(){ render({}); });
   }
@@ -5164,7 +5411,9 @@ document.addEventListener("input", e => {
     viewMonth++; if(viewMonth>11){viewMonth=0;viewYear++;} refresh();
   });
   document.addEventListener('click', function(e){
-    if(activePop && !activePop.contains(e.target)) closePop();
+    if(activePop && !activePop.contains(e.target) && (!activeDetail || !activeDetail.contains(e.target))) closePop();
+    if(activeDetail && !activeDetail.contains(e.target)) closeDetail();
+    if(activeAddForm && !activeAddForm.contains(e.target)) closeAddForm();
   });
 
   updateIcsStatus();
