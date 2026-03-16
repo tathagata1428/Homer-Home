@@ -838,17 +838,6 @@
           </div>
         </div>
 
-        <div class="span-12 card" id="homer-cal">
-          <h2 class="section">Calendar</h2>
-          <div class="cal-header">
-            <button class="cal-nav" id="cal-prev" aria-label="Previous month">&#8249;</button>
-            <h3 id="cal-title"></h3>
-            <button class="cal-nav" id="cal-next" aria-label="Next month">&#8250;</button>
-          </div>
-          <div class="cal-grid" id="cal-grid"></div>
-          <div class="cal-empty" id="cal-empty" style="display:none">Unlock the vault to see goal deadlines.</div>
-        </div>
-
         <div class="span-12 card" id="home-tasks-card" style="display:none">
           <h2 class="section">Focus Tasks</h2>
           <div class="htasklist" id="home-tasks"></div>
@@ -1407,6 +1396,19 @@
       </div>
     </div>
   </div>
+
+    <!-- Calendar -->
+    <div class="card" id="homer-cal" style="margin-top:18px;margin-bottom:0;padding:18px;">
+      <h3 style="margin:0 0 14px;">Calendar</h3>
+      <div class="cal-header">
+        <button class="cal-nav" id="cal-prev" aria-label="Previous month">&#8249;</button>
+        <h3 id="cal-title"></h3>
+        <button class="cal-nav" id="cal-next" aria-label="Next month">&#8250;</button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+
+    
 <!-- Image preview lightbox -->
 <div id="img-lightbox" class="k-img-preview" onclick="this.classList.remove('open')"><img></div>
 </section>
@@ -3930,6 +3932,7 @@ document.addEventListener("input", e => {
 
   var _renderGoalsTimer = null;
   function renderGoals(goals){
+    try{window.dispatchEvent(new Event('vault-goals-changed'));}catch(_e){}
     // Debounce: batch rapid consecutive calls into one render
     clearTimeout(_renderGoalsTimer);
     _renderGoalsTimer = setTimeout(function(){ _renderGoalsNow(goals); }, 16);
@@ -4814,7 +4817,6 @@ document.addEventListener("input", e => {
 (function(){
   var calGrid = document.getElementById('cal-grid');
   var calTitle = document.getElementById('cal-title');
-  var calEmpty = document.getElementById('cal-empty');
   var calCard = document.getElementById('homer-cal');
   if(!calGrid || !calTitle) return;
 
@@ -4953,12 +4955,12 @@ document.addEventListener("input", e => {
     closePop();
     if(typeof window._calendarLoadVault === 'function'){
       window._calendarLoadVault().then(function(data){
-        if(!data){ calEmpty.style.display='block'; render({}); return; }
-        calEmpty.style.display='none';
+        if(!data){ render({}); return; }
+        
         render(buildMap(data.goals));
-      }).catch(function(){ calEmpty.style.display='block'; render({}); });
+      }).catch(function(){ render({}); });
     } else {
-      calEmpty.style.display='block';
+      
       render({});
     }
   }
@@ -4975,6 +4977,7 @@ document.addEventListener("input", e => {
 
   refresh();
   setInterval(refresh, 15000);
+  window.addEventListener('vault-goals-changed', refresh);
   document.querySelectorAll('.tab-btn').forEach(function(btn){
     btn.addEventListener('click', function(){ setTimeout(refresh, 300); });
   });
@@ -5735,7 +5738,8 @@ document.addEventListener("input", e => {
 
   function getAll(){
     var d={};
-    LS_KEYS.forEach(function(k){ var v=localStorage.getItem(k); if(v!==null) d[k]=v; });
+    // Backup ALL localStorage keys to ensure nothing is missed
+    for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); d[k]=localStorage.getItem(k); }
     // For vault data, use cloud-safe version (attachments stripped) to stay under size limits
     var idbTasks = IDB_KEYS.map(function(k){
       if(k === 'homer-vault-data' && window._vaultCloudData){
