@@ -6289,6 +6289,13 @@ document.addEventListener("input", e => {
     var hasPass = !!localStorage.getItem(SYNC_PASS_KEY);
     var autoOn = localStorage.getItem(SYNC_AUTO_KEY) === 'true';
     dot.className = 'fab-dot ' + (hasPass && autoOn ? 'ok' : 'off');
+    if(hasPass && autoOn){
+      cloud.title = lastSyncTs ? 'Auto-syncing (last: ' + new Date(lastSyncTs).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) + ')' : 'Auto-sync enabled';
+    } else if(hasPass){
+      cloud.title = 'Cloud sync (manual)';
+    } else {
+      cloud.title = 'Cloud sync (not signed in)';
+    }
   }
 
   function getAll(){
@@ -6325,7 +6332,7 @@ document.addEventListener("input", e => {
       .then(function(r){return r.json();})
       .then(function(d){
         svg.classList.remove('fab-spinning');
-        if(d.ok) st('Synced '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+        if(d.ok){ lastSyncTs = Date.now(); st('Synced '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})); }
         else st('Error: '+(d.error||'Unknown'));
         updDot();
       })
@@ -6404,10 +6411,85 @@ document.addEventListener("input", e => {
     updDot();
   });
 
-  function startAuto(){ stopAuto(); timer=setInterval(function(){ if(pass.value.trim()) backup(); },300000); if(pass.value.trim()) backup(); }
-  function stopAuto(){ if(timer){clearInterval(timer);timer=null;} }
+  // --- Smart Auto-Sync: backup on every change ---
+  var SYNC_DEBOUNCE = 8000; // 8s after last change
+  var SYNC_INTERVAL = 120000; // also sync every 2 min as safety net
+  var debounceTimer = null;
+  var lastSyncTs = 0;
+  var dirty = false;
 
-  function updateSyncUI(){
+  function markDirty(){
+    if(!pass.value.trim()) return;
+    if(localStorage.getItem(SYNC_AUTO_KEY) !== 'true') return;
+    dirty = true;
+    // Debounce: wait 8s after last change, then backup
+    if(debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function(){
+      debounceTimer = null;
+      if(dirty) autoBackup();
+    }, SYNC_DEBOUNCE);
+  }
+
+  function autoBackup(){
+    if(!pass.value.trim()) return;
+    dirty = false;
+    backup().then(function(){
+      lastSyncTs = Date.now();
+    });
+  }
+
+  // Intercept localStorage.setItem to detect changes
+  var origSetItem = localStorage.setItem.bind(localStorage);
+  var syncMetaKeys = ['homer-sync-pass','homer-sync-auto','homer-auth-hash'];
+  localStorage.setItem = function(key, value){
+    origSetItem(key, value);
+    if(syncMetaKeys.indexOf(key) >= 0) return;
+    markDirty();
+  };
+
+  // Also detect vault changes
+  window.addEventListener('vault-goals-changed', function(){ markDirty(); });
+
+  // Periodic safety-net sync
+  function startAuto(){
+    stopAuto();
+    timer = setInterval(function(){
+      if(pass.value.trim()){
+        if(dirty || (Date.now() - lastSyncTs) > SYNC_INTERVAL){
+          autoBackup();
+        }
+      }
+    }, SYNC_INTERVAL);
+    if(pass.value.trim()){ autoBackup(); }
+  }
+  function stopAuto(){
+    if(timer){ clearInterval(timer); timer=null; }
+    if(debounceTimer){ clearTimeout(debounceTimer); debounceTimer=null; }
+  }
+
+  // Save before page close
+  window.addEventListener('beforeunload', function(){
+    if(!dirty || !pass.value.trim()) return;
+    try {
+      var p = pass.value.trim();
+      var d = {};
+      for(var i=0; i<localStorage.length; i++){
+        var k = localStorage.key(i);
+        d[k] = localStorage.getItem(k);
+      }
+      var payload = JSON.stringify({ key: p, data: d });
+      navigator.sendBeacon('/api/sync', new Blob([payload], { type: 'application/json' }));
+    } catch(e){}
+  });
+
+  // Detect changes from other tabs
+  window.addEventListener('storage', function(e){
+    if(e.key && syncMetaKeys.indexOf(e.key) < 0){
+      markDirty();
+    }
+  });
+
+    function updateSyncUI(){
     pass.value = localStorage.getItem(SYNC_PASS_KEY) || '';
     autoChk.checked = localStorage.getItem(SYNC_AUTO_KEY) === 'true';
     var name = localStorage.getItem('homer-auth-user');
