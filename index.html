@@ -771,6 +771,11 @@
     #homer-cal .cal-add-form .cal-add-cancel { position:absolute; top:8px; right:10px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:1.1rem; }
     #homer-cal .cal-dot.p-custom { background:#a78bfa; }
     #homer-cal .cal-pop-badge.s-custom { background:rgba(167,139,250,.15); color:#a78bfa; }
+    #homer-cal .cal-outlook-btn { display:inline-flex; align-items:center; gap:5px; background:rgba(0,120,212,.15); color:#0078d4; border:1px solid rgba(0,120,212,.25); border-radius:8px; padding:6px 12px; cursor:pointer; font-size:.78rem; font-weight:700; margin-top:10px; transition:background .15s, border-color .15s; }
+    #homer-cal .cal-outlook-btn:hover { background:rgba(0,120,212,.25); border-color:rgba(0,120,212,.45); }
+    #homer-cal .cal-outlook-btn svg { width:14px; height:14px; }
+    #homer-cal .cal-add-outlook { display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:.82rem; color:var(--muted); cursor:pointer; user-select:none; }
+    #homer-cal .cal-add-outlook input { accent-color:#0078d4; cursor:pointer; }
     @media (max-width:430px) {
       #homer-cal .cal-detail { left:8px!important; right:8px!important; min-width:0; transform:none!important; }
       #homer-cal .cal-add-form { left:8px!important; right:8px!important; min-width:0; transform:none!important; }
@@ -5184,7 +5189,76 @@ document.addEventListener("input", e => {
   function closeDetail(){ if(activeDetail){ activeDetail.remove(); activeDetail=null; } }
   function closeAddForm(){ if(activeAddForm){ activeAddForm.remove(); activeAddForm=null; } }
 
-  // --- Detail View (click on event item in popover) ---
+  // --- Outlook Deep Link ---
+  function outlookComposeUrl(item, dateKey){
+    var base = 'https://outlook.office365.com/calendar/0/deeplink/compose';
+    var p = [];
+    p.push('path=/calendar/action/compose');
+    p.push('rru=addevent');
+    p.push('subject=' + encodeURIComponent(item.summary || ''));
+    // Build start datetime
+    var startDt = dateKey || '';
+    if(item.time && startDt){
+      startDt += 'T' + item.time + ':00';
+    } else if(startDt){
+      startDt += 'T00:00:00';
+    }
+    if(startDt) p.push('startdt=' + encodeURIComponent(startDt));
+    // End = start + 1 hour by default
+    if(startDt && item.time){
+      var parts = item.time.split(':');
+      var eh = (parseInt(parts[0]) + 1) % 24;
+      var endDt = dateKey + 'T' + (eh < 10 ? '0' : '') + eh + ':' + parts[1] + ':00';
+      p.push('enddt=' + encodeURIComponent(endDt));
+    }
+    if(item.location) p.push('location=' + encodeURIComponent(item.location));
+    if(item.description) p.push('body=' + encodeURIComponent(item.description));
+    return base + '?' + p.join('&');
+  }
+
+  function generateICSFile(item, dateKey){
+    var lines = [];
+    lines.push('BEGIN:VCALENDAR');
+    lines.push('VERSION:2.0');
+    lines.push('PRODID:-//Homer-Home//Calendar//EN');
+    lines.push('BEGIN:VEVENT');
+    var now = new Date();
+    var stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+    lines.push('DTSTAMP:' + stamp);
+    lines.push('UID:homer-' + (item.id || Date.now()) + '@homer-home');
+    var dtVal = (dateKey || '').replace(/-/g, '');
+    if(item.time){
+      dtVal += 'T' + item.time.replace(/:/g, '') + '00';
+    }
+    lines.push('DTSTART:' + dtVal);
+    if(item.time){
+      var parts = item.time.split(':');
+      var eh = (parseInt(parts[0]) + 1) % 24;
+      var endVal = (dateKey || '').replace(/-/g, '') + 'T' + (eh < 10 ? '0' : '') + eh + parts[1] + '00';
+      lines.push('DTEND:' + endVal);
+    }
+    lines.push('SUMMARY:' + (item.summary || '').replace(/\n/g, '\\n'));
+    if(item.location) lines.push('LOCATION:' + item.location.replace(/\n/g, '\\n'));
+    if(item.description) lines.push('DESCRIPTION:' + item.description.replace(/\n/g, '\\n'));
+    lines.push('END:VEVENT');
+    lines.push('END:VCALENDAR');
+    return lines.join('\r\n');
+  }
+
+  function downloadICS(item, dateKey){
+    var content = generateICSFile(item, dateKey);
+    var blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = (item.summary || 'event').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30) + '.ics';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+    // --- Detail View (click on event item in popover) ---
   function showDetail(item, refEl){
     closeDetail(); closeAddForm();
     var d = document.createElement('div');
@@ -5207,10 +5281,18 @@ document.addEventListener("input", e => {
     if(item.description){
       h += '<div class="cal-detail-desc">' + esc(item.description) + '</div>';
     }
-    // Delete button for custom events
-    if(item.type === 'custom' && item.id){
-      h += '<button class="cal-detail-del" data-del-id="' + esc(item.id) + '">Delete this event</button>';
+    // Action buttons
+    h += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;">';
+    // Add to Outlook button (for custom events and goals, not for Outlook events already)
+    if(item.type !== 'outlook'){
+      h += '<button class="cal-outlook-btn" data-action="outlook"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Add to Outlook</button>';
+      h += '<button class="cal-outlook-btn" data-action="ics" style="background:rgba(167,139,250,.12);color:#a78bfa;border-color:rgba(167,139,250,.25);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download .ics</button>';
     }
+    // Delete for custom events
+    if(item.type === 'custom' && item.id){
+      h += '<button class="cal-detail-del" data-del-id="' + esc(item.id) + '">Delete</button>';
+    }
+    h += '</div>';
     d.innerHTML = h;
     d.style.top = '50%';
     d.style.left = '50%';
@@ -5224,6 +5306,27 @@ document.addEventListener("input", e => {
         deleteCustomEvent(this.getAttribute('data-del-id'));
         closeDetail(); closePop();
         refresh();
+      });
+    }
+    // Outlook deep link
+    var outlookBtn = d.querySelector('[data-action="outlook"]');
+    if(outlookBtn){
+      outlookBtn.addEventListener('click', function(){
+        var dateKey = item.date || '';
+        if(!dateKey && refEl){
+          // Try to extract from popover context
+          var popDate = calCard.querySelector('.cal-pop-date');
+          if(popDate) dateKey = dk(viewYear, viewMonth, parseInt(refEl.textContent));
+        }
+        window.open(outlookComposeUrl(item, dateKey), '_blank');
+      });
+    }
+    // Download .ics
+    var icsBtn = d.querySelector('[data-action="ics"]');
+    if(icsBtn){
+      icsBtn.addEventListener('click', function(){
+        var dateKey = item.date || dk(viewYear, viewMonth, 1);
+        downloadICS(item, dateKey);
       });
     }
   }
@@ -5242,6 +5345,7 @@ document.addEventListener("input", e => {
     h += '</div>';
     h += '<input type="text" id="cal-add-location" placeholder="Location (optional)" maxlength="100" />';
     h += '<textarea id="cal-add-desc" placeholder="Description (optional)" maxlength="500" rows="2"></textarea>';
+    h += '<label class="cal-add-outlook"><input type="checkbox" id="cal-add-to-outlook" checked /> Also add to Outlook calendar</label>';
     h += '<button class="cal-add-submit">Add to Calendar</button>';
     af.innerHTML = h;
     af.style.top = '50%';
@@ -5259,9 +5363,14 @@ document.addEventListener("input", e => {
       var desc = af.querySelector('#cal-add-desc').value.trim();
       if(!title){ af.querySelector('#cal-add-title').style.borderColor = '#ef4444'; return; }
       if(!date){ af.querySelector('#cal-add-date').style.borderColor = '#ef4444'; return; }
-      addCustomEvent({ title: title, date: date, time: time, location: loc, description: desc });
+      var evt = addCustomEvent({ title: title, date: date, time: time, location: loc, description: desc });
+      var addToOutlook = af.querySelector('#cal-add-to-outlook').checked;
       closeAddForm();
       refresh();
+      if(addToOutlook){
+        var item = { summary: title, time: time, location: loc, description: desc, date: date, id: evt.id };
+        window.open(outlookComposeUrl(item, date), '_blank');
+      }
     });
   }
 
@@ -5303,7 +5412,11 @@ document.addEventListener("input", e => {
       el.addEventListener('click', function(e){
         e.stopPropagation();
         var idx = parseInt(this.getAttribute('data-item-idx'));
-        if(items[idx]) showDetail(items[idx], this);
+        if(items[idx]){
+          // Attach dateKey for Outlook link
+          items[idx].date = items[idx].date || key;
+          showDetail(items[idx], this);
+        }
       });
     });
     // Add event button
