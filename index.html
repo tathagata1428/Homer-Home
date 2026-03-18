@@ -4068,7 +4068,7 @@ document.addEventListener("input", e => {
         html += '</div>';
 
         // Labels — editable with chip toggles + add new
-        var allLabels = getAllLabels(goals);
+        var allLabels = getAllLabels(data.goals);
         html += '<div class="issue-sidebar-card"><h4>Labels</h4>';
         html += '<div class="issue-label-chips" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">';
         allLabels.forEach(function(lbl){
