@@ -776,6 +776,143 @@
     #homer-cal .cal-outlook-btn svg { width:14px; height:14px; }
     #homer-cal .cal-add-outlook { display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:.82rem; color:var(--muted); cursor:pointer; user-select:none; }
     #homer-cal .cal-add-outlook input { accent-color:#0078d4; cursor:pointer; }
+
+    /* === DRAGGABLE POPUP STYLES === */
+    #homer-cal .cal-popover.draggable,
+    #homer-cal .cal-detail.draggable,
+    #homer-cal .cal-add-form.draggable { cursor:default; }
+    #homer-cal .cal-drag-handle {
+      cursor:grab; user-select:none; display:flex; align-items:center; gap:6px;
+      padding-bottom:8px; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,.08);
+    }
+    #homer-cal .cal-drag-handle:active { cursor:grabbing; }
+    #homer-cal .cal-drag-handle .drag-icon {
+      width:16px; height:16px; opacity:.35; display:flex; flex-direction:column; gap:2px;
+      justify-content:center; align-items:center; flex-shrink:0;
+    }
+    #homer-cal .cal-drag-handle .drag-icon span {
+      display:block; width:12px; height:2px; background:var(--text); border-radius:1px;
+    }
+    #homer-cal .cal-drag-hint { font-size:.65rem; color:var(--muted); opacity:.5; margin-left:auto; }
+
+    /* === DAY/MONTH TOGGLE === */
+    #homer-cal .cal-view-toggle {
+      display:inline-flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-left:12px;
+    }
+    #homer-cal .cal-view-btn {
+      background:none; border:none; color:var(--muted); padding:5px 12px; font-size:.75rem; font-weight:700;
+      cursor:pointer; transition:background .15s, color .15s; letter-spacing:.03em;
+    }
+    #homer-cal .cal-view-btn.active {
+      background:rgba(96,165,250,.2); color:#60a5fa;
+    }
+    #homer-cal .cal-view-btn:hover:not(.active) { background:rgba(255,255,255,.06); }
+
+    /* === DAY VIEW (AGENDA) === */
+    #homer-cal .cal-day-view { display:none; }
+    #homer-cal .cal-day-view.visible { display:block; }
+    #homer-cal .cal-day-header {
+      display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;
+    }
+    #homer-cal .cal-day-title {
+      font-size:1.05rem; font-weight:900; color:var(--text); margin:0;
+    }
+    #homer-cal .cal-day-subtitle {
+      font-size:.78rem; color:var(--muted); font-weight:600; margin-top:2px;
+    }
+    #homer-cal .cal-day-nav {
+      display:flex; gap:6px;
+    }
+    #homer-cal .cal-day-nav-btn {
+      background:none; border:1px solid var(--border); color:var(--text); width:32px; height:32px;
+      border-radius:8px; cursor:pointer; font-size:1rem; display:grid; place-items:center;
+      transition:background .15s;
+    }
+    #homer-cal .cal-day-nav-btn:hover { background:rgba(255,255,255,.08); }
+    #homer-cal .cal-day-today-btn {
+      background:none; border:1px solid rgba(96,165,250,.3); color:#60a5fa; padding:5px 12px;
+      border-radius:8px; cursor:pointer; font-size:.75rem; font-weight:700; transition:background .15s;
+    }
+    #homer-cal .cal-day-today-btn:hover { background:rgba(96,165,250,.12); }
+
+    /* Agenda items */
+    #homer-cal .cal-agenda-empty {
+      text-align:center; padding:28px 16px; color:var(--muted); font-size:.88rem;
+    }
+    #homer-cal .cal-agenda-empty .empty-icon { font-size:2rem; opacity:.4; margin-bottom:8px; }
+    #homer-cal .cal-agenda-item {
+      display:flex; gap:12px; padding:12px 14px; border-radius:12px; margin-bottom:8px;
+      background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06);
+      cursor:pointer; transition:background .15s, border-color .15s;
+    }
+    #homer-cal .cal-agenda-item:hover {
+      background:rgba(255,255,255,.07); border-color:rgba(255,255,255,.12);
+    }
+    #homer-cal .cal-agenda-bar {
+      width:4px; border-radius:4px; flex-shrink:0; min-height:40px;
+    }
+    #homer-cal .cal-agenda-content { flex:1; min-width:0; }
+    #homer-cal .cal-agenda-title {
+      font-weight:800; font-size:.9rem; color:var(--text); margin-bottom:3px;
+      display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+    }
+    #homer-cal .cal-agenda-time {
+      font-size:.78rem; font-weight:700; margin-bottom:4px; display:flex; align-items:center; gap:6px;
+    }
+    #homer-cal .cal-agenda-meta {
+      font-size:.72rem; color:var(--muted); display:flex; flex-wrap:wrap; gap:4px 10px; margin-top:4px;
+    }
+    #homer-cal .cal-agenda-meta span { display:inline-flex; align-items:center; gap:3px; }
+    #homer-cal .cal-agenda-desc {
+      font-size:.78rem; color:var(--text); opacity:.7; margin-top:6px; line-height:1.45;
+      overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+    }
+    #homer-cal .cal-agenda-tags {
+      display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;
+    }
+    #homer-cal .cal-agenda-tag {
+      font-size:.65rem; padding:2px 8px; border-radius:6px; font-weight:700;
+      background:rgba(255,255,255,.06); color:var(--muted);
+    }
+    #homer-cal .cal-agenda-tag.tag-outlook { background:rgba(59,130,246,.12); color:#3b82f6; }
+    #homer-cal .cal-agenda-tag.tag-custom { background:rgba(167,139,250,.12); color:#a78bfa; }
+    #homer-cal .cal-agenda-tag.tag-goal { background:rgba(34,197,94,.12); color:#22c55e; }
+    #homer-cal .cal-agenda-tag.tag-recur { background:rgba(251,191,36,.12); color:#fbbf24; }
+    #homer-cal .cal-agenda-tag.tag-cat { background:rgba(236,72,153,.1); color:#ec4899; }
+    #homer-cal .cal-agenda-attendees {
+      display:flex; flex-wrap:wrap; gap:4px; margin-top:5px;
+    }
+    #homer-cal .cal-agenda-attendee {
+      font-size:.65rem; padding:2px 7px; border-radius:6px; font-weight:600;
+      background:rgba(255,255,255,.05); color:var(--muted); display:inline-flex; align-items:center; gap:3px;
+    }
+    #homer-cal .cal-agenda-attendee .att-status {
+      width:6px; height:6px; border-radius:50%; display:inline-block;
+    }
+    #homer-cal .cal-agenda-attendee .att-accepted { background:#22c55e; }
+    #homer-cal .cal-agenda-attendee .att-declined { background:#ef4444; }
+    #homer-cal .cal-agenda-attendee .att-tentative { background:#fbbf24; }
+    #homer-cal .cal-agenda-attendee .att-pending { background:var(--muted); }
+    #homer-cal .cal-agenda-section-label {
+      font-size:.7rem; font-weight:700; color:var(--muted); text-transform:uppercase;
+      letter-spacing:.08em; padding:8px 0 4px; margin-top:4px;
+    }
+
+    /* Enhanced detail view for full Outlook info */
+    #homer-cal .cal-detail-section {
+      margin-top:10px; padding-top:8px; border-top:1px solid rgba(255,255,255,.06);
+    }
+    #homer-cal .cal-detail-section-title {
+      font-size:.7rem; font-weight:700; color:var(--muted); text-transform:uppercase;
+      letter-spacing:.06em; margin-bottom:6px;
+    }
+    #homer-cal .cal-detail-attendee-list {
+      display:flex; flex-direction:column; gap:4px;
+    }
+    #homer-cal .cal-detail-attendee {
+      font-size:.78rem; color:var(--text); opacity:.85; display:flex; align-items:center; gap:6px;
+    }
+
     @media (max-width:430px) {
       #homer-cal .cal-detail { left:8px!important; right:8px!important; min-width:0; transform:none!important; }
       #homer-cal .cal-add-form { left:8px!important; right:8px!important; min-width:0; transform:none!important; }
@@ -785,6 +922,8 @@
       #homer-cal .cal-day { font-size:.78rem; border-radius:8px; }
       #homer-cal .cal-dot { width:5px; height:5px; }
       #homer-cal .cal-popover { left:8px!important; right:8px!important; min-width:0; transform:none!important; }
+      #homer-cal .cal-view-toggle { margin-left:6px; }
+      #homer-cal .cal-view-btn { padding:4px 8px; font-size:.7rem; }
     }
 
   </style>
@@ -1442,8 +1581,13 @@
   
     <!-- Calendar -->
     <div class="card" id="homer-cal" style="margin-top:18px;margin-bottom:0;padding:18px;">
-      <h3 style="margin:0 0 14px;">Calendar <button id="cal-ics-toggle" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;vertical-align:middle;" title="Sync external calendar">&#9881;</button></h3>
-      <div class="cal-header">
+      <h3 style="margin:0 0 14px;display:flex;align-items:center;flex-wrap:wrap;">Calendar <button id="cal-ics-toggle" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;vertical-align:middle;" title="Sync external calendar">&#9881;</button>
+        <span class="cal-view-toggle">
+          <button class="cal-view-btn active" data-view="month">Month</button>
+          <button class="cal-view-btn" data-view="day">Day</button>
+        </span>
+      </h3>
+      <div class="cal-header" id="cal-month-header">
         <button class="cal-nav" id="cal-prev" aria-label="Previous month">&#8249;</button>
         <h3 id="cal-title"></h3>
         <button class="cal-nav" id="cal-next" aria-label="Next month">&#8250;</button>
@@ -1454,6 +1598,20 @@
       </div>
       <div class="cal-ics-status" id="cal-ics-status"></div>
       <div class="cal-grid" id="cal-grid"></div>
+      <div class="cal-day-view" id="cal-day-view">
+        <div class="cal-day-header">
+          <div>
+            <h4 class="cal-day-title" id="cal-day-title"></h4>
+            <div class="cal-day-subtitle" id="cal-day-subtitle"></div>
+          </div>
+          <div class="cal-day-nav">
+            <button class="cal-day-today-btn" id="cal-day-today">Today</button>
+            <button class="cal-day-nav-btn" id="cal-day-prev">&#8249;</button>
+            <button class="cal-day-nav-btn" id="cal-day-next">&#8250;</button>
+          </div>
+        </div>
+        <div id="cal-day-agenda"></div>
+      </div>
     </div>
 </div>
 
@@ -1463,7 +1621,7 @@
 
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
-      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v6.3 (Performance)</span>
+      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v7.0 (Calendar Pro + Bulletproof Backup)</span>
     </footer>
   </div>
 
@@ -4950,12 +5108,20 @@ document.addEventListener("input", e => {
   var calGrid = document.getElementById('cal-grid');
   var calTitle = document.getElementById('cal-title');
   var calCard = document.getElementById('homer-cal');
+  var calDayView = document.getElementById('cal-day-view');
+  var calDayAgenda = document.getElementById('cal-day-agenda');
+  var calDayTitle = document.getElementById('cal-day-title');
+  var calDaySubtitle = document.getElementById('cal-day-subtitle');
+  var calMonthHeader = document.getElementById('cal-month-header');
   if(!calGrid || !calTitle) return;
 
   var now = new Date();
   var viewYear = now.getFullYear();
   var viewMonth = now.getMonth();
+  var viewDay = now.getDate();
+  var viewMode = 'month'; // 'month' or 'day'
   var activePop = null;
+  var lastDueMap = {};
 
   var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   var DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -4973,6 +5139,8 @@ document.addEventListener("input", e => {
     if(p==='high') return '#ef4444';
     if(p==='medium') return '#fbbf24';
     if(p==='low') return '#22c55e';
+    if(p==='ext') return '#3b82f6';
+    if(p==='custom') return '#a78bfa';
     return '#94a3b8';
   }
   var colLbl = {todo:'To Do', progress:'In Progress', pending:'Pending', done:'Done'};
@@ -5000,6 +5168,81 @@ document.addEventListener("input", e => {
 
   function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 
+  // === DRAGGABLE POPUP UTILITY ===
+  function makeDraggable(el){
+    el.classList.add('draggable');
+    var handle = document.createElement('div');
+    handle.className = 'cal-drag-handle';
+    handle.innerHTML = '<div class="drag-icon"><span></span><span></span><span></span></div><span class="cal-drag-hint">drag to move</span>';
+    el.insertBefore(handle, el.firstChild);
+
+    var startX, startY, startLeft, startTop, dragging = false;
+
+    function onDown(e){
+      if(e.target.closest('.cal-pop-close,.cal-detail-close,.cal-add-cancel')) return;
+      dragging = true;
+      var touch = e.touches ? e.touches[0] : e;
+      startX = touch.clientX;
+      startY = touch.clientY;
+      var rect = el.getBoundingClientRect();
+      var parentRect = el.offsetParent ? el.offsetParent.getBoundingClientRect() : {left:0, top:0};
+      startLeft = rect.left - parentRect.left;
+      startTop = rect.top - parentRect.top;
+      el.style.transform = 'none';
+      el.style.left = startLeft + 'px';
+      el.style.top = startTop + 'px';
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      document.addEventListener('touchmove', onMove, {passive:false});
+      document.addEventListener('touchend', onUp);
+      e.preventDefault();
+    }
+    function onMove(e){
+      if(!dragging) return;
+      var touch = e.touches ? e.touches[0] : e;
+      var dx = touch.clientX - startX;
+      var dy = touch.clientY - startY;
+      el.style.left = (startLeft + dx) + 'px';
+      el.style.top = (startTop + dy) + 'px';
+      if(e.cancelable) e.preventDefault();
+    }
+    function onUp(){
+      dragging = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onUp);
+    }
+    handle.addEventListener('mousedown', onDown);
+    handle.addEventListener('touchstart', onDown, {passive:false});
+  }
+
+  // === VIEW TOGGLE ===
+  var viewBtns = calCard.querySelectorAll('.cal-view-btn');
+  viewBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var mode = this.getAttribute('data-view');
+      if(mode === viewMode) return;
+      viewMode = mode;
+      viewBtns.forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-view') === mode); });
+      updateViewVisibility();
+      if(viewMode === 'day') renderDayView(lastDueMap);
+    });
+  });
+
+  function updateViewVisibility(){
+    if(viewMode === 'month'){
+      calGrid.style.display = 'grid';
+      calMonthHeader.style.display = 'flex';
+      calDayView.classList.remove('visible');
+    } else {
+      calGrid.style.display = 'none';
+      calMonthHeader.style.display = 'none';
+      calDayView.classList.add('visible');
+    }
+  }
+
+  // === MONTH VIEW RENDER ===
   function showPop(dayEl, items, key){
     closePop();
     var pop = document.createElement('div');
@@ -5256,14 +5499,29 @@ document.addEventListener("input", e => {
       var dateKey = ev.start.substring(0, 10);
       if(!dueMap[dateKey]) dueMap[dateKey] = [];
       var time = ev.start.length > 10 ? ev.start.substring(11) : '';
+      var endTime = (ev.end && ev.end.length > 10) ? ev.end.substring(11) : '';
       dueMap[dateKey].push({
         summary: ev.summary || 'Event',
         priority: 'ext',
         col: 'ext',
         type: 'outlook',
         time: time,
+        endTime: endTime,
+        allDay: ev.allDay || false,
         location: ev.location || '',
-        description: ev.description || ''
+        description: ev.description || '',
+        categories: ev.categories || [],
+        organizer: ev.organizer || null,
+        attendees: ev.attendees || [],
+        status: ev.status || '',
+        icsPriority: ev.icsPriority || 0,
+        url: ev.url || '',
+        transparency: ev.transparency || '',
+        classification: ev.classification || '',
+        recurrence: ev.recurrence || null,
+        created: ev.created || '',
+        lastModified: ev.lastModified || '',
+        uid: ev.uid || ''
       });
     });
     return dueMap;
@@ -5280,7 +5538,6 @@ document.addEventListener("input", e => {
     p.push('path=/calendar/action/compose');
     p.push('rru=addevent');
     p.push('subject=' + encodeURIComponent(item.summary || ''));
-    // Build start datetime
     var startDt = dateKey || '';
     if(item.time && startDt){
       startDt += 'T' + item.time + ':00';
@@ -5288,7 +5545,6 @@ document.addEventListener("input", e => {
       startDt += 'T00:00:00';
     }
     if(startDt) p.push('startdt=' + encodeURIComponent(startDt));
-    // End = start + 1 hour by default
     if(startDt && item.time){
       var parts = item.time.split(':');
       var eh = (parseInt(parts[0]) + 1) % 24;
@@ -5342,47 +5598,139 @@ document.addEventListener("input", e => {
     URL.revokeObjectURL(url);
   }
 
-    // --- Detail View (click on event item in popover) ---
+  // --- Helper: format recurrence rule to human-readable ---
+  function formatRecurrence(r){
+    if(!r || !r.freq) return '';
+    var parts = [];
+    var freqMap = {DAILY:'Daily',WEEKLY:'Weekly',MONTHLY:'Monthly',YEARLY:'Yearly'};
+    var f = freqMap[r.freq] || r.freq;
+    if(r.interval && r.interval > 1) f = 'Every ' + r.interval + ' ' + f.toLowerCase().replace(/ly$/,'') + 's';
+    parts.push(f);
+    if(r.byDay) parts.push('on ' + r.byDay);
+    if(r.count) parts.push(r.count + ' times');
+    if(r.until) parts.push('until ' + r.until);
+    return parts.join(' ');
+  }
+
+  // --- Helper: attendee status color ---
+  function attStatusClass(s){
+    if(!s) return 'att-pending';
+    s = s.toUpperCase();
+    if(s === 'ACCEPTED') return 'att-accepted';
+    if(s === 'DECLINED') return 'att-declined';
+    if(s === 'TENTATIVE') return 'att-tentative';
+    return 'att-pending';
+  }
+  function attStatusLabel(s){
+    if(!s) return '';
+    s = s.toUpperCase();
+    var m = {ACCEPTED:'Accepted',DECLINED:'Declined',TENTATIVE:'Tentative','NEEDS-ACTION':'Pending'};
+    return m[s] || s;
+  }
+
+  // --- Detail View (click on event item in popover or day agenda) ---
   function showDetail(item, refEl){
     closeDetail(); closeAddForm();
     var d = document.createElement('div');
     d.className = 'cal-detail';
     var h = '<button class="cal-detail-close">&times;</button>';
-    // Badge
     var badgeClass = item.type === 'outlook' ? 's-ext' : item.type === 'custom' ? 's-custom' : 's-' + item.col;
     var badgeLabel = item.type === 'outlook' ? 'Outlook' : item.type === 'custom' ? 'My Event' : (colLbl[item.col] || '');
     h += '<div class="cal-detail-title">' + esc(item.summary) + ' <span class="cal-pop-badge ' + badgeClass + '">' + badgeLabel + '</span></div>';
     // Meta row
     h += '<div class="cal-detail-meta">';
-    if(item.time) h += '<span>&#128337; ' + esc(item.time) + '</span>';
+    if(item.allDay){
+      h += '<span>All Day</span>';
+    } else if(item.time){
+      var timeDisplay = esc(item.time);
+      if(item.endTime) timeDisplay += ' - ' + esc(item.endTime);
+      h += '<span>&#128337; ' + timeDisplay + '</span>';
+    }
     if(item.location) h += '<span>&#128205; ' + esc(item.location) + '</span>';
+    if(item.status){
+      var statusColors = {CONFIRMED:'#22c55e',TENTATIVE:'#fbbf24',CANCELLED:'#ef4444'};
+      h += '<span style="color:' + (statusColors[item.status] || 'var(--muted)') + '">' + esc(item.status.charAt(0).toUpperCase() + item.status.slice(1).toLowerCase()) + '</span>';
+    }
     if(item.col && colLbl[item.col]) h += '<span>&#9679; ' + colLbl[item.col] + '</span>';
     if(item.priority && item.priority !== 'ext' && item.priority !== 'custom'){
       h += '<span style="color:' + pColor(item.priority) + '">&#9650; ' + item.priority + ' priority</span>';
     }
+    if(item.transparency === 'TRANSPARENT') h += '<span style="opacity:.6">Free</span>';
+    if(item.classification === 'PRIVATE') h += '<span style="color:#ec4899">Private</span>';
+    if(item.classification === 'CONFIDENTIAL') h += '<span style="color:#ef4444">Confidential</span>';
     h += '</div>';
+
+    // Organizer
+    if(item.organizer && (item.organizer.name || item.organizer.email)){
+      h += '<div style="font-size:.75rem;color:var(--muted);margin-top:4px;">Organized by <strong style="color:var(--text)">' + esc(item.organizer.name || item.organizer.email) + '</strong></div>';
+    }
+
+    // Categories
+    if(item.categories && item.categories.length){
+      h += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">';
+      item.categories.forEach(function(cat){
+        h += '<span class="cal-agenda-tag tag-cat">' + esc(cat) + '</span>';
+      });
+      h += '</div>';
+    }
+
+    // Recurrence
+    if(item.recurrence){
+      var recStr = formatRecurrence(item.recurrence);
+      if(recStr) h += '<div style="font-size:.72rem;color:#fbbf24;margin-top:6px;">&#128257; ' + esc(recStr) + '</div>';
+    }
+
     // Description
     if(item.description){
       h += '<div class="cal-detail-desc">' + esc(item.description) + '</div>';
     }
+
+    // Attendees section
+    if(item.attendees && item.attendees.length){
+      h += '<div class="cal-detail-section">';
+      h += '<div class="cal-detail-section-title">Attendees (' + item.attendees.length + ')</div>';
+      h += '<div class="cal-detail-attendee-list">';
+      item.attendees.forEach(function(att){
+        var name = att.name || att.email || 'Unknown';
+        var statusLbl = attStatusLabel(att.status);
+        var statusCls = attStatusClass(att.status);
+        h += '<div class="cal-detail-attendee"><span class="att-status ' + statusCls + '"></span>' + esc(name);
+        if(statusLbl) h += ' <span style="font-size:.68rem;opacity:.6">(' + esc(statusLbl) + ')</span>';
+        if(att.role === 'OPT-PARTICIPANT') h += ' <span style="font-size:.65rem;opacity:.4">optional</span>';
+        h += '</div>';
+      });
+      h += '</div></div>';
+    }
+
+    // URL
+    if(item.url){
+      h += '<div style="margin-top:8px;"><a href="' + esc(item.url) + '" target="_blank" style="color:#60a5fa;font-size:.78rem;text-decoration:none;word-break:break-all;">&#128279; Open link</a></div>';
+    }
+
     // Action buttons
     h += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;">';
-    // Add to Outlook button (for custom events and goals, not for Outlook events already)
     if(item.type !== 'outlook'){
       h += '<button class="cal-outlook-btn" data-action="outlook"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Add to Outlook</button>';
       h += '<button class="cal-outlook-btn" data-action="ics" style="background:rgba(167,139,250,.12);color:#a78bfa;border-color:rgba(167,139,250,.25);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download .ics</button>';
     }
-    // Delete for custom events
     if(item.type === 'custom' && item.id){
       h += '<button class="cal-detail-del" data-del-id="' + esc(item.id) + '">Delete</button>';
     }
     h += '</div>';
+
+    // Last modified info
+    if(item.lastModified){
+      h += '<div style="font-size:.65rem;color:var(--muted);opacity:.5;margin-top:8px;">Last modified: ' + esc(item.lastModified) + '</div>';
+    }
+
     d.innerHTML = h;
     d.style.top = '50%';
     d.style.left = '50%';
     d.style.transform = 'translate(-50%, -50%)';
     calCard.appendChild(d);
     activeDetail = d;
+    makeDraggable(d);
+
     d.querySelector('.cal-detail-close').addEventListener('click', function(){ closeDetail(); });
     var delBtn = d.querySelector('.cal-detail-del');
     if(delBtn){
@@ -5392,20 +5740,17 @@ document.addEventListener("input", e => {
         refresh();
       });
     }
-    // Outlook deep link
     var outlookBtn = d.querySelector('[data-action="outlook"]');
     if(outlookBtn){
       outlookBtn.addEventListener('click', function(){
         var dateKey = item.date || '';
         if(!dateKey && refEl){
-          // Try to extract from popover context
           var popDate = calCard.querySelector('.cal-pop-date');
           if(popDate) dateKey = dk(viewYear, viewMonth, parseInt(refEl.textContent));
         }
         window.open(outlookComposeUrl(item, dateKey), '_blank');
       });
     }
-    // Download .ics
     var icsBtn = d.querySelector('[data-action="ics"]');
     if(icsBtn){
       icsBtn.addEventListener('click', function(){
@@ -5437,6 +5782,8 @@ document.addEventListener("input", e => {
     af.style.transform = 'translate(-50%, -50%)';
     calCard.appendChild(af);
     activeAddForm = af;
+    makeDraggable(af);
+
     af.querySelector('.cal-add-cancel').addEventListener('click', closeAddForm);
     af.querySelector('#cal-add-title').focus();
     af.querySelector('.cal-add-submit').addEventListener('click', function(){
@@ -5458,7 +5805,7 @@ document.addEventListener("input", e => {
     });
   }
 
-  // --- Enhanced showPop with clickable items + add button ---
+  // --- Enhanced showPop with clickable items + add button + draggable ---
   showPop = function(dayEl, items, key){
     closePop(); closeDetail(); closeAddForm();
     var pop = document.createElement('div');
@@ -5471,14 +5818,22 @@ document.addEventListener("input", e => {
       var dotColor = it.type === 'outlook' ? '#3b82f6' : it.type === 'custom' ? '#a78bfa' : pColor(it.priority);
       var badgeClass = it.type === 'outlook' ? 's-ext' : it.type === 'custom' ? 's-custom' : 's-' + it.col;
       var badgeLabel = it.type === 'outlook' ? 'Outlook' : it.type === 'custom' ? 'My Event' : (colLbl[it.col] || '');
-      var timeStr = it.time ? '<span style="color:' + dotColor + ';font-size:.72rem;font-weight:700;margin-right:4px;">' + esc(it.time) + '</span>' : '';
+      var timeStr = '';
+      if(it.allDay){
+        timeStr = '<span style="color:' + dotColor + ';font-size:.72rem;font-weight:700;margin-right:4px;">All day</span>';
+      } else if(it.time){
+        var tDisp = esc(it.time);
+        if(it.endTime) tDisp += '-' + esc(it.endTime);
+        timeStr = '<span style="color:' + dotColor + ';font-size:.72rem;font-weight:700;margin-right:4px;">' + tDisp + '</span>';
+      }
       var sub = it.type === 'subtask' ? ' <span style="color:var(--muted);font-size:.72rem">(subtask)</span>' : '';
       h += '<div class="cal-pop-item" data-item-idx="' + idx + '" style="cursor:pointer;border-radius:8px;padding:6px 8px;margin:0 -8px;transition:background .12s;">';
       h += '<div class="cal-pop-dot" style="background:' + dotColor + '"></div>';
-      h += '<div>' + timeStr + esc(it.summary) + sub + '<span class="cal-pop-badge ' + badgeClass + '">' + badgeLabel + '</span></div>';
+      h += '<div>' + timeStr + esc(it.summary) + sub + '<span class="cal-pop-badge ' + badgeClass + '">' + badgeLabel + '</span>';
+      if(it.location) h += '<div style="font-size:.68rem;color:var(--muted);margin-top:2px;">&#128205; ' + esc(it.location) + '</div>';
+      h += '</div>';
       h += '</div>';
     });
-    // Add event button
     h += '<div style="text-align:center;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);">';
     h += '<button class="cal-add-btn" style="position:static;width:auto;height:auto;border-radius:8px;padding:5px 14px;font-size:.78rem;display:inline-flex;align-items:center;gap:4px;">+ Add Event</button>';
     h += '</div>';
@@ -5488,8 +5843,9 @@ document.addEventListener("input", e => {
     pop.style.transform = 'translateX(-50%)';
     calCard.appendChild(pop);
     activePop = pop;
+    makeDraggable(pop);
+
     pop.querySelector('.cal-pop-close').addEventListener('click', closePop);
-    // Click on items for detail
     pop.querySelectorAll('.cal-pop-item').forEach(function(el){
       el.addEventListener('mouseenter', function(){ this.style.background = 'rgba(255,255,255,.06)'; });
       el.addEventListener('mouseleave', function(){ this.style.background = 'transparent'; });
@@ -5497,20 +5853,18 @@ document.addEventListener("input", e => {
         e.stopPropagation();
         var idx = parseInt(this.getAttribute('data-item-idx'));
         if(items[idx]){
-          // Attach dateKey for Outlook link
           items[idx].date = items[idx].date || key;
           showDetail(items[idx], this);
         }
       });
     });
-    // Add event button
     pop.querySelector('.cal-add-btn').addEventListener('click', function(e){
       e.stopPropagation();
       showAddForm(key);
     });
   };
 
-  // --- Render: add "+" button on empty days ---
+  // --- Enhanced Render: add "+" button on empty days ---
   var origRender = render;
   render = function(dueMap){
     calTitle.textContent = MONTHS[viewMonth] + ' ' + viewYear;
@@ -5556,10 +5910,24 @@ document.addEventListener("input", e => {
         });
         el.appendChild(dots);
         (function(dayEl, dayItems, dayKey){
-          dayEl.addEventListener('click', function(e){ e.stopPropagation(); showPop(dayEl, dayItems, dayKey); });
+          dayEl.addEventListener('click', function(e){
+            e.stopPropagation();
+            showPop(dayEl, dayItems, dayKey);
+          });
+          // Double-click switches to day view
+          dayEl.addEventListener('dblclick', function(e){
+            e.stopPropagation();
+            var parts = dayKey.split('-');
+            viewYear = parseInt(parts[0]);
+            viewMonth = parseInt(parts[1]) - 1;
+            viewDay = parseInt(parts[2]);
+            viewMode = 'day';
+            viewBtns.forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-view') === 'day'); });
+            updateViewVisibility();
+            renderDayView(lastDueMap);
+          });
         })(el, items, key);
       } else {
-        // Empty day - allow adding events
         el.style.cursor = 'pointer';
         (function(dayEl, dayKey){
           dayEl.addEventListener('click', function(e){
@@ -5580,6 +5948,185 @@ document.addEventListener("input", e => {
     }
   };
 
+  // === DAY VIEW (AGENDA) ===
+  function renderDayView(dueMap){
+    var key = dk(viewYear, viewMonth, viewDay);
+    var dt = new Date(viewYear, viewMonth, viewDay);
+    var dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    calDayTitle.textContent = dayNames[dt.getDay()] + ', ' + MONTHS[viewMonth] + ' ' + viewDay;
+    calDaySubtitle.textContent = viewYear;
+
+    var today = new Date();
+    var isToday = (viewYear === today.getFullYear() && viewMonth === today.getMonth() && viewDay === today.getDate());
+    calDayTitle.style.color = isToday ? '#60a5fa' : 'var(--text)';
+
+    var items = dueMap[key] || [];
+    calDayAgenda.innerHTML = '';
+
+    if(!items.length){
+      calDayAgenda.innerHTML = '<div class="cal-agenda-empty"><div class="empty-icon">&#128197;</div>No events for this day<br><button class="cal-day-today-btn" style="margin-top:12px;" id="cal-day-add-empty">+ Add Event</button></div>';
+      var addBtn = calDayAgenda.querySelector('#cal-day-add-empty');
+      if(addBtn) addBtn.addEventListener('click', function(){ showAddForm(key); });
+      return;
+    }
+
+    // Sort items: all-day first, then by time
+    var sorted = items.slice().sort(function(a, b){
+      if(a.allDay && !b.allDay) return -1;
+      if(!a.allDay && b.allDay) return 1;
+      if(!a.time && b.time) return 1;
+      if(a.time && !b.time) return -1;
+      if(a.time && b.time) return a.time.localeCompare(b.time);
+      return 0;
+    });
+
+    // Group: all-day events, timed events
+    var allDay = sorted.filter(function(it){ return it.allDay; });
+    var timed = sorted.filter(function(it){ return !it.allDay && it.time; });
+    var untimed = sorted.filter(function(it){ return !it.allDay && !it.time; });
+
+    function renderAgendaItem(it){
+      var barColor = pColor(it.priority);
+      var el = document.createElement('div');
+      el.className = 'cal-agenda-item';
+
+      var h = '<div class="cal-agenda-bar" style="background:' + barColor + '"></div>';
+      h += '<div class="cal-agenda-content">';
+
+      // Title row
+      h += '<div class="cal-agenda-title">';
+      h += esc(it.summary);
+      var badgeClass = it.type === 'outlook' ? 's-ext' : it.type === 'custom' ? 's-custom' : 's-' + it.col;
+      var badgeLabel = it.type === 'outlook' ? 'Outlook' : it.type === 'custom' ? 'My Event' : (colLbl[it.col] || '');
+      h += ' <span class="cal-pop-badge ' + badgeClass + '">' + badgeLabel + '</span>';
+      if(it.status === 'CANCELLED') h += ' <span style="color:#ef4444;font-size:.72rem;font-weight:700">CANCELLED</span>';
+      h += '</div>';
+
+      // Time row
+      h += '<div class="cal-agenda-time" style="color:' + barColor + '">';
+      if(it.allDay){
+        h += 'All Day';
+      } else if(it.time){
+        h += '&#128337; ' + esc(it.time);
+        if(it.endTime) h += ' - ' + esc(it.endTime);
+      }
+      if(it.transparency === 'TRANSPARENT') h += ' <span style="color:var(--muted);font-size:.68rem">(Free)</span>';
+      h += '</div>';
+
+      // Meta row
+      h += '<div class="cal-agenda-meta">';
+      if(it.location) h += '<span>&#128205; ' + esc(it.location) + '</span>';
+      if(it.organizer && (it.organizer.name || it.organizer.email)){
+        h += '<span>&#128100; ' + esc(it.organizer.name || it.organizer.email) + '</span>';
+      }
+      if(it.attendees && it.attendees.length){
+        h += '<span>&#128101; ' + it.attendees.length + ' attendee' + (it.attendees.length > 1 ? 's' : '') + '</span>';
+      }
+      if(it.icsPriority && it.icsPriority > 0){
+        var pLabel = it.icsPriority <= 4 ? 'High' : it.icsPriority === 5 ? 'Medium' : 'Low';
+        h += '<span style="color:' + (it.icsPriority <= 4 ? '#ef4444' : it.icsPriority === 5 ? '#fbbf24' : '#22c55e') + '">&#9650; ' + pLabel + '</span>';
+      }
+      if(it.classification === 'PRIVATE') h += '<span style="color:#ec4899">&#128274; Private</span>';
+      h += '</div>';
+
+      // Description preview
+      if(it.description){
+        h += '<div class="cal-agenda-desc">' + esc(it.description) + '</div>';
+      }
+
+      // Tags row: categories + recurrence
+      var hasTags = (it.categories && it.categories.length) || it.recurrence;
+      if(hasTags){
+        h += '<div class="cal-agenda-tags">';
+        if(it.recurrence){
+          var recStr = formatRecurrence(it.recurrence);
+          if(recStr) h += '<span class="cal-agenda-tag tag-recur">&#128257; ' + esc(recStr) + '</span>';
+        }
+        if(it.categories){
+          it.categories.forEach(function(cat){
+            h += '<span class="cal-agenda-tag tag-cat">' + esc(cat) + '</span>';
+          });
+        }
+        h += '</div>';
+      }
+
+      // Attendees preview (max 5)
+      if(it.attendees && it.attendees.length){
+        h += '<div class="cal-agenda-attendees">';
+        var maxAtt = Math.min(it.attendees.length, 5);
+        for(var i = 0; i < maxAtt; i++){
+          var att = it.attendees[i];
+          var name = att.name || att.email || 'Unknown';
+          h += '<span class="cal-agenda-attendee"><span class="att-status ' + attStatusClass(att.status) + '"></span>' + esc(name) + '</span>';
+        }
+        if(it.attendees.length > 5){
+          h += '<span class="cal-agenda-attendee">+' + (it.attendees.length - 5) + ' more</span>';
+        }
+        h += '</div>';
+      }
+
+      h += '</div>';
+      el.innerHTML = h;
+
+      el.addEventListener('click', function(e){
+        e.stopPropagation();
+        it.date = it.date || key;
+        showDetail(it, el);
+      });
+
+      calDayAgenda.appendChild(el);
+    }
+
+    if(allDay.length){
+      var lbl = document.createElement('div');
+      lbl.className = 'cal-agenda-section-label';
+      lbl.textContent = 'All Day';
+      calDayAgenda.appendChild(lbl);
+      allDay.forEach(renderAgendaItem);
+    }
+    if(timed.length){
+      var lbl = document.createElement('div');
+      lbl.className = 'cal-agenda-section-label';
+      lbl.textContent = 'Scheduled';
+      calDayAgenda.appendChild(lbl);
+      timed.forEach(renderAgendaItem);
+    }
+    if(untimed.length){
+      var lbl = document.createElement('div');
+      lbl.className = 'cal-agenda-section-label';
+      lbl.textContent = 'Other';
+      calDayAgenda.appendChild(lbl);
+      untimed.forEach(renderAgendaItem);
+    }
+
+    // Add event button at bottom
+    var addRow = document.createElement('div');
+    addRow.style.cssText = 'text-align:center;margin-top:12px;';
+    addRow.innerHTML = '<button class="cal-add-btn" style="position:static;width:auto;height:auto;border-radius:8px;padding:6px 16px;font-size:.8rem;display:inline-flex;align-items:center;gap:4px;">+ Add Event</button>';
+    addRow.querySelector('.cal-add-btn').addEventListener('click', function(e){
+      e.stopPropagation();
+      showAddForm(key);
+    });
+    calDayAgenda.appendChild(addRow);
+  }
+
+  // Day view navigation
+  document.getElementById('cal-day-prev').addEventListener('click', function(){
+    var d = new Date(viewYear, viewMonth, viewDay - 1);
+    viewYear = d.getFullYear(); viewMonth = d.getMonth(); viewDay = d.getDate();
+    renderDayView(lastDueMap);
+  });
+  document.getElementById('cal-day-next').addEventListener('click', function(){
+    var d = new Date(viewYear, viewMonth, viewDay + 1);
+    viewYear = d.getFullYear(); viewMonth = d.getMonth(); viewDay = d.getDate();
+    renderDayView(lastDueMap);
+  });
+  document.getElementById('cal-day-today').addEventListener('click', function(){
+    var t = new Date();
+    viewYear = t.getFullYear(); viewMonth = t.getMonth(); viewDay = t.getDate();
+    renderDayView(lastDueMap);
+  });
+
   function refresh(){
     closePop(); closeDetail(); closeAddForm();
     var vaultPromise;
@@ -5597,7 +6144,9 @@ document.addEventListener("input", e => {
       var icsEvents = results[1];
       mergeICSEvents(dueMap, icsEvents);
       mergeCustomEvents(dueMap);
+      lastDueMap = dueMap;
       render(dueMap);
+      if(viewMode === 'day') renderDayView(dueMap);
     }).catch(function(){ render({}); });
   }
 
@@ -5926,9 +6475,13 @@ document.addEventListener("input", e => {
     </div>
     <label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.85rem;cursor:pointer;margin-bottom:10px;">
       <input id="fab-auto" type="checkbox" style="accent-color:var(--accent);width:16px;height:16px;">
-      Auto-backup every 5 min
+      Auto-backup on every change (8s debounce)
     </label>
-    <div id="fab-status" style="color:var(--muted);font-size:.8rem;min-height:1.2em;"></div>
+    <div id="fab-status" style="color:var(--muted);font-size:.8rem;min-height:1.2em;margin-bottom:8px;"></div>
+    <div id="fab-versions" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);">
+      <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Backup History <button id="fab-versions-toggle" style="background:none;border:none;color:#60a5fa;font-size:.72rem;cursor:pointer;font-weight:700;">Show</button></div>
+      <div id="fab-versions-list" style="display:none;max-height:160px;overflow-y:auto;"></div>
+    </div>
   </div>
 </div>
 
@@ -6291,7 +6844,8 @@ document.addEventListener("input", e => {
     'pom.settings.v1', 'pom.tasks.v1', 'pom.state.v1',
     'homer-brain-dump', 'homer-links', 'homer-zen-goal',
     'homer-sync-pass', 'homer-sync-auto',
-    'homer-auth-user', 'homer-auth-hash'
+    'homer-auth-user', 'homer-auth-hash',
+    'homer-cal-ics', 'homer-cal-events'
   ];
   var IDB_KEYS = ['homer-vault-salt', 'homer-vault-hash', 'homer-vault-data'];
   var ALL_KEYS = LS_KEYS.concat(IDB_KEYS);
@@ -6400,8 +6954,22 @@ document.addEventListener("input", e => {
   var DATA_KEYS = [
     'motivator.savedQuotes.v1', 'homer-quotes-seen', 'homer-quotes-cache',
     'pom.settings.v1', 'pom.tasks.v1', 'pom.state.v1',
-    'homer-brain-dump', 'homer-links', 'homer-zen-goal'
+    'homer-brain-dump', 'homer-links', 'homer-zen-goal',
+    'homer-cal-events', 'homer-cal-ics'
   ];
+
+  // --- Content hash for change detection ---
+  function computeDataHash(data){
+    var str = JSON.stringify(data);
+    // Simple but fast hash (djb2)
+    var hash = 5381;
+    for(var i = 0; i < str.length; i++){
+      hash = ((hash << 5) + hash) + str.charCodeAt(i);
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return 'h' + Math.abs(hash).toString(36);
+  }
+  var lastBackupHash = '';
 
   function countLocalData(){
     var c = 0;
@@ -6410,13 +6978,24 @@ document.addEventListener("input", e => {
   }
 
   function doBackup(p, allData){
+    // Add backup metadata timestamp to the data itself
+    allData['homer-backup-ts'] = Date.now().toString();
+    allData['homer-backup-keys'] = Object.keys(allData).length.toString();
+
     st('Backing up...');
     var svg=cloud.querySelector('svg'); svg.classList.add('fab-spinning');
     return fetch('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:p,data:allData})})
       .then(function(r){return r.json();})
       .then(function(d){
         svg.classList.remove('fab-spinning');
-        if(d.ok){ lastSyncTs = Date.now(); st('Synced '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})); }
+        if(d.ok){
+          lastSyncTs = Date.now();
+          lastBackupHash = computeDataHash(allData);
+          var msg = 'Synced ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+          if(d.skipped) msg += ' (no changes)';
+          else if(d.versionCount) msg += ' (v' + d.versionCount + ')';
+          st(msg);
+        }
         else st('Error: '+(d.error||'Unknown'));
         updDot();
       })
@@ -6431,7 +7010,18 @@ document.addEventListener("input", e => {
     return getAll().then(function(allData){
       var localCount = countLocalData();
 
-      // If local data looks empty, check cloud before overwriting
+      // Quick check: skip if data hasn't changed since last backup (client-side)
+      if(!force && lastBackupHash){
+        var currentHash = computeDataHash(allData);
+        if(currentHash === lastBackupHash){
+          // Still push periodically even if unchanged (safety net - every 10 min)
+          if(lastSyncTs && (Date.now() - lastSyncTs) < 600000){
+            return;
+          }
+        }
+      }
+
+      // SAFETY: If local data looks empty, check cloud before overwriting
       if(!force && localCount < 2){
         return fetch('/api/sync?key='+encodeURIComponent(p))
           .then(function(r){ return r.json(); })
@@ -6454,6 +7044,31 @@ document.addEventListener("input", e => {
           });
       }
 
+      // SAFETY: Extra validation — never push if critical data is missing but exists in cloud
+      if(!force && localCount >= 2){
+        // Verify essential keys exist before pushing
+        var essential = ['homer-cal-events', 'homer-brain-dump', 'homer-links', 'pom.tasks.v1'];
+        var missingEssential = 0;
+        essential.forEach(function(k){ if(!allData[k]) missingEssential++; });
+        // If we're missing ALL essential keys, something is wrong — verify cloud first
+        if(missingEssential >= essential.length){
+          return fetch('/api/sync?key='+encodeURIComponent(p))
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+              if(d.data){
+                var cloudHasData = false;
+                essential.forEach(function(k){ if(d.data[k]) cloudHasData = true; });
+                if(cloudHasData){
+                  st('Skipped — local data appears incomplete. Cloud preserved.');
+                  return;
+                }
+              }
+              return doBackup(p, allData);
+            })
+            .catch(function(){ st('Skipped — could not verify cloud data'); });
+        }
+      }
+
       // Local has real data — safe to push
       return doBackup(p, allData);
     });
@@ -6468,9 +7083,32 @@ document.addEventListener("input", e => {
       .then(function(r){return r.json();})
       .then(function(d){
         if(d.error){ st(d.error); return; }
+
+        // SAFETY: Validate cloud data before restoring
+        if(!d.data || typeof d.data !== 'object'){
+          st('Error: Cloud data is empty or corrupted. Nothing restored.');
+          return;
+        }
+        var cloudKeys = Object.keys(d.data);
+        if(cloudKeys.length < 1){
+          st('Error: Cloud backup has no data. Nothing restored.');
+          return;
+        }
+
+        // SAFETY: Save current local data as emergency backup before overwriting
+        try {
+          var localBackup = {};
+          for(var i=0; i<localStorage.length; i++){
+            var bk = localStorage.key(i);
+            localBackup[bk] = localStorage.getItem(bk);
+          }
+          localStorage.setItem('homer-pre-restore-backup', JSON.stringify(localBackup));
+          localStorage.setItem('homer-pre-restore-ts', Date.now().toString());
+        } catch(e){}
+
         var c=0;
         var idbWrites = [];
-        Object.keys(d.data).forEach(function(k){
+        cloudKeys.forEach(function(k){
           c++;
           if(IDB_KEYS.indexOf(k) >= 0){
             idbWrites.push(syncIdbSet(k, d.data[k]));
@@ -6479,8 +7117,11 @@ document.addEventListener("input", e => {
           }
         });
         return Promise.all(idbWrites).then(function(){
-          st('Restored '+c+' items. Reloading...'); updDot();
-          setTimeout(function(){ location.reload(); },1000);
+          var tsInfo = d.ts ? ' (backed up ' + new Date(d.ts).toLocaleString() + ')' : '';
+          var vInfo = d.versionCount ? ' [' + d.versionCount + ' versions saved]' : '';
+          st('Restored ' + c + ' items' + tsInfo + vInfo + '. Reloading...');
+          updDot();
+          setTimeout(function(){ location.reload(); },1200);
         });
       })
       .catch(function(e){ st('Failed: '+e.message); });
@@ -6488,6 +7129,88 @@ document.addEventListener("input", e => {
 
   document.getElementById('fab-backup').addEventListener('click', function(){ backup(true); });
   document.getElementById('fab-restore').addEventListener('click', restore);
+
+  // --- Version History UI ---
+  var versionsDiv = document.getElementById('fab-versions');
+  var versionsToggle = document.getElementById('fab-versions-toggle');
+  var versionsList = document.getElementById('fab-versions-list');
+
+  function loadVersions(){
+    var p = pass.value.trim();
+    if(!p) return;
+    versionsDiv.style.display = 'block';
+    fetch('/api/sync?key=' + encodeURIComponent(p) + '&action=versions')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var versions = d.versions || [];
+        if(!versions.length){
+          versionsList.innerHTML = '<div style="font-size:.75rem;color:var(--muted);padding:6px 0;">No version history yet</div>';
+          return;
+        }
+        var h = '';
+        versions.slice().reverse().forEach(function(v, i){
+          var date = new Date(v.ts);
+          var timeStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+          var sizeKB = v.size ? (v.size / 1024).toFixed(1) + ' KB' : '';
+          h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.75rem;">';
+          h += '<div><span style="color:var(--text);font-weight:700;">' + timeStr + '</span>';
+          h += ' <span style="color:var(--muted);font-size:.68rem;">' + (v.keyCount || '?') + ' keys' + (sizeKB ? ' / ' + sizeKB : '') + '</span></div>';
+          h += '<button class="fab-restore-version" data-ts="' + v.ts + '" style="background:none;border:1px solid rgba(96,165,250,.25);border-radius:6px;padding:2px 8px;color:#60a5fa;cursor:pointer;font-size:.68rem;font-weight:700;">Restore</button>';
+          h += '</div>';
+        });
+        versionsList.innerHTML = h;
+
+        // Version restore click handler
+        versionsList.querySelectorAll('.fab-restore-version').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var ts = this.getAttribute('data-ts');
+            if(!confirm('Restore backup from ' + new Date(parseInt(ts)).toLocaleString() + '?\nThis will overwrite your current local data.')) return;
+            btn.textContent = '...';
+            fetch('/api/sync?key=' + encodeURIComponent(p) + '&action=restore-version&ts=' + ts)
+              .then(function(r){ return r.json(); })
+              .then(function(d){
+                if(d.error){ st('Error: ' + d.error); btn.textContent = 'Restore'; return; }
+                // Save pre-restore backup
+                try {
+                  var localBackup = {};
+                  for(var i=0; i<localStorage.length; i++){
+                    var bk = localStorage.key(i);
+                    localBackup[bk] = localStorage.getItem(bk);
+                  }
+                  localStorage.setItem('homer-pre-restore-backup', JSON.stringify(localBackup));
+                  localStorage.setItem('homer-pre-restore-ts', Date.now().toString());
+                } catch(e){}
+                // Apply version data
+                var c = 0;
+                var idbWrites = [];
+                Object.keys(d.data).forEach(function(k){
+                  c++;
+                  if(IDB_KEYS.indexOf(k) >= 0){
+                    idbWrites.push(syncIdbSet(k, d.data[k]));
+                  } else {
+                    localStorage.setItem(k, d.data[k]);
+                  }
+                });
+                Promise.all(idbWrites).then(function(){
+                  st('Restored version from ' + new Date(parseInt(ts)).toLocaleString() + ' (' + c + ' items). Reloading...');
+                  setTimeout(function(){ location.reload(); }, 1200);
+                });
+              })
+              .catch(function(e){ st('Failed: ' + e.message); btn.textContent = 'Restore'; });
+          });
+        });
+      })
+      .catch(function(){ versionsList.innerHTML = '<div style="font-size:.75rem;color:var(--muted);">Could not load versions</div>'; });
+  }
+
+  if(versionsToggle){
+    versionsToggle.addEventListener('click', function(){
+      var showing = versionsList.style.display !== 'none';
+      versionsList.style.display = showing ? 'none' : 'block';
+      versionsToggle.textContent = showing ? 'Show' : 'Hide';
+      if(!showing) loadVersions();
+    });
+  }
 
   autoChk.addEventListener('change', function(){
     localStorage.setItem(SYNC_AUTO_KEY, autoChk.checked);
@@ -6551,9 +7274,10 @@ document.addEventListener("input", e => {
     if(debounceTimer){ clearTimeout(debounceTimer); debounceTimer=null; }
   }
 
-  // Save before page close
+  // Save before page close — CRITICAL for bulletproof backup
   window.addEventListener('beforeunload', function(){
-    if(!dirty || !pass.value.trim()) return;
+    if(!pass.value.trim()) return;
+    // Always attempt final save when logged in (even if not dirty, for safety)
     try {
       var p = pass.value.trim();
       var d = {};
@@ -6561,6 +7285,9 @@ document.addEventListener("input", e => {
         var k = localStorage.key(i);
         d[k] = localStorage.getItem(k);
       }
+      d['homer-backup-ts'] = Date.now().toString();
+      d['homer-backup-keys'] = Object.keys(d).length.toString();
+      d['homer-backup-source'] = 'beforeunload';
       var payload = JSON.stringify({ key: p, data: d });
       navigator.sendBeacon('/api/sync', new Blob([payload], { type: 'application/json' }));
     } catch(e){}
@@ -6648,6 +7375,8 @@ document.addEventListener("input", e => {
     autoChk.checked = true;
     localStorage.setItem(SYNC_AUTO_KEY, 'true');
     startAuto();
+    // Show version history panel
+    versionsDiv.style.display = 'block';
   }
   updDot();
 
