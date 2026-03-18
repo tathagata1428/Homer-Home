@@ -23,6 +23,11 @@
       --tb: 88px;
     }
     *{box-sizing:border-box}
+    /* Dark-themed selects & options globally */
+    select{-webkit-appearance:none;-moz-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2394a3b8' d='M1.4 0L6 4.6 10.6 0 12 1.4l-6 6-6-6z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px!important;}
+    select option{background:#1e293b;color:#e5e7eb;padding:8px 12px;}
+    select option:hover,select option:checked{background:#334155;color:#fff;}
+    select optgroup{background:#0f172a;color:#94a3b8;font-weight:700;}
     html, body{min-height:100%;height:auto;margin:0;-webkit-text-size-adjust:100%}
     body{
       background:
@@ -484,7 +489,8 @@
     .goal-label-chip:not(.selected){opacity:.45;}
     /* Filter bar */
     .goal-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center;}
-    .goal-filters input,.goal-filters select{padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:#0b1220;color:var(--text);font-size:.8rem;font-family:inherit;}
+    .goal-filters input,.goal-filters select{padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:#0b1220;color:var(--text);font-size:.8rem;font-family:inherit;outline:none;transition:border-color .15s;}
+    .goal-filters select:focus,.goal-filters input:focus{border-color:rgba(96,165,250,.5);}
     .goal-filters input{flex:1;min-width:120px;}
     .goal-filters select{min-width:100px;}
     .goal-filters .archive-toggle{padding:7px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:none;color:var(--muted);cursor:pointer;font-size:.8rem;font-weight:600;transition:color .15s,border-color .15s;margin-left:auto;}
@@ -616,6 +622,28 @@
     .issue-comment-form button:hover{background:rgba(96,165,250,.1);}
     .issue-log-entry{font-size:.78rem;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(255,255,255,.03);display:flex;gap:8px;}
     .issue-log-entry .issue-log-time{color:rgba(255,255,255,.25);flex-shrink:0;min-width:110px;}
+
+    /* Collapsible activity log in issue view */
+    .issue-log-toggle{
+      display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;
+      padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.02);
+      border:1px solid rgba(255,255,255,.05);transition:background .15s;
+    }
+    .issue-log-toggle:hover{background:rgba(255,255,255,.05);}
+    .issue-log-toggle .issue-log-chevron{
+      font-size:.7rem;color:var(--muted);transition:transform .2s;display:inline-block;
+    }
+    .issue-log-toggle.open .issue-log-chevron{transform:rotate(180deg);}
+    .issue-log-toggle .issue-log-count{
+      font-size:.65rem;padding:2px 8px;border-radius:10px;
+      background:rgba(96,165,250,.1);color:#60a5fa;font-weight:700;
+    }
+    .issue-log-body{
+      display:none;max-height:280px;overflow-y:auto;
+      padding:8px 12px;margin-top:6px;border-radius:8px;
+      background:rgba(0,0,0,.15);border:1px solid rgba(255,255,255,.04);
+    }
+    .issue-log-body.open{display:block;}
 
     /* ── Floating Backup FAB ── */
     @keyframes fabSpin { to { transform:rotate(360deg); } }
@@ -3977,16 +4005,22 @@ document.addEventListener("input", e => {
           '<button class="issue-comment-add">Post</button></div>';
         html += '</div>';
 
-        // Activity Log
+        // Activity Log (collapsible)
         if(g.log && g.log.length){
           html += '<div class="issue-section">';
-          html += '<div class="issue-section-title">Activity Log ('+g.log.length+')</div>';
+          html += '<div class="issue-log-toggle" id="issue-log-toggle">';
+          html += '<span class="issue-log-chevron">&#9660;</span>';
+          html += '<span class="issue-section-title" style="margin:0;padding:0;border:0;flex:1;">Activity Log</span>';
+          html += '<span class="issue-log-count">'+g.log.length+'</span>';
+          html += '</div>';
+          html += '<div class="issue-log-body" id="issue-log-body">';
           for(var li = g.log.length - 1; li >= 0; li--){
             var e = g.log[li];
             var t2 = new Date(e.ts);
             var ts2 = t2.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' '+t2.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
             html += '<div class="issue-log-entry"><span class="issue-log-time">'+ts2+'</span><span>'+escHtml(e.action)+'</span></div>';
           }
+          html += '</div>';
           html += '</div>';
         }
       }
@@ -4198,6 +4232,16 @@ document.addEventListener("input", e => {
             });
           });
         });
+
+        // Activity log toggle
+        var logToggle = ov.querySelector('#issue-log-toggle');
+        if(logToggle){
+          logToggle.addEventListener('click', function(){
+            this.classList.toggle('open');
+            var body = ov.querySelector('#issue-log-body');
+            if(body) body.classList.toggle('open');
+          });
+        }
 
         // Attachment image clicks
         ov.querySelectorAll('.k-attach-img').forEach(function(img){
