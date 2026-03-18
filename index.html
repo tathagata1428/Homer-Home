@@ -4042,24 +4042,42 @@ document.addEventListener("input", e => {
         html += '</div>';
 
       } else {
-        // Goal sidebar
+        // Goal sidebar — editable fields
         html += '<div class="issue-sidebar-card"><h4>Details</h4>';
         html += '<div class="issue-field-row"><span class="issue-field-label">Status</span><span class="issue-field-value"><span class="issue-status-badge s-'+g.col+'">'+colLabels[g.col]+'</span></span></div>';
-        html += '<div class="issue-field-row"><span class="issue-field-label">Priority</span><span class="issue-field-value">'+(g.priority?priorityBadge(g.priority):'—')+'</span></div>';
-        html += '<div class="issue-field-row"><span class="issue-field-label">Due Date</span><span class="issue-field-value">'+(g.due?new Date(g.due+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—')+'</span></div>';
-        html += '<div class="issue-field-row"><span class="issue-field-label">Reporter</span><span class="issue-field-value">'+(g.reporter?escHtml(g.reporter):'—')+'</span></div>';
-        html += '<div class="issue-field-row"><span class="issue-field-label">Assignee</span><span class="issue-field-value">'+(g.assignee?escHtml(g.assignee):'—')+'</span></div>';
+        // Priority — editable select
+        html += '<div class="issue-field-row"><span class="issue-field-label">Priority</span><span class="issue-field-value">';
+        html += '<select class="issue-edit-priority" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;">';
+        html += '<option value=""'+(g.priority?'':' selected')+'>None</option>';
+        html += '<option value="high"'+(g.priority==='high'?' selected':'')+'>High</option>';
+        html += '<option value="medium"'+(g.priority==='medium'?' selected':'')+'>Medium</option>';
+        html += '<option value="low"'+(g.priority==='low'?' selected':'')+'>Low</option>';
+        html += '</select></span></div>';
+        // Due Date — editable input
+        html += '<div class="issue-field-row"><span class="issue-field-label">Due Date</span><span class="issue-field-value">';
+        html += '<input type="date" class="issue-edit-due" value="'+(g.due||'')+'" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;max-width:150px;">';
+        html += '</span></div>';
+        // Reporter — editable input
+        html += '<div class="issue-field-row"><span class="issue-field-label">Reporter</span><span class="issue-field-value">';
+        html += '<input type="text" class="issue-edit-reporter" value="'+escAttr(g.reporter||'')+'" placeholder="—" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;width:100%;max-width:150px;">';
+        html += '</span></div>';
+        // Assignee — editable input
+        html += '<div class="issue-field-row"><span class="issue-field-label">Assignee</span><span class="issue-field-value">';
+        html += '<input type="text" class="issue-edit-assignee" value="'+escAttr(g.assignee||'')+'" placeholder="—" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;width:100%;max-width:150px;">';
+        html += '</span></div>';
         html += '</div>';
 
-        // Labels
-        if(g.labels && g.labels.length){
-          html += '<div class="issue-sidebar-card"><h4>Labels</h4>';
-          g.labels.forEach(function(name){
-            var lbl = getLabelDef(name);
-            html += '<span class="k-label" style="background:'+lbl.bg+';color:'+lbl.color+';margin:0 4px 4px 0;display:inline-block;">'+lbl.name+'</span>';
-          });
-          html += '</div>';
-        }
+        // Labels — editable with chip toggles + add new
+        var allLabels = getAllLabels(goals);
+        html += '<div class="issue-sidebar-card"><h4>Labels</h4>';
+        html += '<div class="issue-label-chips" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">';
+        allLabels.forEach(function(lbl){
+          var on = (g.labels||[]).indexOf(lbl.name) >= 0;
+          html += '<span class="issue-label-chip'+(on?' on':'')+'" data-label="'+escAttr(lbl.name)+'" style="font-size:.7rem;padding:3px 9px;border-radius:6px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:opacity .12s;user-select:none;background:'+lbl.bg+';color:'+lbl.color+';border:1.5px solid '+(on?'rgba(255,255,255,.45)':'transparent')+';opacity:'+(on?'1':'.35')+';">'+escHtml(lbl.name)+'</span>';
+        });
+        html += '</div>';
+        html += '<div style="display:flex;gap:4px;"><input type="text" class="issue-label-new" placeholder="New label..." style="flex:1;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.75rem;"><button class="issue-label-add" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(96,165,250,.25);background:none;color:#60a5fa;cursor:pointer;font-size:.7rem;font-weight:700;">+</button></div>';
+        html += '</div>';
 
         // Effort points
         var pts = goalPoints(g);
@@ -4159,6 +4177,112 @@ document.addEventListener("input", e => {
             loadVault().then(function(d){ if(d.goals[goalIdx]){ d.goals[goalIdx].notes = self.value; saveVault(d); } });
           }, 800);
         });
+
+        // --- Editable sidebar fields ---
+        // Priority
+        var prioSel = ov.querySelector('.issue-edit-priority');
+        if(prioSel){
+          prioSel.addEventListener('change', function(){
+            var val = this.value;
+            loadVault().then(function(d){
+              if(d.goals[goalIdx]){
+                var old = d.goals[goalIdx].priority || 'none';
+                d.goals[goalIdx].priority = val;
+                addLogEntry(d.goals[goalIdx], 'Priority changed from '+old+' to '+(val||'none'));
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx); });
+              }
+            });
+          });
+        }
+        // Due date
+        var dueSel = ov.querySelector('.issue-edit-due');
+        if(dueSel){
+          dueSel.addEventListener('change', function(){
+            var val = this.value;
+            loadVault().then(function(d){
+              if(d.goals[goalIdx]){
+                d.goals[goalIdx].due = val;
+                addLogEntry(d.goals[goalIdx], val ? 'Due date set to '+val : 'Due date removed');
+                saveVault(d);
+              }
+            });
+          });
+        }
+        // Reporter
+        var reporterInp = ov.querySelector('.issue-edit-reporter');
+        if(reporterInp){
+          var reporterTimer = null;
+          reporterInp.addEventListener('input', function(){
+            var self = this;
+            clearTimeout(reporterTimer);
+            reporterTimer = setTimeout(function(){
+              loadVault().then(function(d){
+                if(d.goals[goalIdx]){
+                  d.goals[goalIdx].reporter = self.value.trim();
+                  saveVault(d);
+                }
+              });
+            }, 800);
+          });
+        }
+        // Assignee
+        var assigneeInp = ov.querySelector('.issue-edit-assignee');
+        if(assigneeInp){
+          var assigneeTimer = null;
+          assigneeInp.addEventListener('input', function(){
+            var self = this;
+            clearTimeout(assigneeTimer);
+            assigneeTimer = setTimeout(function(){
+              loadVault().then(function(d){
+                if(d.goals[goalIdx]){
+                  d.goals[goalIdx].assignee = self.value.trim();
+                  saveVault(d);
+                }
+              });
+            }, 800);
+          });
+        }
+        // Label chip toggles
+        ov.querySelectorAll('.issue-label-chip').forEach(function(chip){
+          chip.addEventListener('click', function(){
+            var labelName = this.getAttribute('data-label');
+            loadVault().then(function(d){
+              if(d.goals[goalIdx]){
+                if(!d.goals[goalIdx].labels) d.goals[goalIdx].labels = [];
+                var idx = d.goals[goalIdx].labels.indexOf(labelName);
+                if(idx >= 0){
+                  d.goals[goalIdx].labels.splice(idx, 1);
+                  addLogEntry(d.goals[goalIdx], 'Label "'+labelName+'" removed');
+                } else {
+                  d.goals[goalIdx].labels.push(labelName);
+                  addLogEntry(d.goals[goalIdx], 'Label "'+labelName+'" added');
+                }
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx); });
+              }
+            });
+          });
+        });
+        // Add new label
+        var labelAddBtn = ov.querySelector('.issue-label-add');
+        var labelNewInp = ov.querySelector('.issue-label-new');
+        if(labelAddBtn && labelNewInp){
+          function addNewLabel(){
+            var name = labelNewInp.value.trim().toLowerCase();
+            if(!name) return;
+            loadVault().then(function(d){
+              if(d.goals[goalIdx]){
+                if(!d.goals[goalIdx].labels) d.goals[goalIdx].labels = [];
+                if(d.goals[goalIdx].labels.indexOf(name) < 0){
+                  d.goals[goalIdx].labels.push(name);
+                  addLogEntry(d.goals[goalIdx], 'Label "'+name+'" added');
+                  saveVault(d).then(function(){ openIssueFullscreen(goalIdx); });
+                }
+              }
+            });
+          }
+          labelAddBtn.addEventListener('click', addNewLabel);
+          labelNewInp.addEventListener('keydown', function(e){ if(e.key==='Enter') addNewLabel(); });
+        }
 
         // Subtask clicks → open subtask fullscreen
         ov.querySelectorAll('.issue-st-key').forEach(function(el){
