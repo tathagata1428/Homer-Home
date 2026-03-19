@@ -8151,9 +8151,7 @@ document.addEventListener("input", e => {
         var webhookUrl = (whRes.ok && whRes.result && whRes.result.url) ? whRes.result.url : '';
 
         // 3. Set up webhook proxy so we can capture Telegram messages
-        var proxyPromise = webhookUrl
-          ? tgApiWithToken(token, 'setupProxy', { botId: botId, chatId: chatId })
-          : Promise.resolve({ ok: false });
+        var proxyPromise = tgApiWithToken(token, 'setupProxy', { botId: botId, chatId: chatId });
 
         return proxyPromise.then(function(proxyRes){
           // Use original webhook URL (before proxy replaced it)
@@ -8318,13 +8316,28 @@ document.addEventListener("input", e => {
     statusText.textContent = 'Sending...';
 
     if(!currentConfig.webhookUrl){
-      typing.remove();
-      isSending = false;
-      sendBtn.disabled = !input.value.trim();
-      statusText.textContent = 'No webhook';
-      appendMessageBubble({ dir: 'in', text: 'Bot has no webhook configured. Please set a webhook on your bot for Homer integration to work.', ts: Date.now() }, true);
-      scrollToBottom();
-      saveMessage({ dir: 'in', text: 'Bot has no webhook configured.', ts: Date.now() });
+      // No webhook — send directly via Bot API as fallback
+      tgApi('sendMessage', {
+        chatId: currentConfig.chatId,
+        text: text
+      }).then(function(res){
+        typing.remove();
+        isSending = false;
+        sendBtn.disabled = !input.value.trim();
+        if(res.ok){
+          statusText.textContent = 'Sent';
+          setTimeout(function(){ statusText.textContent = 'Online'; }, 1500);
+        } else {
+          statusText.textContent = 'Error';
+          appendMessageBubble({ dir: 'in', text: 'Send failed: ' + (res.description || 'unknown'), ts: Date.now() }, true);
+          scrollToBottom();
+        }
+      }).catch(function(err){
+        typing.remove();
+        isSending = false;
+        sendBtn.disabled = !input.value.trim();
+        statusText.textContent = 'Error';
+      });
       return;
     }
 
@@ -8409,8 +8422,8 @@ document.addEventListener("input", e => {
   function startPolling(){
     stopPolling();
     if(!currentConfig || !currentConfig.botToken) return;
-    // getUpdates polling for bots without webhook
-    if(!currentConfig.webhookUrl){
+    // getUpdates polling only when no webhook and no proxy (pure polling bots without Redis)
+    if(!currentConfig.webhookUrl && !currentConfig.proxyEnabled){
       pollOnce();
       pollTimer = setInterval(pollOnce, POLL_INTERVAL);
     }
