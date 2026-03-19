@@ -12,7 +12,14 @@
       "Read(//c/Program Files/**)",
       "Read(//c/Users/raduc/AppData/Local/**)",
       "Read(//c/Users/raduc/**)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "vercel"
+  ]
 }
