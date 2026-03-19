@@ -8304,103 +8304,85 @@ document.addEventListener("input", e => {
     scrollToBottom();
     statusText.textContent = 'Sending...';
 
-    if(currentConfig.webhookUrl){
-      // Bot has a webhook — simulate a real Telegram user message to the bot's backend
-      var fakeUpdate = {
-        update_id: Math.floor(Math.random() * 999999999),
-        message: {
-          message_id: Math.floor(Math.random() * 999999),
-          from: {
-            id: parseInt(currentConfig.chatId) || 0,
-            is_bot: false,
-            first_name: 'User'
-          },
-          chat: {
-            id: parseInt(currentConfig.chatId) || 0,
-            type: 'private'
-          },
-          date: Math.floor(Date.now() / 1000),
-          text: text
-        }
-      };
-
-      tgApi('forwardToWebhook', {
-        webhookUrl: currentConfig.webhookUrl,
-        update: fakeUpdate
-      }).then(function(res){
-        typing.remove();
-        isSending = false;
-        sendBtn.disabled = !input.value.trim();
-        statusText.textContent = 'Online';
-
-        if(res.ok && res.webhookResponse){
-          var wr = res.webhookResponse;
-          // Check if the webhook returned an inline bot response
-          var replyText = null;
-          if(typeof wr === 'object'){
-            if(wr.method === 'sendMessage' && wr.text){
-              replyText = wr.text;
-            } else if(wr.text && !wr.method){
-              replyText = wr.text;
-            } else if(wr.result && wr.result.text){
-              replyText = wr.result.text;
-            }
-          }
-          if(replyText){
-            var botMsg = { dir: 'in', text: replyText, ts: Date.now() };
-            appendMessageBubble(botMsg, true);
-            saveMessage(botMsg);
-            scrollToBottom();
-          }
-          // If no inline response, the bot may respond async via sendMessage.
-          // Poll aggressively for a few seconds to try to catch it.
-          if(!replyText) pollForResponse();
-        }
-      }).catch(function(err){
-        typing.remove();
-        isSending = false;
-        sendBtn.disabled = !input.value.trim();
-        statusText.textContent = 'Online';
-        // Webhook call failed — fall back to sendMessage
-        sendViaBotApi(text);
-      });
-    } else {
-      // No webhook — use sendMessage (sends FROM bot, not ideal but functional)
+    if(!currentConfig.webhookUrl){
       typing.remove();
-      sendViaBotApi(text);
-    }
-  }
-
-  function sendViaBotApi(text){
-    tgApi('sendMessage', {
-      chatId: currentConfig.chatId,
-      text: text
-    }).then(function(res){
       isSending = false;
       sendBtn.disabled = !input.value.trim();
-      statusText.textContent = res.ok ? 'Online' : 'Send failed';
-      // Try polling for a response
-      pollForResponse();
+      statusText.textContent = 'No webhook';
+      appendMessageBubble({ dir: 'in', text: 'Bot has no webhook configured. Please set a webhook on your bot for Homer integration to work.', ts: Date.now() }, true);
+      scrollToBottom();
+      saveMessage({ dir: 'in', text: 'Bot has no webhook configured.', ts: Date.now() });
+      return;
+    }
+
+    // Simulate a real Telegram user message → sent to the bot's webhook backend
+    var fakeUpdate = {
+      update_id: Math.floor(Math.random() * 999999999),
+      message: {
+        message_id: Math.floor(Math.random() * 999999),
+        from: {
+          id: parseInt(currentConfig.chatId) || 0,
+          is_bot: false,
+          first_name: localStorage.getItem('homer-auth-user') || 'User'
+        },
+        chat: {
+          id: parseInt(currentConfig.chatId) || 0,
+          type: 'private'
+        },
+        date: Math.floor(Date.now() / 1000),
+        text: text
+      }
+    };
+
+    tgApi('forwardToWebhook', {
+      webhookUrl: currentConfig.webhookUrl,
+      update: fakeUpdate
+    }).then(function(res){
+      typing.remove();
+      isSending = false;
+      sendBtn.disabled = !input.value.trim();
+      statusText.textContent = 'Online';
+
+      if(!res.ok){
+        appendMessageBubble({ dir: 'in', text: 'Webhook error: ' + (res.error || 'unknown'), ts: Date.now() }, true);
+        scrollToBottom();
+        return;
+      }
+
+      // Parse the webhook response for an inline bot reply
+      var replyText = extractReply(res.webhookResponse);
+      if(replyText){
+        var botMsg = { dir: 'in', text: replyText, ts: Date.now() };
+        appendMessageBubble(botMsg, true);
+        saveMessage(botMsg);
+        scrollToBottom();
+      }
     }).catch(function(err){
+      typing.remove();
       isSending = false;
       sendBtn.disabled = !input.value.trim();
       statusText.textContent = 'Error';
+      appendMessageBubble({ dir: 'in', text: 'Failed to reach bot: ' + err.message, ts: Date.now() }, true);
+      scrollToBottom();
     });
   }
 
-  // After sending, poll aggressively for a few seconds trying to catch the bot's response
-  function pollForResponse(){
-    var attempts = 0;
-    var maxAttempts = 5;
-    function tryPoll(){
-      if(attempts >= maxAttempts) return;
-      attempts++;
-      setTimeout(function(){
-        pollOnce();
-        tryPoll();
-      }, 1500);
-    }
-    tryPoll();
+  // Extract the bot's reply text from various webhook response formats
+  function extractReply(wr){
+    if(!wr || typeof wr !== 'object') return null;
+    // Format 1: inline method call { method: "sendMessage", text: "..." }
+    if(wr.method === 'sendMessage' && wr.text) return wr.text;
+    // Format 2: plain { text: "..." }
+    if(wr.text && !wr.method && !wr.ok) return wr.text;
+    // Format 3: wrapped { result: { text: "..." } }
+    if(wr.result && wr.result.text) return wr.result.text;
+    // Format 4: { message: { text: "..." } }
+    if(wr.message && typeof wr.message === 'object' && wr.message.text) return wr.message.text;
+    // Format 5: { response: "..." }
+    if(wr.response && typeof wr.response === 'string') return wr.response;
+    // Format 6: { reply: "..." }
+    if(wr.reply && typeof wr.reply === 'string') return wr.reply;
+    return null;
   }
 
   // --- Poll for incoming messages via getUpdates ---
