@@ -431,14 +431,16 @@
 
     /* ── Kanban ── */
     .kanban-card{
-      padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);
+      padding:12px 14px;border-radius:10px;background:rgba(255,255,255,.04);
       border:1px solid rgba(255,255,255,.08);margin-bottom:8px;cursor:grab;
       transition:opacity .15s,box-shadow .15s;
     }
     .kanban-card:active{cursor:grabbing;}
     .kanban-card.dragging{opacity:.4;}
     .kanban-items.drag-over{background:rgba(255,255,255,.04);border-radius:10px;}
-    .kanban-card .k-title{font-weight:700;font-size:.9rem;display:flex;align-items:center;justify-content:space-between;gap:6px;}
+    .kanban-card .k-header{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px;}
+    .kanban-card .k-name{font-weight:700;font-size:.9rem;line-height:1.35;word-break:break-word;margin-bottom:5px;}
+    .kanban-card .k-meta{display:flex;flex-wrap:wrap;align-items:center;gap:5px;}
     .kanban-card .k-body{display:none;margin-top:10px;}
     .kanban-card.expanded .k-body{display:block;}
     .kanban-card .k-field{width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:#0b1220;color:var(--text);font-size:.85rem;font-family:inherit;resize:vertical;margin-top:6px;}
@@ -461,6 +463,7 @@
     .kanban-card .k-subtask input[type=checkbox]{accent-color:var(--accent);cursor:pointer;flex-shrink:0;}
     .kanban-card .k-subtask.done-st .k-st-name{text-decoration:line-through;opacity:.5;}
     .kanban-card .k-st-badges{display:flex;gap:4px;margin-left:auto;align-items:center;flex-shrink:0;}
+    .kanban-card .k-cal-btn:hover,.kanban-card .k-st-cal:hover{opacity:1!important;}
     .kanban-card .k-effort{font-size:.6rem;padding:1px 6px;border-radius:4px;font-weight:700;background:rgba(139,92,246,.15);color:#a78bfa;}
     .kanban-card .k-st-due{font-size:.6rem;color:var(--muted);}
     .kanban-card .k-st-body{display:none;margin-top:6px;padding-left:24px;}
@@ -533,7 +536,7 @@
     .k-log-entry{font-size:.68rem;color:var(--muted);padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03);display:flex;gap:6px;}
     .k-log-entry .k-log-time{color:rgba(255,255,255,.25);flex-shrink:0;min-width:90px;}
     /* Goal ID */
-    .k-id{font-size:.6rem;color:rgba(255,255,255,.25);font-weight:800;margin-right:4px;transition:color .15s;}
+    .k-id{font-size:.65rem;color:rgba(255,255,255,.3);font-weight:800;transition:color .15s;}
     .k-id:hover{color:var(--accent);}
     /* Archive section */
     .goal-archive{margin-top:14px;border-top:1px solid rgba(255,255,255,.08);padding-top:14px;}
@@ -552,7 +555,7 @@
       #kanban::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px;}
       #kanban .kanban-col{min-width:min(280px,85vw);flex-shrink:0;scroll-snap-align:start;}
       .kanban-card{max-width:none!important;}
-      .kanban-card .k-title{font-size:.82rem;}
+      .kanban-card .k-name{font-size:.82rem;}
       .kanban-card .k-move{flex-wrap:wrap;}
       .goal-filters{flex-direction:column;gap:6px!important;}
       .goal-filters input,.goal-filters select{width:100%;min-width:0!important;}
@@ -732,6 +735,230 @@
       background:none; border:none; cursor:pointer; font-size:1.1rem; padding:2px; color:var(--muted);
     }
     .acct-error{ color:#ef4444; font-size:.85rem; min-height:1.2em; margin-top:4px; }
+
+    /* === AI AGENT CHAT === */
+    #fab-ai{
+      width:46px; height:46px;
+      background:linear-gradient(135deg,#0088cc 0%,#29b6f6 100%);
+      border:1px solid rgba(0,136,204,.35);
+      box-shadow:0 4px 24px rgba(0,136,204,.4), 0 0 0 1px rgba(0,136,204,.15);
+      display:none;
+    }
+    #fab-ai svg{ width:22px; height:22px; fill:none; stroke:#fff; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+    #fab-ai .fab-dot{
+      position:absolute; top:2px; right:2px; width:9px; height:9px; border-radius:50%;
+      border:2px solid #0077b5;
+    }
+    #fab-ai .fab-dot.ok{ background:#22c55e; box-shadow:0 0 8px rgba(34,197,94,.6); }
+    #fab-ai .fab-dot.off{ background:#ef4444; box-shadow:0 0 6px rgba(239,68,68,.4); }
+    body.zen-active #fab-ai{ display:none!important; }
+
+    #ai-chat-panel{
+      display:none; position:fixed;
+      bottom:calc(var(--tb) + env(safe-area-inset-bottom,0px) + 14px);
+      right:80px;
+      width:min(420px, calc(100vw - 32px));
+      height:min(620px, calc(100vh - 120px));
+      z-index:910;
+      border-radius:20px;
+      background:#0f172a;
+      border:1px solid rgba(0,136,204,.2);
+      box-shadow:0 24px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(0,136,204,.08);
+      flex-direction:column;
+      overflow:hidden;
+      animation:fabSlideIn .25s ease;
+    }
+    #ai-chat-panel.open{ display:flex; }
+
+    .ai-chat-header{
+      display:flex; align-items:center; gap:12px;
+      padding:14px 16px;
+      background:linear-gradient(135deg,#1e293b,#0f172a);
+      border-bottom:1px solid rgba(255,255,255,.08);
+      flex-shrink:0;
+    }
+    .ai-chat-avatar{
+      width:36px; height:36px; border-radius:50%;
+      background:linear-gradient(135deg,#0ea5e9,#6366f1);
+      display:grid; place-items:center; font-size:1.1rem; flex-shrink:0;
+    }
+    .ai-chat-header-info{ flex:1; min-width:0; }
+    .ai-chat-header-info .name{ font-weight:800; font-size:.95rem; color:var(--text); }
+    .ai-chat-header-info .status{ font-size:.75rem; color:var(--muted); }
+    .ai-chat-header-actions{ display:flex; gap:4px; }
+    .ai-chat-header-actions button{
+      background:none; border:none; color:var(--muted); cursor:pointer;
+      width:32px; height:32px; border-radius:8px; display:grid; place-items:center;
+      transition:background .15s, color .15s;
+    }
+    .ai-chat-header-actions button:hover{ background:rgba(255,255,255,.08); color:var(--text); }
+    .ai-chat-header-actions button svg{ width:18px; height:18px; }
+
+    .ai-chat-messages{
+      flex:1; overflow-y:auto; padding:16px;
+      display:flex; flex-direction:column; gap:8px;
+      scroll-behavior:smooth;
+      background:radial-gradient(ellipse at 50% 0%, rgba(0,136,204,.04) 0%, transparent 70%);
+    }
+    .ai-chat-messages::-webkit-scrollbar{ width:6px; }
+    .ai-chat-messages::-webkit-scrollbar-track{ background:transparent; }
+    .ai-chat-messages::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.1); border-radius:3px; }
+
+    .ai-msg{
+      max-width:85%; padding:10px 14px;
+      border-radius:16px; font-size:.9rem; line-height:1.5;
+      word-wrap:break-word; position:relative;
+      animation:aiMsgIn .2s ease;
+    }
+    @keyframes aiMsgIn{ from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+    .ai-msg.user{
+      align-self:flex-end;
+      background:linear-gradient(135deg,#0088cc,#29b6f6);
+      color:#fff; border-bottom-right-radius:6px;
+    }
+    .ai-msg.in{
+      align-self:flex-start;
+      background:rgba(255,255,255,.06);
+      color:var(--text); border-bottom-left-radius:6px;
+      border:1px solid rgba(255,255,255,.06);
+    }
+    .ai-msg .msg-time{
+      font-size:.65rem; color:rgba(255,255,255,.4);
+      margin-top:4px; text-align:right;
+    }
+    .ai-msg.in .msg-time{ color:var(--muted); }
+    .ai-msg pre{
+      background:rgba(0,0,0,.3); padding:10px 12px;
+      border-radius:8px; overflow-x:auto; margin:6px 0 2px;
+      font-size:.82rem; line-height:1.4;
+    }
+    .ai-msg code{
+      font-family:'Cascadia Code','Fira Code',monospace;
+      font-size:.85em;
+    }
+    .ai-msg :not(pre)>code{
+      background:rgba(255,255,255,.08); padding:1px 5px;
+      border-radius:4px;
+    }
+    .ai-msg p{ margin:0 0 6px; }
+    .ai-msg p:last-child{ margin-bottom:0; }
+    .ai-msg ul,.ai-msg ol{ margin:4px 0; padding-left:18px; }
+
+    .ai-typing{
+      display:flex; gap:4px; padding:12px 16px; align-self:flex-start;
+    }
+    .ai-typing span{
+      width:8px; height:8px; border-radius:50%;
+      background:rgba(255,255,255,.25);
+      animation:aiDot 1.4s ease infinite;
+    }
+    .ai-typing span:nth-child(2){ animation-delay:.2s; }
+    .ai-typing span:nth-child(3){ animation-delay:.4s; }
+    @keyframes aiDot{
+      0%,60%,100%{ transform:translateY(0); opacity:.4; }
+      30%{ transform:translateY(-6px); opacity:1; }
+    }
+
+    .ai-chat-input-area{
+      padding:12px 14px;
+      border-top:1px solid rgba(255,255,255,.08);
+      background:linear-gradient(180deg,#1e293b,#0f172a);
+      flex-shrink:0;
+    }
+    .ai-chat-input-wrap{
+      display:flex; align-items:flex-end; gap:8px;
+    }
+    #ai-chat-input{
+      flex:1; padding:10px 14px;
+      border-radius:20px;
+      border:1px solid rgba(255,255,255,.15);
+      background:#0b1220; color:var(--text);
+      font-size:.9rem; font-family:inherit;
+      resize:none; max-height:120px; min-height:40px;
+      outline:none; line-height:1.4;
+    }
+    #ai-chat-input:focus{ border-color:rgba(0,136,204,.5); }
+    #ai-chat-input::placeholder{ color:rgba(148,163,184,.5); }
+    #ai-chat-send{
+      width:40px; height:40px; border-radius:50%; border:none;
+      background:linear-gradient(135deg,#0088cc,#29b6f6);
+      color:#fff; cursor:pointer; display:grid; place-items:center;
+      transition:transform .15s, opacity .15s;
+      flex-shrink:0;
+    }
+    #ai-chat-send:hover{ transform:scale(1.08); }
+    #ai-chat-send:disabled{ opacity:.4; cursor:default; transform:none; }
+    #ai-chat-send svg{ width:18px; height:18px; }
+
+    .ai-settings-panel{
+      position:absolute; inset:0;
+      background:#0f172a;
+      z-index:5;
+      display:none; flex-direction:column;
+    }
+    .ai-settings-panel.open{ display:flex; }
+    .ai-settings-header{
+      display:flex; align-items:center; gap:10px;
+      padding:14px 16px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+    }
+    .ai-settings-header h4{ margin:0; flex:1; font-size:.95rem; color:var(--text); }
+    .ai-settings-header button{
+      background:none; border:none; color:var(--muted); cursor:pointer;
+      font-size:1.2rem; padding:4px;
+    }
+    .ai-settings-body{
+      flex:1; overflow-y:auto; padding:16px;
+      display:flex; flex-direction:column; gap:14px;
+    }
+    .ai-settings-body label{
+      display:flex; flex-direction:column; gap:4px;
+      font-size:.82rem; font-weight:700; color:var(--muted);
+      text-transform:uppercase; letter-spacing:.05em;
+    }
+    .ai-settings-body input,.ai-settings-body select,.ai-settings-body textarea{
+      padding:10px 12px; border-radius:10px;
+      border:1px solid rgba(255,255,255,.15);
+      background:#0b1220; color:var(--text);
+      font-size:.9rem; font-family:inherit;
+    }
+    .ai-settings-body select{ cursor:pointer; }
+    .ai-settings-body textarea{ min-height:80px; resize:vertical; }
+    .ai-settings-body .ai-save-btn{
+      padding:12px; border-radius:12px; border:none;
+      background:linear-gradient(135deg,#0088cc,#29b6f6);
+      color:#fff; font-weight:800; font-size:.9rem;
+      cursor:pointer; transition:transform .15s;
+    }
+    .ai-settings-body .ai-save-btn:hover{ transform:scale(1.02); }
+
+    .ai-welcome{
+      flex:1; display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      padding:24px; text-align:center; gap:16px;
+    }
+    .ai-welcome-icon{
+      width:64px; height:64px; border-radius:50%;
+      background:linear-gradient(135deg,#0ea5e9,#6366f1);
+      display:grid; place-items:center; font-size:1.8rem;
+    }
+    .ai-welcome h4{ margin:0; font-size:1.1rem; color:var(--text); }
+    .ai-welcome p{ margin:0; color:var(--muted); font-size:.88rem; line-height:1.5; }
+    .ai-welcome .setup-btn{
+      padding:10px 24px; border-radius:12px; border:none;
+      background:linear-gradient(135deg,#0088cc,#29b6f6);
+      color:#fff; font-weight:700; cursor:pointer;
+      transition:transform .15s;
+    }
+    .ai-welcome .setup-btn:hover{ transform:scale(1.05); }
+
+    @media(max-width:600px){
+      #ai-chat-panel{
+        right:8px; left:8px; width:auto;
+        bottom:calc(var(--tb) + env(safe-area-inset-bottom,0px) + 80px);
+        height:min(520px, calc(100vh - 140px));
+      }
+    }
 
     /* === CALENDAR === */
     #homer-cal { position:relative; }
@@ -3333,6 +3560,10 @@ document.addEventListener("input", e => {
     return encrypt(cryptoKey, JSON.stringify(data)).then(function(enc){ return idb.set(DATA_KEY, enc); });
   }
 
+  // Expose vault functions globally for AI Agent chat
+  window._homerLoadVault = loadVault;
+  window._homerSaveVault = function(data){ return saveVault(data); };
+
   // --- R2 Attachment Cloud Sync ---
   var R2_WORKER_URL = 'https://homer-attachments.it-network-drive.workers.dev';
 
@@ -3973,6 +4204,7 @@ document.addEventListener("input", e => {
             html += '<span class="issue-st-name">'+escHtml(s.text)+'</span>';
             if(s.effort) html += effortBadge(s.effort);
             if(s.due) html += formatStDue(s.due);
+            html += '<button class="issue-st-cal-btn" data-gi="'+goalIdx+'" data-si="'+si+'" title="Add to Outlook Calendar" style="background:none;border:none;color:#0078d4;cursor:pointer;padding:0 3px;display:inline-flex;align-items:center;opacity:.5;transition:opacity .15s;flex-shrink:0;" onclick="event.stopPropagation()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>';
             html += '</div>';
           });
           html += '</div>';
@@ -4039,6 +4271,7 @@ document.addEventListener("input", e => {
 
         html += '<div class="issue-sidebar-card"><h4>Actions</h4>';
         html += '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem;color:var(--text);"><input type="checkbox" class="issue-sub-done-toggle" '+(sub.done?'checked':'')+' style="accent-color:var(--accent);"> Mark as Done</label>';
+        html += '<button class="issue-outlook-btn" data-gi="'+goalIdx+'" data-si="'+subIdx+'" style="display:flex;align-items:center;gap:6px;margin-top:8px;padding:6px 12px;border-radius:8px;border:1px solid rgba(0,120,212,.25);background:rgba(0,120,212,.1);color:#0078d4;cursor:pointer;font-size:.78rem;font-weight:700;transition:background .15s;width:100%;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Add to Outlook</button>';
         html += '</div>';
 
       } else {
@@ -4096,6 +4329,11 @@ document.addEventListener("input", e => {
           html += '<button class="issue-move-btn" data-to="'+col+'" style="padding:6px 12px;border-radius:8px;border:1px solid '+(active?'var(--accent)':'rgba(255,255,255,.15)')+';background:'+(active?'rgba(96,165,250,.1)':'none')+';color:'+(active?'var(--accent)':'var(--muted)')+';cursor:pointer;font-size:.78rem;font-weight:700;transition:all .15s;">'+colLabels[col]+'</button>';
         });
         html += '</div></div>';
+
+        // Add to Outlook button
+        html += '<div class="issue-sidebar-card"><h4>Calendar</h4>';
+        html += '<button class="issue-outlook-btn" data-gi="'+goalIdx+'" style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:1px solid rgba(0,120,212,.25);background:rgba(0,120,212,.1);color:#0078d4;cursor:pointer;font-size:.78rem;font-weight:700;transition:background .15s;width:100%;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Add to Outlook</button>';
+        html += '</div>';
       }
 
       html += '</div>'; // end sidebar
@@ -4158,6 +4396,22 @@ document.addEventListener("input", e => {
             openIssueFullscreen(parseInt(this.dataset.gi));
           });
         });
+
+        // Subtask → Outlook calendar
+        var subOutlookBtn = ov.querySelector('.issue-outlook-btn');
+        if(subOutlookBtn){
+          subOutlookBtn.addEventListener('click', function(){
+            var gi = parseInt(this.dataset.gi), si = parseInt(this.dataset.si);
+            loadVault().then(function(d){
+              var goal = d.goals[gi];
+              if(!goal || !goal.subtasks[si]) return;
+              var st = goal.subtasks[si];
+              var item = { summary: st.text || '', description: st.notes || '', location: '' };
+              var dateKey = st.due || goal.due || new Date().toISOString().slice(0,10);
+              window.open(outlookComposeUrl(item, dateKey), '_blank');
+            });
+          });
+        }
 
       } else {
         // --- Goal fullscreen events ---
@@ -4312,6 +4566,24 @@ document.addEventListener("input", e => {
           });
         });
 
+        // Subtask → Outlook calendar buttons in fullscreen list
+        ov.querySelectorAll('.issue-st-cal-btn').forEach(function(btn){
+          btn.addEventListener('mouseenter', function(){ this.style.opacity='1'; });
+          btn.addEventListener('mouseleave', function(){ this.style.opacity='.5'; });
+          btn.addEventListener('click', function(e){
+            e.stopPropagation();
+            var gi = parseInt(this.dataset.gi), si = parseInt(this.dataset.si);
+            loadVault().then(function(d){
+              var goal = d.goals[gi];
+              if(!goal || !goal.subtasks[si]) return;
+              var st = goal.subtasks[si];
+              var item = { summary: st.text || '', description: st.notes || '', location: '' };
+              var dateKey = st.due || goal.due || new Date().toISOString().slice(0,10);
+              window.open(outlookComposeUrl(item, dateKey), '_blank');
+            });
+          });
+        });
+
         // Move buttons
         ov.querySelectorAll('.issue-move-btn').forEach(function(btn){
           btn.addEventListener('click', function(){
@@ -4364,6 +4636,21 @@ document.addEventListener("input", e => {
             this.classList.toggle('open');
             var body = ov.querySelector('#issue-log-body');
             if(body) body.classList.toggle('open');
+          });
+        }
+
+        // Task → Outlook calendar
+        var goalOutlookBtn = ov.querySelector('.issue-outlook-btn');
+        if(goalOutlookBtn){
+          goalOutlookBtn.addEventListener('click', function(){
+            var gi = parseInt(this.dataset.gi);
+            loadVault().then(function(d){
+              var goal = d.goals[gi];
+              if(!goal) return;
+              var item = { summary: goal.summary || '', description: goal.notes || '', location: '' };
+              var dateKey = goal.due || new Date().toISOString().slice(0,10);
+              window.open(outlookComposeUrl(item, dateKey), '_blank');
+            });
           });
         }
 
@@ -4454,13 +4741,15 @@ document.addEventListener("input", e => {
       if(g.col==='pending') statusBadge = '<span style="font-size:.6rem;padding:1px 6px;border-radius:5px;background:rgba(139,92,246,.15);color:#a78bfa;font-weight:700;">PENDING</span>';
       if(g.col==='done' && g.completedAt) statusBadge = '<span style="font-size:.6rem;padding:1px 6px;border-radius:5px;background:rgba(34,197,94,.15);color:#22c55e;font-weight:700;">Done '+new Date(g.completedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</span>';
 
-      var titleRow = '<div class="k-title"><span>'+idBadge+escHtml(g.summary)+'</span>' +
-        '<span style="display:flex;align-items:center;gap:5px;">' +
-        statusBadge +
-        priorityBadge(g.priority) +
-        formatDue(g.due) +
+      var headerRow = '<div class="k-header">' + idBadge +
+        '<button class="k-cal-btn" data-gi="'+i+'" title="Add to Outlook Calendar" style="background:none;border:none;color:#0078d4;cursor:pointer;font-size:.8rem;padding:0 2px;display:inline-flex;align-items:center;opacity:.6;transition:opacity .15s;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>' +
         '<span style="font-size:.7rem;cursor:pointer;" class="k-expand" title="Expand">&#9660;</span>' +
-        '</span></div>';
+        '</div>';
+      var nameRow = '<div class="k-name">' + escHtml(g.summary) + '</div>';
+      var metaRow = '';
+      var metaBadges = statusBadge + priorityBadge(g.priority) + formatDue(g.due);
+      if(metaBadges) metaRow = '<div class="k-meta">' + metaBadges + '</div>';
+      var titleRow = headerRow + nameRow + metaRow;
 
       // Labels row
       var labelsHtml = renderLabels(g.labels);
@@ -4491,6 +4780,7 @@ document.addEventListener("input", e => {
             '<span class="k-st-badges">' +
               effortBadge(s.effort) +
               formatStDue(s.due) +
+              '<button class="k-st-cal" data-gi="'+i+'" data-si="'+si+'" title="Add to Outlook Calendar" style="background:none;border:none;color:#0078d4;cursor:pointer;font-size:.7rem;padding:0 2px;display:inline-flex;align-items:center;opacity:.6;transition:opacity .15s;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>' +
               '<span class="k-st-toggle" style="font-size:.6rem;cursor:pointer;color:var(--muted);" title="Details">&#9660;</span>' +
               '<button class="k-st-del" data-si="'+si+'" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.7rem;padding:0 2px;" title="Remove">✕</button>' +
             '</span>' +
@@ -4595,9 +4885,46 @@ document.addEventListener("input", e => {
         card.classList.toggle('expanded');
         this.innerHTML = card.classList.contains('expanded') ? '&#9650;' : '&#9660;';
       });
-      card.querySelector('.k-title').addEventListener('click', function(){
+      card.querySelector('.k-header').addEventListener('click', function(){
         card.classList.toggle('expanded');
         card.querySelector('.k-expand').innerHTML = card.classList.contains('expanded') ? '&#9650;' : '&#9660;';
+      });
+
+      // Add task to Outlook calendar
+      var calBtn = card.querySelector('.k-cal-btn');
+      if(calBtn){
+        calBtn.addEventListener('mouseenter', function(){ this.style.opacity='1'; });
+        calBtn.addEventListener('mouseleave', function(){ this.style.opacity='.6'; });
+        calBtn.addEventListener('click', function(e){
+          e.stopPropagation();
+          var gi = parseInt(this.dataset.gi);
+          loadVault().then(function(data){
+            var goal = data.goals[gi];
+            if(!goal) return;
+            var item = { summary: goal.summary || '', description: goal.notes || '', location: '' };
+            var dateKey = goal.due || new Date().toISOString().slice(0,10);
+            window.open(outlookComposeUrl(item, dateKey), '_blank');
+          });
+        });
+      }
+
+      // Add subtask to Outlook calendar
+      card.querySelectorAll('.k-st-cal').forEach(function(btn){
+        btn.addEventListener('mouseenter', function(){ this.style.opacity='1'; });
+        btn.addEventListener('mouseleave', function(){ this.style.opacity='.6'; });
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          var gi = parseInt(this.dataset.gi);
+          var si = parseInt(this.dataset.si);
+          loadVault().then(function(data){
+            var goal = data.goals[gi];
+            if(!goal || !goal.subtasks[si]) return;
+            var st = goal.subtasks[si];
+            var item = { summary: st.text || '', description: st.notes || '', location: '' };
+            var dateKey = st.due || goal.due || new Date().toISOString().slice(0,10);
+            window.open(outlookComposeUrl(item, dateKey), '_blank');
+          });
+        });
       });
 
       // Activity log toggle
@@ -4620,8 +4947,8 @@ document.addEventListener("input", e => {
             if(data.goals[i]){
               data.goals[i].summary = self.value;
               // Update title text without full re-render to keep focus
-              var titleSpan = card.querySelector('.k-title > span');
-              if(titleSpan) titleSpan.innerHTML = '<span class="k-id" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" data-gi="'+i+'" title="Open TASK-'+g.id+'">TASK-'+g.id+'</span>' + escHtml(self.value);
+              var nameEl = card.querySelector('.k-name');
+              if(nameEl) nameEl.textContent = self.value;
               saveVault(data);
             }
           });
@@ -5209,6 +5536,8 @@ document.addEventListener("input", e => {
     lockScreen.style.display = 'none';
     content.style.display = 'block';
     renderVault();
+    window._homerVaultUnlocked = true;
+    window.dispatchEvent(new Event('homer-vault-state'));
     // Silently restore any cloud-only attachments from R2
     restoreAttachmentsFromR2().then(function(){ renderVault(); }).catch(function(){});
   }
@@ -5217,6 +5546,8 @@ document.addEventListener("input", e => {
     cryptoKey = null; _vaultCache = null;
     content.style.display = 'none';
     lockScreen.style.display = 'block';
+    window._homerVaultUnlocked = false;
+    window.dispatchEvent(new Event('homer-vault-state'));
     notesArea.value = '';
     linksList.innerHTML = '';
     credsList.innerHTML = '';
@@ -6549,6 +6880,10 @@ document.addEventListener("input", e => {
     <svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
     <span class="fab-dot off"></span>
   </button>
+  <button id="fab-ai" class="fab-btn" title="Telegram Bot">
+    <svg viewBox="0 0 24 24"><path d="M21.2 3.1L2.8 10.5c-.6.2-.6 1.1 0 1.4l4.5 1.7 1.7 5.4c.2.5.8.7 1.2.4l2.5-2 4.2 3.1c.5.4 1.2.1 1.3-.5L21.9 4c.2-.7-.4-1.2-1-.9z"/><line x1="10" y1="13.6" x2="21.2" y2="3.1"/></svg>
+    <span class="fab-dot off"></span>
+  </button>
   <button id="fab-wake" class="fab-btn" title="Keep Awake">
     <svg viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 7.66l-.71-.71M4.05 4.05l-.71-.71"/><circle cx="12" cy="12" r="4"/></svg>
     <span class="fab-dot off"></span>
@@ -7564,6 +7899,485 @@ document.addEventListener("input", e => {
   });
 })();
 </script>
+<!-- Telegram Bot Chat Panel -->
+<div id="ai-chat-panel">
+  <div class="ai-chat-header">
+    <div class="ai-chat-avatar" style="background:linear-gradient(135deg,#0088cc,#29b6f6);">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 3.1L2.8 10.5c-.6.2-.6 1.1 0 1.4l4.5 1.7 1.7 5.4c.2.5.8.7 1.2.4l2.5-2 4.2 3.1c.5.4 1.2.1 1.3-.5L21.9 4c.2-.7-.4-1.2-1-.9z"/><line x1="10" y1="13.6" x2="21.2" y2="3.1"/></svg>
+    </div>
+    <div class="ai-chat-header-info">
+      <div class="name" id="ai-bot-name">Telegram Bot</div>
+      <div class="status" id="ai-status-text">Offline</div>
+    </div>
+    <div class="ai-chat-header-actions">
+      <button id="ai-refresh-btn" title="Refresh Messages">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      </button>
+      <button id="ai-settings-btn" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <button id="ai-close-btn" title="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="ai-chat-messages" id="ai-messages">
+    <div class="ai-welcome" id="ai-welcome">
+      <div class="ai-welcome-icon" style="background:linear-gradient(135deg,#0088cc,#29b6f6);">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 3.1L2.8 10.5c-.6.2-.6 1.1 0 1.4l4.5 1.7 1.7 5.4c.2.5.8.7 1.2.4l2.5-2 4.2 3.1c.5.4 1.2.1 1.3-.5L21.9 4c.2-.7-.4-1.2-1-.9z"/></svg>
+      </div>
+      <h4>Telegram Bot</h4>
+      <p>Connect your Telegram bot to chat from here. Your bot token and chat ID are encrypted in the Vault.</p>
+      <button class="setup-btn" id="ai-welcome-setup">Connect Bot</button>
+    </div>
+  </div>
+
+  <div class="ai-chat-input-area" id="ai-input-area" style="display:none;">
+    <div class="ai-chat-input-wrap">
+      <textarea id="ai-chat-input" placeholder="Write a message..." rows="1"></textarea>
+      <button id="ai-chat-send" title="Send" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="ai-settings-panel" id="ai-settings-panel">
+    <div class="ai-settings-header">
+      <h4>Telegram Bot Settings</h4>
+      <button id="ai-settings-close">&times;</button>
+    </div>
+    <div class="ai-settings-body">
+      <label>
+        Bot Token
+        <div class="acct-field-wrap" style="margin:0;">
+          <input id="ai-bot-token" type="password" placeholder="123456:ABC-DEF..." style="padding-right:40px;">
+          <button type="button" class="pw-toggle" onclick="var i=document.getElementById('ai-bot-token');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'👁‍🗨'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;padding:2px;color:var(--muted);">👁</button>
+        </div>
+      </label>
+      <label>
+        Your Chat ID
+        <input id="ai-chat-id" type="text" placeholder="e.g. 123456789">
+      </label>
+      <p style="font-size:.78rem;color:var(--muted);margin:0;line-height:1.4;">Get your Chat ID by messaging <strong style="color:var(--text);">@userinfobot</strong> on Telegram. Enter your bot token from <strong style="color:var(--text);">@BotFather</strong>.</p>
+      <button class="ai-save-btn" id="ai-save-settings">Connect &amp; Save</button>
+      <p id="ai-settings-status" style="font-size:.82rem;color:var(--accent);min-height:1em;text-align:center;margin:0;"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var ALLOWED_USER = 'bogdan';
+  var POLL_INTERVAL = 3000;
+  var fabBtn = document.getElementById('fab-ai');
+  var panel = document.getElementById('ai-chat-panel');
+  var messagesEl = document.getElementById('ai-messages');
+  var welcomeEl = document.getElementById('ai-welcome');
+  var inputArea = document.getElementById('ai-input-area');
+  var input = document.getElementById('ai-chat-input');
+  var sendBtn = document.getElementById('ai-chat-send');
+  var closeBtn = document.getElementById('ai-close-btn');
+  var settingsBtn = document.getElementById('ai-settings-btn');
+  var settingsPanel = document.getElementById('ai-settings-panel');
+  var settingsClose = document.getElementById('ai-settings-close');
+  var refreshBtn = document.getElementById('ai-refresh-btn');
+  var welcomeSetup = document.getElementById('ai-welcome-setup');
+  var statusText = document.getElementById('ai-status-text');
+  var botNameEl = document.getElementById('ai-bot-name');
+  var aiDot = fabBtn.querySelector('.fab-dot');
+
+  var botTokenInput = document.getElementById('ai-bot-token');
+  var chatIdInput = document.getElementById('ai-chat-id');
+  var saveSettingsBtn = document.getElementById('ai-save-settings');
+  var settingsStatus = document.getElementById('ai-settings-status');
+
+  var isSending = false;
+  var pollTimer = null;
+  var lastUpdateId = 0;
+  var currentConfig = null;
+
+  // --- Vault helpers ---
+  function getVaultData(){
+    if(window._homerLoadVault) return window._homerLoadVault();
+    return Promise.resolve(null);
+  }
+  function setVaultData(data){
+    if(window._homerSaveVault) return window._homerSaveVault(data);
+    return Promise.resolve();
+  }
+
+  // --- Telegram API helper ---
+  function tgApi(token, action, params){
+    var body = Object.assign({ token: token, action: action }, params || {});
+    return fetch('/api/telegram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function(r){ return r.json(); });
+  }
+
+  // --- Visibility: only show for user Bogdan when vault is unlocked ---
+  function isVaultUnlocked(){
+    if(window._homerVaultUnlocked === true) return true;
+    var vc = document.getElementById('vault-content');
+    return vc && vc.style.display !== 'none' && vc.offsetParent !== null;
+  }
+  function checkVisibility(){
+    var user = (localStorage.getItem('homer-auth-user') || '').toLowerCase();
+    var vaultOpen = isVaultUnlocked();
+    if(user === ALLOWED_USER && vaultOpen){
+      fabBtn.style.display = 'flex';
+    } else {
+      fabBtn.style.display = 'none';
+      panel.classList.remove('open');
+      stopPolling();
+    }
+  }
+  window.addEventListener('homer-vault-state', checkVisibility);
+  var _visCheck = setInterval(function(){
+    checkVisibility();
+    if(fabBtn.style.display === 'flex') clearInterval(_visCheck);
+  }, 1000);
+  setTimeout(function(){ clearInterval(_visCheck); }, 30000);
+  checkVisibility();
+
+  // --- Panel Toggle ---
+  fabBtn.addEventListener('click', function(){
+    if(panel.classList.contains('open')){
+      panel.classList.remove('open');
+      stopPolling();
+    } else {
+      panel.classList.add('open');
+      loadConfig().then(function(){
+        if(currentConfig && currentConfig.botToken){
+          loadMessages();
+          startPolling();
+        }
+      });
+      setTimeout(function(){ input.focus(); }, 100);
+    }
+  });
+  closeBtn.addEventListener('click', function(){
+    panel.classList.remove('open');
+    stopPolling();
+  });
+
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && panel.classList.contains('open')){
+      if(settingsPanel.classList.contains('open')){
+        settingsPanel.classList.remove('open');
+      } else {
+        panel.classList.remove('open');
+        stopPolling();
+      }
+    }
+  });
+
+  // --- Settings ---
+  settingsBtn.addEventListener('click', function(){ settingsPanel.classList.add('open'); loadConfigToForm(); });
+  settingsClose.addEventListener('click', function(){ settingsPanel.classList.remove('open'); });
+  welcomeSetup.addEventListener('click', function(){ settingsPanel.classList.add('open'); loadConfigToForm(); });
+
+  function loadConfig(){
+    return getVaultData().then(function(data){
+      if(!data) return;
+      var cfg = data.tgConfig;
+      currentConfig = cfg;
+      if(cfg && cfg.botToken && cfg.chatId){
+        welcomeEl.style.display = 'none';
+        inputArea.style.display = 'block';
+        aiDot.className = 'fab-dot ok';
+        statusText.textContent = 'Online';
+        if(cfg.botName) botNameEl.textContent = cfg.botName;
+      } else {
+        welcomeEl.style.display = 'flex';
+        inputArea.style.display = 'none';
+        aiDot.className = 'fab-dot off';
+        statusText.textContent = 'Not connected';
+        botNameEl.textContent = 'Telegram Bot';
+      }
+    });
+  }
+
+  function loadConfigToForm(){
+    getVaultData().then(function(data){
+      if(!data) return;
+      var cfg = data.tgConfig || {};
+      botTokenInput.value = cfg.botToken || '';
+      chatIdInput.value = cfg.chatId || '';
+    });
+  }
+
+  saveSettingsBtn.addEventListener('click', function(){
+    var token = botTokenInput.value.trim();
+    var chatId = chatIdInput.value.trim();
+    if(!token || !chatId){
+      settingsStatus.style.color = '#ef4444';
+      settingsStatus.textContent = 'Both fields are required.';
+      return;
+    }
+    settingsStatus.style.color = 'var(--muted)';
+    settingsStatus.textContent = 'Verifying bot...';
+    saveSettingsBtn.disabled = true;
+
+    tgApi(token, 'getMe').then(function(res){
+      saveSettingsBtn.disabled = false;
+      if(!res.ok){
+        settingsStatus.style.color = '#ef4444';
+        settingsStatus.textContent = 'Invalid token: ' + (res.description || 'check your bot token');
+        return;
+      }
+      var botName = res.result.first_name || res.result.username || 'Bot';
+      var botUsername = res.result.username || '';
+
+      return getVaultData().then(function(data){
+        if(!data) return;
+        data.tgConfig = {
+          botToken: token,
+          chatId: chatId,
+          botName: botName,
+          botUsername: botUsername
+        };
+        if(!data.tgMessages) data.tgMessages = [];
+        return setVaultData(data);
+      }).then(function(){
+        settingsStatus.style.color = 'var(--accent)';
+        settingsStatus.textContent = 'Connected to @' + botUsername + '!';
+        setTimeout(function(){ settingsStatus.textContent = ''; }, 2000);
+        settingsPanel.classList.remove('open');
+        loadConfig().then(function(){
+          loadMessages();
+          startPolling();
+        });
+      });
+    }).catch(function(err){
+      saveSettingsBtn.disabled = false;
+      settingsStatus.style.color = '#ef4444';
+      settingsStatus.textContent = 'Error: ' + err.message;
+    });
+  });
+
+  // --- Messages ---
+  function loadMessages(){
+    getVaultData().then(function(data){
+      if(!data) return;
+      var msgs = data.tgMessages || [];
+      renderMessages(msgs);
+    });
+  }
+
+  function saveMessage(msg){
+    return getVaultData().then(function(data){
+      if(!data) return;
+      if(!data.tgMessages) data.tgMessages = [];
+      data.tgMessages.push(msg);
+      // Keep last 200 messages
+      if(data.tgMessages.length > 200) data.tgMessages = data.tgMessages.slice(-200);
+      return setVaultData(data);
+    });
+  }
+
+  function renderMessages(msgs){
+    var existing = messagesEl.querySelectorAll('.ai-msg,.ai-typing');
+    for(var i = 0; i < existing.length; i++) existing[i].remove();
+
+    if(!msgs || msgs.length === 0){
+      if(currentConfig && currentConfig.botToken) welcomeEl.style.display = 'none';
+      return;
+    }
+    welcomeEl.style.display = 'none';
+
+    msgs.forEach(function(msg){
+      appendMessageBubble(msg, false);
+    });
+    scrollToBottom();
+  }
+
+  function appendMessageBubble(msg, animate){
+    var bubble = document.createElement('div');
+    bubble.className = 'ai-msg ' + msg.dir;
+    if(!animate) bubble.style.animation = 'none';
+
+    if(msg.dir === 'in'){
+      bubble.innerHTML = renderMarkdown(msg.text);
+    } else {
+      bubble.textContent = msg.text;
+    }
+    if(msg.ts){
+      var time = document.createElement('div');
+      time.className = 'msg-time';
+      time.textContent = formatTime(msg.ts);
+      bubble.appendChild(time);
+    }
+    messagesEl.appendChild(bubble);
+  }
+
+  function scrollToBottom(){
+    requestAnimationFrame(function(){ messagesEl.scrollTop = messagesEl.scrollHeight; });
+  }
+
+  function formatTime(ts){
+    var d = new Date(ts);
+    var now = new Date();
+    var time = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    if(d.toDateString() !== now.toDateString()){
+      time = d.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + time;
+    }
+    return time;
+  }
+
+  function renderMarkdown(text){
+    if(!text) return '';
+    var html = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function(m, lang, code){
+      return '<pre><code>'+code.trim()+'</code></pre>';
+    });
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    html = html.replace(/\n\n/g, '</p><p>');
+    html = html.replace(/\n/g, '<br>');
+    html = '<p>' + html + '</p>';
+    return html;
+  }
+
+  // --- Auto-resize input ---
+  input.addEventListener('input', function(){
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    sendBtn.disabled = !this.value.trim() || isSending;
+  });
+
+  // --- Send message to bot ---
+  input.addEventListener('keydown', function(e){
+    if(e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      if(!sendBtn.disabled) sendMessage();
+    }
+  });
+  sendBtn.addEventListener('click', sendMessage);
+
+  function sendMessage(){
+    var text = input.value.trim();
+    if(!text || isSending || !currentConfig) return;
+
+    isSending = true;
+    sendBtn.disabled = true;
+    statusText.textContent = 'Sending...';
+    input.value = '';
+    input.style.height = 'auto';
+
+    // Show user message immediately
+    var msg = { dir: 'user', text: text, ts: Date.now() };
+    appendMessageBubble(msg, true);
+    scrollToBottom();
+    saveMessage(msg);
+
+    tgApi(currentConfig.botToken, 'sendMessage', {
+      chatId: currentConfig.chatId,
+      text: text
+    }).then(function(res){
+      isSending = false;
+      sendBtn.disabled = !input.value.trim();
+      if(res.ok){
+        statusText.textContent = 'Online';
+      } else {
+        statusText.textContent = 'Send failed';
+        appendMessageBubble({ dir: 'in', text: 'Failed to send: ' + (res.description || 'unknown error'), ts: Date.now() }, true);
+        scrollToBottom();
+      }
+    }).catch(function(err){
+      isSending = false;
+      sendBtn.disabled = !input.value.trim();
+      statusText.textContent = 'Error';
+      appendMessageBubble({ dir: 'in', text: 'Network error: ' + err.message, ts: Date.now() }, true);
+      scrollToBottom();
+    });
+  }
+
+  // --- Poll for incoming messages (bot responses) ---
+  function startPolling(){
+    stopPolling();
+    if(!currentConfig || !currentConfig.botToken) return;
+    pollOnce();
+    pollTimer = setInterval(pollOnce, POLL_INTERVAL);
+  }
+
+  function stopPolling(){
+    if(pollTimer){ clearInterval(pollTimer); pollTimer = null; }
+  }
+
+  function pollOnce(){
+    if(!currentConfig || !currentConfig.botToken) return;
+    var params = {};
+    if(lastUpdateId) params.offset = lastUpdateId + 1;
+    params.limit = 20;
+
+    tgApi(currentConfig.botToken, 'getUpdates', params).then(function(res){
+      if(!res.ok || !res.result || !res.result.length) return;
+
+      var newMsgs = [];
+      res.result.forEach(function(update){
+        if(update.update_id > lastUpdateId) lastUpdateId = update.update_id;
+        var m = update.message;
+        if(!m || !m.text) return;
+        // Only show messages from our chat
+        if(String(m.chat.id) !== String(currentConfig.chatId)) return;
+        // Messages FROM the user (not from the bot) are incoming to the bot
+        // The bot's own replies come as messages FROM the bot in the chat
+        var fromBot = m.from && m.from.is_bot;
+        newMsgs.push({
+          dir: fromBot ? 'in' : 'user',
+          text: m.text,
+          ts: m.date * 1000,
+          tgId: m.message_id
+        });
+      });
+
+      if(newMsgs.length > 0){
+        // Check for duplicates and save
+        getVaultData().then(function(data){
+          if(!data) return;
+          if(!data.tgMessages) data.tgMessages = [];
+          var existingIds = {};
+          data.tgMessages.forEach(function(m){ if(m.tgId) existingIds[m.tgId] = true; });
+
+          var added = false;
+          newMsgs.forEach(function(nm){
+            if(nm.tgId && existingIds[nm.tgId]) return; // skip duplicate
+            data.tgMessages.push(nm);
+            appendMessageBubble(nm, true);
+            added = true;
+          });
+
+          if(added){
+            if(data.tgMessages.length > 200) data.tgMessages = data.tgMessages.slice(-200);
+            setVaultData(data);
+            scrollToBottom();
+          }
+        });
+      }
+    }).catch(function(){
+      // Silent fail on poll errors
+    });
+  }
+
+  // --- Refresh button ---
+  refreshBtn.addEventListener('click', function(){
+    if(!currentConfig || !currentConfig.botToken) return;
+    statusText.textContent = 'Refreshing...';
+    pollOnce();
+    setTimeout(function(){
+      if(statusText.textContent === 'Refreshing...') statusText.textContent = 'Online';
+    }, 1500);
+  });
+
+})();
+</script>
+
 <!-- Fullscreen Issue View (outside all cards to avoid backdrop-filter containing block) -->
 <div id="issue-overlay" class="issue-overlay"></div>
 </body>
