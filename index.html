@@ -8150,8 +8150,10 @@ document.addEventListener("input", e => {
       return tgApiWithToken(token, 'getWebhookInfo').then(function(whRes){
         var webhookUrl = (whRes.ok && whRes.result && whRes.result.url) ? whRes.result.url : '';
 
-        // 3. Set up webhook proxy so we can capture Telegram messages
-        var proxyPromise = tgApiWithToken(token, 'setupProxy', { botId: botId, chatId: chatId });
+        // 3. Set up webhook proxy so we can capture Telegram messages (only if bot has a webhook)
+        var proxyPromise = webhookUrl
+          ? tgApiWithToken(token, 'setupProxy', { botId: botId, chatId: chatId })
+          : Promise.resolve({ ok: false });
 
         return proxyPromise.then(function(proxyRes){
           // Use original webhook URL (before proxy replaced it)
@@ -8316,28 +8318,18 @@ document.addEventListener("input", e => {
     statusText.textContent = 'Sending...';
 
     if(!currentConfig.webhookUrl){
-      // No webhook — send directly via Bot API as fallback
-      tgApi('sendMessage', {
-        chatId: currentConfig.chatId,
-        text: text
-      }).then(function(res){
-        typing.remove();
-        isSending = false;
-        sendBtn.disabled = !input.value.trim();
-        if(res.ok){
-          statusText.textContent = 'Sent';
-          setTimeout(function(){ statusText.textContent = 'Online'; }, 1500);
-        } else {
-          statusText.textContent = 'Error';
-          appendMessageBubble({ dir: 'in', text: 'Send failed: ' + (res.description || 'unknown'), ts: Date.now() }, true);
-          scrollToBottom();
-        }
-      }).catch(function(err){
-        typing.remove();
-        isSending = false;
-        sendBtn.disabled = !input.value.trim();
-        statusText.textContent = 'Error';
-      });
+      // No webhook — can't reach the bot's backend, just store locally
+      typing.remove();
+      isSending = false;
+      sendBtn.disabled = !input.value.trim();
+      statusText.textContent = 'Saved locally';
+      setTimeout(function(){ statusText.textContent = 'Online'; }, 2000);
+      // Show a one-time hint
+      if(!window._tgWebhookHintShown){
+        window._tgWebhookHintShown = true;
+        appendMessageBubble({ dir: 'in', text: 'Your bot has no webhook set, so it can\'t receive messages from Homer. Set a webhook on your bot (e.g. using a framework like python-telegram-bot, aiogram, or node-telegram-bot-api in webhook mode) and reconnect.', ts: Date.now() }, true);
+        scrollToBottom();
+      }
       return;
     }
 
