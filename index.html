@@ -7910,8 +7910,8 @@ document.addEventListener("input", e => {
       <div class="status" id="ai-status-text">Offline</div>
     </div>
     <div class="ai-chat-header-actions">
-      <button id="ai-refresh-btn" title="Refresh Messages">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      <button id="ai-clear-btn" title="Clear Chat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
       </button>
       <button id="ai-settings-btn" title="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -7971,7 +7971,7 @@ document.addEventListener("input", e => {
   'use strict';
 
   var ALLOWED_USER = 'bogdan';
-  var POLL_INTERVAL = 3000;
+  var POLL_INTERVAL = 4000;
   var fabBtn = document.getElementById('fab-ai');
   var panel = document.getElementById('ai-chat-panel');
   var messagesEl = document.getElementById('ai-messages');
@@ -7983,7 +7983,7 @@ document.addEventListener("input", e => {
   var settingsBtn = document.getElementById('ai-settings-btn');
   var settingsPanel = document.getElementById('ai-settings-panel');
   var settingsClose = document.getElementById('ai-settings-close');
-  var refreshBtn = document.getElementById('ai-refresh-btn');
+  var clearBtn = document.getElementById('ai-clear-btn');
   var welcomeSetup = document.getElementById('ai-welcome-setup');
   var statusText = document.getElementById('ai-status-text');
   var botNameEl = document.getElementById('ai-bot-name');
@@ -8010,7 +8010,16 @@ document.addEventListener("input", e => {
   }
 
   // --- Telegram API helper ---
-  function tgApi(token, action, params){
+  function tgApi(action, params){
+    var body = Object.assign({ token: currentConfig ? currentConfig.botToken : '', action: action }, params || {});
+    return fetch('/api/telegram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function(r){ return r.json(); });
+  }
+
+  function tgApiWithToken(token, action, params){
     var body = Object.assign({ token: token, action: action }, params || {});
     return fetch('/api/telegram', {
       method: 'POST',
@@ -8123,34 +8132,46 @@ document.addEventListener("input", e => {
     settingsStatus.textContent = 'Verifying bot...';
     saveSettingsBtn.disabled = true;
 
-    tgApi(token, 'getMe').then(function(res){
-      saveSettingsBtn.disabled = false;
+    // 1. Verify token
+    tgApiWithToken(token, 'getMe').then(function(res){
       if(!res.ok){
+        saveSettingsBtn.disabled = false;
         settingsStatus.style.color = '#ef4444';
         settingsStatus.textContent = 'Invalid token: ' + (res.description || 'check your bot token');
         return;
       }
       var botName = res.result.first_name || res.result.username || 'Bot';
       var botUsername = res.result.username || '';
+      var botId = res.result.id;
 
-      return getVaultData().then(function(data){
-        if(!data) return;
-        data.tgConfig = {
-          botToken: token,
-          chatId: chatId,
-          botName: botName,
-          botUsername: botUsername
-        };
-        if(!data.tgMessages) data.tgMessages = [];
-        return setVaultData(data);
-      }).then(function(){
-        settingsStatus.style.color = 'var(--accent)';
-        settingsStatus.textContent = 'Connected to @' + botUsername + '!';
-        setTimeout(function(){ settingsStatus.textContent = ''; }, 2000);
-        settingsPanel.classList.remove('open');
-        loadConfig().then(function(){
-          loadMessages();
-          startPolling();
+      // 2. Get webhook info so we can forward messages to the bot's backend
+      return tgApiWithToken(token, 'getWebhookInfo').then(function(whRes){
+        var webhookUrl = (whRes.ok && whRes.result && whRes.result.url) ? whRes.result.url : '';
+
+        return getVaultData().then(function(data){
+          if(!data) return;
+          data.tgConfig = {
+            botToken: token,
+            chatId: chatId,
+            botName: botName,
+            botUsername: botUsername,
+            botId: botId,
+            webhookUrl: webhookUrl
+          };
+          if(!data.tgMessages) data.tgMessages = [];
+          return setVaultData(data);
+        }).then(function(){
+          saveSettingsBtn.disabled = false;
+          settingsStatus.style.color = 'var(--accent)';
+          var msg = 'Connected to @' + botUsername + '!';
+          if(webhookUrl) msg += ' (webhook detected)';
+          settingsStatus.textContent = msg;
+          setTimeout(function(){ settingsStatus.textContent = ''; }, 3000);
+          settingsPanel.classList.remove('open');
+          loadConfig().then(function(){
+            loadMessages();
+            startPolling();
+          });
         });
       });
     }).catch(function(err){
@@ -8174,8 +8195,7 @@ document.addEventListener("input", e => {
       if(!data) return;
       if(!data.tgMessages) data.tgMessages = [];
       data.tgMessages.push(msg);
-      // Keep last 200 messages
-      if(data.tgMessages.length > 200) data.tgMessages = data.tgMessages.slice(-200);
+      if(data.tgMessages.length > 500) data.tgMessages = data.tgMessages.slice(-500);
       return setVaultData(data);
     });
   }
@@ -8197,6 +8217,7 @@ document.addEventListener("input", e => {
   }
 
   function appendMessageBubble(msg, animate){
+    welcomeEl.style.display = 'none';
     var bubble = document.createElement('div');
     bubble.className = 'ai-msg ' + msg.dir;
     if(!animate) bubble.style.animation = 'none';
@@ -8251,7 +8272,7 @@ document.addEventListener("input", e => {
     sendBtn.disabled = !this.value.trim() || isSending;
   });
 
-  // --- Send message to bot ---
+  // --- Send message: forward to bot's webhook as a real user message ---
   input.addEventListener('keydown', function(e){
     if(e.key === 'Enter' && !e.shiftKey){
       e.preventDefault();
@@ -8266,7 +8287,6 @@ document.addEventListener("input", e => {
 
     isSending = true;
     sendBtn.disabled = true;
-    statusText.textContent = 'Sending...';
     input.value = '';
     input.style.height = 'auto';
 
@@ -8276,34 +8296,122 @@ document.addEventListener("input", e => {
     scrollToBottom();
     saveMessage(msg);
 
-    tgApi(currentConfig.botToken, 'sendMessage', {
+    // Show typing indicator
+    var typing = document.createElement('div');
+    typing.className = 'ai-typing';
+    typing.innerHTML = '<span></span><span></span><span></span>';
+    messagesEl.appendChild(typing);
+    scrollToBottom();
+    statusText.textContent = 'Sending...';
+
+    if(currentConfig.webhookUrl){
+      // Bot has a webhook — simulate a real Telegram user message to the bot's backend
+      var fakeUpdate = {
+        update_id: Math.floor(Math.random() * 999999999),
+        message: {
+          message_id: Math.floor(Math.random() * 999999),
+          from: {
+            id: parseInt(currentConfig.chatId) || 0,
+            is_bot: false,
+            first_name: 'User'
+          },
+          chat: {
+            id: parseInt(currentConfig.chatId) || 0,
+            type: 'private'
+          },
+          date: Math.floor(Date.now() / 1000),
+          text: text
+        }
+      };
+
+      tgApi('forwardToWebhook', {
+        webhookUrl: currentConfig.webhookUrl,
+        update: fakeUpdate
+      }).then(function(res){
+        typing.remove();
+        isSending = false;
+        sendBtn.disabled = !input.value.trim();
+        statusText.textContent = 'Online';
+
+        if(res.ok && res.webhookResponse){
+          var wr = res.webhookResponse;
+          // Check if the webhook returned an inline bot response
+          var replyText = null;
+          if(typeof wr === 'object'){
+            if(wr.method === 'sendMessage' && wr.text){
+              replyText = wr.text;
+            } else if(wr.text && !wr.method){
+              replyText = wr.text;
+            } else if(wr.result && wr.result.text){
+              replyText = wr.result.text;
+            }
+          }
+          if(replyText){
+            var botMsg = { dir: 'in', text: replyText, ts: Date.now() };
+            appendMessageBubble(botMsg, true);
+            saveMessage(botMsg);
+            scrollToBottom();
+          }
+          // If no inline response, the bot may respond async via sendMessage.
+          // Poll aggressively for a few seconds to try to catch it.
+          if(!replyText) pollForResponse();
+        }
+      }).catch(function(err){
+        typing.remove();
+        isSending = false;
+        sendBtn.disabled = !input.value.trim();
+        statusText.textContent = 'Online';
+        // Webhook call failed — fall back to sendMessage
+        sendViaBotApi(text);
+      });
+    } else {
+      // No webhook — use sendMessage (sends FROM bot, not ideal but functional)
+      typing.remove();
+      sendViaBotApi(text);
+    }
+  }
+
+  function sendViaBotApi(text){
+    tgApi('sendMessage', {
       chatId: currentConfig.chatId,
       text: text
     }).then(function(res){
       isSending = false;
       sendBtn.disabled = !input.value.trim();
-      if(res.ok){
-        statusText.textContent = 'Online';
-      } else {
-        statusText.textContent = 'Send failed';
-        appendMessageBubble({ dir: 'in', text: 'Failed to send: ' + (res.description || 'unknown error'), ts: Date.now() }, true);
-        scrollToBottom();
-      }
+      statusText.textContent = res.ok ? 'Online' : 'Send failed';
+      // Try polling for a response
+      pollForResponse();
     }).catch(function(err){
       isSending = false;
       sendBtn.disabled = !input.value.trim();
       statusText.textContent = 'Error';
-      appendMessageBubble({ dir: 'in', text: 'Network error: ' + err.message, ts: Date.now() }, true);
-      scrollToBottom();
     });
   }
 
-  // --- Poll for incoming messages (bot responses) ---
+  // After sending, poll aggressively for a few seconds trying to catch the bot's response
+  function pollForResponse(){
+    var attempts = 0;
+    var maxAttempts = 5;
+    function tryPoll(){
+      if(attempts >= maxAttempts) return;
+      attempts++;
+      setTimeout(function(){
+        pollOnce();
+        tryPoll();
+      }, 1500);
+    }
+    tryPoll();
+  }
+
+  // --- Poll for incoming messages via getUpdates ---
   function startPolling(){
     stopPolling();
     if(!currentConfig || !currentConfig.botToken) return;
-    pollOnce();
-    pollTimer = setInterval(pollOnce, POLL_INTERVAL);
+    // Only poll if there's no webhook (getUpdates fails when webhook is active)
+    if(!currentConfig.webhookUrl){
+      pollOnce();
+      pollTimer = setInterval(pollOnce, POLL_INTERVAL);
+    }
   }
 
   function stopPolling(){
@@ -8312,11 +8420,11 @@ document.addEventListener("input", e => {
 
   function pollOnce(){
     if(!currentConfig || !currentConfig.botToken) return;
-    var params = {};
+    var params = { token: currentConfig.botToken };
     if(lastUpdateId) params.offset = lastUpdateId + 1;
     params.limit = 20;
 
-    tgApi(currentConfig.botToken, 'getUpdates', params).then(function(res){
+    tgApi('getUpdates', params).then(function(res){
       if(!res.ok || !res.result || !res.result.length) return;
 
       var newMsgs = [];
@@ -8324,10 +8432,7 @@ document.addEventListener("input", e => {
         if(update.update_id > lastUpdateId) lastUpdateId = update.update_id;
         var m = update.message;
         if(!m || !m.text) return;
-        // Only show messages from our chat
         if(String(m.chat.id) !== String(currentConfig.chatId)) return;
-        // Messages FROM the user (not from the bot) are incoming to the bot
-        // The bot's own replies come as messages FROM the bot in the chat
         var fromBot = m.from && m.from.is_bot;
         newMsgs.push({
           dir: fromBot ? 'in' : 'user',
@@ -8338,7 +8443,6 @@ document.addEventListener("input", e => {
       });
 
       if(newMsgs.length > 0){
-        // Check for duplicates and save
         getVaultData().then(function(data){
           if(!data) return;
           if(!data.tgMessages) data.tgMessages = [];
@@ -8347,32 +8451,34 @@ document.addEventListener("input", e => {
 
           var added = false;
           newMsgs.forEach(function(nm){
-            if(nm.tgId && existingIds[nm.tgId]) return; // skip duplicate
+            if(nm.tgId && existingIds[nm.tgId]) return;
             data.tgMessages.push(nm);
             appendMessageBubble(nm, true);
             added = true;
           });
 
           if(added){
-            if(data.tgMessages.length > 200) data.tgMessages = data.tgMessages.slice(-200);
+            if(data.tgMessages.length > 500) data.tgMessages = data.tgMessages.slice(-500);
             setVaultData(data);
             scrollToBottom();
           }
         });
       }
-    }).catch(function(){
-      // Silent fail on poll errors
-    });
+    }).catch(function(){});
   }
 
-  // --- Refresh button ---
-  refreshBtn.addEventListener('click', function(){
-    if(!currentConfig || !currentConfig.botToken) return;
-    statusText.textContent = 'Refreshing...';
-    pollOnce();
-    setTimeout(function(){
-      if(statusText.textContent === 'Refreshing...') statusText.textContent = 'Online';
-    }, 1500);
+  // --- Clear conversation (local only, nothing deleted on Telegram) ---
+  clearBtn.addEventListener('click', function(){
+    getVaultData().then(function(data){
+      if(!data) return;
+      data.tgMessages = [];
+      return setVaultData(data);
+    }).then(function(){
+      var existing = messagesEl.querySelectorAll('.ai-msg,.ai-typing');
+      for(var i = 0; i < existing.length; i++) existing[i].remove();
+      statusText.textContent = 'Chat cleared';
+      setTimeout(function(){ statusText.textContent = 'Online'; }, 1500);
+    });
   });
 
 })();

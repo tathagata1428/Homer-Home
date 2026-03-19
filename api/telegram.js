@@ -5,10 +5,10 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  var { token, action, chatId, text, offset, limit } = req.body || {};
-  if (!token) return res.status(400).json({ error: 'Missing bot token' });
+  var { token, action, chatId, text, offset, limit, webhookUrl, update } = req.body || {};
+  if (!token && action !== 'forwardToWebhook') return res.status(400).json({ error: 'Missing bot token' });
 
-  var BASE = 'https://api.telegram.org/bot' + token;
+  var BASE = token ? 'https://api.telegram.org/bot' + token : '';
 
   async function tg(method, body) {
     var r = await fetch(BASE + '/' + method, {
@@ -46,6 +46,37 @@ export default async function handler(req, res) {
 
     if (action === 'deleteWebhook') {
       return res.json(await tg('deleteWebhook'));
+    }
+
+    // Forward a fake update to the bot's webhook URL and capture the response
+    if (action === 'forwardToWebhook') {
+      if (!webhookUrl || !update) {
+        return res.status(400).json({ error: 'Missing webhookUrl or update' });
+      }
+
+      var r = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(update)
+      });
+
+      // The bot's webhook may return an inline method call (e.g. sendMessage)
+      var contentType = r.headers.get('content-type') || '';
+      var responseData = null;
+
+      if (contentType.includes('application/json')) {
+        responseData = await r.json();
+      } else {
+        var txt = await r.text();
+        // Some bots return JSON without proper content-type
+        try { responseData = JSON.parse(txt); } catch(e) { responseData = txt; }
+      }
+
+      return res.json({
+        ok: true,
+        status: r.status,
+        webhookResponse: responseData
+      });
     }
 
     return res.status(400).json({ error: 'Unknown action: ' + action });
