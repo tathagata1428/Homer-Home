@@ -7996,6 +7996,8 @@ document.addEventListener("input", e => {
 
   var isSending = false;
   var pollTimer = null;
+  var redisPollTimer = null;
+  var redisNextIndex = 0;
   var lastUpdateId = 0;
   var currentConfig = null;
 
@@ -8148,29 +8150,40 @@ document.addEventListener("input", e => {
       return tgApiWithToken(token, 'getWebhookInfo').then(function(whRes){
         var webhookUrl = (whRes.ok && whRes.result && whRes.result.url) ? whRes.result.url : '';
 
-        return getVaultData().then(function(data){
-          if(!data) return;
-          data.tgConfig = {
-            botToken: token,
-            chatId: chatId,
-            botName: botName,
-            botUsername: botUsername,
-            botId: botId,
-            webhookUrl: webhookUrl
-          };
-          if(!data.tgMessages) data.tgMessages = [];
-          return setVaultData(data);
-        }).then(function(){
-          saveSettingsBtn.disabled = false;
-          settingsStatus.style.color = 'var(--accent)';
-          var msg = 'Connected to @' + botUsername + '!';
-          if(webhookUrl) msg += ' (webhook detected)';
-          settingsStatus.textContent = msg;
-          setTimeout(function(){ settingsStatus.textContent = ''; }, 3000);
-          settingsPanel.classList.remove('open');
-          loadConfig().then(function(){
-            loadMessages();
-            startPolling();
+        // 3. Set up webhook proxy so we can capture Telegram messages
+        var proxyPromise = webhookUrl
+          ? tgApiWithToken(token, 'setupProxy', { botId: botId, chatId: chatId })
+          : Promise.resolve({ ok: false });
+
+        return proxyPromise.then(function(proxyRes){
+          // Use original webhook URL (before proxy replaced it)
+          var originalUrl = (proxyRes.ok && proxyRes.originalWebhookUrl) ? proxyRes.originalWebhookUrl : webhookUrl;
+
+          return getVaultData().then(function(data){
+            if(!data) return;
+            data.tgConfig = {
+              botToken: token,
+              chatId: chatId,
+              botName: botName,
+              botUsername: botUsername,
+              botId: botId,
+              webhookUrl: originalUrl,
+              proxyEnabled: proxyRes.ok === true
+            };
+            if(!data.tgMessages) data.tgMessages = [];
+            return setVaultData(data);
+          }).then(function(){
+            saveSettingsBtn.disabled = false;
+            settingsStatus.style.color = 'var(--accent)';
+            var msg = 'Connected to @' + botUsername + '!';
+            if(originalUrl) msg += ' (webhook active)';
+            settingsStatus.textContent = msg;
+            setTimeout(function(){ settingsStatus.textContent = ''; }, 3000);
+            settingsPanel.classList.remove('open');
+            loadConfig().then(function(){
+              loadMessages();
+              startPolling();
+            });
           });
         });
       });
@@ -8336,7 +8349,9 @@ document.addEventListener("input", e => {
 
     tgApi('forwardToWebhook', {
       webhookUrl: currentConfig.webhookUrl,
-      update: fakeUpdate
+      update: fakeUpdate,
+      botId: currentConfig.botId,
+      chatId: currentConfig.chatId
     }).then(function(res){
       typing.remove();
       isSending = false;
@@ -8356,6 +8371,11 @@ document.addEventListener("input", e => {
         appendMessageBubble(botMsg, true);
         saveMessage(botMsg);
         scrollToBottom();
+      } else {
+        // No inline response — bot likely responded via Telegram API
+        // Poll Redis briefly for the response
+        statusText.textContent = 'Waiting for reply...';
+        pollRedisForReply(3);
       }
     }).catch(function(err){
       typing.remove();
@@ -8385,19 +8405,124 @@ document.addEventListener("input", e => {
     return null;
   }
 
-  // --- Poll for incoming messages via getUpdates ---
+  // --- Poll for incoming messages via getUpdates (no-webhook bots) + Redis (webhook bots) ---
   function startPolling(){
     stopPolling();
     if(!currentConfig || !currentConfig.botToken) return;
-    // Only poll if there's no webhook (getUpdates fails when webhook is active)
+    // getUpdates polling for bots without webhook
     if(!currentConfig.webhookUrl){
       pollOnce();
       pollTimer = setInterval(pollOnce, POLL_INTERVAL);
+    }
+    // Redis polling for bots with webhook proxy
+    if(currentConfig.proxyEnabled && currentConfig.botId){
+      redisNextIndex = 0;
+      redisPollTimer = setInterval(pollRedis, POLL_INTERVAL);
+      pollRedis(); // initial poll
     }
   }
 
   function stopPolling(){
     if(pollTimer){ clearInterval(pollTimer); pollTimer = null; }
+    if(redisPollTimer){ clearInterval(redisPollTimer); redisPollTimer = null; }
+  }
+
+  // Poll Redis for messages captured by webhook interceptor
+  function pollRedis(){
+    if(!currentConfig || !currentConfig.botId || !currentConfig.chatId) return;
+    tgApi('getMessages', {
+      botId: currentConfig.botId,
+      chatId: currentConfig.chatId,
+      since: redisNextIndex
+    }).then(function(res){
+      if(!res.ok || !res.messages || !res.messages.length) return;
+      redisNextIndex = res.nextSince || (redisNextIndex + res.messages.length);
+
+      var newMsgs = [];
+      res.messages.forEach(function(m){
+        // Skip web-originated messages (we already show those locally)
+        if(m.src === 'web') return;
+        newMsgs.push(m);
+      });
+
+      if(newMsgs.length > 0){
+        getVaultData().then(function(data){
+          if(!data) return;
+          if(!data.tgMessages) data.tgMessages = [];
+
+          var added = false;
+          newMsgs.forEach(function(nm){
+            // Deduplicate by timestamp + text
+            var isDupe = data.tgMessages.some(function(em){
+              return em.text === nm.text && Math.abs((em.ts||0) - (nm.ts||0)) < 2000;
+            });
+            if(isDupe) return;
+            data.tgMessages.push(nm);
+            appendMessageBubble(nm, true);
+            added = true;
+          });
+
+          if(added){
+            if(data.tgMessages.length > 500) data.tgMessages = data.tgMessages.slice(-500);
+            setVaultData(data);
+            scrollToBottom();
+          }
+        });
+      }
+    }).catch(function(){});
+  }
+
+  // Short burst poll Redis for a bot reply (after sending a message)
+  function pollRedisForReply(retries){
+    if(retries <= 0){
+      statusText.textContent = 'Delivered';
+      setTimeout(function(){ statusText.textContent = 'Online'; }, 2000);
+      return;
+    }
+    if(!currentConfig || !currentConfig.botId) {
+      statusText.textContent = 'Online';
+      return;
+    }
+    setTimeout(function(){
+      tgApi('getMessages', {
+        botId: currentConfig.botId,
+        chatId: currentConfig.chatId,
+        since: redisNextIndex
+      }).then(function(res){
+        if(!res.ok || !res.messages) {
+          pollRedisForReply(retries - 1);
+          return;
+        }
+        redisNextIndex = res.nextSince || redisNextIndex;
+
+        var botReply = null;
+        res.messages.forEach(function(m){
+          if(m.dir === 'bot') botReply = m;
+        });
+
+        if(botReply){
+          statusText.textContent = 'Online';
+          // Check if already shown (from inline response)
+          var isDupe = false;
+          getVaultData().then(function(data){
+            if(data && data.tgMessages){
+              isDupe = data.tgMessages.some(function(em){
+                return em.text === botReply.text && Math.abs((em.ts||0) - (botReply.ts||0)) < 3000;
+              });
+            }
+            if(!isDupe){
+              appendMessageBubble(botReply, true);
+              saveMessage(botReply);
+              scrollToBottom();
+            }
+          });
+        } else {
+          pollRedisForReply(retries - 1);
+        }
+      }).catch(function(){
+        pollRedisForReply(retries - 1);
+      });
+    }, 1500);
   }
 
   function pollOnce(){
