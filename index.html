@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Homer</title>
 
-  <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAAZklEQVRYhe3WMQ6AIBQF0W+F4/iZruI4OAoLE21dY4yQ8CvkF4H5b0CRgZk1v40D4A14A54CA+gCDKADMICeAAPoAgygAzCADsAAugAD6AAMoAswgA7AADoAA+gCDKADMICeAAP4A2932wKjM7B9zwAAAABJRU5ErkJggg==">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="manifest" href="/manifest.json">
 
   <meta name="theme-color" content="#0f172a">
   <meta name="mobile-web-app-capable" content="yes">
@@ -1369,11 +1372,11 @@
       body{padding:0 0 calc(var(--tb) + env(safe-area-inset-bottom,0px));}
       .shell{width:100%;padding:0 10px;}
 
-      /* Compact hero — one-liner */
-      .hero{padding:14px 14px 10px;border-radius:0;margin:0 -10px 8px;border-left:0;border-right:0;border-top:0;}
-      .title{font-size:1.5rem!important;gap:8px;}
-      .title-badge{font-size:.7rem;padding:3px 7px;}
-      .subtitle{display:none;}
+      /* Compact hero */
+      .hero{padding:16px 14px 12px;border-radius:0;margin:0 -10px 8px;border-left:0;border-right:0;border-top:0;}
+      .title{font-size:1.45rem!important;gap:8px;}
+      .title-badge{font-size:.68rem;padding:3px 8px;}
+      .subtitle{font-size:.78rem;margin:4px 0 0;opacity:.7;display:block;}
 
       /* Cards — edge-to-edge feel */
       .card{padding:14px;border-radius:12px;}
@@ -3092,7 +3095,7 @@ function renderQuote(q) {
     (function(){
       // Only register service worker if on HTTP/HTTPS
       if('serviceWorker'in navigator && location.protocol.startsWith('http')){
-        const swCode=`const CACHE='homer-v1'; const APP_SHELL=['/','/index.html'];
+        const swCode=`const CACHE='homer-v2'; const APP_SHELL=['/','/index.html','/manifest.json','/icon.svg','/icon-192.png','/icon-512.png'];
           self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(APP_SHELL)).then(()=>self.skipWaiting())); })
           self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); })
           self.addEventListener('fetch',e=>{
