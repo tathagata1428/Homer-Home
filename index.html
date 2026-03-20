@@ -8400,10 +8400,10 @@ document.addEventListener("input", e => {
     return '';
   }
 
-  // --- Joey Actions: create tasks, goals, events ---
+  // --- Joey Actions: create tasks, goals, focus tasks, events ---
   function executeActions(text){
     var actions = [];
-    var regex = /\[ACTION:(TASK|GOAL|LIFEGOAL|EVENT)\]([\s\S]*?)\[\/ACTION\]/g;
+    var regex = /\[ACTION:(TASK|GOAL|FOCUS|EVENT)\]([\s\S]*?)\[\/ACTION\]/g;
     var match;
     while((match = regex.exec(text)) !== null){
       actions.push({type: match[1], data: match[2].trim()});
@@ -8414,26 +8414,17 @@ document.addEventListener("input", e => {
     actions.forEach(function(a){
       try{
         if(a.type === 'TASK'){
-          // Simple task on the task board
-          var TKEY = 'pom.tasks.v1';
-          var list = [];
-          try{ list = JSON.parse(localStorage.getItem(TKEY) || '[]'); }catch(e){}
-          list.unshift({text: a.data, done: false, ts: Date.now()});
-          localStorage.setItem(TKEY, JSON.stringify(list));
-          try{ window.dispatchEvent(new Event('tasks-changed')); }catch(e){}
-          notifications.push('Task created: ' + a.data);
-        }
-        else if(a.type === 'GOAL'){
-          // Goal with subtasks on the Kanban board (vault)
-          var goalData = JSON.parse(a.data);
+          // Kanban board task (vault) — accepts JSON or plain string
+          var taskData;
+          try{ taskData = JSON.parse(a.data); }catch(e){ taskData = {summary: a.data}; }
           if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
             window._homerLoadVault().then(function(data){
               if(!data) return;
               if(!data._nextId) data._nextId = 1;
               if(!data._nextSubId) data._nextSubId = 1;
               var subtasks = [];
-              if(goalData.subtasks && Array.isArray(goalData.subtasks)){
-                goalData.subtasks.forEach(function(st){
+              if(taskData.subtasks && Array.isArray(taskData.subtasks)){
+                taskData.subtasks.forEach(function(st){
                   subtasks.push({
                     id: data._nextSubId++,
                     text: typeof st === 'string' ? st : st.text,
@@ -8445,46 +8436,34 @@ document.addEventListener("input", e => {
                   });
                 });
               }
-              var goal = {
+              var task = {
                 id: data._nextId++,
-                summary: goalData.summary || 'New Goal',
-                desc: goalData.desc || '',
-                notes: goalData.notes || '',
-                due: goalData.due || '',
-                priority: goalData.priority || '',
+                summary: taskData.summary || taskData.title || 'New Task',
+                desc: taskData.desc || taskData.description || '',
+                notes: taskData.notes || '',
+                due: taskData.due || '',
+                priority: taskData.priority || '',
                 reporter: '',
                 assignee: '',
-                labels: goalData.labels || [],
+                labels: taskData.labels || [],
                 col: 'todo',
                 subtasks: subtasks,
                 attachments: [],
                 comments: [],
-                log: [{action:'Goal created by Joey', ts:Date.now()}]
+                log: [{action:'Task created by Joey', ts:Date.now()}]
               };
-              data.goals.push(goal);
+              data.goals.push(task);
               window._homerSaveVault(data);
               try{ window.dispatchEvent(new Event('vault-goals-changed')); }catch(e){}
             });
+          } else {
+            notifications.push('Vault is locked — unlock it first to add tasks to the Kanban board');
+            return;
           }
-          notifications.push('Goal created: ' + (goalData.summary || 'New Goal') + (goalData.subtasks ? ' (' + goalData.subtasks.length + ' subtasks)' : ''));
+          notifications.push('Kanban task created: ' + (taskData.summary || taskData.title || a.data) + (taskData.subtasks ? ' (' + taskData.subtasks.length + ' subtasks)' : ''));
         }
-        else if(a.type === 'EVENT'){
-          var evtData = JSON.parse(a.data);
-          var EKEY = 'homer-cal-events';
-          var evts = [];
-          try{ evts = JSON.parse(localStorage.getItem(EKEY) || '[]'); }catch(e){}
-          evts.push({
-            id: Date.now() + '-' + Math.random().toString(36).substring(2, 8),
-            title: evtData.title || 'New Event',
-            date: evtData.date || new Date().toISOString().slice(0,10),
-            time: evtData.time || '',
-            location: evtData.location || '',
-            description: evtData.description || ''
-          });
-          localStorage.setItem(EKEY, JSON.stringify(evts));
-          notifications.push('Event added: ' + (evtData.title || 'New Event') + ' on ' + (evtData.date || 'today'));
-        }
-        else if(a.type === 'LIFEGOAL'){
+        else if(a.type === 'GOAL'){
+          // Life goal (vault) — aspirations with milestones
           var lgData = JSON.parse(a.data);
           if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
             window._homerLoadVault().then(function(data){
@@ -8506,8 +8485,37 @@ document.addEventListener("input", e => {
               window._homerSaveVault(data);
               if(typeof window._refreshLifeGoals === 'function') window._refreshLifeGoals();
             });
+          } else {
+            notifications.push('Vault is locked — unlock it first to add life goals');
+            return;
           }
           notifications.push('Life goal created: ' + (lgData.title || 'New Goal'));
+        }
+        else if(a.type === 'FOCUS'){
+          // Pomodoro focus task — quick task for the timer
+          var TKEY = 'pom.tasks.v1';
+          var list = [];
+          try{ list = JSON.parse(localStorage.getItem(TKEY) || '[]'); }catch(e){}
+          list.unshift({text: a.data, done: false, ts: Date.now()});
+          localStorage.setItem(TKEY, JSON.stringify(list));
+          try{ window.dispatchEvent(new Event('tasks-changed')); }catch(e){}
+          notifications.push('Focus task added: ' + a.data);
+        }
+        else if(a.type === 'EVENT'){
+          var evtData = JSON.parse(a.data);
+          var EKEY = 'homer-cal-events';
+          var evts = [];
+          try{ evts = JSON.parse(localStorage.getItem(EKEY) || '[]'); }catch(e){}
+          evts.push({
+            id: Date.now() + '-' + Math.random().toString(36).substring(2, 8),
+            title: evtData.title || 'New Event',
+            date: evtData.date || new Date().toISOString().slice(0,10),
+            time: evtData.time || '',
+            location: evtData.location || '',
+            description: evtData.description || ''
+          });
+          localStorage.setItem(EKEY, JSON.stringify(evts));
+          notifications.push('Event added: ' + (evtData.title || 'New Event') + ' on ' + (evtData.date || 'today'));
         }
       }catch(e){
         notifications.push('Action failed: ' + e.message);
@@ -8525,7 +8533,7 @@ document.addEventListener("input", e => {
     }
 
     // Strip action tags from displayed text
-    return text.replace(/\[ACTION:(TASK|GOAL|EVENT)\][\s\S]*?\[\/ACTION\]/g, '').trim();
+    return text.replace(/\[ACTION:(TASK|GOAL|FOCUS|EVENT)\][\s\S]*?\[\/ACTION\]/g, '').trim();
   }
 
   function showError(msg){
@@ -8695,7 +8703,7 @@ document.addEventListener("input", e => {
     if(!text && !pendingFiles.length) return;
     if(streaming) return;
     var config = getConfig();
-    var JOEY_PROMPT = 'You are Joey Tribbiani from Friends. You speak like Joey — confident, lovable, a little clueless sometimes, but always charming. You use Joey\'s catchphrases naturally (like "How you doin\'?", "Joey doesn\'t share food!", "It\'s a moo point"). You\'re helpful and give good answers, but always in Joey\'s voice and personality. Keep it fun but actually useful.\n\nYou can create TASKS (actionable work items for the Kanban board), LIFE GOALS (aspirations/dreams for the Life Goals tracker), and CALENDAR EVENTS.\n\nIMPORTANT - Know the difference:\n- TASK = something specific to DO (work item, to-do, action). Examples: "Fix the login bug", "Write the report", "Call the dentist", "Buy groceries". Goes to the Kanban Board.\n- GOAL (Kanban card) = a task with subtasks on the Kanban board. Use when the user wants a structured task with sub-items.\n- LIFEGOAL = a life aspiration or long-term dream. Examples: "Buy a house", "Get fit", "Learn Spanish", "Travel to Japan", "Get rich", "Start a business". Goes to the Life Goals tracker. These have milestones (steps toward achieving the goal).\n- EVENT = calendar event with date/time.\n\nAction format (include at END of your response):\n\n- Simple task: [ACTION:TASK]Task description[/ACTION]\n- Kanban card with subtasks: [ACTION:GOAL]{"summary":"Title","desc":"Description","priority":"high","due":"2026-03-25","subtasks":["Step 1","Step 2"]}[/ACTION]\n- Life goal: [ACTION:LIFEGOAL]{"title":"Buy a house","description":"Save up and find my dream home","category":"finance","milestones":["Save $10k","Get pre-approved","Find a realtor","Make an offer"],"targetDate":"2027-12-31","icon":"🏠"}[/ACTION]\n- Calendar event: [ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details"}[/ACTION]\n\nLife goal categories: health, finance, career, personal, education, travel, creative, relationship\n\nRules:\n- Date format YYYY-MM-DD, time HH:MM (24h)\n- Priority: high, medium, low\n- Today is ' + new Date().toISOString().slice(0,10) + '\n- Always confirm what you created\n- Always include actions — don\'t just describe what you would do';
+    var JOEY_PROMPT = 'You are Joey Tribbiani from Friends. You speak like Joey — confident, lovable, a little clueless sometimes, but always charming. You use Joey\'s catchphrases naturally (like "How you doin\'?", "Joey doesn\'t share food!", "It\'s a moo point"). You\'re helpful and give good answers, but always in Joey\'s voice and personality. Keep it fun but actually useful.\n\nYou can create TASKS (Kanban board), GOALS (Life Goals tracker), FOCUS tasks (Pomodoro timer), and CALENDAR EVENTS.\n\nIMPORTANT - Know the difference:\n- TASK = something specific to DO (work item, to-do, action item, ticket). Goes to the Kanban Board. Can be simple or have subtasks. Examples: "Fix the login bug", "Write the report", "Refactor the auth module", "Plan the sprint".\n- GOAL = a life aspiration, dream, or long-term objective. Goes to the Life Goals tracker. These have milestones (steps toward achieving the goal). Examples: "Buy a house", "Get fit", "Learn Spanish", "Travel to Japan", "Get rich", "Start a business", "Run a marathon".\n- FOCUS = a quick task to focus on right now in the Pomodoro timer. Short, single-line tasks for immediate work. Examples: "Review PR #42", "Read chapter 3", "Reply to emails", "Study for exam".\n- EVENT = calendar event with date/time.\n\nAction format (include at END of your response):\n\n- Kanban task (simple): [ACTION:TASK]{"summary":"Fix login bug","priority":"high","due":"2026-03-25"}[/ACTION]\n- Kanban task (with subtasks): [ACTION:TASK]{"summary":"Title","desc":"Description","priority":"high","due":"2026-03-25","subtasks":["Step 1","Step 2"]}[/ACTION]\n- Life goal: [ACTION:GOAL]{"title":"Buy a house","description":"Save up and find my dream home","category":"finance","milestones":["Save $10k","Get pre-approved","Find a realtor","Make an offer"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\n- Focus task: [ACTION:FOCUS]Review the pull request[/ACTION]\n- Calendar event: [ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details"}[/ACTION]\n\nLife goal categories: health, finance, career, personal, education, travel, creative, relationship\n\nRules:\n- Date format YYYY-MM-DD, time HH:MM (24h)\n- Priority: high, medium, low\n- Today is ' + new Date().toISOString().slice(0,10) + '\n- Always confirm what you created\n- Always include actions — don\'t just describe what you would do\n- TASK can also accept a simple string like [ACTION:TASK]Buy groceries[/ACTION] which creates a card with just a title';
     var systemPrompt = config.system || JOEY_PROMPT;
 
     var displayText = text;
