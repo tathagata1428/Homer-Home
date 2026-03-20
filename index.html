@@ -549,7 +549,7 @@
     .k-points{font-size:.68rem;color:var(--muted);margin-top:3px;}
     .k-points strong{color:var(--accent);}
     @media(max-width:700px){
-      #goal-tracker-card{padding:12px 6px!important;overflow:visible!important;}
+      #kanban-overlay .vault-ov-page{padding:12px 6px 40px;}
       #kanban{display:flex!important;overflow-x:auto!important;overflow-y:visible!important;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;gap:10px;padding-bottom:12px;margin:0 -6px;padding-left:6px;padding-right:6px;}
       #kanban::-webkit-scrollbar{height:3px;}
       #kanban::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px;}
@@ -560,6 +560,13 @@
       .goal-filters{flex-direction:column;gap:6px!important;}
       .goal-filters input,.goal-filters select{width:100%;min-width:0!important;}
       .goal-filters .archive-toggle{margin-left:0!important;width:100%;text-align:center;}
+      /* Secrets overlay — stack form fields */
+      #secrets-overlay .card > div{flex-direction:column!important;}
+      #secrets-overlay .card input,#secrets-overlay .card textarea,#secrets-overlay .card > div > div{width:100%!important;min-width:0!important;flex:none!important;}
+      #secrets-overlay .card .btn.primary{width:100%;}
+      /* Vault overlay topbar */
+      .vault-ov-topbar{gap:8px;}
+      .vault-ov-topbar h2{font-size:1rem;}
     }
     /* ── Vault Dashboard ── */
     .vault-dashboard{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
@@ -697,6 +704,16 @@
       .goals-tl-item{padding:8px 10px;gap:8px;}
       .goals-tl-item .tl-title{font-size:.8rem;}
       .goals-tl-month h3::before{left:-23px;width:8px;height:8px;}
+      /* Life goals mobile */
+      .lg-card{padding:14px;}
+      .lg-card-head{gap:10px;}
+      .lg-card-icon{width:40px;height:40px;font-size:1.4rem;border-radius:10px;}
+      .lg-card-title{font-size:.9rem;}
+      .lg-milestones li{font-size:.75rem;padding:3px 0;}
+      /* Life goals modal mobile */
+      #lg-modal-bg .fab-dialog{padding:20px 16px;}
+      #lg-modal-bg .fab-dialog > div{flex-direction:column!important;}
+      #lg-modal-bg .fab-dialog select,#lg-modal-bg .fab-dialog input[type="text"]{width:100%!important;}
     }
     /* ── Fullscreen Issue View ── */
     .issue-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9990;background:rgba(0,0,0,.7);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);overflow-y:auto;-webkit-overflow-scrolling:touch;}
