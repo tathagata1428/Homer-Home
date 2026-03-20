@@ -1367,13 +1367,13 @@
       .fab-cluster{display:none!important;}
       .site-footer{display:none!important;}
 
-      /* Body: edge-to-edge, reserve space for bottom nav */
-      :root{--tb:60px;}
-      body{padding:0 0 calc(var(--tb) + env(safe-area-inset-bottom,0px));}
-      .shell{width:100%;padding:0 10px;}
+      /* Body: edge-to-edge, reserve safe areas for notch/Dynamic Island + bottom nav */
+      :root{--tb:60px;--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);--sal:env(safe-area-inset-left,0px);--sar:env(safe-area-inset-right,0px);}
+      body{padding:var(--sat) 0 calc(var(--tb) + var(--sab));}
+      .shell{width:100%;padding:0 max(var(--sal),10px) 0 max(var(--sar),10px);}
 
-      /* Compact hero */
-      .hero{padding:16px 14px 12px;border-radius:0;margin:0 -10px 8px;border-left:0;border-right:0;border-top:0;}
+      /* Compact hero — extend behind Dynamic Island for seamless look */
+      .hero{padding:12px 14px 12px;border-radius:0;margin:calc(-1 * var(--sat)) -10px 8px;padding-top:calc(var(--sat) + 12px);border-left:0;border-right:0;border-top:0;}
       .title{font-size:1.45rem!important;gap:8px;}
       .title-badge{font-size:.68rem;padding:3px 8px;}
       .subtitle{font-size:.78rem;margin:4px 0 0;opacity:.7;display:block;}
