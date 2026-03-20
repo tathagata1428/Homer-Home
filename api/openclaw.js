@@ -27,9 +27,32 @@ export default async function handler(req, res) {
   const MODEL = process.env.OC_MODEL || 'llama-3.3-70b-versatile';
   const JOEY_CONTEXT = process.env.JOEY_CONTEXT || '';
 
-  // Inject persistent context as the first system message if available
-  const finalMessages = JOEY_CONTEXT
-    ? [{ role: 'system', content: JOEY_CONTEXT }, ...messages]
+  // Fetch Joey's learned memories from Redis
+  let memoriesText = '';
+  try {
+    const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+    const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+    if (REDIS_URL && REDIS_TOKEN) {
+      const mr = await fetch(REDIS_URL, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN },
+        body: JSON.stringify(['GET', 'joey:memories'])
+      });
+      const mj = await mr.json();
+      if (mj.result) {
+        const mems = JSON.parse(mj.result);
+        if (mems.length) {
+          memoriesText = '\n\nYOUR LEARNED MEMORIES (things you chose to remember):\n' +
+            mems.map(m => '- [' + m.category + '] ' + m.text).join('\n');
+        }
+      }
+    }
+  } catch (e) { /* memories unavailable — proceed without */ }
+
+  // Build system context: base personality + learned memories
+  const systemContent = (JOEY_CONTEXT + memoriesText).trim();
+  const finalMessages = systemContent
+    ? [{ role: 'system', content: systemContent }, ...messages]
     : messages;
 
   const headers = { 'Content-Type': 'application/json' };

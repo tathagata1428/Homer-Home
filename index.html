@@ -77,64 +77,88 @@
       #desktop-sidebar{
         display:flex;flex-direction:column;
         position:fixed;top:0;left:0;bottom:0;z-index:100;
-        width:220px;background:#0a0f1a;border-right:1px solid rgba(255,255,255,.06);
+        width:240px;
+        background:linear-gradient(180deg,#0c1222 0%,#080d18 100%);
+        border-right:1px solid rgba(255,255,255,.06);
         padding:20px 0 16px;overflow-y:auto;
         transition:width .2s ease;
       }
-      #desktop-sidebar.collapsed{width:60px;}
+      #desktop-sidebar.collapsed{width:64px;}
       #desktop-sidebar.collapsed .sb-label,
       #desktop-sidebar.collapsed .sb-section-title,
-      #desktop-sidebar.collapsed .sb-brand span{display:none;}
-      #desktop-sidebar.collapsed .sb-item{justify-content:center;padding:10px 0;}
+      #desktop-sidebar.collapsed .sb-brand-text{display:none;}
+      #desktop-sidebar.collapsed .sb-item{justify-content:center;padding:12px 0;margin:0 8px;border-radius:12px;}
+      #desktop-sidebar.collapsed .sb-item .sb-emoji{font-size:1.3rem;}
       #desktop-sidebar.collapsed .sb-toggle svg{transform:rotate(180deg);}
-      #desktop-sidebar.collapsed .sb-brand{justify-content:center;}
+      #desktop-sidebar.collapsed .sb-brand{justify-content:center;padding:0 0 16px;}
 
+      /* Brand */
       .sb-brand{
-        display:flex;align-items:center;gap:10px;padding:0 18px 18px;
-        border-bottom:1px solid rgba(255,255,255,.06);margin-bottom:10px;
+        display:flex;align-items:center;gap:12px;padding:0 20px 20px;
+        border-bottom:1px solid rgba(255,255,255,.06);margin-bottom:6px;
       }
       .sb-brand-icon{
-        width:32px;height:32px;border-radius:10px;
+        width:36px;height:36px;border-radius:12px;
         background:linear-gradient(135deg,#60a5fa,#2563eb);
         display:flex;align-items:center;justify-content:center;
-        font-weight:900;font-size:.85rem;color:#fff;flex-shrink:0;
+        font-weight:900;font-size:.95rem;color:#fff;flex-shrink:0;
+        box-shadow:0 4px 12px rgba(96,165,250,.3);
       }
-      .sb-brand span{font-weight:900;font-size:1.1rem;color:var(--text);}
+      .sb-brand-text{display:flex;flex-direction:column;}
+      .sb-brand-text strong{font-weight:900;font-size:1.15rem;color:var(--text);line-height:1.2;}
+      .sb-brand-text small{font-size:.65rem;color:var(--muted);font-weight:600;}
 
       .sb-section-title{
-        font-size:.62rem;font-weight:700;color:rgba(255,255,255,.3);
-        text-transform:uppercase;letter-spacing:.1em;padding:12px 18px 6px;
+        font-size:.62rem;font-weight:700;color:rgba(255,255,255,.25);
+        text-transform:uppercase;letter-spacing:.1em;padding:14px 20px 6px;
       }
+
+      /* Nav items — bigger, bolder, with emoji + accent bar */
       .sb-item{
-        display:flex;align-items:center;gap:10px;padding:9px 18px;
-        cursor:pointer;color:var(--muted);font-size:.85rem;font-weight:600;
-        transition:background .12s,color .12s;border:none;background:none;
+        display:flex;align-items:center;gap:12px;padding:11px 20px;
+        cursor:pointer;color:rgba(255,255,255,.55);font-size:.9rem;font-weight:700;
+        transition:all .15s ease;border:none;background:none;
         width:100%;text-align:left;-webkit-tap-highlight-color:transparent;
+        position:relative;margin:1px 0;
       }
-      .sb-item:hover{background:rgba(255,255,255,.04);color:var(--text);}
-      .sb-item.active{background:rgba(96,165,250,.08);color:#60a5fa;}
-      .sb-item svg{width:18px;height:18px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
-      .sb-label{white-space:nowrap;overflow:hidden;}
+      .sb-item:hover{background:rgba(255,255,255,.05);color:rgba(255,255,255,.85);}
+      .sb-item.active{
+        background:linear-gradient(90deg,rgba(96,165,250,.12),rgba(96,165,250,.04));
+        color:#fff;
+      }
+      .sb-item.active::before{
+        content:'';position:absolute;left:0;top:6px;bottom:6px;width:3px;
+        border-radius:0 3px 3px 0;background:#60a5fa;
+        box-shadow:0 0 8px rgba(96,165,250,.5);
+      }
+      .sb-emoji{font-size:1.15rem;flex-shrink:0;width:24px;text-align:center;filter:saturate(.85);}
+      .sb-item.active .sb-emoji{filter:saturate(1.1);}
+      .sb-label{white-space:nowrap;overflow:hidden;letter-spacing:.01em;}
 
       .sb-spacer{flex:1;}
+
+      /* Divider */
+      .sb-divider{height:1px;background:rgba(255,255,255,.05);margin:8px 20px;}
+
+      /* Toggle */
       .sb-toggle{
-        display:flex;align-items:center;gap:10px;padding:9px 18px;
-        cursor:pointer;color:var(--muted);font-size:.8rem;font-weight:600;
-        transition:color .12s;border:none;background:none;width:100%;
+        display:flex;align-items:center;gap:12px;padding:10px 20px;
+        cursor:pointer;color:rgba(255,255,255,.3);font-size:.78rem;font-weight:600;
+        transition:color .15s;border:none;background:none;width:100%;
       }
-      .sb-toggle:hover{color:var(--text);}
+      .sb-toggle:hover{color:rgba(255,255,255,.6);}
       .sb-toggle svg{width:16px;height:16px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s;}
 
       /* Shift content right */
-      body{padding-left:220px;transition:padding-left .2s ease;}
-      body.sb-collapsed{padding-left:60px;}
+      body{padding-left:240px;transition:padding-left .2s ease;}
+      body.sb-collapsed{padding-left:64px;}
 
       /* Hide pill tabs on desktop when sidebar exists */
       .tabs{display:none!important;}
 
       /* Wider content with sidebar */
-      .shell{width:min(1200px,calc(100vw - 260px));}
-      body.sb-collapsed .shell{width:min(1200px,calc(100vw - 100px));}
+      .shell{width:min(1200px,calc(100vw - 280px));}
+      body.sb-collapsed .shell{width:min(1200px,calc(100vw - 104px));}
     }
 
     /* HERO */
@@ -8645,7 +8669,7 @@ document.addEventListener("input", e => {
   // --- Joey Actions: create tasks, goals, focus tasks, events ---
   function executeActions(text){
     var actions = [];
-    var regex = /\[ACTION:(TASK|GOAL|FOCUS|EVENT)\]([\s\S]*?)\[\/ACTION\]/g;
+    var regex = /\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET)\]([\s\S]*?)\[\/ACTION\]/g;
     var match;
     while((match = regex.exec(text)) !== null){
       actions.push({type: match[1], data: match[2].trim()});
@@ -8759,6 +8783,36 @@ document.addEventListener("input", e => {
           localStorage.setItem(EKEY, JSON.stringify(evts));
           notifications.push('Event added: ' + (evtData.title || 'New Event') + ' on ' + (evtData.date || 'today'));
         }
+        else if(a.type === 'REMEMBER'){
+          // Save to Joey's persistent memory (Redis)
+          var memData;
+          try{ memData = JSON.parse(a.data); }catch(e){ memData = {memory: a.data, category: 'general'}; }
+          var pass = localStorage.getItem('homer-sync-pass') || '';
+          if(pass){
+            fetch('/api/joey-memory', {
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({passphrase:pass, memory:memData.memory||memData.text||a.data, category:memData.category||'general'})
+            }).then(function(r){return r.json();}).then(function(d){
+              if(d.ok) console.log('Memory saved, total:', d.count);
+            }).catch(function(){});
+          }
+          notifications.push('Remembered: ' + (memData.memory||memData.text||a.data));
+        }
+        else if(a.type === 'FORGET'){
+          // Remove from Joey's persistent memory
+          var pass = localStorage.getItem('homer-sync-pass') || '';
+          if(pass){
+            fetch('/api/joey-memory', {
+              method:'DELETE',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({passphrase:pass, match:a.data})
+            }).then(function(r){return r.json();}).then(function(d){
+              if(d.ok) console.log('Memory removed, remaining:', d.count);
+            }).catch(function(){});
+          }
+          notifications.push('Forgot: ' + a.data);
+        }
       }catch(e){
         notifications.push('Action failed: ' + e.message);
       }
@@ -8775,7 +8829,7 @@ document.addEventListener("input", e => {
     }
 
     // Strip action tags from displayed text
-    return text.replace(/\[ACTION:(TASK|GOAL|FOCUS|EVENT)\][\s\S]*?\[\/ACTION\]/g, '').trim();
+    return text.replace(/\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET)\][\s\S]*?\[\/ACTION\]/g, '').trim();
   }
 
   function showError(msg){
@@ -8945,7 +8999,7 @@ document.addEventListener("input", e => {
     if(!text && !pendingFiles.length) return;
     if(streaming) return;
     var config = getConfig();
-    var JOEY_PROMPT = 'You are Joey Tribbiani from Friends. You speak like Joey — confident, lovable, a little clueless sometimes, but always charming. You use Joey\'s catchphrases naturally (like "How you doin\'?", "Joey doesn\'t share food!", "It\'s a moo point"). You\'re helpful and give good answers, but always in Joey\'s voice and personality. Keep it fun but actually useful.\n\nYou can create TASKS (Kanban board), GOALS (Life Goals tracker), FOCUS tasks (Pomodoro timer), and CALENDAR EVENTS.\n\nIMPORTANT - Know the difference:\n- TASK = something specific to DO (work item, to-do, action item, ticket). Goes to the Kanban Board. Can be simple or have subtasks. Examples: "Fix the login bug", "Write the report", "Refactor the auth module", "Plan the sprint".\n- GOAL = a life aspiration, dream, or long-term objective. Goes to the Life Goals tracker. These have milestones (steps toward achieving the goal). Examples: "Buy a house", "Get fit", "Learn Spanish", "Travel to Japan", "Get rich", "Start a business", "Run a marathon".\n- FOCUS = a quick task to focus on right now in the Pomodoro timer. Short, single-line tasks for immediate work. Examples: "Review PR #42", "Read chapter 3", "Reply to emails", "Study for exam".\n- EVENT = calendar event with date/time.\n\nAction format (include at END of your response):\n\n- Kanban task (simple): [ACTION:TASK]{"summary":"Fix login bug","priority":"high","due":"2026-03-25"}[/ACTION]\n- Kanban task (with subtasks): [ACTION:TASK]{"summary":"Title","desc":"Description","priority":"high","due":"2026-03-25","subtasks":["Step 1","Step 2"]}[/ACTION]\n- Life goal: [ACTION:GOAL]{"title":"Buy a house","description":"Save up and find my dream home","category":"finance","milestones":["Save $10k","Get pre-approved","Find a realtor","Make an offer"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\n- Focus task: [ACTION:FOCUS]Review the pull request[/ACTION]\n- Calendar event: [ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details"}[/ACTION]\n\nLife goal categories: health, finance, career, personal, education, travel, creative, relationship\n\nRules:\n- Date format YYYY-MM-DD, time HH:MM (24h)\n- Priority: high, medium, low\n- Today is ' + new Date().toISOString().slice(0,10) + '\n- Always confirm what you created\n- Always include actions — don\'t just describe what you would do\n- TASK can also accept a simple string like [ACTION:TASK]Buy groceries[/ACTION] which creates a card with just a title';
+    var JOEY_PROMPT = 'You are Joey Tribbiani from Friends. You speak like Joey — confident, lovable, a little clueless sometimes, but always charming. You use Joey\'s catchphrases naturally (like "How you doin\'?", "Joey doesn\'t share food!", "It\'s a moo point"). You\'re helpful and give good answers, but always in Joey\'s voice and personality. Keep it fun but actually useful.\n\nYou can create TASKS (Kanban board), GOALS (Life Goals tracker), FOCUS tasks (Pomodoro timer), and CALENDAR EVENTS.\n\nIMPORTANT - Know the difference:\n- TASK = something specific to DO (work item, to-do, action item, ticket). Goes to the Kanban Board. Can be simple or have subtasks. Examples: "Fix the login bug", "Write the report", "Refactor the auth module", "Plan the sprint".\n- GOAL = a life aspiration, dream, or long-term objective. Goes to the Life Goals tracker. These have milestones (steps toward achieving the goal). Examples: "Buy a house", "Get fit", "Learn Spanish", "Travel to Japan", "Get rich", "Start a business", "Run a marathon".\n- FOCUS = a quick task to focus on right now in the Pomodoro timer. Short, single-line tasks for immediate work. Examples: "Review PR #42", "Read chapter 3", "Reply to emails", "Study for exam".\n- EVENT = calendar event with date/time.\n\nAction format (include at END of your response):\n\n- Kanban task (simple): [ACTION:TASK]{"summary":"Fix login bug","priority":"high","due":"2026-03-25"}[/ACTION]\n- Kanban task (with subtasks): [ACTION:TASK]{"summary":"Title","desc":"Description","priority":"high","due":"2026-03-25","subtasks":["Step 1","Step 2"]}[/ACTION]\n- Life goal: [ACTION:GOAL]{"title":"Buy a house","description":"Save up and find my dream home","category":"finance","milestones":["Save $10k","Get pre-approved","Find a realtor","Make an offer"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\n- Focus task: [ACTION:FOCUS]Review the pull request[/ACTION]\n- Calendar event: [ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details"}[/ACTION]\n\nLife goal categories: health, finance, career, personal, education, travel, creative, relationship\n\nRules:\n- Date format YYYY-MM-DD, time HH:MM (24h)\n- Priority: high, medium, low\n- Today is ' + new Date().toISOString().slice(0,10) + '\n- Always confirm what you created\n- Always include actions — don\'t just describe what you would do\n- TASK can also accept a simple string like [ACTION:TASK]Buy groceries[/ACTION] which creates a card with just a title\n\nMEMORY — you can remember and forget things across conversations:\n- Remember: [ACTION:REMEMBER]{"memory":"Bogdan prefers dark roast coffee","category":"preference"}[/ACTION]\n- Forget: [ACTION:FORGET]dark roast coffee[/ACTION]\n- Categories: preference, fact, person, event, lesson, win, general\n- Use REMEMBER when the user tells you something personal, important, or asks you to remember\n- Use REMEMBER for wins, lessons, preferences, important dates, people info\n- Use FORGET when asked to forget something\n- You can also just use plain text: [ACTION:REMEMBER]Sofia has a school play on April 5[/ACTION]\n- Be selective — only remember things worth keeping across conversations';
     var systemPrompt = config.system || JOEY_PROMPT;
 
     var displayText = text;
