@@ -628,6 +628,29 @@
     .goals-empty{text-align:center;padding:60px 20px;color:var(--muted);}
     .goals-empty .ge-icon{font-size:3rem;margin-bottom:12px;opacity:.5;}
     .goals-empty p{font-size:.95rem;margin:0;}
+    @media(max-width:600px){
+      .goals-page{padding:16px 12px 40px;}
+      .goals-topbar{flex-direction:column;align-items:flex-start;gap:10px;}
+      .goals-topbar h1{font-size:1.25rem;}
+      .goals-topbar > div{width:100%;justify-content:space-between;}
+      .goals-stats{grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;}
+      .goals-stat-card{padding:12px 10px;gap:10px;}
+      .goals-stat-ring{width:40px;height:40px;}
+      .goals-stat-ring svg{width:40px;height:40px;}
+      .goals-stat-ring .ring-label{font-size:.72rem;}
+      .goals-stat-info .stat-value{font-size:1.1rem;}
+      .goals-stat-info h3{font-size:.65rem;}
+      .goals-view-toggle button{padding:6px 12px;font-size:.75rem;}
+      .goals-filter-bar{flex-direction:column;gap:8px;}
+      .goals-filter-bar input,.goals-filter-bar select{width:100%;min-width:0;}
+      .goals-cards-grid{grid-template-columns:1fr;gap:12px;}
+      .goals-card{padding:14px;}
+      .goals-card .gc-title{font-size:.88rem;}
+      .goals-timeline{padding-left:18px;}
+      .goals-tl-item{padding:8px 10px;gap:8px;}
+      .goals-tl-item .tl-title{font-size:.8rem;}
+      .goals-tl-month h3::before{left:-23px;width:8px;height:8px;}
+    }
     /* ── Fullscreen Issue View ── */
     .issue-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9990;background:rgba(0,0,0,.7);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);overflow-y:auto;-webkit-overflow-scrolling:touch;}
     .issue-overlay.open{display:block;}
@@ -3578,9 +3601,10 @@ document.addEventListener("input", e => {
     return encrypt(cryptoKey, JSON.stringify(data)).then(function(enc){ return idb.set(DATA_KEY, enc); });
   }
 
-  // Expose vault functions globally for AI Agent chat
+  // Expose vault functions globally for AI Agent chat and Goals page
   window._homerLoadVault = loadVault;
   window._homerSaveVault = function(data){ return saveVault(data); };
+  window._homerOpenIssue = function(gi, si){ openIssueFullscreen(gi, si); };
 
   // --- R2 Attachment Cloud Sync ---
   var R2_WORKER_URL = 'https://homer-attachments.it-network-drive.workers.dev';
@@ -4192,6 +4216,7 @@ document.addEventListener("input", e => {
         html += '<div class="issue-section">';
         html += '<div class="issue-section-title">Attachments</div>';
         html += renderAttachments(sub.attachments||[], null, goalIdx, subIdx);
+        html += '<label class="k-attach-btn" style="display:inline-flex;align-items:center;gap:4px;margin-top:8px;cursor:pointer;">+ Add file<input type="file" class="issue-sub-file-input" data-gi="'+goalIdx+'" data-si="'+subIdx+'" multiple style="display:none;"></label>';
         html += '</div>';
 
         // Parent task link
@@ -4229,12 +4254,11 @@ document.addEventListener("input", e => {
         }
 
         // Attachments
-        if(g.attachments && g.attachments.length){
-          html += '<div class="issue-section">';
-          html += '<div class="issue-section-title">Attachments</div>';
-          html += renderAttachments(g.attachments, null, goalIdx);
-          html += '</div>';
-        }
+        html += '<div class="issue-section">';
+        html += '<div class="issue-section-title">Attachments</div>';
+        if(g.attachments && g.attachments.length) html += renderAttachments(g.attachments, null, goalIdx);
+        html += '<label class="k-attach-btn" style="display:inline-flex;align-items:center;gap:4px;margin-top:8px;cursor:pointer;">+ Add file<input type="file" class="issue-goal-file-input" data-gi="'+goalIdx+'" multiple style="display:none;"></label>';
+        html += '</div>';
 
         // Comments
         html += '<div class="issue-section">';
@@ -4427,6 +4451,24 @@ document.addEventListener("input", e => {
               var item = { summary: st.text || '', description: st.notes || '', location: '' };
               var dateKey = st.due || goal.due || new Date().toISOString().slice(0,10);
               window.open(outlookComposeUrl(item, dateKey), '_blank');
+            });
+          });
+        }
+
+        // Subtask file upload in fullscreen
+        var subFileInput = ov.querySelector('.issue-sub-file-input');
+        if(subFileInput){
+          subFileInput.addEventListener('change', function(){
+            var inp = this;
+            var gi = parseInt(inp.dataset.gi), si = parseInt(inp.dataset.si);
+            readFilesAsBase64(inp.files).then(function(files){
+              loadVault().then(function(d){
+                if(d.goals[gi] && d.goals[gi].subtasks[si]){
+                  if(!d.goals[gi].subtasks[si].attachments) d.goals[gi].subtasks[si].attachments = [];
+                  d.goals[gi].subtasks[si].attachments = d.goals[gi].subtasks[si].attachments.concat(files);
+                }
+                saveVault(d).then(function(){ openIssueFullscreen(gi, si); });
+              });
             });
           });
         }
@@ -4672,24 +4714,60 @@ document.addEventListener("input", e => {
           });
         }
 
-        // Attachment image clicks
-        ov.querySelectorAll('.k-attach-img').forEach(function(img){
-          img.addEventListener('click', function(){
-            var lb = document.getElementById('img-lightbox');
-            lb.querySelector('img').src = _attachDataMap[this.dataset.akey] || this.src;
-            lb.classList.add('open');
+        // Goal file upload in fullscreen
+        var goalFileInput = ov.querySelector('.issue-goal-file-input');
+        if(goalFileInput){
+          goalFileInput.addEventListener('change', function(){
+            var inp = this;
+            var gi = parseInt(inp.dataset.gi);
+            readFilesAsBase64(inp.files).then(function(files){
+              loadVault().then(function(d){
+                if(d.goals[gi]){
+                  if(!d.goals[gi].attachments) d.goals[gi].attachments = [];
+                  d.goals[gi].attachments = d.goals[gi].attachments.concat(files);
+                  addLogEntry(d.goals[gi], 'Added ' + files.length + ' attachment(s)');
+                }
+                saveVault(d).then(function(){ openIssueFullscreen(gi); });
+              });
+            });
           });
-        });
-        ov.querySelectorAll('.k-attach-file').forEach(function(a){
-          a.addEventListener('click', function(){
-            var d64 = _attachDataMap[this.dataset.akey];
-            if(!d64) return;
-            var link = document.createElement('a');
-            link.href = d64; link.download = this.dataset.fname || 'file';
-            link.click();
-          });
-        });
+        }
       }
+
+      // Attachment image clicks + file downloads (shared for goal & subtask fullscreen)
+      ov.querySelectorAll('.k-attach-img').forEach(function(img){
+        img.addEventListener('click', function(){
+          var lb = document.getElementById('img-lightbox');
+          lb.querySelector('img').src = _attachDataMap[this.dataset.akey] || this.src;
+          lb.classList.add('open');
+        });
+      });
+      ov.querySelectorAll('.k-attach-file').forEach(function(a){
+        a.addEventListener('click', function(){
+          var d64 = _attachDataMap[this.dataset.akey];
+          if(!d64) return;
+          var link = document.createElement('a');
+          link.href = d64; link.download = this.dataset.fname || 'file';
+          link.click();
+        });
+      });
+      // Attachment remove in fullscreen
+      ov.querySelectorAll('.k-attach-rm').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var ai = parseInt(this.dataset.ai);
+          var gi = parseInt(this.dataset.gi);
+          var si = this.dataset.si !== undefined ? parseInt(this.dataset.si) : -1;
+          loadVault().then(function(d){
+            if(si >= 0 && d.goals[gi] && d.goals[gi].subtasks[si]){
+              d.goals[gi].subtasks[si].attachments.splice(ai, 1);
+              saveVault(d).then(function(){ openIssueFullscreen(gi, si); });
+            } else if(d.goals[gi]){
+              d.goals[gi].attachments.splice(ai, 1);
+              saveVault(d).then(function(){ openIssueFullscreen(gi); });
+            }
+          });
+        });
+      });
     });
   }
 
@@ -5581,235 +5659,6 @@ document.addEventListener("input", e => {
     if(acctUser) vaultUserInput.value = acctUser;
     pwInput.value = '';
   });
-
-  // ── Goals Page Logic ──
-  (function(){
-    var overlay = document.getElementById('goals-overlay');
-    var openBtn = document.getElementById('goals-page-btn');
-    var closeBtn = document.getElementById('goals-close-btn');
-    var statsRow = document.getElementById('goals-stats-row');
-    var cardsView = document.getElementById('gp-cards-view');
-    var timelineView = document.getElementById('gp-timeline-view');
-    var searchInput = document.getElementById('gp-search');
-    var statusFilter = document.getElementById('gp-filter-status');
-    var priorityFilter = document.getElementById('gp-filter-priority');
-    var viewBtns = overlay.querySelectorAll('.gv-btn');
-    var currentView = 'cards';
-
-    openBtn.addEventListener('click', function(){
-      overlay.classList.add('open');
-      refreshGoalsPage();
-    });
-    closeBtn.addEventListener('click', function(){ overlay.classList.remove('open'); });
-    overlay.addEventListener('keydown', function(e){ if(e.key==='Escape') overlay.classList.remove('open'); });
-
-    viewBtns.forEach(function(btn){
-      btn.addEventListener('click', function(){
-        currentView = btn.dataset.view;
-        viewBtns.forEach(function(b){ b.classList.remove('active'); });
-        btn.classList.add('active');
-        cardsView.style.display = currentView==='cards' ? 'grid' : 'none';
-        timelineView.style.display = currentView==='timeline' ? 'block' : 'none';
-        refreshGoalsPage();
-      });
-    });
-
-    searchInput.addEventListener('input', function(){ refreshGoalsPage(); });
-    statusFilter.addEventListener('change', function(){ refreshGoalsPage(); });
-    priorityFilter.addEventListener('change', function(){ refreshGoalsPage(); });
-
-    // Listen for vault goal changes to refresh if overlay open
-    window.addEventListener('vault-goals-changed', function(){
-      if(overlay.classList.contains('open')) refreshGoalsPage();
-    });
-
-    function refreshGoalsPage(){
-      loadVault().then(function(data){
-        var goals = (data.goals || []).filter(function(g){ return !g.archived; });
-        renderStats(goals);
-        var filtered = applyFilters(goals);
-        if(currentView==='cards') renderCards(filtered, data.goals || []);
-        else renderTimeline(filtered, data.goals || []);
-      });
-    }
-
-    function applyFilters(goals){
-      var q = searchInput.value.trim().toLowerCase();
-      var st = statusFilter.value;
-      var pr = priorityFilter.value;
-      return goals.filter(function(g){
-        if(st && g.col !== st && !(st==='progress' && g.col==='progress')) return false;
-        if(pr && g.priority !== pr) return false;
-        if(q){
-          var text = (g.summary||'').toLowerCase() + ' ' + (g.desc||'').toLowerCase() + ' ' + (g.labels||[]).join(' ').toLowerCase();
-          if(text.indexOf(q)===-1) return false;
-        }
-        return true;
-      });
-    }
-
-    function getSubtaskProgress(g){
-      if(!g.subtasks || !g.subtasks.length) return {done:0,total:0,pct:0};
-      var done = g.subtasks.filter(function(s){ return s.done; }).length;
-      return {done:done, total:g.subtasks.length, pct:Math.round(done/g.subtasks.length*100)};
-    }
-
-    function renderStats(goals){
-      var total = goals.length;
-      var done = goals.filter(function(g){ return g.col==='done'; }).length;
-      var inProgress = goals.filter(function(g){ return g.col==='progress'; }).length;
-      var overdue = goals.filter(function(g){
-        if(!g.due || g.col==='done') return false;
-        return new Date(g.due) < new Date(new Date().toDateString());
-      }).length;
-      var completionPct = total ? Math.round(done/total*100) : 0;
-
-      // Total subtasks progress
-      var totalSt = 0, doneSt = 0;
-      goals.forEach(function(g){ var p = getSubtaskProgress(g); totalSt += p.total; doneSt += p.done; });
-      var stPct = totalSt ? Math.round(doneSt/totalSt*100) : 0;
-
-      function ringSvg(pct, color){
-        var r = 20, c = 2*Math.PI*r;
-        var off = c - (pct/100)*c;
-        return '<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="'+r+'" class="ring-bg"/><circle cx="24" cy="24" r="'+r+'" class="ring-fg" stroke="'+color+'" stroke-dasharray="'+c+'" stroke-dashoffset="'+off+'"/></svg><span class="ring-label">'+pct+'%</span>';
-      }
-
-      statsRow.innerHTML =
-        '<div class="goals-stat-card"><div class="goals-stat-ring">'+ringSvg(completionPct,'#22c55e')+'</div><div class="goals-stat-info"><h3>Completed</h3><div class="stat-value">'+done+'/'+total+'</div><div class="stat-sub">goals done</div></div></div>' +
-        '<div class="goals-stat-card"><div class="goals-stat-ring">'+ringSvg(stPct,'#60a5fa')+'</div><div class="goals-stat-info"><h3>Subtasks</h3><div class="stat-value">'+doneSt+'/'+totalSt+'</div><div class="stat-sub">tasks done</div></div></div>' +
-        '<div class="goals-stat-card"><div class="goals-stat-ring">'+ringSvg(total?Math.round(inProgress/total*100):0,'#fbbf24')+'</div><div class="goals-stat-info"><h3>In Progress</h3><div class="stat-value">'+inProgress+'</div><div class="stat-sub">active now</div></div></div>' +
-        '<div class="goals-stat-card"><div class="goals-stat-ring">'+ringSvg(total?Math.round(overdue/total*100):0,'#ef4444')+'</div><div class="goals-stat-info"><h3>Overdue</h3><div class="stat-value">'+overdue+'</div><div class="stat-sub">need attention</div></div></div>';
-    }
-
-    function escH(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
-
-    function dueClass(due){
-      if(!due) return '';
-      var diff = Math.floor((new Date(due) - new Date(new Date().toDateString()))/(1000*60*60*24));
-      if(diff < 0) return 'overdue';
-      if(diff <= 3) return 'soon';
-      return 'ok';
-    }
-
-    function dueFmt(due){
-      if(!due) return '';
-      var d = new Date(due);
-      return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
-    }
-
-    function colLabel(col){
-      var map = {todo:'To Do',progress:'In Progress',pending:'Pending',done:'Done'};
-      return map[col] || col;
-    }
-
-    function barColor(pct){
-      if(pct >= 80) return '#22c55e';
-      if(pct >= 40) return '#fbbf24';
-      return '#60a5fa';
-    }
-
-    function renderCards(goals, allGoals){
-      if(!goals.length){
-        cardsView.innerHTML = '<div class="goals-empty"><div class="ge-icon">🎯</div><p>No goals match your filters</p></div>';
-        return;
-      }
-      var html = '';
-      goals.forEach(function(g){
-        var idx = allGoals.indexOf(g);
-        var p = getSubtaskProgress(g);
-        var prClass = g.priority ? ' priority-'+g.priority : '';
-        var dc = dueClass(g.due);
-
-        html += '<div class="goals-card'+prClass+'" data-gi="'+idx+'">';
-        html += '<div class="gc-header"><span class="gc-id">TASK-'+(g.id||idx+1)+'</span>';
-        html += '<span class="gc-col col-'+(g.col||'todo')+'">'+colLabel(g.col||'todo')+'</span></div>';
-        html += '<div class="gc-title">'+escH(g.summary||'Untitled')+'</div>';
-
-        if(p.total > 0){
-          html += '<div class="gc-progress"><div class="gc-bar"><div class="gc-bar-fill" style="width:'+p.pct+'%;background:'+barColor(p.pct)+';"></div></div><span class="gc-pct">'+p.pct+'%</span></div>';
-        }
-
-        html += '<div class="gc-meta">';
-        if(g.due) html += '<span class="gc-due '+dc+'">'+dueFmt(g.due)+'</span>';
-        if(g.labels && g.labels.length){
-          g.labels.forEach(function(l){ html += '<span class="gc-label">'+escH(l)+'</span>'; });
-        }
-        if(p.total > 0) html += '<span class="gc-subtask-count">'+p.done+'/'+p.total+' subtasks</span>';
-        html += '</div></div>';
-      });
-      cardsView.innerHTML = html;
-
-      // Click to open fullscreen issue
-      cardsView.querySelectorAll('.goals-card').forEach(function(card){
-        card.addEventListener('click', function(){
-          var gi = parseInt(card.dataset.gi);
-          if(!isNaN(gi) && typeof openIssueFullscreen === 'function') openIssueFullscreen(gi);
-        });
-      });
-    }
-
-    function renderTimeline(goals, allGoals){
-      // Group by month based on due date (undated at end)
-      var months = {};
-      var undated = [];
-      goals.forEach(function(g){
-        if(!g.due){ undated.push(g); return; }
-        var d = new Date(g.due);
-        var key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-        var label = d.toLocaleDateString('en-US',{month:'long',year:'numeric'});
-        if(!months[key]) months[key] = {label:label, items:[]};
-        months[key].items.push(g);
-      });
-
-      if(!goals.length){
-        timelineView.innerHTML = '<div class="goals-empty"><div class="ge-icon">📅</div><p>No goals with due dates</p></div>';
-        return;
-      }
-
-      var sortedKeys = Object.keys(months).sort();
-      var html = '';
-      sortedKeys.forEach(function(key){
-        var m = months[key];
-        html += '<div class="goals-tl-month"><h3>'+escH(m.label)+'</h3>';
-        m.items.sort(function(a,b){ return new Date(a.due)-new Date(b.due); });
-        m.items.forEach(function(g){
-          var idx = allGoals.indexOf(g);
-          var p = getSubtaskProgress(g);
-          var d = new Date(g.due);
-          html += '<div class="goals-tl-item" data-gi="'+idx+'">';
-          html += '<span class="tl-date">'+d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</span>';
-          html += '<span class="tl-title">'+escH(g.summary||'Untitled')+'</span>';
-          if(p.total) html += '<span class="tl-pct">'+p.pct+'%</span>';
-          html += '</div>';
-        });
-        html += '</div>';
-      });
-
-      if(undated.length){
-        html += '<div class="goals-tl-month"><h3>No Due Date</h3>';
-        undated.forEach(function(g){
-          var idx = allGoals.indexOf(g);
-          var p = getSubtaskProgress(g);
-          html += '<div class="goals-tl-item" data-gi="'+idx+'">';
-          html += '<span class="tl-date">—</span>';
-          html += '<span class="tl-title">'+escH(g.summary||'Untitled')+'</span>';
-          if(p.total) html += '<span class="tl-pct">'+p.pct+'%</span>';
-          html += '</div>';
-        });
-        html += '</div>';
-      }
-
-      timelineView.innerHTML = html;
-
-      timelineView.querySelectorAll('.goals-tl-item').forEach(function(item){
-        item.addEventListener('click', function(){
-          var gi = parseInt(item.dataset.gi);
-          if(!isNaN(gi) && typeof openIssueFullscreen === 'function') openIssueFullscreen(gi);
-        });
-      });
-    }
-  })();
 
   // --- Add Link ---
   linkAddBtn.addEventListener('click', function(){
@@ -8862,6 +8711,206 @@ document.addEventListener("input", e => {
     <div id="gp-timeline-view" class="goals-timeline" style="display:none;"></div>
   </div>
 </div>
+<script>
+// ── Goals Page Logic ──
+(function(){
+  var overlay = document.getElementById('goals-overlay');
+  var openBtn = document.getElementById('goals-page-btn');
+  var closeBtn = document.getElementById('goals-close-btn');
+  var statsRow = document.getElementById('goals-stats-row');
+  var cardsView = document.getElementById('gp-cards-view');
+  var timelineView = document.getElementById('gp-timeline-view');
+  var searchInput = document.getElementById('gp-search');
+  var statusFilter = document.getElementById('gp-filter-status');
+  var priorityFilter = document.getElementById('gp-filter-priority');
+  var viewBtns = overlay.querySelectorAll('.gv-btn');
+  var currentView = 'cards';
+
+  openBtn.addEventListener('click', function(){
+    overlay.classList.add('open');
+    refreshGoalsPage();
+  });
+  closeBtn.addEventListener('click', function(){ overlay.classList.remove('open'); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && overlay.classList.contains('open')) overlay.classList.remove('open'); });
+
+  viewBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      currentView = btn.dataset.view;
+      viewBtns.forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      cardsView.style.display = currentView==='cards' ? 'grid' : 'none';
+      timelineView.style.display = currentView==='timeline' ? 'block' : 'none';
+      refreshGoalsPage();
+    });
+  });
+
+  searchInput.addEventListener('input', function(){ refreshGoalsPage(); });
+  statusFilter.addEventListener('change', function(){ refreshGoalsPage(); });
+  priorityFilter.addEventListener('change', function(){ refreshGoalsPage(); });
+
+  window.addEventListener('vault-goals-changed', function(){
+    if(overlay.classList.contains('open')) refreshGoalsPage();
+  });
+
+  function refreshGoalsPage(){
+    if(typeof window._homerLoadVault !== 'function') return;
+    window._homerLoadVault().then(function(data){
+      var goals = (data.goals || []).filter(function(g){ return !g.archived; });
+      renderStats(goals);
+      var filtered = applyFilters(goals);
+      if(currentView==='cards') renderCards(filtered, data.goals || []);
+      else renderTimeline(filtered, data.goals || []);
+    });
+  }
+
+  function applyFilters(goals){
+    var q = searchInput.value.trim().toLowerCase();
+    var st = statusFilter.value;
+    var pr = priorityFilter.value;
+    return goals.filter(function(g){
+      if(st && g.col !== st) return false;
+      if(pr && g.priority !== pr) return false;
+      if(q){
+        var text = (g.summary||'').toLowerCase() + ' ' + (g.desc||'').toLowerCase() + ' ' + (g.labels||[]).join(' ').toLowerCase();
+        if(text.indexOf(q)===-1) return false;
+      }
+      return true;
+    });
+  }
+
+  function stProgress(g){
+    if(!g.subtasks || !g.subtasks.length) return {done:0,total:0,pct:0};
+    var done = g.subtasks.filter(function(s){ return s.done; }).length;
+    return {done:done, total:g.subtasks.length, pct:Math.round(done/g.subtasks.length*100)};
+  }
+
+  function renderStats(goals){
+    var total = goals.length;
+    var done = goals.filter(function(g){ return g.col==='done'; }).length;
+    var inProg = goals.filter(function(g){ return g.col==='progress'; }).length;
+    var overdue = goals.filter(function(g){
+      if(!g.due || g.col==='done') return false;
+      return new Date(g.due) < new Date(new Date().toDateString());
+    }).length;
+    var cPct = total ? Math.round(done/total*100) : 0;
+    var tSt = 0, dSt = 0;
+    goals.forEach(function(g){ var p = stProgress(g); tSt += p.total; dSt += p.done; });
+    var sPct = tSt ? Math.round(dSt/tSt*100) : 0;
+
+    function ring(pct, color){
+      var r = 20, c = 2*Math.PI*r, off = c - (pct/100)*c;
+      return '<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="'+r+'" class="ring-bg"/><circle cx="24" cy="24" r="'+r+'" class="ring-fg" stroke="'+color+'" stroke-dasharray="'+c+'" stroke-dashoffset="'+off+'"/></svg><span class="ring-label">'+pct+'%</span>';
+    }
+    statsRow.innerHTML =
+      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(cPct,'#22c55e')+'</div><div class="goals-stat-info"><h3>Completed</h3><div class="stat-value">'+done+'/'+total+'</div><div class="stat-sub">goals done</div></div></div>' +
+      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(sPct,'#60a5fa')+'</div><div class="goals-stat-info"><h3>Subtasks</h3><div class="stat-value">'+dSt+'/'+tSt+'</div><div class="stat-sub">tasks done</div></div></div>' +
+      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(total?Math.round(inProg/total*100):0,'#fbbf24')+'</div><div class="goals-stat-info"><h3>In Progress</h3><div class="stat-value">'+inProg+'</div><div class="stat-sub">active now</div></div></div>' +
+      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(total?Math.round(overdue/total*100):0,'#ef4444')+'</div><div class="goals-stat-info"><h3>Overdue</h3><div class="stat-value">'+overdue+'</div><div class="stat-sub">need attention</div></div></div>';
+  }
+
+  function escH(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+  function dueClass(due){
+    if(!due) return '';
+    var diff = Math.floor((new Date(due) - new Date(new Date().toDateString()))/(1000*60*60*24));
+    return diff < 0 ? 'overdue' : diff <= 3 ? 'soon' : 'ok';
+  }
+  function dueFmt(due){
+    if(!due) return '';
+    return new Date(due).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  }
+  function colLabel(col){
+    return {todo:'To Do',progress:'In Progress',pending:'Pending',done:'Done'}[col] || col;
+  }
+  function barColor(pct){ return pct >= 80 ? '#22c55e' : pct >= 40 ? '#fbbf24' : '#60a5fa'; }
+
+  function renderCards(goals, allGoals){
+    if(!goals.length){
+      cardsView.innerHTML = '<div class="goals-empty"><div class="ge-icon">🎯</div><p>No goals match your filters</p></div>';
+      return;
+    }
+    var html = '';
+    goals.forEach(function(g){
+      var idx = allGoals.indexOf(g);
+      var p = stProgress(g);
+      var prClass = g.priority ? ' priority-'+g.priority : '';
+      var dc = dueClass(g.due);
+      html += '<div class="goals-card'+prClass+'" data-gi="'+idx+'">';
+      html += '<div class="gc-header"><span class="gc-id">TASK-'+(g.id||idx+1)+'</span>';
+      html += '<span class="gc-col col-'+(g.col||'todo')+'">'+colLabel(g.col||'todo')+'</span></div>';
+      html += '<div class="gc-title">'+escH(g.summary||'Untitled')+'</div>';
+      if(p.total > 0){
+        html += '<div class="gc-progress"><div class="gc-bar"><div class="gc-bar-fill" style="width:'+p.pct+'%;background:'+barColor(p.pct)+';"></div></div><span class="gc-pct">'+p.pct+'%</span></div>';
+      }
+      html += '<div class="gc-meta">';
+      if(g.due) html += '<span class="gc-due '+dc+'">'+dueFmt(g.due)+'</span>';
+      if(g.labels && g.labels.length) g.labels.forEach(function(l){ html += '<span class="gc-label">'+escH(l)+'</span>'; });
+      if(p.total > 0) html += '<span class="gc-subtask-count">'+p.done+'/'+p.total+' subtasks</span>';
+      html += '</div></div>';
+    });
+    cardsView.innerHTML = html;
+    cardsView.querySelectorAll('.goals-card').forEach(function(card){
+      card.addEventListener('click', function(){
+        var gi = parseInt(card.dataset.gi);
+        if(!isNaN(gi) && typeof window._homerOpenIssue === 'function') window._homerOpenIssue(gi);
+      });
+    });
+  }
+
+  function renderTimeline(goals, allGoals){
+    var months = {}, undated = [];
+    goals.forEach(function(g){
+      if(!g.due){ undated.push(g); return; }
+      var d = new Date(g.due);
+      var key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      var label = d.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+      if(!months[key]) months[key] = {label:label, items:[]};
+      months[key].items.push(g);
+    });
+    if(!goals.length){
+      timelineView.innerHTML = '<div class="goals-empty"><div class="ge-icon">📅</div><p>No goals match your filters</p></div>';
+      return;
+    }
+    var sortedKeys = Object.keys(months).sort();
+    var html = '';
+    sortedKeys.forEach(function(key){
+      var m = months[key];
+      html += '<div class="goals-tl-month"><h3>'+escH(m.label)+'</h3>';
+      m.items.sort(function(a,b){ return new Date(a.due)-new Date(b.due); });
+      m.items.forEach(function(g){
+        var idx = allGoals.indexOf(g);
+        var p = stProgress(g);
+        var d = new Date(g.due);
+        html += '<div class="goals-tl-item" data-gi="'+idx+'">';
+        html += '<span class="tl-date">'+d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</span>';
+        html += '<span class="tl-title">'+escH(g.summary||'Untitled')+'</span>';
+        if(p.total) html += '<span class="tl-pct">'+p.pct+'%</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+    });
+    if(undated.length){
+      html += '<div class="goals-tl-month"><h3>No Due Date</h3>';
+      undated.forEach(function(g){
+        var idx = allGoals.indexOf(g);
+        var p = stProgress(g);
+        html += '<div class="goals-tl-item" data-gi="'+idx+'">';
+        html += '<span class="tl-date">&mdash;</span>';
+        html += '<span class="tl-title">'+escH(g.summary||'Untitled')+'</span>';
+        if(p.total) html += '<span class="tl-pct">'+p.pct+'%</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+    timelineView.innerHTML = html;
+    timelineView.querySelectorAll('.goals-tl-item').forEach(function(item){
+      item.addEventListener('click', function(){
+        var gi = parseInt(item.dataset.gi);
+        if(!isNaN(gi) && typeof window._homerOpenIssue === 'function') window._homerOpenIssue(gi);
+      });
+    });
+  }
+})();
+</script>
 
 <!-- Fullscreen Issue View (outside all cards to avoid backdrop-filter containing block) -->
 <div id="issue-overlay" class="issue-overlay"></div>
