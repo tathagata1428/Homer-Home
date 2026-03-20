@@ -561,6 +561,53 @@
       .goal-filters input,.goal-filters select{width:100%;min-width:0!important;}
       .goal-filters .archive-toggle{margin-left:0!important;width:100%;text-align:center;}
     }
+    /* ── Vault Dashboard ── */
+    .vault-dashboard{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    .vd-card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s;display:flex;align-items:center;gap:16px;position:relative;overflow:hidden;}
+    .vd-card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.18);box-shadow:0 8px 24px rgba(0,0,0,.3);}
+    .vd-card:active{transform:translateY(-1px);}
+    .vd-icon{font-size:2rem;width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:rgba(255,255,255,.04);flex-shrink:0;}
+    .vd-info h3{margin:0;font-size:.95rem;font-weight:800;color:var(--text);}
+    .vd-info p{margin:3px 0 0;font-size:.78rem;color:var(--muted);}
+    .vd-badge{position:absolute;top:12px;right:14px;font-size:.7rem;font-weight:800;padding:3px 10px;border-radius:20px;background:rgba(96,165,250,.12);color:#60a5fa;}
+    @media(max-width:500px){
+      .vault-dashboard{grid-template-columns:1fr;}
+      .vd-card{padding:16px;gap:12px;}
+      .vd-icon{font-size:1.6rem;width:44px;height:44px;border-radius:12px;}
+      .vd-info h3{font-size:.88rem;}
+    }
+    /* ── Vault Overlays ── */
+    .vault-ov{position:fixed;top:0;left:0;right:0;bottom:0;z-index:9970;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;animation:goalsSlideIn .25s ease;}
+    .vault-ov-page{max-width:1100px;margin:0 auto;padding:24px 20px 60px;}
+    .vault-ov-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
+    .vault-ov-topbar h2{margin:0;font-size:1.3rem;font-weight:900;}
+    .vault-ov-close{background:none;border:1px solid rgba(255,255,255,.15);color:var(--muted);font-size:.9rem;cursor:pointer;padding:6px 16px;border-radius:8px;transition:all .15s;}
+    .vault-ov-close:hover{color:var(--text);border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.05);}
+    @media(max-width:500px){
+      .vault-ov-page{padding:16px 12px 40px;}
+      .vault-ov-topbar h2{font-size:1.1rem;}
+    }
+    /* ── Life Goals ── */
+    .lg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-top:16px;}
+    @media(max-width:500px){.lg-grid{grid-template-columns:1fr;}}
+    .lg-card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s;}
+    .lg-card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.18);box-shadow:0 8px 24px rgba(0,0,0,.3);}
+    .lg-card-head{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+    .lg-card-icon{font-size:1.8rem;width:48px;height:48px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.04);flex-shrink:0;}
+    .lg-card-title{font-size:1rem;font-weight:800;color:var(--text);line-height:1.3;}
+    .lg-card-cat{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 8px;border-radius:5px;background:rgba(96,165,250,.12);color:#60a5fa;margin-top:3px;display:inline-block;}
+    .lg-card-desc{font-size:.82rem;color:var(--muted);line-height:1.4;margin-bottom:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+    .lg-progress{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+    .lg-bar{flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;}
+    .lg-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent),#60a5fa);transition:width .4s ease;}
+    .lg-pct{font-size:.78rem;font-weight:800;color:var(--text);min-width:36px;text-align:right;}
+    .lg-milestones{list-style:none;padding:0;margin:0;}
+    .lg-milestones li{font-size:.8rem;padding:4px 0;color:var(--muted);display:flex;align-items:center;gap:6px;border-bottom:1px solid rgba(255,255,255,.04);}
+    .lg-milestones li:last-child{border-bottom:none;}
+    .lg-milestones li.done{color:var(--accent);text-decoration:line-through;opacity:.6;}
+    .lg-card-date{font-size:.7rem;color:var(--muted);margin-top:10px;}
+    .lg-add-btn{background:none;border:2px dashed rgba(255,255,255,.12);border-radius:16px;padding:40px 20px;color:var(--muted);cursor:pointer;font-size:1rem;font-weight:700;transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:8px;}
+    .lg-add-btn:hover{border-color:rgba(255,255,255,.25);color:var(--text);background:rgba(255,255,255,.03);}
     /* ── Goals Page Overlay ── */
     .goals-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9980;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;animation:goalsSlideIn .25s ease;}
     .goals-overlay.open{display:block;}
@@ -1714,168 +1761,33 @@
   <div id="vault-content" style="display:none;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
       <p style="color:var(--muted);margin:0;">🔓 Vault unlocked</p>
-      <div style="display:flex;gap:8px;">
-        <button id="goals-page-btn" class="btn" style="padding:6px 14px;font-size:.85rem;background:linear-gradient(135deg,var(--accent-2),#2563eb);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;">Goals</button>
-        <button id="vault-lock-btn" class="btn danger" style="padding:6px 14px;font-size:.85rem;">Lock</button>
+      <button id="vault-lock-btn" class="btn danger" style="padding:6px 14px;font-size:.85rem;">Lock</button>
+    </div>
+
+    <!-- Dashboard Grid -->
+    <div class="vault-dashboard">
+      <div class="vd-card" id="vd-open-kanban">
+        <div class="vd-icon">📋</div>
+        <div class="vd-info"><h3>Kanban Board</h3><p>Manage tasks & subtasks</p></div>
+        <span class="vd-badge" id="vd-task-count">0</span>
+      </div>
+      <div class="vd-card" id="vd-open-goals">
+        <div class="vd-icon">🎯</div>
+        <div class="vd-info"><h3>Life Goals</h3><p>Track your aspirations</p></div>
+        <span class="vd-badge" id="vd-goal-count">0</span>
+      </div>
+      <div class="vd-card" id="vd-open-secrets">
+        <div class="vd-icon">🔑</div>
+        <div class="vd-info"><h3>Passwords & Secrets</h3><p>Credentials & private links</p></div>
+        <span class="vd-badge" id="vd-secrets-count">0</span>
+      </div>
+      <div class="vd-card" id="vd-open-notes">
+        <div class="vd-icon">📝</div>
+        <div class="vd-info"><h3>Secret Notes</h3><p>Encrypted private notes</p></div>
       </div>
     </div>
 
-    <!-- Vault Notes -->
-    <div class="card" style="margin-bottom:18px;padding:18px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <h3 style="margin:0;">📝 Secret Notes</h3>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span id="vault-notes-status" style="color:var(--muted);font-size:.75rem;"></span>
-          <button id="vault-notes-toggle" class="btn ghost" style="padding:4px 10px;font-size:.8rem;">Hide</button>
-        </div>
-      </div>
-      <div id="vault-notes-wrap">
-        <textarea id="vault-notes" placeholder="Write your private notes here..." style="width:100%;min-height:140px;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-size:.95rem;resize:vertical;font-family:inherit;"></textarea>
-      </div>
-    </div>
-
-    <!-- Vault Links -->
-    <div class="card" style="padding:18px;">
-      <h3 style="margin:0 0 12px;">🔗 Secret Links</h3>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-        <input id="vault-link-name" type="text" placeholder="Name" style="flex:1;min-width:120px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;">
-        <input id="vault-link-url" type="url" placeholder="https://..." style="flex:2;min-width:180px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
-        <textarea id="vault-link-desc" placeholder="Description (optional)" rows="1" style="flex-basis:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-family:inherit;font-size:.9rem;resize:vertical;"></textarea>
-        <button id="vault-link-add" class="btn primary" style="padding:10px 18px;">+ Add</button>
-      </div>
-      <div id="vault-links-list"></div>
-      <p id="vault-links-empty" class="empty" style="display:none;">No secret links yet.</p>
-    </div>
-
-    <!-- Vault Passwords -->
-    <div class="card" style="padding:18px;margin-top:18px;">
-      <h3 style="margin:0 0 12px;">🔑 Passwords</h3>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-        <input id="vault-cred-label" type="text" placeholder="Label (e.g. Gmail)" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;">
-        <input id="vault-cred-site" type="text" placeholder="Site URL" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
-        <input id="vault-cred-user" type="text" placeholder="Username" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
-        <div style="flex:1;min-width:100px;position:relative;">
-          <input id="vault-cred-pass" type="password" placeholder="Password" style="width:100%;padding:10px 38px 10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
-          <button type="button" class="pw-toggle" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'👁‍🗨'" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;padding:2px;">👁</button>
-        </div>
-        <textarea id="vault-cred-details" placeholder="Details / notes..." rows="2" style="flex-basis:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-family:inherit;font-size:.9rem;resize:vertical;"></textarea>
-        <button id="vault-cred-add" class="btn primary" style="padding:10px 18px;">+ Add</button>
-      </div>
-      <div id="vault-creds-list"></div>
-      <p id="vault-creds-empty" class="empty" style="display:none;">No passwords saved yet.</p>
-    </div>
-
-    <!-- Goal Tracker (Kanban) -->
-    <div class="card" id="goal-tracker-card" style="padding:18px;margin-top:18px;">
-      <h3 style="margin:0 0 14px;">🎯 Goal Tracker</h3>
-      <!-- Filter bar -->
-      <div class="goal-filters">
-        <input id="goal-search" type="text" placeholder="Search goals...">
-        <select id="goal-filter-priority">
-          <option value="">All Priorities</option>
-          <option value="high">High</option>
-          <option value="medium">Medium</option>
-          <option value="low">Low</option>
-        </select>
-        <select id="goal-filter-label"><option value="">All Labels</option></select>
-        <select id="goal-filter-due">
-          <option value="">All Dates</option>
-          <option value="overdue">Overdue</option>
-          <option value="week">Due This Week</option>
-          <option value="nodue">No Due Date</option>
-        </select>
-        <button id="goal-show-archive" class="archive-toggle">Archive (0)</button>
-      </div>
-      <div id="kanban" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
-        <div class="kanban-col" data-col="todo">
-          <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(96,165,250,.15);color:#60a5fa;text-align:center;margin-bottom:10px;">To Do</div>
-          <div class="kanban-items" data-col="todo" style="min-height:60px;"></div>
-          <button id="goal-add-btn" style="width:100%;padding:9px;border-radius:10px;border:1px dashed rgba(96,165,250,.3);background:none;color:#60a5fa;cursor:pointer;font-size:.85rem;font-weight:700;margin-top:6px;transition:background .15s;">+ New Goal</button>
-        </div>
-        <div class="kanban-col" data-col="progress">
-          <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;text-align:center;margin-bottom:10px;">In Progress</div>
-          <div class="kanban-items" data-col="progress" style="min-height:60px;"></div>
-        </div>
-        <div class="kanban-col" data-col="pending">
-          <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(139,92,246,.15);color:#a78bfa;text-align:center;margin-bottom:10px;">Pending</div>
-          <div class="kanban-items" data-col="pending" style="min-height:60px;"></div>
-        </div>
-        <div class="kanban-col" data-col="done">
-          <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(34,197,94,.15);color:#22c55e;text-align:center;margin-bottom:10px;">Done</div>
-          <div class="kanban-items" data-col="done" style="min-height:60px;"></div>
-        </div>
-      </div>
-      <!-- Archive section -->
-      <div id="goal-archive" class="goal-archive" style="display:none;">
-        <h4>Archived Goals</h4>
-        <div id="goal-archive-list"></div>
-      </div>
-    </div>
-
-    <!-- New Goal Modal -->
-    <div id="goal-modal-bg" class="fab-overlay">
-      <div class="fab-dialog" style="width:min(440px,92vw);">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-          <h3 style="margin:0;font-size:1.1rem;">🎯 New Goal</h3>
-          <button id="goal-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
-        </div>
-        <input id="goal-summary" type="text" placeholder="Summary *" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem;margin-bottom:10px;font-weight:700;">
-        <textarea id="goal-notes-input" placeholder="Description..." rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;font-family:inherit;resize:vertical;margin-bottom:10px;"></textarea>
-        <select id="goal-priority" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
-          <option value="">Priority (optional)</option>
-          <option value="high">🔴 High</option>
-          <option value="medium">🟡 Medium</option>
-          <option value="low">🟢 Low</option>
-        </select>
-        <div style="display:flex;gap:8px;margin-bottom:10px;">
-          <input id="goal-reporter" type="text" placeholder="Reporter" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;">
-          <input id="goal-assignee" type="text" placeholder="Assignee" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;">
-        </div>
-        <div style="margin-bottom:10px;">
-          <div style="font-size:.8rem;color:var(--muted);margin-bottom:6px;">Labels</div>
-          <div id="goal-labels-wrap" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
-          <div style="display:flex;gap:6px;margin-top:6px;">
-            <input id="goal-custom-label" type="text" placeholder="Custom label..." style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.8rem;">
-            <button id="goal-custom-label-add" type="button" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(96,165,250,.3);background:none;color:#60a5fa;cursor:pointer;font-size:.78rem;font-weight:700;">+ Add</button>
-          </div>
-        </div>
-        <input id="goal-due" type="date" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
-        <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px dashed var(--border);background:rgba(255,255,255,.03);cursor:pointer;margin-bottom:4px;font-size:.85rem;color:var(--muted);">
-          📎 Attach files <span style="font-size:.7rem;opacity:.6;">(max 25MB each)</span>
-          <input id="goal-files" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;">
-        </label>
-        <div id="goal-files-preview" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
-        <button id="goal-submit" class="btn primary" style="width:100%;padding:10px;font-size:.95rem;">Create Goal</button>
-      </div>
-    </div>
-
-    <!-- New Subtask Modal -->
-    <div id="subtask-modal-bg" class="fab-overlay">
-      <div class="fab-dialog" style="width:min(400px,92vw);">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-          <h3 style="margin:0;font-size:1.1rem;">📋 New Subtask</h3>
-          <button id="subtask-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
-        </div>
-        <input id="subtask-name" type="text" placeholder="Subtask name *" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem;margin-bottom:10px;font-weight:700;">
-        <select id="subtask-effort" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
-          <option value="">Effort (optional)</option>
-          <option value="s">S - Small</option>
-          <option value="m">M - Medium</option>
-          <option value="l">L - Large</option>
-          <option value="xl">XL - Extra Large</option>
-        </select>
-        <input id="subtask-due" type="date" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
-        <textarea id="subtask-notes" placeholder="Notes..." rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;font-family:inherit;resize:vertical;margin-bottom:10px;"></textarea>
-        <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px dashed var(--border);background:rgba(255,255,255,.03);cursor:pointer;margin-bottom:4px;font-size:.85rem;color:var(--muted);">
-          📎 Attach files <span style="font-size:.7rem;opacity:.6;">(max 25MB each)</span>
-          <input id="subtask-files" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;">
-        </label>
-        <div id="subtask-files-preview" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
-        <button id="subtask-submit" class="btn primary" style="width:100%;padding:10px;font-size:.95rem;">Add Subtask</button>
-      </div>
-    </div>
-  
-    <!-- Calendar -->
+    <!-- Calendar stays inline -->
     <div class="card" id="homer-cal" style="margin-top:18px;margin-bottom:0;padding:18px;">
       <h3 style="margin:0 0 14px;display:flex;align-items:center;flex-wrap:wrap;">Calendar <button id="cal-ics-toggle" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;vertical-align:middle;" title="Sync external calendar">&#9881;</button>
         <span class="cal-view-toggle">
@@ -1909,11 +1821,150 @@
         <div id="cal-day-agenda"></div>
       </div>
     </div>
-</div>
+  </div>
 
 <!-- Image preview lightbox -->
 <div id="img-lightbox" class="k-img-preview" onclick="this.classList.remove('open')"><img></div>
 </section>
+
+<!-- ═══ VAULT OVERLAYS (outside section, before scripts) ═══ -->
+
+<!-- Kanban Board Overlay -->
+<div id="kanban-overlay" class="vault-ov" style="display:none;">
+  <div class="vault-ov-page">
+    <div class="vault-ov-topbar"><h2>📋 Kanban Board</h2><button class="vault-ov-close" data-close="kanban-overlay">&times; Close</button></div>
+    <div class="goal-filters">
+      <input id="goal-search" type="text" placeholder="Search tasks...">
+      <select id="goal-filter-priority"><option value="">All Priorities</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
+      <select id="goal-filter-label"><option value="">All Labels</option></select>
+      <select id="goal-filter-due"><option value="">All Dates</option><option value="overdue">Overdue</option><option value="week">Due This Week</option><option value="nodue">No Due Date</option></select>
+      <button id="goal-show-archive" class="archive-toggle">Archive (0)</button>
+    </div>
+    <div id="kanban" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+      <div class="kanban-col" data-col="todo">
+        <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(96,165,250,.15);color:#60a5fa;text-align:center;margin-bottom:10px;">To Do</div>
+        <div class="kanban-items" data-col="todo" style="min-height:60px;"></div>
+        <button id="goal-add-btn" style="width:100%;padding:9px;border-radius:10px;border:1px dashed rgba(96,165,250,.3);background:none;color:#60a5fa;cursor:pointer;font-size:.85rem;font-weight:700;margin-top:6px;transition:background .15s;">+ New Task</button>
+      </div>
+      <div class="kanban-col" data-col="progress">
+        <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;text-align:center;margin-bottom:10px;">In Progress</div>
+        <div class="kanban-items" data-col="progress" style="min-height:60px;"></div>
+      </div>
+      <div class="kanban-col" data-col="pending">
+        <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(139,92,246,.15);color:#a78bfa;text-align:center;margin-bottom:10px;">Pending</div>
+        <div class="kanban-items" data-col="pending" style="min-height:60px;"></div>
+      </div>
+      <div class="kanban-col" data-col="done">
+        <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(34,197,94,.15);color:#22c55e;text-align:center;margin-bottom:10px;">Done</div>
+        <div class="kanban-items" data-col="done" style="min-height:60px;"></div>
+      </div>
+    </div>
+    <div id="goal-archive" class="goal-archive" style="display:none;"><h4>Archived Tasks</h4><div id="goal-archive-list"></div></div>
+  </div>
+</div>
+
+<!-- New Task Modal -->
+<div id="goal-modal-bg" class="fab-overlay">
+  <div class="fab-dialog" style="width:min(440px,92vw);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h3 style="margin:0;font-size:1.1rem;">📋 New Task</h3>
+      <button id="goal-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
+    </div>
+    <input id="goal-summary" type="text" placeholder="Summary *" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem;margin-bottom:10px;font-weight:700;">
+    <textarea id="goal-notes-input" placeholder="Description..." rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;font-family:inherit;resize:vertical;margin-bottom:10px;"></textarea>
+    <select id="goal-priority" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
+      <option value="">Priority (optional)</option><option value="high">🔴 High</option><option value="medium">🟡 Medium</option><option value="low">🟢 Low</option>
+    </select>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <input id="goal-reporter" type="text" placeholder="Reporter" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;">
+      <input id="goal-assignee" type="text" placeholder="Assignee" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;">
+    </div>
+    <div style="margin-bottom:10px;">
+      <div style="font-size:.8rem;color:var(--muted);margin-bottom:6px;">Labels</div>
+      <div id="goal-labels-wrap" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <input id="goal-custom-label" type="text" placeholder="Custom label..." style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.8rem;">
+        <button id="goal-custom-label-add" type="button" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(96,165,250,.3);background:none;color:#60a5fa;cursor:pointer;font-size:.78rem;font-weight:700;">+ Add</button>
+      </div>
+    </div>
+    <input id="goal-due" type="date" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
+    <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px dashed var(--border);background:rgba(255,255,255,.03);cursor:pointer;margin-bottom:4px;font-size:.85rem;color:var(--muted);">📎 Attach files <span style="font-size:.7rem;opacity:.6;">(max 25MB each)</span><input id="goal-files" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;"></label>
+    <div id="goal-files-preview" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
+    <button id="goal-submit" class="btn primary" style="width:100%;padding:10px;font-size:.95rem;">Create Task</button>
+  </div>
+</div>
+
+<!-- New Subtask Modal -->
+<div id="subtask-modal-bg" class="fab-overlay">
+  <div class="fab-dialog" style="width:min(400px,92vw);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h3 style="margin:0;font-size:1.1rem;">📋 New Subtask</h3>
+      <button id="subtask-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
+    </div>
+    <input id="subtask-name" type="text" placeholder="Subtask name *" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem;margin-bottom:10px;font-weight:700;">
+    <select id="subtask-effort" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
+      <option value="">Effort (optional)</option><option value="s">S - Small</option><option value="m">M - Medium</option><option value="l">L - Large</option><option value="xl">XL - Extra Large</option>
+    </select>
+    <input id="subtask-due" type="date" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
+    <textarea id="subtask-notes" placeholder="Notes..." rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;font-family:inherit;resize:vertical;margin-bottom:10px;"></textarea>
+    <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px dashed var(--border);background:rgba(255,255,255,.03);cursor:pointer;margin-bottom:4px;font-size:.85rem;color:var(--muted);">📎 Attach files <span style="font-size:.7rem;opacity:.6;">(max 25MB each)</span><input id="subtask-files" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;"></label>
+    <div id="subtask-files-preview" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
+    <button id="subtask-submit" class="btn primary" style="width:100%;padding:10px;font-size:.95rem;">Add Subtask</button>
+  </div>
+</div>
+
+<!-- Secrets Overlay (Passwords + Links) -->
+<div id="secrets-overlay" class="vault-ov" style="display:none;">
+  <div class="vault-ov-page">
+    <div class="vault-ov-topbar"><h2>🔑 Passwords & Secrets</h2><button class="vault-ov-close" data-close="secrets-overlay">&times; Close</button></div>
+
+    <div class="card" style="padding:18px;margin-bottom:18px;">
+      <h3 style="margin:0 0 12px;">🔗 Secret Links</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+        <input id="vault-link-name" type="text" placeholder="Name" style="flex:1;min-width:120px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;">
+        <input id="vault-link-url" type="url" placeholder="https://..." style="flex:2;min-width:180px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
+        <textarea id="vault-link-desc" placeholder="Description (optional)" rows="1" style="flex-basis:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-family:inherit;font-size:.9rem;resize:vertical;"></textarea>
+        <button id="vault-link-add" class="btn primary" style="padding:10px 18px;">+ Add</button>
+      </div>
+      <div id="vault-links-list"></div>
+      <p id="vault-links-empty" class="empty" style="display:none;">No secret links yet.</p>
+    </div>
+
+    <div class="card" style="padding:18px;">
+      <h3 style="margin:0 0 12px;">🔑 Passwords</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+        <input id="vault-cred-label" type="text" placeholder="Label (e.g. Gmail)" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;">
+        <input id="vault-cred-site" type="text" placeholder="Site URL" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
+        <input id="vault-cred-user" type="text" placeholder="Username" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
+        <div style="flex:1;min-width:100px;position:relative;">
+          <input id="vault-cred-pass" type="password" placeholder="Password" style="width:100%;padding:10px 38px 10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
+          <button type="button" class="pw-toggle" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'👁‍🗨'" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;padding:2px;">👁</button>
+        </div>
+        <textarea id="vault-cred-details" placeholder="Details / notes..." rows="2" style="flex-basis:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-family:inherit;font-size:.9rem;resize:vertical;"></textarea>
+        <button id="vault-cred-add" class="btn primary" style="padding:10px 18px;">+ Add</button>
+      </div>
+      <div id="vault-creds-list"></div>
+      <p id="vault-creds-empty" class="empty" style="display:none;">No passwords saved yet.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Notes Overlay -->
+<div id="notes-overlay" class="vault-ov" style="display:none;">
+  <div class="vault-ov-page">
+    <div class="vault-ov-topbar">
+      <h2>📝 Secret Notes</h2>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span id="vault-notes-status" style="color:var(--muted);font-size:.75rem;"></span>
+        <button id="vault-notes-toggle" class="btn ghost" style="padding:4px 10px;font-size:.8rem;">Hide</button>
+        <button class="vault-ov-close" data-close="notes-overlay">&times; Close</button>
+      </div>
+    </div>
+    <div id="vault-notes-wrap">
+      <textarea id="vault-notes" placeholder="Write your private notes here..." style="width:100%;min-height:60vh;padding:16px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-size:1rem;resize:vertical;font-family:inherit;line-height:1.6;"></textarea>
+    </div>
+  </div>
+</div>
 
     <footer class="site-footer">
       Created with ❤️ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
@@ -3584,7 +3635,7 @@ document.addEventListener("input", e => {
   function base64ToBytes(s){ var d=atob(s); var a=new Uint8Array(d.length); for(var i=0;i<d.length;i++) a[i]=d.charCodeAt(i); return a; }
 
   // --- Vault data ---
-  function defaultData(){ return {notes:'', links:[], creds:[], goals:[], _nextId:1}; }
+  function defaultData(){ return {notes:'', links:[], creds:[], goals:[], lifeGoals:[], _nextId:1, _nextLgId:1}; }
   var _vaultCache = null;
   function loadVault(){
     if(_vaultCache) return Promise.resolve(_vaultCache);
@@ -3774,10 +3825,18 @@ document.addEventListener("input", e => {
   // --- Render vault ---
   function renderVault(){
     loadVault().then(function(data){
+      // Update dashboard badges
+      var taskCount = (data.goals || []).filter(function(g){ return !g.archived; }).length;
+      var lgCount = (data.lifeGoals || []).length;
+      var secretsCount = (data.links || []).length + (data.creds || []).length;
+      var tcEl = document.getElementById('vd-task-count');
+      var gcEl = document.getElementById('vd-goal-count');
+      var scEl = document.getElementById('vd-secrets-count');
+      if(tcEl) tcEl.textContent = taskCount;
+      if(gcEl) gcEl.textContent = lgCount;
+      if(scEl) scEl.textContent = secretsCount;
+      // Pre-load notes
       notesArea.value = data.notes || '';
-      renderLinks(data.links || []);
-      renderCreds(data.creds || []);
-      renderGoals(data.goals || []);
     });
   }
 
@@ -5648,9 +5707,11 @@ document.addEventListener("input", e => {
     linksList.innerHTML = '';
     credsList.innerHTML = '';
     ['todo','progress','pending','done'].forEach(function(c){ document.querySelector('.kanban-items[data-col="'+c+'"]').innerHTML=''; });
-    // Close goals overlay on lock
-    var goalsOvr = document.getElementById('goals-overlay');
-    if(goalsOvr) goalsOvr.classList.remove('open');
+    // Close all overlays on lock
+    ['kanban-overlay','secrets-overlay','notes-overlay','goals-overlay'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el){ el.style.display='none'; el.classList.remove('open'); }
+    });
     isNew = false;
     lockLabel.textContent = 'Unlock Vault';
     unlockBtn.textContent = 'Unlock';
@@ -5658,6 +5719,45 @@ document.addEventListener("input", e => {
     var acctUser = localStorage.getItem('homer-auth-user');
     if(acctUser) vaultUserInput.value = acctUser;
     pwInput.value = '';
+  });
+
+  // --- Dashboard Card Handlers ---
+  function openVaultOverlay(id, onOpen){
+    var el = document.getElementById(id);
+    if(el){ el.style.display = 'block'; document.body.style.overflow = 'hidden'; if(onOpen) onOpen(); }
+  }
+  function closeVaultOverlay(id){
+    var el = document.getElementById(id);
+    if(el){ el.style.display = 'none'; document.body.style.overflow = ''; }
+    renderVault(); // refresh badges
+  }
+  document.querySelectorAll('.vault-ov-close').forEach(function(btn){
+    btn.addEventListener('click', function(){ closeVaultOverlay(this.dataset.close); });
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      ['notes-overlay','secrets-overlay','kanban-overlay'].forEach(function(id){
+        var el = document.getElementById(id);
+        if(el && el.style.display !== 'none'){ closeVaultOverlay(id); }
+      });
+    }
+  });
+  document.getElementById('vd-open-kanban').addEventListener('click', function(){
+    openVaultOverlay('kanban-overlay', function(){
+      loadVault().then(function(data){ renderGoals(data.goals || []); });
+    });
+  });
+  document.getElementById('vd-open-goals').addEventListener('click', function(){
+    var goalsOv = document.getElementById('goals-overlay');
+    if(goalsOv){ goalsOv.classList.add('open'); }
+  });
+  document.getElementById('vd-open-secrets').addEventListener('click', function(){
+    openVaultOverlay('secrets-overlay', function(){
+      loadVault().then(function(data){ renderLinks(data.links || []); renderCreds(data.creds || []); });
+    });
+  });
+  document.getElementById('vd-open-notes').addEventListener('click', function(){
+    openVaultOverlay('notes-overlay', function(){ notesArea.focus(); });
   });
 
   // --- Add Link ---
@@ -8286,7 +8386,7 @@ document.addEventListener("input", e => {
   // --- Joey Actions: create tasks, goals, events ---
   function executeActions(text){
     var actions = [];
-    var regex = /\[ACTION:(TASK|GOAL|EVENT)\]([\s\S]*?)\[\/ACTION\]/g;
+    var regex = /\[ACTION:(TASK|GOAL|LIFEGOAL|EVENT)\]([\s\S]*?)\[\/ACTION\]/g;
     var match;
     while((match = regex.exec(text)) !== null){
       actions.push({type: match[1], data: match[2].trim()});
@@ -8366,6 +8466,31 @@ document.addEventListener("input", e => {
           });
           localStorage.setItem(EKEY, JSON.stringify(evts));
           notifications.push('Event added: ' + (evtData.title || 'New Event') + ' on ' + (evtData.date || 'today'));
+        }
+        else if(a.type === 'LIFEGOAL'){
+          var lgData = JSON.parse(a.data);
+          if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
+            window._homerLoadVault().then(function(data){
+              if(!data) return;
+              if(!data.lifeGoals) data.lifeGoals = [];
+              if(!data._nextLgId) data._nextLgId = 1;
+              data.lifeGoals.push({
+                id: data._nextLgId++,
+                title: lgData.title || 'New Goal',
+                description: lgData.description || '',
+                category: lgData.category || 'personal',
+                milestones: (lgData.milestones || []).map(function(m){ return {text: typeof m === 'string' ? m : m.text, done: false}; }),
+                progress: 0,
+                targetDate: lgData.targetDate || '',
+                icon: lgData.icon || '🎯',
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+              });
+              window._homerSaveVault(data);
+              if(typeof window._refreshLifeGoals === 'function') window._refreshLifeGoals();
+            });
+          }
+          notifications.push('Life goal created: ' + (lgData.title || 'New Goal'));
         }
       }catch(e){
         notifications.push('Action failed: ' + e.message);
@@ -8553,7 +8678,7 @@ document.addEventListener("input", e => {
     if(!text && !pendingFiles.length) return;
     if(streaming) return;
     var config = getConfig();
-    var JOEY_PROMPT = 'You are Joey Tribbiani from Friends. You speak like Joey — confident, lovable, a little clueless sometimes, but always charming. You use Joey\'s catchphrases naturally (like "How you doin\'?", "Joey doesn\'t share food!", "It\'s a moo point"). You\'re helpful and give good answers, but always in Joey\'s voice and personality. Keep it fun but actually useful.\n\nYou can create tasks, subtasks, and calendar events for the user. When the user asks you to create something, include the action commands at the END of your response (after your conversational text) using this exact format:\n\n- To create a task: [ACTION:TASK]Task description here[/ACTION]\n- To create a goal (board card) with subtasks: [ACTION:GOAL]{"summary":"Goal title","desc":"Description","priority":"high","due":"2026-03-25","subtasks":["Subtask 1","Subtask 2","Subtask 3"]}[/ACTION]\n- To create a calendar event: [ACTION:EVENT]{"title":"Event title","date":"2026-03-25","time":"14:30","location":"Place","description":"Details"}[/ACTION]\n\nRules for actions:\n- Date format is always YYYY-MM-DD, time is HH:MM (24h)\n- Priority can be: highest, high, medium, low, lowest\n- You can include multiple actions in one response\n- Always confirm what you created in your conversational text\n- If the user says "today", use ' + new Date().toISOString().slice(0,10) + ' as the date\n- If no time specified for events, leave time as empty string\n- Always include actions — don\'t just describe what you would do';
+    var JOEY_PROMPT = 'You are Joey Tribbiani from Friends. You speak like Joey — confident, lovable, a little clueless sometimes, but always charming. You use Joey\'s catchphrases naturally (like "How you doin\'?", "Joey doesn\'t share food!", "It\'s a moo point"). You\'re helpful and give good answers, but always in Joey\'s voice and personality. Keep it fun but actually useful.\n\nYou can create TASKS (actionable work items for the Kanban board), LIFE GOALS (aspirations/dreams for the Life Goals tracker), and CALENDAR EVENTS.\n\nIMPORTANT - Know the difference:\n- TASK = something specific to DO (work item, to-do, action). Examples: "Fix the login bug", "Write the report", "Call the dentist", "Buy groceries". Goes to the Kanban Board.\n- GOAL (Kanban card) = a task with subtasks on the Kanban board. Use when the user wants a structured task with sub-items.\n- LIFEGOAL = a life aspiration or long-term dream. Examples: "Buy a house", "Get fit", "Learn Spanish", "Travel to Japan", "Get rich", "Start a business". Goes to the Life Goals tracker. These have milestones (steps toward achieving the goal).\n- EVENT = calendar event with date/time.\n\nAction format (include at END of your response):\n\n- Simple task: [ACTION:TASK]Task description[/ACTION]\n- Kanban card with subtasks: [ACTION:GOAL]{"summary":"Title","desc":"Description","priority":"high","due":"2026-03-25","subtasks":["Step 1","Step 2"]}[/ACTION]\n- Life goal: [ACTION:LIFEGOAL]{"title":"Buy a house","description":"Save up and find my dream home","category":"finance","milestones":["Save $10k","Get pre-approved","Find a realtor","Make an offer"],"targetDate":"2027-12-31","icon":"🏠"}[/ACTION]\n- Calendar event: [ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details"}[/ACTION]\n\nLife goal categories: health, finance, career, personal, education, travel, creative, relationship\n\nRules:\n- Date format YYYY-MM-DD, time HH:MM (24h)\n- Priority: high, medium, low\n- Today is ' + new Date().toISOString().slice(0,10) + '\n- Always confirm what you created\n- Always include actions — don\'t just describe what you would do';
     var systemPrompt = config.system || JOEY_PROMPT;
 
     var displayText = text;
@@ -8688,227 +8813,275 @@ document.addEventListener("input", e => {
 })();
 </script>
 
-<!-- Goals Page Overlay -->
+<!-- Life Goals Overlay -->
 <div id="goals-overlay" class="goals-overlay">
   <div class="goals-page">
     <div class="goals-topbar">
-      <h1>Goals Tracker</h1>
+      <h1>Life Goals</h1>
       <div style="display:flex;gap:8px;align-items:center;">
-        <div class="goals-view-toggle">
-          <button class="gv-btn active" data-view="cards">Cards</button>
-          <button class="gv-btn" data-view="timeline">Timeline</button>
-        </div>
+        <button id="lg-add-open" class="btn primary" style="padding:7px 16px;font-size:.85rem;font-weight:700;">+ New Goal</button>
         <button class="goals-close" id="goals-close-btn">&times; Close</button>
       </div>
     </div>
     <div id="goals-stats-row" class="goals-stats"></div>
     <div class="goals-filter-bar">
-      <input type="text" id="gp-search" placeholder="Search goals...">
-      <select id="gp-filter-status"><option value="">All Status</option><option value="todo">To Do</option><option value="progress">In Progress</option><option value="pending">Pending</option><option value="done">Done</option></select>
-      <select id="gp-filter-priority"><option value="">All Priority</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
+      <input type="text" id="lg-search" placeholder="Search goals...">
+      <select id="lg-filter-cat"><option value="">All Categories</option>
+        <option value="health">Health</option><option value="finance">Finance</option><option value="career">Career</option>
+        <option value="personal">Personal</option><option value="education">Education</option><option value="travel">Travel</option>
+        <option value="creative">Creative</option><option value="relationship">Relationship</option>
+      </select>
     </div>
-    <div id="gp-cards-view" class="goals-cards-grid"></div>
-    <div id="gp-timeline-view" class="goals-timeline" style="display:none;"></div>
+    <div id="lg-grid" class="lg-grid"></div>
+  </div>
+</div>
+
+<!-- Life Goal Add/Edit Modal -->
+<div id="lg-modal-bg" class="fab-overlay">
+  <div class="fab-dialog" style="width:min(440px,92vw);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h3 id="lg-modal-title" style="margin:0;font-size:1.1rem;">🎯 New Life Goal</h3>
+      <button id="lg-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
+    </div>
+    <input id="lg-title" type="text" placeholder="Goal title *" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem;margin-bottom:10px;font-weight:700;">
+    <textarea id="lg-desc" placeholder="Why is this important to you?" rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;font-family:inherit;resize:vertical;margin-bottom:10px;"></textarea>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <select id="lg-category" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;">
+        <option value="personal">Personal</option><option value="health">Health</option><option value="finance">Finance</option>
+        <option value="career">Career</option><option value="education">Education</option><option value="travel">Travel</option>
+        <option value="creative">Creative</option><option value="relationship">Relationship</option>
+      </select>
+      <input id="lg-icon" type="text" placeholder="Icon" value="🎯" style="width:60px;padding:10px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:1.2rem;text-align:center;">
+    </div>
+    <input id="lg-target" type="date" placeholder="Target date" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
+    <div style="margin-bottom:10px;">
+      <div style="font-size:.8rem;color:var(--muted);margin-bottom:6px;">Milestones (one per line)</div>
+      <textarea id="lg-milestones" placeholder="Save $10k&#10;Get pre-approved&#10;Find a realtor" rows="4" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.85rem;font-family:inherit;resize:vertical;"></textarea>
+    </div>
+    <button id="lg-submit" class="btn primary" style="width:100%;padding:10px;font-size:.95rem;">Create Goal</button>
   </div>
 </div>
 <script>
-// ── Goals Page Logic ──
+// ── Life Goals Page Logic ──
 (function(){
   var overlay = document.getElementById('goals-overlay');
-  var openBtn = document.getElementById('goals-page-btn');
   var closeBtn = document.getElementById('goals-close-btn');
   var statsRow = document.getElementById('goals-stats-row');
-  var cardsView = document.getElementById('gp-cards-view');
-  var timelineView = document.getElementById('gp-timeline-view');
-  var searchInput = document.getElementById('gp-search');
-  var statusFilter = document.getElementById('gp-filter-status');
-  var priorityFilter = document.getElementById('gp-filter-priority');
-  var viewBtns = overlay.querySelectorAll('.gv-btn');
-  var currentView = 'cards';
+  var grid = document.getElementById('lg-grid');
+  var searchInput = document.getElementById('lg-search');
+  var catFilter = document.getElementById('lg-filter-cat');
+  var addOpenBtn = document.getElementById('lg-add-open');
+  var modalBg = document.getElementById('lg-modal-bg');
+  var modalClose = document.getElementById('lg-modal-close');
+  var modalTitle = document.getElementById('lg-modal-title');
+  var fTitle = document.getElementById('lg-title');
+  var fDesc = document.getElementById('lg-desc');
+  var fCat = document.getElementById('lg-category');
+  var fIcon = document.getElementById('lg-icon');
+  var fTarget = document.getElementById('lg-target');
+  var fMilestones = document.getElementById('lg-milestones');
+  var fSubmit = document.getElementById('lg-submit');
+  var editIdx = -1; // -1 = creating new
+  var CATS = {health:{icon:'💪',color:'#22c55e'},finance:{icon:'💰',color:'#fbbf24'},career:{icon:'🏢',color:'#60a5fa'},personal:{icon:'🌟',color:'#a78bfa'},education:{icon:'📚',color:'#f59e0b'},travel:{icon:'✈️',color:'#06b6d4'},creative:{icon:'🎨',color:'#ec4899'},relationship:{icon:'❤️',color:'#ef4444'}};
 
-  openBtn.addEventListener('click', function(){
-    overlay.classList.add('open');
-    refreshGoalsPage();
-  });
   closeBtn.addEventListener('click', function(){ overlay.classList.remove('open'); });
   document.addEventListener('keydown', function(e){ if(e.key==='Escape' && overlay.classList.contains('open')) overlay.classList.remove('open'); });
+  searchInput.addEventListener('input', refresh);
+  catFilter.addEventListener('change', refresh);
 
-  viewBtns.forEach(function(btn){
-    btn.addEventListener('click', function(){
-      currentView = btn.dataset.view;
-      viewBtns.forEach(function(b){ b.classList.remove('active'); });
-      btn.classList.add('active');
-      cardsView.style.display = currentView==='cards' ? 'grid' : 'none';
-      timelineView.style.display = currentView==='timeline' ? 'block' : 'none';
-      refreshGoalsPage();
+  // Modal
+  addOpenBtn.addEventListener('click', function(){ openModal(-1); });
+  modalClose.addEventListener('click', function(){ modalBg.classList.remove('open'); });
+  modalBg.addEventListener('click', function(e){ if(e.target===modalBg) modalBg.classList.remove('open'); });
+
+  function openModal(idx){
+    editIdx = idx;
+    if(idx >= 0){
+      window._homerLoadVault().then(function(data){
+        var g = (data.lifeGoals||[])[idx];
+        if(!g) return;
+        modalTitle.textContent = '✏️ Edit Life Goal';
+        fTitle.value = g.title||'';
+        fDesc.value = g.description||'';
+        fCat.value = g.category||'personal';
+        fIcon.value = g.icon||'🎯';
+        fTarget.value = g.targetDate||'';
+        fMilestones.value = (g.milestones||[]).map(function(m){ return m.text; }).join('\n');
+        fSubmit.textContent = 'Save Changes';
+        modalBg.classList.add('open');
+      });
+    } else {
+      modalTitle.textContent = '🎯 New Life Goal';
+      fTitle.value=''; fDesc.value=''; fCat.value='personal'; fIcon.value='🎯'; fTarget.value=''; fMilestones.value='';
+      fSubmit.textContent = 'Create Goal';
+      modalBg.classList.add('open');
+    }
+    setTimeout(function(){ fTitle.focus(); },100);
+  }
+
+  fSubmit.addEventListener('click', function(){
+    var title = fTitle.value.trim();
+    if(!title) return;
+    var milestones = fMilestones.value.split('\n').filter(function(l){ return l.trim(); }).map(function(l){ return {text:l.trim(),done:false}; });
+    window._homerLoadVault().then(function(data){
+      if(!data.lifeGoals) data.lifeGoals = [];
+      if(!data._nextLgId) data._nextLgId = 1;
+      if(editIdx >= 0 && data.lifeGoals[editIdx]){
+        // Preserve milestone done states
+        var old = data.lifeGoals[editIdx].milestones || [];
+        milestones.forEach(function(m){
+          var prev = old.find(function(o){ return o.text === m.text; });
+          if(prev) m.done = prev.done;
+        });
+        data.lifeGoals[editIdx].title = title;
+        data.lifeGoals[editIdx].description = fDesc.value.trim();
+        data.lifeGoals[editIdx].category = fCat.value;
+        data.lifeGoals[editIdx].icon = fIcon.value||'🎯';
+        data.lifeGoals[editIdx].targetDate = fTarget.value;
+        data.lifeGoals[editIdx].milestones = milestones;
+        data.lifeGoals[editIdx].progress = calcProgress(milestones);
+        data.lifeGoals[editIdx].updatedAt = Date.now();
+      } else {
+        data.lifeGoals.push({
+          id: data._nextLgId++,
+          title: title,
+          description: fDesc.value.trim(),
+          category: fCat.value,
+          milestones: milestones,
+          progress: 0,
+          targetDate: fTarget.value,
+          icon: fIcon.value||'🎯',
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        });
+      }
+      window._homerSaveVault(data).then(function(){
+        modalBg.classList.remove('open');
+        refresh();
+      });
     });
   });
 
-  searchInput.addEventListener('input', function(){ refreshGoalsPage(); });
-  statusFilter.addEventListener('change', function(){ refreshGoalsPage(); });
-  priorityFilter.addEventListener('change', function(){ refreshGoalsPage(); });
+  function calcProgress(ms){
+    if(!ms||!ms.length) return 0;
+    var done = ms.filter(function(m){ return m.done; }).length;
+    return Math.round(done/ms.length*100);
+  }
 
   window.addEventListener('vault-goals-changed', function(){
-    if(overlay.classList.contains('open')) refreshGoalsPage();
+    if(overlay.classList.contains('open')) refresh();
   });
 
-  function refreshGoalsPage(){
+  // Expose refresh for external calls
+  window._refreshLifeGoals = refresh;
+
+  function refresh(){
     if(typeof window._homerLoadVault !== 'function') return;
     window._homerLoadVault().then(function(data){
-      var goals = (data.goals || []).filter(function(g){ return !g.archived; });
+      var goals = data.lifeGoals || [];
       renderStats(goals);
       var filtered = applyFilters(goals);
-      if(currentView==='cards') renderCards(filtered, data.goals || []);
-      else renderTimeline(filtered, data.goals || []);
+      renderGrid(filtered, goals);
     });
   }
 
   function applyFilters(goals){
     var q = searchInput.value.trim().toLowerCase();
-    var st = statusFilter.value;
-    var pr = priorityFilter.value;
+    var cat = catFilter.value;
     return goals.filter(function(g){
-      if(st && g.col !== st) return false;
-      if(pr && g.priority !== pr) return false;
-      if(q){
-        var text = (g.summary||'').toLowerCase() + ' ' + (g.desc||'').toLowerCase() + ' ' + (g.labels||[]).join(' ').toLowerCase();
-        if(text.indexOf(q)===-1) return false;
-      }
+      if(cat && g.category !== cat) return false;
+      if(q && (g.title||'').toLowerCase().indexOf(q)===-1 && (g.description||'').toLowerCase().indexOf(q)===-1) return false;
       return true;
     });
   }
 
-  function stProgress(g){
-    if(!g.subtasks || !g.subtasks.length) return {done:0,total:0,pct:0};
-    var done = g.subtasks.filter(function(s){ return s.done; }).length;
-    return {done:done, total:g.subtasks.length, pct:Math.round(done/g.subtasks.length*100)};
-  }
-
   function renderStats(goals){
     var total = goals.length;
-    var done = goals.filter(function(g){ return g.col==='done'; }).length;
-    var inProg = goals.filter(function(g){ return g.col==='progress'; }).length;
-    var overdue = goals.filter(function(g){
-      if(!g.due || g.col==='done') return false;
-      return new Date(g.due) < new Date(new Date().toDateString());
-    }).length;
-    var cPct = total ? Math.round(done/total*100) : 0;
-    var tSt = 0, dSt = 0;
-    goals.forEach(function(g){ var p = stProgress(g); tSt += p.total; dSt += p.done; });
-    var sPct = tSt ? Math.round(dSt/tSt*100) : 0;
+    var completed = goals.filter(function(g){ return g.progress >= 100; }).length;
+    var avgProgress = total ? Math.round(goals.reduce(function(s,g){ return s+(g.progress||0); },0)/total) : 0;
+    var totalMs = 0, doneMs = 0;
+    goals.forEach(function(g){ (g.milestones||[]).forEach(function(m){ totalMs++; if(m.done) doneMs++; }); });
+    var msPct = totalMs ? Math.round(doneMs/totalMs*100) : 0;
 
     function ring(pct, color){
-      var r = 20, c = 2*Math.PI*r, off = c - (pct/100)*c;
+      var r=20, c=2*Math.PI*r, off=c-(pct/100)*c;
       return '<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="'+r+'" class="ring-bg"/><circle cx="24" cy="24" r="'+r+'" class="ring-fg" stroke="'+color+'" stroke-dasharray="'+c+'" stroke-dashoffset="'+off+'"/></svg><span class="ring-label">'+pct+'%</span>';
     }
     statsRow.innerHTML =
-      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(cPct,'#22c55e')+'</div><div class="goals-stat-info"><h3>Completed</h3><div class="stat-value">'+done+'/'+total+'</div><div class="stat-sub">goals done</div></div></div>' +
-      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(sPct,'#60a5fa')+'</div><div class="goals-stat-info"><h3>Subtasks</h3><div class="stat-value">'+dSt+'/'+tSt+'</div><div class="stat-sub">tasks done</div></div></div>' +
-      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(total?Math.round(inProg/total*100):0,'#fbbf24')+'</div><div class="goals-stat-info"><h3>In Progress</h3><div class="stat-value">'+inProg+'</div><div class="stat-sub">active now</div></div></div>' +
-      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(total?Math.round(overdue/total*100):0,'#ef4444')+'</div><div class="goals-stat-info"><h3>Overdue</h3><div class="stat-value">'+overdue+'</div><div class="stat-sub">need attention</div></div></div>';
+      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(total?Math.round(completed/total*100):0,'#22c55e')+'</div><div class="goals-stat-info"><h3>Achieved</h3><div class="stat-value">'+completed+'/'+total+'</div><div class="stat-sub">goals completed</div></div></div>'+
+      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(avgProgress,'#60a5fa')+'</div><div class="goals-stat-info"><h3>Avg Progress</h3><div class="stat-value">'+avgProgress+'%</div><div class="stat-sub">across all goals</div></div></div>'+
+      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(msPct,'#fbbf24')+'</div><div class="goals-stat-info"><h3>Milestones</h3><div class="stat-value">'+doneMs+'/'+totalMs+'</div><div class="stat-sub">steps completed</div></div></div>'+
+      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(100,'#a78bfa')+'</div><div class="goals-stat-info"><h3>Total Goals</h3><div class="stat-value">'+total+'</div><div class="stat-sub">life aspirations</div></div></div>';
   }
 
   function escH(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
-  function dueClass(due){
-    if(!due) return '';
-    var diff = Math.floor((new Date(due) - new Date(new Date().toDateString()))/(1000*60*60*24));
-    return diff < 0 ? 'overdue' : diff <= 3 ? 'soon' : 'ok';
-  }
-  function dueFmt(due){
-    if(!due) return '';
-    return new Date(due).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
-  }
-  function colLabel(col){
-    return {todo:'To Do',progress:'In Progress',pending:'Pending',done:'Done'}[col] || col;
-  }
-  function barColor(pct){ return pct >= 80 ? '#22c55e' : pct >= 40 ? '#fbbf24' : '#60a5fa'; }
 
-  function renderCards(goals, allGoals){
-    if(!goals.length){
-      cardsView.innerHTML = '<div class="goals-empty"><div class="ge-icon">🎯</div><p>No goals match your filters</p></div>';
-      return;
-    }
+  function renderGrid(filtered, all){
     var html = '';
-    goals.forEach(function(g){
-      var idx = allGoals.indexOf(g);
-      var p = stProgress(g);
-      var prClass = g.priority ? ' priority-'+g.priority : '';
-      var dc = dueClass(g.due);
-      html += '<div class="goals-card'+prClass+'" data-gi="'+idx+'">';
-      html += '<div class="gc-header"><span class="gc-id">TASK-'+(g.id||idx+1)+'</span>';
-      html += '<span class="gc-col col-'+(g.col||'todo')+'">'+colLabel(g.col||'todo')+'</span></div>';
-      html += '<div class="gc-title">'+escH(g.summary||'Untitled')+'</div>';
-      if(p.total > 0){
-        html += '<div class="gc-progress"><div class="gc-bar"><div class="gc-bar-fill" style="width:'+p.pct+'%;background:'+barColor(p.pct)+';"></div></div><span class="gc-pct">'+p.pct+'%</span></div>';
+    filtered.forEach(function(g){
+      var idx = all.indexOf(g);
+      var catDef = CATS[g.category] || CATS.personal;
+      var pct = g.progress || 0;
+      html += '<div class="lg-card" data-idx="'+idx+'">';
+      html += '<div class="lg-card-head">';
+      html += '<div class="lg-card-icon" style="background:'+catDef.color+'20;">'+(g.icon||catDef.icon)+'</div>';
+      html += '<div><div class="lg-card-title">'+escH(g.title)+'</div>';
+      html += '<span class="lg-card-cat" style="background:'+catDef.color+'20;color:'+catDef.color+';">'+(g.category||'personal')+'</span></div>';
+      html += '</div>';
+      if(g.description) html += '<div class="lg-card-desc">'+escH(g.description)+'</div>';
+      html += '<div class="lg-progress"><div class="lg-bar"><div class="lg-bar-fill" style="width:'+pct+'%;"></div></div><span class="lg-pct">'+pct+'%</span></div>';
+      if(g.milestones && g.milestones.length){
+        html += '<ul class="lg-milestones">';
+        g.milestones.forEach(function(m,mi){
+          html += '<li class="'+(m.done?'done':'')+'" data-idx="'+idx+'" data-mi="'+mi+'" style="cursor:pointer;"><span>'+(m.done?'✅':'⬜')+'</span> '+escH(m.text)+'</li>';
+        });
+        html += '</ul>';
       }
-      html += '<div class="gc-meta">';
-      if(g.due) html += '<span class="gc-due '+dc+'">'+dueFmt(g.due)+'</span>';
-      if(g.labels && g.labels.length) g.labels.forEach(function(l){ html += '<span class="gc-label">'+escH(l)+'</span>'; });
-      if(p.total > 0) html += '<span class="gc-subtask-count">'+p.done+'/'+p.total+' subtasks</span>';
+      if(g.targetDate) html += '<div class="lg-card-date">Target: '+new Date(g.targetDate).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+'</div>';
+      html += '<div style="display:flex;gap:6px;margin-top:10px;">';
+      html += '<button class="lg-edit-btn" data-idx="'+idx+'" style="flex:1;padding:6px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:none;color:var(--muted);cursor:pointer;font-size:.75rem;font-weight:700;">Edit</button>';
+      html += '<button class="lg-del-btn" data-idx="'+idx+'" style="padding:6px 10px;border-radius:8px;border:1px solid rgba(239,68,68,.2);background:none;color:#ef4444;cursor:pointer;font-size:.75rem;font-weight:700;">Delete</button>';
       html += '</div></div>';
     });
-    cardsView.innerHTML = html;
-    cardsView.querySelectorAll('.goals-card').forEach(function(card){
-      card.addEventListener('click', function(){
-        var gi = parseInt(card.dataset.gi);
-        if(!isNaN(gi) && typeof window._homerOpenIssue === 'function') window._homerOpenIssue(gi);
-      });
-    });
-  }
+    // Add card
+    html += '<button class="lg-add-btn" id="lg-add-card"><span style="font-size:2rem;">+</span>Add a Life Goal</button>';
+    grid.innerHTML = html;
 
-  function renderTimeline(goals, allGoals){
-    var months = {}, undated = [];
-    goals.forEach(function(g){
-      if(!g.due){ undated.push(g); return; }
-      var d = new Date(g.due);
-      var key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-      var label = d.toLocaleDateString('en-US',{month:'long',year:'numeric'});
-      if(!months[key]) months[key] = {label:label, items:[]};
-      months[key].items.push(g);
-    });
-    if(!goals.length){
-      timelineView.innerHTML = '<div class="goals-empty"><div class="ge-icon">📅</div><p>No goals match your filters</p></div>';
-      return;
-    }
-    var sortedKeys = Object.keys(months).sort();
-    var html = '';
-    sortedKeys.forEach(function(key){
-      var m = months[key];
-      html += '<div class="goals-tl-month"><h3>'+escH(m.label)+'</h3>';
-      m.items.sort(function(a,b){ return new Date(a.due)-new Date(b.due); });
-      m.items.forEach(function(g){
-        var idx = allGoals.indexOf(g);
-        var p = stProgress(g);
-        var d = new Date(g.due);
-        html += '<div class="goals-tl-item" data-gi="'+idx+'">';
-        html += '<span class="tl-date">'+d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</span>';
-        html += '<span class="tl-title">'+escH(g.summary||'Untitled')+'</span>';
-        if(p.total) html += '<span class="tl-pct">'+p.pct+'%</span>';
-        html += '</div>';
-      });
-      html += '</div>';
-    });
-    if(undated.length){
-      html += '<div class="goals-tl-month"><h3>No Due Date</h3>';
-      undated.forEach(function(g){
-        var idx = allGoals.indexOf(g);
-        var p = stProgress(g);
-        html += '<div class="goals-tl-item" data-gi="'+idx+'">';
-        html += '<span class="tl-date">&mdash;</span>';
-        html += '<span class="tl-title">'+escH(g.summary||'Untitled')+'</span>';
-        if(p.total) html += '<span class="tl-pct">'+p.pct+'%</span>';
-        html += '</div>';
-      });
-      html += '</div>';
-    }
-    timelineView.innerHTML = html;
-    timelineView.querySelectorAll('.goals-tl-item').forEach(function(item){
-      item.addEventListener('click', function(){
-        var gi = parseInt(item.dataset.gi);
-        if(!isNaN(gi) && typeof window._homerOpenIssue === 'function') window._homerOpenIssue(gi);
+    // Wire events
+    grid.querySelectorAll('.lg-milestones li').forEach(function(li){
+      li.addEventListener('click', function(e){
+        e.stopPropagation();
+        var idx = parseInt(li.dataset.idx), mi = parseInt(li.dataset.mi);
+        window._homerLoadVault().then(function(data){
+          if(data.lifeGoals[idx] && data.lifeGoals[idx].milestones[mi]){
+            data.lifeGoals[idx].milestones[mi].done = !data.lifeGoals[idx].milestones[mi].done;
+            data.lifeGoals[idx].progress = calcProgress(data.lifeGoals[idx].milestones);
+            data.lifeGoals[idx].updatedAt = Date.now();
+            window._homerSaveVault(data).then(refresh);
+          }
+        });
       });
     });
+    grid.querySelectorAll('.lg-edit-btn').forEach(function(btn){
+      btn.addEventListener('click', function(e){ e.stopPropagation(); openModal(parseInt(btn.dataset.idx)); });
+    });
+    grid.querySelectorAll('.lg-del-btn').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        if(!confirm('Delete this life goal?')) return;
+        var idx = parseInt(btn.dataset.idx);
+        window._homerLoadVault().then(function(data){
+          if(data.lifeGoals) data.lifeGoals.splice(idx,1);
+          window._homerSaveVault(data).then(refresh);
+        });
+      });
+    });
+    var addCard = document.getElementById('lg-add-card');
+    if(addCard) addCard.addEventListener('click', function(){ openModal(-1); });
   }
+  // Auto-refresh when overlay opens
+  var obs = new MutationObserver(function(){ if(overlay.classList.contains('open')) refresh(); });
+  obs.observe(overlay, {attributes:true, attributeFilter:['class']});
 })();
 </script>
 
