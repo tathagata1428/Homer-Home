@@ -1285,8 +1285,46 @@
       .oc-msg{max-width:90%;}
     }
 
-    /* ===== MOBILE (iPhone 16 Pro = 402px CSS, safe-area for Dynamic Island) ===== */
+    /* ===== MOBILE — iPhone 16 Pro (393px) and similar ===== */
     @media(max-width:480px){
+      /* Tighter body */
+      :root{--tb:72px;}
+      body{padding:12px 8px calc(var(--tb) + env(safe-area-inset-bottom, 0px));}
+      .shell{width:100%;}
+
+      /* Compact hero */
+      .hero{padding:16px 14px;border-radius:16px;margin-bottom:10px;}
+      .title{font-size:1.7rem!important;gap:10px;}
+      .title-badge{font-size:.75rem;padding:4px 8px;}
+      .subtitle{font-size:.82rem;}
+
+      /* Scrollable tabs — single row, swipe horizontally */
+      .tabs{
+        flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
+        scrollbar-width:none;gap:6px;margin:8px 0 12px;padding-bottom:2px;
+      }
+      .tabs::-webkit-scrollbar{display:none;}
+      .tab-btn{white-space:nowrap;flex-shrink:0;padding:8px 12px;font-size:.8rem;}
+
+      /* Cards less padding */
+      .card{padding:16px;border-radius:14px;}
+
+      /* Toolbar — compact, single row */
+      .toolbar{
+        gap:6px;padding:8px 10px;border-radius:16px;
+        bottom:calc(8px + env(safe-area-inset-bottom, 0px));
+      }
+      .tool-btn{padding:8px 10px;font-size:.78rem;gap:5px;}
+      .tool-btn{overflow:hidden;text-overflow:ellipsis;}
+
+      /* FAB cluster tighter */
+      .fab-cluster{bottom:calc(var(--tb) + env(safe-area-inset-bottom,0px) + 6px);right:10px;gap:8px;}
+      .fab-btn{width:42px;height:42px;}
+      #fab-openclaw{width:40px;height:40px;}
+      #fab-openclaw svg{width:18px;height:18px;}
+      #fab-wake{width:34px;height:34px;}
+      #fab-clear{width:32px;height:32px;}
+
       /* Joey chat → fullscreen overlay */
       #oc-panel{
         position:fixed!important;inset:0!important;width:100%!important;height:100%!important;
@@ -1295,17 +1333,32 @@
       }
       #oc-panel-header{
         padding:max(env(safe-area-inset-top,12px),12px) 14px 10px;
-        background:#0d1520;position:relative;z-index:2;
+        background:#0d1520;
       }
       #oc-close-btn{font-size:1.5rem!important;padding:6px 14px!important;}
       #oc-chat-messages{padding:10px 12px 8px;}
       .oc-msg{max-width:88%;font-size:.86rem;}
       #oc-chat-footer{
         padding:10px 12px max(env(safe-area-inset-bottom,8px),8px);
-        background:#0d1520;position:relative;z-index:2;
+        background:#0d1520;
       }
-      /* Kill heavy effects for speed */
+
+      /* Performance */
       .oc-pulse{display:none!important;}
+      .card{backdrop-filter:none;}
+      .hero{backdrop-filter:blur(6px);}
+
+      /* Grid gap tighter */
+      .grid{gap:12px;}
+
+      /* Quotes smaller */
+      blockquote{font-size:1.15rem;}
+
+      /* Section headers */
+      h2.section{font-size:.85rem;margin:0 0 6px;}
+
+      /* Footer compact */
+      .site-footer{font-size:.75rem;margin-top:12px;}
     }
 
   </style>
