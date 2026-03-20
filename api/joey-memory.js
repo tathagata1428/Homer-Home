@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   if (!REDIS_URL || !REDIS_TOKEN) return res.status(500).json({ error: 'Redis not configured' });
 
   const MEMORY_KEY = 'joey:memories';
-  const MAX_MEMORIES = 50;
+  const MAX_MEMORIES = 200;
 
   async function redis(cmd) {
     const r = await fetch(REDIS_URL, {

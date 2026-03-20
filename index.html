@@ -8529,9 +8529,52 @@ document.addEventListener("input", e => {
       });
     }
   }
+
+  // --- Redis conversation persistence ---
+  function saveHistoryToRedis(){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass || !chatHistory.length) return;
+    fetch('/api/joey-history', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ passphrase:pass, messages:chatHistory })
+    }).catch(function(){});
+  }
+
+  function loadHistoryFromRedis(){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return;
+    fetch('/api/joey-history?passphrase=' + encodeURIComponent(pass))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data.history && data.history.length && !chatHistory.length){
+          chatHistory = data.history;
+          renderMessages();
+        }
+      }).catch(function(){});
+  }
+
+  // --- Auto-learning: extract memories after each exchange ---
+  function triggerAutoLearn(){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass || chatHistory.length < 2) return;
+    // Send last 6 messages (3 exchanges) for extraction
+    var recent = chatHistory.slice(-6).map(function(m){ return {role:m.role, content:m.content}; });
+    fetch('/api/joey-learn', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ passphrase:pass, messages:recent })
+    }).then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data.learned > 0) console.log('[Joey] Auto-learned ' + data.learned + ' new fact(s):', data.facts);
+      }).catch(function(){});
+  }
   window.addEventListener('homer-vault-state', function(){
     if(window._homerVaultUnlocked) loadChatFromVault();
   });
+
+  // Load conversation from Redis as fallback (cross-device continuity)
+  setTimeout(loadHistoryFromRedis, 1500);
 
   // --- Markdown rendering ---
   function renderMd(raw){
@@ -9080,6 +9123,8 @@ document.addEventListener("input", e => {
         }
       }
       saveChatToVault();
+      saveHistoryToRedis();
+      triggerAutoLearn();
 
     }catch(err){
       removeTypingIndicator();

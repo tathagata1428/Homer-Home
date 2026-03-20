@@ -27,33 +27,64 @@ export default async function handler(req, res) {
   const MODEL = process.env.OC_MODEL || 'llama-3.3-70b-versatile';
   const JOEY_CONTEXT = process.env.JOEY_CONTEXT || '';
 
-  // Fetch Joey's learned memories from Redis
+  // Fetch Joey's learned memories + conversation history from Redis
   let memoriesText = '';
+  let historyMessages = [];
   try {
     const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
     const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
     if (REDIS_URL && REDIS_TOKEN) {
-      const mr = await fetch(REDIS_URL, {
+      const redisFetch = (cmd) => fetch(REDIS_URL, {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN },
-        body: JSON.stringify(['GET', 'joey:memories'])
-      });
-      const mj = await mr.json();
-      if (mj.result) {
-        const mems = JSON.parse(mj.result);
+        body: JSON.stringify(cmd)
+      }).then(r => r.json());
+
+      // Fetch memories and history in parallel
+      const [memRes, histRes] = await Promise.all([
+        redisFetch(['GET', 'joey:memories']),
+        redisFetch(['GET', 'joey:history'])
+      ]);
+
+      // Parse memories
+      if (memRes.result) {
+        const mems = JSON.parse(memRes.result);
         if (mems.length) {
           memoriesText = '\n\nYOUR LEARNED MEMORIES (things you chose to remember):\n' +
             mems.map(m => '- [' + m.category + '] ' + m.text).join('\n');
         }
       }
+
+      // Parse conversation history (used to fill in context the client didn't send)
+      if (histRes.result) {
+        historyMessages = JSON.parse(histRes.result);
+      }
     }
-  } catch (e) { /* memories unavailable — proceed without */ }
+  } catch (e) { /* memories/history unavailable — proceed without */ }
 
   // Build system context: base personality + learned memories
   const systemContent = (JOEY_CONTEXT + memoriesText).trim();
-  const finalMessages = systemContent
-    ? [{ role: 'system', content: systemContent }, ...messages]
-    : messages;
+
+  // Merge history with client messages:
+  // - Client sends recent messages (may be incomplete on new session)
+  // - Redis has last 50 messages from previous sessions
+  // - Use Redis history as backfill for older context
+  const clientUserMsgs = messages.filter(m => m.role === 'user').map(m => m.content);
+  const backfillMessages = historyMessages.filter(m => {
+    // Only include history messages not already in the client's payload
+    if (m.role === 'user') return !clientUserMsgs.includes(m.content);
+    return true;
+  }).slice(-20); // Max 20 backfill messages (10 exchanges)
+
+  // Final message order: system → backfill history → client messages
+  const finalMessages = [];
+  if (systemContent) finalMessages.push({ role: 'system', content: systemContent });
+  if (backfillMessages.length) {
+    finalMessages.push({ role: 'system', content: '--- RECENT CONVERSATION HISTORY (from previous sessions) ---' });
+    finalMessages.push(...backfillMessages);
+    finalMessages.push({ role: 'system', content: '--- END HISTORY --- Now responding to the current conversation:' });
+  }
+  finalMessages.push(...messages);
 
   const headers = { 'Content-Type': 'application/json' };
   if (GATEWAY_TOKEN) headers['Authorization'] = 'Bearer ' + GATEWAY_TOKEN;
