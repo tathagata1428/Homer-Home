@@ -561,6 +561,73 @@
       .goal-filters input,.goal-filters select{width:100%;min-width:0!important;}
       .goal-filters .archive-toggle{margin-left:0!important;width:100%;text-align:center;}
     }
+    /* ── Goals Page Overlay ── */
+    .goals-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9980;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;animation:goalsSlideIn .25s ease;}
+    .goals-overlay.open{display:block;}
+    @keyframes goalsSlideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+    .goals-page{max-width:1100px;margin:0 auto;padding:24px 20px 60px;}
+    .goals-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+    .goals-topbar h1{margin:0;font-size:1.5rem;font-weight:900;letter-spacing:-.02em;background:linear-gradient(135deg,var(--accent),var(--accent-2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .goals-topbar .goals-close{background:none;border:1px solid rgba(255,255,255,.15);color:var(--muted);font-size:.9rem;cursor:pointer;padding:6px 16px;border-radius:8px;transition:all .15s;}
+    .goals-topbar .goals-close:hover{color:var(--text);border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.05);}
+    .goals-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;}
+    @media(max-width:700px){.goals-stats{grid-template-columns:repeat(2,1fr);}}
+    .goals-stat-card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:18px;display:flex;align-items:center;gap:14px;transition:transform .15s,border-color .15s;}
+    .goals-stat-card:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.15);}
+    .goals-stat-ring{position:relative;width:52px;height:52px;flex-shrink:0;}
+    .goals-stat-ring svg{width:52px;height:52px;transform:rotate(-90deg);}
+    .goals-stat-ring .ring-bg{fill:none;stroke:rgba(255,255,255,.08);stroke-width:4;}
+    .goals-stat-ring .ring-fg{fill:none;stroke-width:4;stroke-linecap:round;transition:stroke-dashoffset .6s ease;}
+    .goals-stat-ring .ring-label{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:.85rem;font-weight:800;color:var(--text);}
+    .goals-stat-info h3{margin:0;font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;}
+    .goals-stat-info .stat-value{font-size:1.4rem;font-weight:900;color:var(--text);line-height:1.2;}
+    .goals-stat-info .stat-sub{font-size:.7rem;color:var(--muted);margin-top:2px;}
+    .goals-view-toggle{display:flex;gap:0;margin-bottom:20px;background:rgba(255,255,255,.04);border-radius:10px;padding:3px;width:fit-content;}
+    .goals-view-toggle button{padding:7px 18px;font-size:.8rem;font-weight:700;border:none;background:none;color:var(--muted);cursor:pointer;border-radius:8px;transition:all .15s;}
+    .goals-view-toggle button.active{background:linear-gradient(135deg,var(--accent),#16a34a);color:#fff;box-shadow:0 2px 8px rgba(34,197,94,.25);}
+    .goals-filter-bar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;}
+    .goals-filter-bar input,.goals-filter-bar select{padding:7px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--text);font-size:.82rem;font-family:inherit;}
+    .goals-filter-bar input{flex:1;min-width:160px;}
+    .goals-filter-bar select{min-width:120px;}
+    .goals-cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+    @media(max-width:500px){.goals-cards-grid{grid-template-columns:1fr;}}
+    .goals-card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:18px;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s;position:relative;overflow:hidden;}
+    .goals-card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.18);box-shadow:0 8px 24px rgba(0,0,0,.3);}
+    .goals-card.priority-high{border-left:3px solid #ef4444;}
+    .goals-card.priority-medium{border-left:3px solid #fbbf24;}
+    .goals-card.priority-low{border-left:3px solid #22c55e;}
+    .goals-card .gc-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+    .goals-card .gc-id{font-size:.68rem;font-weight:800;color:var(--accent);letter-spacing:.3px;}
+    .goals-card .gc-col{font-size:.6rem;padding:2px 8px;border-radius:5px;font-weight:700;text-transform:uppercase;margin-left:auto;}
+    .goals-card .gc-col.col-todo{background:rgba(96,165,250,.12);color:#60a5fa;}
+    .goals-card .gc-col.col-progress{background:rgba(251,191,36,.12);color:#fbbf24;}
+    .goals-card .gc-col.col-pending{background:rgba(139,92,246,.12);color:#a78bfa;}
+    .goals-card .gc-col.col-done{background:rgba(34,197,94,.12);color:#22c55e;}
+    .goals-card .gc-title{font-size:.95rem;font-weight:800;line-height:1.35;margin-bottom:10px;color:var(--text);}
+    .goals-card .gc-progress{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+    .goals-card .gc-bar{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;}
+    .goals-card .gc-bar-fill{height:100%;border-radius:3px;transition:width .4s ease;}
+    .goals-card .gc-pct{font-size:.72rem;font-weight:700;color:var(--muted);min-width:32px;text-align:right;}
+    .goals-card .gc-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+    .goals-card .gc-due{font-size:.68rem;padding:2px 8px;border-radius:5px;font-weight:600;}
+    .goals-card .gc-due.overdue{background:rgba(239,68,68,.12);color:#ef4444;}
+    .goals-card .gc-due.soon{background:rgba(251,191,36,.12);color:#fbbf24;}
+    .goals-card .gc-due.ok{background:rgba(34,197,94,.12);color:#22c55e;}
+    .goals-card .gc-label{font-size:.6rem;padding:2px 7px;border-radius:4px;background:rgba(96,165,250,.1);color:#60a5fa;font-weight:700;}
+    .goals-card .gc-subtask-count{font-size:.68rem;color:var(--muted);margin-left:auto;}
+    /* Timeline view */
+    .goals-timeline{padding-left:24px;border-left:2px solid rgba(255,255,255,.08);position:relative;}
+    .goals-tl-month{margin-bottom:24px;}
+    .goals-tl-month h3{font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);margin:0 0 12px;position:relative;}
+    .goals-tl-month h3::before{content:'';position:absolute;left:-29px;top:50%;width:10px;height:10px;border-radius:50%;background:var(--accent);transform:translateY(-50%);}
+    .goals-tl-item{display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:background .15s;}
+    .goals-tl-item:hover{background:rgba(255,255,255,.06);}
+    .goals-tl-item .tl-date{font-size:.7rem;color:var(--muted);min-width:50px;font-weight:600;}
+    .goals-tl-item .tl-title{font-size:.85rem;font-weight:700;flex:1;}
+    .goals-tl-item .tl-pct{font-size:.72rem;font-weight:700;color:var(--muted);}
+    .goals-empty{text-align:center;padding:60px 20px;color:var(--muted);}
+    .goals-empty .ge-icon{font-size:3rem;margin-bottom:12px;opacity:.5;}
+    .goals-empty p{font-size:.95rem;margin:0;}
     /* ── Fullscreen Issue View ── */
     .issue-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9990;background:rgba(0,0,0,.7);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);overflow-y:auto;-webkit-overflow-scrolling:touch;}
     .issue-overlay.open{display:block;}
@@ -955,6 +1022,180 @@
       #homer-cal .cal-popover { left:8px!important; right:8px!important; min-width:0; transform:none!important; }
       #homer-cal .cal-view-toggle { margin-left:6px; }
       #homer-cal .cal-view-btn { padding:4px 8px; font-size:.7rem; }
+    }
+
+    /* === OPENCLAW FAB === */
+    #fab-openclaw{
+      width:46px; height:46px; display:none;
+      background:linear-gradient(135deg,#ea580c 0%,#9a3412 100%);
+      border:1px solid rgba(234,88,12,.35);
+      box-shadow:0 4px 20px rgba(234,88,12,.4), 0 0 0 1px rgba(234,88,12,.12);
+    }
+    #fab-openclaw svg{ width:22px; height:22px; fill:none; stroke:#fff; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+    #fab-openclaw .fab-dot{
+      position:absolute; top:2px; right:2px; width:10px; height:10px; border-radius:50%;
+      border:2px solid #9a3412;
+    }
+    #fab-openclaw .fab-dot.ok{ background:#22c55e; box-shadow:0 0 8px rgba(34,197,94,.6); }
+    #fab-openclaw .fab-dot.off{ background:#ef4444; box-shadow:0 0 6px rgba(239,68,68,.4); }
+    #fab-openclaw.visible{ display:flex; }
+    #fab-openclaw .oc-pulse{
+      position:absolute; inset:-3px; border-radius:50%; border:2px solid rgba(234,88,12,.5);
+      animation:ocPulseRing 2s ease-out infinite; pointer-events:none;
+    }
+    @keyframes ocPulseRing{0%{transform:scale(.95);opacity:.7;}100%{transform:scale(1.35);opacity:0;}}
+
+    /* OpenClaw Chat Panel */
+    #oc-panel{
+      display:none; position:fixed; z-index:960;
+      bottom:calc(var(--tb) + env(safe-area-inset-bottom,0px) + 14px); right:80px;
+      width:min(420px,calc(100vw - 100px)); max-height:min(600px,calc(100vh - 120px));
+      background:linear-gradient(180deg,#1a2236 0%,#0d1520 100%);
+      border:1px solid rgba(234,88,12,.2); border-radius:18px;
+      box-shadow:0 24px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(234,88,12,.08), inset 0 1px 0 rgba(255,255,255,.04);
+      flex-direction:column; overflow:hidden;
+      animation:ocSlideIn .25s cubic-bezier(.4,0,.2,1);
+    }
+    #oc-panel.open{ display:flex; }
+    @keyframes ocSlideIn{from{opacity:0;transform:translateY(12px) scale(.96);}to{opacity:1;transform:translateY(0) scale(1);}}
+
+    #oc-panel-header{
+      display:flex; align-items:center; justify-content:space-between; padding:16px 18px 12px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      background:linear-gradient(180deg,rgba(234,88,12,.06),transparent);
+    }
+    #oc-panel-header h3{ margin:0; font-size:.95rem; display:flex; align-items:center; gap:8px; }
+    .oc-model-badge{
+      font-size:.6rem; color:rgba(234,88,12,.9); font-weight:700; background:rgba(234,88,12,.1);
+      padding:2px 8px; border-radius:6px; letter-spacing:.03em; border:1px solid rgba(234,88,12,.15);
+    }
+    .oc-header-actions{ display:flex; gap:4px; }
+    .oc-header-actions button{
+      background:none; border:none; color:var(--muted); cursor:pointer; padding:4px 8px;
+      border-radius:6px; font-size:.78rem; font-weight:700; transition:background .15s, color .15s;
+    }
+    .oc-header-actions button:hover{ background:rgba(255,255,255,.06); color:var(--text); }
+
+    #oc-chat-messages{
+      flex:1; display:flex; flex-direction:column; gap:10px; overflow-y:auto;
+      padding:16px 16px 8px; scroll-behavior:smooth; min-height:0;
+    }
+    #oc-chat-messages::-webkit-scrollbar{width:4px;}
+    #oc-chat-messages::-webkit-scrollbar-track{background:transparent;}
+    #oc-chat-messages::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px;}
+
+    .oc-msg{max-width:82%;padding:10px 14px;border-radius:14px;font-size:.88rem;line-height:1.55;word-wrap:break-word;position:relative;}
+    .oc-msg.user{
+      align-self:flex-end; border-bottom-right-radius:4px; font-weight:600;
+      background:linear-gradient(135deg,#ea580c,#c2410c); color:#fff; white-space:pre-wrap;
+    }
+    .oc-msg.bot{
+      align-self:flex-start; border-bottom-left-radius:4px; color:var(--text);
+      background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08);
+    }
+    .oc-joey-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#ea580c,#c2410c);color:#fff;font-size:.65rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-bottom:4px;letter-spacing:.02em;box-shadow:0 2px 8px rgba(234,88,12,.3);}
+    .oc-msg.bot .oc-model-tag{display:block;font-size:.6rem;color:rgba(234,88,12,.7);margin-bottom:4px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
+    .oc-msg.bot .oc-content{display:block;}
+    .oc-msg.bot.streaming .oc-content{white-space:pre-wrap;}
+    .oc-msg.bot .oc-content p{margin:0 0 8px;}
+    .oc-msg.bot .oc-content p:last-child{margin-bottom:0;}
+    .oc-msg.bot .oc-content h1,.oc-msg.bot .oc-content h2,.oc-msg.bot .oc-content h3{margin:12px 0 6px;font-size:1rem;color:var(--text);}
+    .oc-msg.bot .oc-content ul,.oc-msg.bot .oc-content ol{margin:4px 0 8px;padding-left:20px;}
+    .oc-msg.bot .oc-content li{margin:2px 0;}
+    .oc-msg.bot .oc-content code{font-family:'Fira Code',monospace;font-size:.82em;background:rgba(234,88,12,.1);color:#fb923c;padding:1px 5px;border-radius:4px;}
+    .oc-msg.bot .oc-content pre{position:relative;margin:8px 0;padding:12px;border-radius:10px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.08);overflow-x:auto;}
+    .oc-msg.bot .oc-content pre code{background:none;color:#e2e8f0;padding:0;font-size:.8em;display:block;white-space:pre;}
+    .oc-msg.bot .oc-content a{color:#fb923c;text-decoration:underline;}
+    .oc-msg.bot .oc-content blockquote{margin:8px 0;padding:4px 12px;border-left:3px solid rgba(234,88,12,.4);color:var(--muted);}
+    .oc-msg.bot .oc-content table{border-collapse:collapse;margin:8px 0;font-size:.82em;width:100%;}
+    .oc-msg.bot .oc-content th,.oc-msg.bot .oc-content td{border:1px solid rgba(255,255,255,.1);padding:4px 8px;text-align:left;}
+    .oc-msg.bot .oc-content th{background:rgba(255,255,255,.05);font-weight:700;}
+
+    .oc-copy-msg{position:absolute;top:4px;right:4px;opacity:0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);
+      color:var(--muted);cursor:pointer;padding:2px 8px;border-radius:6px;font-size:.65rem;font-weight:700;transition:opacity .15s,background .15s;}
+    .oc-msg:hover .oc-copy-msg{opacity:1;}
+    .oc-copy-msg:hover{background:rgba(255,255,255,.15);color:var(--text);}
+    .oc-copy-code{position:absolute;top:6px;right:6px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);
+      color:var(--muted);cursor:pointer;padding:2px 8px;border-radius:6px;font-size:.62rem;font-weight:700;transition:background .15s;}
+    .oc-copy-code:hover{background:rgba(255,255,255,.15);color:var(--text);}
+
+    .oc-msg.error{
+      align-self:center; max-width:100%; border-radius:10px; text-align:center; font-size:.8rem;
+      background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.2); color:#fca5a5;
+    }
+    .oc-welcome{text-align:center;padding:24px 16px;color:var(--muted);font-size:.85rem;line-height:1.6;}
+    .oc-welcome-icon{font-size:2.2rem;margin-bottom:8px;display:block;}
+    .oc-welcome strong{color:var(--text);font-weight:800;}
+    .oc-file-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+    .oc-file-chip{font-size:.68rem;background:rgba(255,255,255,.12);padding:2px 8px;border-radius:8px;color:var(--muted);display:inline-flex;align-items:center;gap:4px;}
+    .oc-file-chip svg{width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2;}
+
+    .oc-typing{display:inline-flex;gap:5px;padding:4px 0;}
+    .oc-typing span{width:6px;height:6px;border-radius:50%;background:rgba(234,88,12,.6);animation:ocBounce .6s infinite alternate;}
+    .oc-typing span:nth-child(2){animation-delay:.15s;}
+    .oc-typing span:nth-child(3){animation-delay:.3s;}
+    @keyframes ocBounce{to{opacity:.3;transform:translateY(-4px);}}
+
+    #oc-chat-footer{
+      padding:12px 14px; border-top:1px solid rgba(255,255,255,.06);
+      background:rgba(0,0,0,.15);
+    }
+    #oc-file-preview{display:none;flex-wrap:wrap;gap:6px;padding:0 0 8px;align-items:center;}
+    #oc-file-preview.has-files{display:flex;}
+    .oc-file-tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:8px;font-size:.72rem;font-weight:600;
+      background:rgba(234,88,12,.1);border:1px solid rgba(234,88,12,.2);color:#fb923c;}
+    .oc-file-tag button{background:none;border:none;color:#fb923c;cursor:pointer;padding:0;font-size:.85rem;line-height:1;opacity:.7;}
+    .oc-file-tag button:hover{opacity:1;}
+    #oc-chat-input-row{display:flex;gap:6px;align-items:flex-end;}
+    .oc-input-actions{display:flex;flex-direction:column;gap:4px;padding-bottom:4px;}
+    .oc-action-btn{width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,.1);cursor:pointer;flex-shrink:0;
+      background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;}
+    .oc-action-btn:hover{background:rgba(255,255,255,.08);border-color:rgba(234,88,12,.3);}
+    .oc-action-btn svg{width:16px;height:16px;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+    #oc-chat-input{
+      flex:1;padding:10px 14px;border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);
+      color:var(--text);font-size:.9rem;font-family:inherit;resize:none;
+      min-height:42px;max-height:120px;outline:none;transition:border-color .2s;
+    }
+    #oc-chat-input:focus{border-color:rgba(234,88,12,.4);}
+    #oc-chat-input::placeholder{color:rgba(255,255,255,.25);}
+    #oc-send-btn{
+      width:42px;height:42px;border-radius:50%;border:none;cursor:pointer;flex-shrink:0;
+      background:linear-gradient(135deg,#ea580c,#c2410c);
+      display:flex;align-items:center;justify-content:center;transition:opacity .15s,transform .1s;
+    }
+    #oc-send-btn:hover{transform:scale(1.05);}
+    #oc-send-btn:active{transform:scale(.95);}
+    #oc-send-btn:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+    #oc-send-btn svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+
+    #oc-emoji-picker{display:none;position:absolute;bottom:100%;left:0;right:0;margin-bottom:6px;
+      background:#1a2236;border:1px solid rgba(255,255,255,.1);border-radius:14px;
+      box-shadow:0 8px 32px rgba(0,0,0,.5);max-height:220px;overflow:hidden;flex-direction:column;z-index:10;}
+    #oc-emoji-picker.open{display:flex;}
+    .oc-emoji-tabs{display:flex;gap:2px;padding:8px 8px 4px;border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;}
+    .oc-emoji-tab{background:none;border:none;padding:4px 8px;border-radius:6px;cursor:pointer;font-size:.9rem;transition:background .15s;}
+    .oc-emoji-tab:hover,.oc-emoji-tab.active{background:rgba(234,88,12,.15);}
+    .oc-emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;padding:8px;overflow-y:auto;flex:1;}
+    .oc-emoji-grid button{background:none;border:none;padding:4px;border-radius:6px;cursor:pointer;font-size:1.2rem;transition:background .15s,transform .1s;}
+    .oc-emoji-grid button:hover{background:rgba(255,255,255,.08);transform:scale(1.15);}
+
+    #oc-settings-row{
+      display:none;flex-direction:column;gap:8px;padding:14px 16px;
+      border-bottom:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.1);
+    }
+    #oc-settings-row.open{display:flex;}
+    #oc-settings-row input{
+      padding:9px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.04);color:var(--text);font-size:.84rem;font-family:inherit;outline:none;
+    }
+    #oc-settings-row input:focus{border-color:rgba(234,88,12,.35);}
+    #oc-settings-row label{font-size:.72rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+
+    @media(max-width:430px){
+      #oc-panel{right:8px;left:8px;width:auto;bottom:calc(var(--tb) + env(safe-area-inset-bottom,0px) + 8px);max-height:calc(100vh - 90px);}
+      .oc-msg{max-width:90%;}
     }
 
   </style>
@@ -1451,6 +1692,7 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
       <p style="color:var(--muted);margin:0;">🔓 Vault unlocked</p>
       <div style="display:flex;gap:8px;">
+        <button id="goals-page-btn" class="btn" style="padding:6px 14px;font-size:.85rem;background:linear-gradient(135deg,var(--accent-2),#2563eb);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;">Goals</button>
         <button id="vault-lock-btn" class="btn danger" style="padding:6px 14px;font-size:.85rem;">Lock</button>
       </div>
     </div>
@@ -5328,6 +5570,9 @@ document.addEventListener("input", e => {
     linksList.innerHTML = '';
     credsList.innerHTML = '';
     ['todo','progress','pending','done'].forEach(function(c){ document.querySelector('.kanban-items[data-col="'+c+'"]').innerHTML=''; });
+    // Close goals overlay on lock
+    var goalsOvr = document.getElementById('goals-overlay');
+    if(goalsOvr) goalsOvr.classList.remove('open');
     isNew = false;
     lockLabel.textContent = 'Unlock Vault';
     unlockBtn.textContent = 'Unlock';
@@ -5337,6 +5582,234 @@ document.addEventListener("input", e => {
     pwInput.value = '';
   });
 
+  // ── Goals Page Logic ──
+  (function(){
+    var overlay = document.getElementById('goals-overlay');
+    var openBtn = document.getElementById('goals-page-btn');
+    var closeBtn = document.getElementById('goals-close-btn');
+    var statsRow = document.getElementById('goals-stats-row');
+    var cardsView = document.getElementById('gp-cards-view');
+    var timelineView = document.getElementById('gp-timeline-view');
+    var searchInput = document.getElementById('gp-search');
+    var statusFilter = document.getElementById('gp-filter-status');
+    var priorityFilter = document.getElementById('gp-filter-priority');
+    var viewBtns = overlay.querySelectorAll('.gv-btn');
+    var currentView = 'cards';
+
+    openBtn.addEventListener('click', function(){
+      overlay.classList.add('open');
+      refreshGoalsPage();
+    });
+    closeBtn.addEventListener('click', function(){ overlay.classList.remove('open'); });
+    overlay.addEventListener('keydown', function(e){ if(e.key==='Escape') overlay.classList.remove('open'); });
+
+    viewBtns.forEach(function(btn){
+      btn.addEventListener('click', function(){
+        currentView = btn.dataset.view;
+        viewBtns.forEach(function(b){ b.classList.remove('active'); });
+        btn.classList.add('active');
+        cardsView.style.display = currentView==='cards' ? 'grid' : 'none';
+        timelineView.style.display = currentView==='timeline' ? 'block' : 'none';
+        refreshGoalsPage();
+      });
+    });
+
+    searchInput.addEventListener('input', function(){ refreshGoalsPage(); });
+    statusFilter.addEventListener('change', function(){ refreshGoalsPage(); });
+    priorityFilter.addEventListener('change', function(){ refreshGoalsPage(); });
+
+    // Listen for vault goal changes to refresh if overlay open
+    window.addEventListener('vault-goals-changed', function(){
+      if(overlay.classList.contains('open')) refreshGoalsPage();
+    });
+
+    function refreshGoalsPage(){
+      loadVault().then(function(data){
+        var goals = (data.goals || []).filter(function(g){ return !g.archived; });
+        renderStats(goals);
+        var filtered = applyFilters(goals);
+        if(currentView==='cards') renderCards(filtered, data.goals || []);
+        else renderTimeline(filtered, data.goals || []);
+      });
+    }
+
+    function applyFilters(goals){
+      var q = searchInput.value.trim().toLowerCase();
+      var st = statusFilter.value;
+      var pr = priorityFilter.value;
+      return goals.filter(function(g){
+        if(st && g.col !== st && !(st==='progress' && g.col==='progress')) return false;
+        if(pr && g.priority !== pr) return false;
+        if(q){
+          var text = (g.summary||'').toLowerCase() + ' ' + (g.desc||'').toLowerCase() + ' ' + (g.labels||[]).join(' ').toLowerCase();
+          if(text.indexOf(q)===-1) return false;
+        }
+        return true;
+      });
+    }
+
+    function getSubtaskProgress(g){
+      if(!g.subtasks || !g.subtasks.length) return {done:0,total:0,pct:0};
+      var done = g.subtasks.filter(function(s){ return s.done; }).length;
+      return {done:done, total:g.subtasks.length, pct:Math.round(done/g.subtasks.length*100)};
+    }
+
+    function renderStats(goals){
+      var total = goals.length;
+      var done = goals.filter(function(g){ return g.col==='done'; }).length;
+      var inProgress = goals.filter(function(g){ return g.col==='progress'; }).length;
+      var overdue = goals.filter(function(g){
+        if(!g.due || g.col==='done') return false;
+        return new Date(g.due) < new Date(new Date().toDateString());
+      }).length;
+      var completionPct = total ? Math.round(done/total*100) : 0;
+
+      // Total subtasks progress
+      var totalSt = 0, doneSt = 0;
+      goals.forEach(function(g){ var p = getSubtaskProgress(g); totalSt += p.total; doneSt += p.done; });
+      var stPct = totalSt ? Math.round(doneSt/totalSt*100) : 0;
+
+      function ringSvg(pct, color){
+        var r = 20, c = 2*Math.PI*r;
+        var off = c - (pct/100)*c;
+        return '<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="'+r+'" class="ring-bg"/><circle cx="24" cy="24" r="'+r+'" class="ring-fg" stroke="'+color+'" stroke-dasharray="'+c+'" stroke-dashoffset="'+off+'"/></svg><span class="ring-label">'+pct+'%</span>';
+      }
+
+      statsRow.innerHTML =
+        '<div class="goals-stat-card"><div class="goals-stat-ring">'+ringSvg(completionPct,'#22c55e')+'</div><div class="goals-stat-info"><h3>Completed</h3><div class="stat-value">'+done+'/'+total+'</div><div class="stat-sub">goals done</div></div></div>' +
+        '<div class="goals-stat-card"><div class="goals-stat-ring">'+ringSvg(stPct,'#60a5fa')+'</div><div class="goals-stat-info"><h3>Subtasks</h3><div class="stat-value">'+doneSt+'/'+totalSt+'</div><div class="stat-sub">tasks done</div></div></div>' +
+        '<div class="goals-stat-card"><div class="goals-stat-ring">'+ringSvg(total?Math.round(inProgress/total*100):0,'#fbbf24')+'</div><div class="goals-stat-info"><h3>In Progress</h3><div class="stat-value">'+inProgress+'</div><div class="stat-sub">active now</div></div></div>' +
+        '<div class="goals-stat-card"><div class="goals-stat-ring">'+ringSvg(total?Math.round(overdue/total*100):0,'#ef4444')+'</div><div class="goals-stat-info"><h3>Overdue</h3><div class="stat-value">'+overdue+'</div><div class="stat-sub">need attention</div></div></div>';
+    }
+
+    function escH(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+    function dueClass(due){
+      if(!due) return '';
+      var diff = Math.floor((new Date(due) - new Date(new Date().toDateString()))/(1000*60*60*24));
+      if(diff < 0) return 'overdue';
+      if(diff <= 3) return 'soon';
+      return 'ok';
+    }
+
+    function dueFmt(due){
+      if(!due) return '';
+      var d = new Date(due);
+      return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    }
+
+    function colLabel(col){
+      var map = {todo:'To Do',progress:'In Progress',pending:'Pending',done:'Done'};
+      return map[col] || col;
+    }
+
+    function barColor(pct){
+      if(pct >= 80) return '#22c55e';
+      if(pct >= 40) return '#fbbf24';
+      return '#60a5fa';
+    }
+
+    function renderCards(goals, allGoals){
+      if(!goals.length){
+        cardsView.innerHTML = '<div class="goals-empty"><div class="ge-icon">🎯</div><p>No goals match your filters</p></div>';
+        return;
+      }
+      var html = '';
+      goals.forEach(function(g){
+        var idx = allGoals.indexOf(g);
+        var p = getSubtaskProgress(g);
+        var prClass = g.priority ? ' priority-'+g.priority : '';
+        var dc = dueClass(g.due);
+
+        html += '<div class="goals-card'+prClass+'" data-gi="'+idx+'">';
+        html += '<div class="gc-header"><span class="gc-id">TASK-'+(g.id||idx+1)+'</span>';
+        html += '<span class="gc-col col-'+(g.col||'todo')+'">'+colLabel(g.col||'todo')+'</span></div>';
+        html += '<div class="gc-title">'+escH(g.summary||'Untitled')+'</div>';
+
+        if(p.total > 0){
+          html += '<div class="gc-progress"><div class="gc-bar"><div class="gc-bar-fill" style="width:'+p.pct+'%;background:'+barColor(p.pct)+';"></div></div><span class="gc-pct">'+p.pct+'%</span></div>';
+        }
+
+        html += '<div class="gc-meta">';
+        if(g.due) html += '<span class="gc-due '+dc+'">'+dueFmt(g.due)+'</span>';
+        if(g.labels && g.labels.length){
+          g.labels.forEach(function(l){ html += '<span class="gc-label">'+escH(l)+'</span>'; });
+        }
+        if(p.total > 0) html += '<span class="gc-subtask-count">'+p.done+'/'+p.total+' subtasks</span>';
+        html += '</div></div>';
+      });
+      cardsView.innerHTML = html;
+
+      // Click to open fullscreen issue
+      cardsView.querySelectorAll('.goals-card').forEach(function(card){
+        card.addEventListener('click', function(){
+          var gi = parseInt(card.dataset.gi);
+          if(!isNaN(gi) && typeof openIssueFullscreen === 'function') openIssueFullscreen(gi);
+        });
+      });
+    }
+
+    function renderTimeline(goals, allGoals){
+      // Group by month based on due date (undated at end)
+      var months = {};
+      var undated = [];
+      goals.forEach(function(g){
+        if(!g.due){ undated.push(g); return; }
+        var d = new Date(g.due);
+        var key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+        var label = d.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+        if(!months[key]) months[key] = {label:label, items:[]};
+        months[key].items.push(g);
+      });
+
+      if(!goals.length){
+        timelineView.innerHTML = '<div class="goals-empty"><div class="ge-icon">📅</div><p>No goals with due dates</p></div>';
+        return;
+      }
+
+      var sortedKeys = Object.keys(months).sort();
+      var html = '';
+      sortedKeys.forEach(function(key){
+        var m = months[key];
+        html += '<div class="goals-tl-month"><h3>'+escH(m.label)+'</h3>';
+        m.items.sort(function(a,b){ return new Date(a.due)-new Date(b.due); });
+        m.items.forEach(function(g){
+          var idx = allGoals.indexOf(g);
+          var p = getSubtaskProgress(g);
+          var d = new Date(g.due);
+          html += '<div class="goals-tl-item" data-gi="'+idx+'">';
+          html += '<span class="tl-date">'+d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</span>';
+          html += '<span class="tl-title">'+escH(g.summary||'Untitled')+'</span>';
+          if(p.total) html += '<span class="tl-pct">'+p.pct+'%</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+      });
+
+      if(undated.length){
+        html += '<div class="goals-tl-month"><h3>No Due Date</h3>';
+        undated.forEach(function(g){
+          var idx = allGoals.indexOf(g);
+          var p = getSubtaskProgress(g);
+          html += '<div class="goals-tl-item" data-gi="'+idx+'">';
+          html += '<span class="tl-date">—</span>';
+          html += '<span class="tl-title">'+escH(g.summary||'Untitled')+'</span>';
+          if(p.total) html += '<span class="tl-pct">'+p.pct+'%</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+      }
+
+      timelineView.innerHTML = html;
+
+      timelineView.querySelectorAll('.goals-tl-item').forEach(function(item){
+        item.addEventListener('click', function(){
+          var gi = parseInt(item.dataset.gi);
+          if(!isNaN(gi) && typeof openIssueFullscreen === 'function') openIssueFullscreen(gi);
+        });
+      });
+    }
+  })();
 
   // --- Add Link ---
   linkAddBtn.addEventListener('click', function(){
@@ -6657,6 +7130,11 @@ document.addEventListener("input", e => {
     <span class="fab-dot off"></span>
   </button>
 
+  <button id="fab-openclaw" class="fab-btn" title="Joey AI">
+    <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    <span class="fab-dot off"></span>
+    <div class="oc-pulse"></div>
+  </button>
   <button id="fab-wake" class="fab-btn" title="Keep Awake">
     <svg viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 7.66l-.71-.71M4.05 4.05l-.71-.71"/><circle cx="12" cy="12" r="4"/></svg>
     <span class="fab-dot off"></span>
@@ -6664,6 +7142,53 @@ document.addEventListener("input", e => {
   <button id="fab-clear" class="fab-btn" title="Clear Cache">
     <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
   </button>
+</div>
+
+<!-- OpenClaw Chat Panel -->
+<div id="oc-panel">
+  <div id="oc-panel-header">
+    <h3>🍕 Joey <span class="oc-model-badge">Nemotron 3 Super</span></h3>
+    <div class="oc-header-actions">
+      <button id="oc-export-btn" title="Export chat">&#8615;</button>
+      <button id="oc-settings-btn" title="Settings">&#9881;</button>
+      <button id="oc-clear-btn" title="Clear chat">Clear</button>
+      <button id="oc-close-btn" title="Close">&times;</button>
+    </div>
+  </div>
+  <div id="oc-settings-row">
+    <label>System Prompt</label>
+    <input id="oc-system-prompt" type="text" placeholder="Default: Joey Tribbiani persona. Override here." spellcheck="false">
+    <button id="oc-settings-save" style="align-self:flex-end;padding:7px 16px;border-radius:8px;border:none;background:linear-gradient(135deg,#ea580c,#c2410c);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;">Save</button>
+  </div>
+  <div id="oc-chat-messages">
+    <div class="oc-welcome">
+      <span class="oc-welcome-icon">🍕</span>
+      <strong>Joey</strong> doesn't share food, but shares answers.<br>
+      How you doin'? Ask me anything.
+    </div>
+  </div>
+  <div id="oc-chat-footer" style="position:relative;">
+    <div id="oc-file-preview"></div>
+    <div id="oc-chat-input-row">
+      <div class="oc-input-actions">
+        <button id="oc-attach-btn" class="oc-action-btn" title="Attach file">
+          <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+        </button>
+        <button id="oc-emoji-btn" class="oc-action-btn" title="Emoji">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+        </button>
+      </div>
+      <textarea id="oc-chat-input" rows="1" placeholder="Message Joey..."></textarea>
+      <button id="oc-send-btn" title="Send">
+        <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+    <input type="file" id="oc-file-input" multiple style="display:none">
+    <div id="oc-emoji-picker">
+      <div class="oc-emoji-tabs"></div>
+      <div class="oc-emoji-grid"></div>
+    </div>
+  </div>
 </div>
 
 <!-- Account Modal -->
@@ -7290,63 +7815,83 @@ document.addEventListener("input", e => {
       if(!force && lastBackupHash){
         var currentHash = computeDataHash(allData);
         if(currentHash === lastBackupHash){
-          // Still push periodically even if unchanged (safety net - every 10 min)
           if(lastSyncTs && (Date.now() - lastSyncTs) < 600000){
             return;
           }
         }
       }
 
-      // SAFETY: If local data looks empty, check cloud before overwriting
-      if(!force && localCount < 2){
-        return fetch('/api/sync?key='+encodeURIComponent(p))
-          .then(function(r){ return r.json(); })
-          .then(function(d){
-            if(d.data){
-              // Count meaningful keys in cloud
-              var cloudDataCount = 0;
-              DATA_KEYS.forEach(function(k){ if(d.data[k]) cloudDataCount++; });
-              if(cloudDataCount > localCount){
-                st('Skipped — cloud has more data (' + cloudDataCount + ' vs ' + localCount + ' local). Use Restore instead.');
+      // SAFETY: Always compare local vs cloud before overwriting
+      return fetch('/api/sync?key='+encodeURIComponent(p))
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if(!d.data){
+            // No cloud data — safe to push
+            return doBackup(p, allData);
+          }
+
+          // Count meaningful keys in cloud vs local
+          var cloudDataCount = 0;
+          DATA_KEYS.forEach(function(k){ if(d.data[k]) cloudDataCount++; });
+
+          // Count local data keys in allData
+          var localDataCount = 0;
+          DATA_KEYS.forEach(function(k){ if(allData[k]) localDataCount++; });
+
+          // If local has fewer items than cloud, always prompt
+          if(cloudDataCount > localDataCount){
+            if(force){
+              // Manual backup — show confirm dialog
+              var proceed = confirm(
+                'Warning: Your local data has fewer items (' + localDataCount + ') than the cloud backup (' + cloudDataCount + ').\n\n' +
+                'This could overwrite data you have on other devices.\n\n' +
+                'Do you want to backup anyway?\n\n' +
+                'Click Cancel to keep the cloud data safe, or OK to overwrite.'
+              );
+              if(!proceed){
+                st('Backup cancelled — cloud data preserved (' + cloudDataCount + ' items).');
                 return;
               }
+            } else {
+              // Auto-backup — never overwrite silently, just warn
+              st('Auto-backup skipped — cloud has more data (' + cloudDataCount + ' vs ' + localDataCount + ' local). Use Backup Now or Restore.');
+              return;
             }
-            // Cloud is empty or has less — safe to push
-            return doBackup(p, allData);
-          })
-          .catch(function(){
-            // Can't reach cloud — skip to be safe
-            st('Skipped — could not verify cloud data');
+          }
+
+          // Check essential keys as extra safety
+          var essential = ['homer-cal-events', 'homer-brain-dump', 'homer-links', 'pom.tasks.v1'];
+          var localMissing = 0;
+          var cloudHasEssential = 0;
+          essential.forEach(function(k){
+            if(!allData[k]) localMissing++;
+            if(d.data[k]) cloudHasEssential++;
           });
-      }
 
-      // SAFETY: Extra validation — never push if critical data is missing but exists in cloud
-      if(!force && localCount >= 2){
-        // Verify essential keys exist before pushing
-        var essential = ['homer-cal-events', 'homer-brain-dump', 'homer-links', 'pom.tasks.v1'];
-        var missingEssential = 0;
-        essential.forEach(function(k){ if(!allData[k]) missingEssential++; });
-        // If we're missing ALL essential keys, something is wrong — verify cloud first
-        if(missingEssential >= essential.length){
-          return fetch('/api/sync?key='+encodeURIComponent(p))
-            .then(function(r){ return r.json(); })
-            .then(function(d){
-              if(d.data){
-                var cloudHasData = false;
-                essential.forEach(function(k){ if(d.data[k]) cloudHasData = true; });
-                if(cloudHasData){
-                  st('Skipped — local data appears incomplete. Cloud preserved.');
-                  return;
-                }
+          if(localMissing >= essential.length && cloudHasEssential > 0){
+            if(force){
+              var proceed2 = confirm(
+                'Warning: Your local data is missing all essential items (events, notes, links, tasks) but the cloud has them.\n\n' +
+                'This looks like a fresh session. Did you mean to Restore instead?\n\n' +
+                'Click Cancel to keep cloud data, or OK to overwrite anyway.'
+              );
+              if(!proceed2){
+                st('Backup cancelled — cloud data preserved.');
+                return;
               }
-              return doBackup(p, allData);
-            })
-            .catch(function(){ st('Skipped — could not verify cloud data'); });
-        }
-      }
+            } else {
+              st('Auto-backup skipped — local data appears incomplete. Cloud preserved.');
+              return;
+            }
+          }
 
-      // Local has real data — safe to push
-      return doBackup(p, allData);
+          return doBackup(p, allData);
+        })
+        .catch(function(){
+          // Can't reach cloud — only backup if forced (manual)
+          if(force) return doBackup(p, allData);
+          st('Auto-backup skipped — could not verify cloud data');
+        });
     });
   }
 
@@ -7672,6 +8217,652 @@ document.addEventListener("input", e => {
   });
 })();
 </script>
+
+<!-- Markdown renderer for Joey chat -->
+<script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js" defer></script>
+<!-- PDF text extraction for Joey file uploads -->
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/build/pdf.min.mjs" type="module" defer></script>
+<script>window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='undefined')pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/build/pdf.worker.min.mjs';});</script>
+<!-- OpenClaw Chat -->
+<script>
+(function(){
+  var OC_CONFIG_KEY = 'homer-oc-config';
+  var ALLOWED_USER = 'bogdan';
+  var fabBtn = document.getElementById('fab-openclaw');
+  var fabDot = fabBtn.querySelector('.fab-dot');
+  var panel = document.getElementById('oc-panel');
+  var messagesEl = document.getElementById('oc-chat-messages');
+  var inputEl = document.getElementById('oc-chat-input');
+  var sendBtn = document.getElementById('oc-send-btn');
+  var clearBtn = document.getElementById('oc-clear-btn');
+  var closeBtn = document.getElementById('oc-close-btn');
+  var settingsBtn = document.getElementById('oc-settings-btn');
+  var settingsRow = document.getElementById('oc-settings-row');
+  var settingsSave = document.getElementById('oc-settings-save');
+  var systemPromptInput = document.getElementById('oc-system-prompt');
+  var exportBtn = document.getElementById('oc-export-btn');
+  var attachBtn = document.getElementById('oc-attach-btn');
+  var fileInput = document.getElementById('oc-file-input');
+  var filePreview = document.getElementById('oc-file-preview');
+  var emojiBtn = document.getElementById('oc-emoji-btn');
+  var emojiPicker = document.getElementById('oc-emoji-picker');
+  var chatHistory = [];
+  var streaming = false;
+  var panelOpen = false;
+  var pendingFiles = [];
+
+  function getConfig(){
+    try{ return JSON.parse(localStorage.getItem(OC_CONFIG_KEY)) || {}; }catch(e){ return {}; }
+  }
+  function setConfig(c){ localStorage.setItem(OC_CONFIG_KEY, JSON.stringify(c)); }
+
+  // --- FAB visibility ---
+  function updateFabVisibility(){
+    var user = (localStorage.getItem('homer-auth-user') || '').toLowerCase();
+    var show = user === ALLOWED_USER;
+    fabBtn.classList.toggle('visible', show);
+    if(!show && panelOpen){ panelOpen = false; panel.classList.remove('open'); }
+  }
+  window.addEventListener('homer-vault-state', updateFabVisibility);
+  window.addEventListener('homer-auth', updateFabVisibility);
+  window.addEventListener('storage', function(e){ if(e.key === 'homer-auth-user') updateFabVisibility(); });
+  updateFabVisibility();
+
+  // --- Panel toggle ---
+  fabBtn.addEventListener('click', function(){
+    if(!window._homerVaultUnlocked){
+      var vaultTab = document.querySelector('.tab-btn[data-tab="vault"]');
+      if(vaultTab){ vaultTab.style.animation='none'; vaultTab.offsetHeight; vaultTab.style.animation='fadeIn .5s ease 3'; }
+      return;
+    }
+    panelOpen = !panelOpen;
+    panel.classList.toggle('open', panelOpen);
+    if(panelOpen){
+      loadChatFromVault();
+      setTimeout(function(){ inputEl.focus(); }, 100);
+    }
+  });
+  closeBtn.addEventListener('click', function(){
+    panelOpen = false; panel.classList.remove('open');
+  });
+
+  // --- Settings ---
+  var cfg = getConfig();
+  systemPromptInput.value = cfg.system || '';
+  settingsBtn.addEventListener('click', function(){ settingsRow.classList.toggle('open'); });
+  settingsSave.addEventListener('click', function(){
+    setConfig({ system: systemPromptInput.value.trim() });
+    settingsRow.classList.remove('open');
+  });
+
+  // --- Vault integration ---
+  function loadChatFromVault(){
+    if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
+      window._homerLoadVault().then(function(data){
+        if(data && data.ocChat && data.ocChat.length){
+          chatHistory = data.ocChat;
+          renderMessages();
+        }
+      });
+    }
+  }
+  function saveChatToVault(){
+    if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
+      window._homerLoadVault().then(function(data){
+        if(data){
+          data.ocChat = chatHistory;
+          window._homerSaveVault(data);
+        }
+      });
+    }
+  }
+  window.addEventListener('homer-vault-state', function(){
+    if(window._homerVaultUnlocked) loadChatFromVault();
+  });
+
+  // --- Markdown rendering ---
+  function renderMd(raw){
+    if(typeof marked !== 'undefined'){
+      try{ return marked.parse(raw, {breaks:true, gfm:true}); }catch(e){}
+    }
+    return escHtml(raw).replace(/\n/g,'<br>');
+  }
+  function escHtml(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function injectCodeCopyButtons(container){
+    container.querySelectorAll('pre').forEach(function(pre){
+      if(pre.querySelector('.oc-copy-code')) return;
+      var btn = document.createElement('button');
+      btn.className = 'oc-copy-code';
+      btn.textContent = 'Copy';
+      btn.addEventListener('click', function(){
+        var code = pre.querySelector('code');
+        navigator.clipboard.writeText(code ? code.textContent : pre.textContent);
+        btn.textContent = 'Copied!';
+        setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+      });
+      pre.style.position = 'relative';
+      pre.appendChild(btn);
+    });
+  }
+
+  // --- Rendering ---
+  var welcomeHtml = '<div class="oc-welcome"><span class="oc-welcome-icon">🍕</span><strong>Joey</strong> doesn\'t share food, but shares answers.<br>How you doin\'? Ask me anything.</div>';
+
+  function renderMessages(){
+    var html = welcomeHtml;
+    chatHistory.forEach(function(m){
+      if(m.role === 'user'){
+        var fileHtml = '';
+        if(m.files && m.files.length){
+          fileHtml = '<div class="oc-file-chips">';
+          m.files.forEach(function(f){ fileHtml += '<span class="oc-file-chip"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' + escHtml(f) + '</span>'; });
+          fileHtml += '</div>';
+        }
+        html += '<div class="oc-msg user"><button class="oc-copy-msg">Copy</button>' + escHtml(m.displayText || m.content) + fileHtml + '</div>';
+      } else if(m.role === 'assistant'){
+        html += '<div class="oc-msg bot"><button class="oc-copy-msg">Copy</button><span class="oc-joey-avatar">JT</span><span class="oc-model-tag">Joey Tribbiani</span><span class="oc-content">' + renderMd(m.content) + '</span></div>';
+      }
+    });
+    messagesEl.innerHTML = html;
+    injectCodeCopyButtons(messagesEl);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  // --- Copy message (event delegation) ---
+  messagesEl.addEventListener('click', function(e){
+    if(!e.target.classList.contains('oc-copy-msg')) return;
+    var msg = e.target.closest('.oc-msg');
+    if(!msg) return;
+    var text = '';
+    if(msg.classList.contains('user')){
+      var idx = Array.from(messagesEl.querySelectorAll('.oc-msg.user')).indexOf(msg);
+      var userMsgs = chatHistory.filter(function(m){ return m.role === 'user'; });
+      text = userMsgs[idx] ? userMsgs[idx].content : msg.textContent;
+    } else {
+      var contentEl = msg.querySelector('.oc-content');
+      text = contentEl ? contentEl.textContent : msg.textContent;
+    }
+    navigator.clipboard.writeText(text);
+    e.target.textContent = 'Copied!';
+    setTimeout(function(){ e.target.textContent = 'Copy'; }, 1500);
+  });
+
+  function addTypingIndicator(){
+    var el = document.createElement('div');
+    el.className = 'oc-msg bot';
+    el.id = 'oc-typing';
+    el.innerHTML = '<span class="oc-joey-avatar">JT</span><span class="oc-model-tag">Joey Tribbiani</span><div class="oc-typing"><span></span><span></span><span></span></div>';
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+  function removeTypingIndicator(){
+    var t = document.getElementById('oc-typing');
+    if(t) t.remove();
+  }
+
+  var streamRaw = '';
+  function appendBotChunk(text){
+    var existing = messagesEl.querySelector('.oc-msg.bot.streaming');
+    if(!existing){
+      existing = document.createElement('div');
+      existing.className = 'oc-msg bot streaming';
+      existing.innerHTML = '<button class="oc-copy-msg">Copy</button><span class="oc-joey-avatar">JT</span><span class="oc-model-tag">Joey Tribbiani</span><span class="oc-content"></span>';
+      messagesEl.appendChild(existing);
+      streamRaw = '';
+    }
+    streamRaw += text;
+    var c = existing.querySelector('.oc-content');
+    if(c) c.textContent = streamRaw;
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+  function finalizeBotMessage(){
+    var el = messagesEl.querySelector('.oc-msg.bot.streaming');
+    if(el){
+      el.classList.remove('streaming');
+      var c = el.querySelector('.oc-content');
+      if(c){
+        c.innerHTML = renderMd(streamRaw);
+        injectCodeCopyButtons(el);
+      }
+      var result = streamRaw;
+      streamRaw = '';
+      return result;
+    }
+    return '';
+  }
+
+  // --- Joey Actions: create tasks, goals, events ---
+  function executeActions(text){
+    var actions = [];
+    var regex = /\[ACTION:(TASK|GOAL|EVENT)\]([\s\S]*?)\[\/ACTION\]/g;
+    var match;
+    while((match = regex.exec(text)) !== null){
+      actions.push({type: match[1], data: match[2].trim()});
+    }
+    if(!actions.length) return text;
+
+    var notifications = [];
+    actions.forEach(function(a){
+      try{
+        if(a.type === 'TASK'){
+          // Simple task on the task board
+          var TKEY = 'pom.tasks.v1';
+          var list = [];
+          try{ list = JSON.parse(localStorage.getItem(TKEY) || '[]'); }catch(e){}
+          list.unshift({text: a.data, done: false, ts: Date.now()});
+          localStorage.setItem(TKEY, JSON.stringify(list));
+          try{ window.dispatchEvent(new Event('tasks-changed')); }catch(e){}
+          notifications.push('Task created: ' + a.data);
+        }
+        else if(a.type === 'GOAL'){
+          // Goal with subtasks on the Kanban board (vault)
+          var goalData = JSON.parse(a.data);
+          if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
+            window._homerLoadVault().then(function(data){
+              if(!data) return;
+              if(!data._nextId) data._nextId = 1;
+              if(!data._nextSubId) data._nextSubId = 1;
+              var subtasks = [];
+              if(goalData.subtasks && Array.isArray(goalData.subtasks)){
+                goalData.subtasks.forEach(function(st){
+                  subtasks.push({
+                    id: data._nextSubId++,
+                    text: typeof st === 'string' ? st : st.text,
+                    done: false,
+                    effort: '',
+                    due: (typeof st === 'object' && st.due) ? st.due : '',
+                    notes: '',
+                    attachments: []
+                  });
+                });
+              }
+              var goal = {
+                id: data._nextId++,
+                summary: goalData.summary || 'New Goal',
+                desc: goalData.desc || '',
+                notes: goalData.notes || '',
+                due: goalData.due || '',
+                priority: goalData.priority || '',
+                reporter: '',
+                assignee: '',
+                labels: goalData.labels || [],
+                col: 'todo',
+                subtasks: subtasks,
+                attachments: [],
+                comments: [],
+                log: [{action:'Goal created by Joey', ts:Date.now()}]
+              };
+              data.goals.push(goal);
+              window._homerSaveVault(data);
+              try{ window.dispatchEvent(new Event('vault-goals-changed')); }catch(e){}
+            });
+          }
+          notifications.push('Goal created: ' + (goalData.summary || 'New Goal') + (goalData.subtasks ? ' (' + goalData.subtasks.length + ' subtasks)' : ''));
+        }
+        else if(a.type === 'EVENT'){
+          var evtData = JSON.parse(a.data);
+          var EKEY = 'homer-cal-events';
+          var evts = [];
+          try{ evts = JSON.parse(localStorage.getItem(EKEY) || '[]'); }catch(e){}
+          evts.push({
+            id: Date.now() + '-' + Math.random().toString(36).substring(2, 8),
+            title: evtData.title || 'New Event',
+            date: evtData.date || new Date().toISOString().slice(0,10),
+            time: evtData.time || '',
+            location: evtData.location || '',
+            description: evtData.description || ''
+          });
+          localStorage.setItem(EKEY, JSON.stringify(evts));
+          notifications.push('Event added: ' + (evtData.title || 'New Event') + ' on ' + (evtData.date || 'today'));
+        }
+      }catch(e){
+        notifications.push('Action failed: ' + e.message);
+      }
+    });
+
+    // Show confirmation toast
+    if(notifications.length){
+      var toast = document.createElement('div');
+      toast.className = 'oc-msg bot';
+      toast.style.cssText = 'background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);font-size:.78rem;color:#4ade80;text-align:center;max-width:100%;';
+      toast.innerHTML = notifications.map(function(n){ return '&#10003; ' + escHtml(n); }).join('<br>');
+      messagesEl.appendChild(toast);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    // Strip action tags from displayed text
+    return text.replace(/\[ACTION:(TASK|GOAL|EVENT)\][\s\S]*?\[\/ACTION\]/g, '').trim();
+  }
+
+  function showError(msg){
+    var el = document.createElement('div');
+    el.className = 'oc-msg error';
+    el.textContent = msg;
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  // --- File attachment ---
+  var TEXT_EXTS = /\.(txt|md|json|csv|js|ts|jsx|tsx|py|html|css|xml|yaml|yml|log|sql|sh|toml|ini|cfg|env|java|go|rs|c|cpp|h|rb|php|swift|kt|r|m|bat|ps1|makefile|dockerfile|gitignore|svelte|vue|scss|less|sass|graphql|proto|tf|hcl|asm|lua|pl|ex|exs|clj|hs|erl|dart|scala|groovy|diff|patch)$/i;
+  var MAX_FILE_SIZE = 1024 * 1024; // 1MB
+
+  function extractPdfText(arrayBuffer){
+    return new Promise(function(resolve){
+      if(typeof pdfjsLib === 'undefined'){
+        resolve('[PDF content - pdf.js not loaded. Showing raw text extract below]\n' + new TextDecoder('utf-8',{fatal:false}).decode(arrayBuffer).replace(/[^\x20-\x7E\n\r\t]/g,''));
+        return;
+      }
+      pdfjsLib.getDocument({data:arrayBuffer}).promise.then(function(pdf){
+        var pages = [];
+        var count = pdf.numPages;
+        function getPage(n){
+          if(n > count){ resolve(pages.join('\n\n--- Page Break ---\n\n')); return; }
+          pdf.getPage(n).then(function(page){
+            page.getTextContent().then(function(tc){
+              pages.push(tc.items.map(function(i){return i.str;}).join(' '));
+              getPage(n+1);
+            });
+          });
+        }
+        getPage(1);
+      }).catch(function(err){
+        resolve('[PDF parsing failed: ' + err.message + ']');
+      });
+    });
+  }
+
+  function readFileContent(file){
+    return new Promise(function(resolve){
+      var ext = file.name.split('.').pop().toLowerCase();
+      if(ext === 'pdf'){
+        var r = new FileReader();
+        r.onload = function(e){ extractPdfText(e.target.result).then(resolve); };
+        r.readAsArrayBuffer(file);
+      } else if(TEXT_EXTS.test(file.name) || file.type.startsWith('text/')){
+        var r2 = new FileReader();
+        r2.onload = function(e){ resolve(e.target.result); };
+        r2.readAsText(file);
+      } else {
+        var r3 = new FileReader();
+        r3.onload = function(e){
+          var text = e.target.result;
+          var printable = text.replace(/[^\x20-\x7E\n\r\t]/g, '').trim();
+          if(printable.length > text.length * 0.5){
+            resolve(text);
+          } else {
+            resolve('[Binary file: ' + file.name + ' (' + (file.size/1024).toFixed(1) + 'KB, type: ' + (file.type||'unknown') + ')]\nBase64 preview (first 2000 chars):\n' + btoa(text.slice(0,1500)));
+          }
+        };
+        r3.readAsText(file);
+      }
+    });
+  }
+
+  attachBtn.addEventListener('click', function(){ fileInput.click(); });
+  fileInput.addEventListener('change', function(){
+    Array.from(fileInput.files).forEach(function(file){
+      if(file.size > MAX_FILE_SIZE){
+        showError('File too large: ' + file.name + ' (max 1MB)');
+        return;
+      }
+      readFileContent(file).then(function(content){
+        pendingFiles.push({name: file.name, content: content});
+        renderFilePreviewPanel();
+      });
+    });
+    fileInput.value = '';
+  });
+  function renderFilePreviewPanel(){
+    filePreview.innerHTML = '';
+    filePreview.classList.toggle('has-files', pendingFiles.length > 0);
+    pendingFiles.forEach(function(f, idx){
+      var tag = document.createElement('span');
+      tag.className = 'oc-file-tag';
+      tag.innerHTML = escHtml(f.name) + ' <button title="Remove">&times;</button>';
+      tag.querySelector('button').addEventListener('click', function(){
+        pendingFiles.splice(idx, 1);
+        renderFilePreviewPanel();
+      });
+      filePreview.appendChild(tag);
+    });
+  }
+
+  // --- Emoji picker ---
+  var EMOJI_DATA = {
+    '😀': ['😀','😂','🤣','😊','😍','🥰','😎','🤩','😇','🥳','😏','🤔','😴','🤯','🥺','😤','😭','💀','🤖','👻'],
+    '👋': ['👋','👍','👎','👏','🙌','🤝','✌️','🤞','💪','🙏','👀','🧠','❤️','🔥','⭐','💡','✅','❌','⚡','🎉'],
+    '🐱': ['🐱','🐶','🦊','🐻','🦁','🐸','🐙','🦞','🦀','🐝','🌿','🌸','🌙','☀️','🌈','💧','❄️','🍕','☕','🍺'],
+    '💻': ['💻','📱','⌨️','🖥️','📁','📄','📊','🔗','🔒','🔑','📡','🛠️','⚙️','🧪','📝','💾','📦','🚀','🏠','📌']
+  };
+  var emojiCats = Object.keys(EMOJI_DATA);
+  var tabsEl = emojiPicker.querySelector('.oc-emoji-tabs');
+  var gridEl = emojiPicker.querySelector('.oc-emoji-grid');
+
+  emojiCats.forEach(function(cat, i){
+    var tab = document.createElement('button');
+    tab.className = 'oc-emoji-tab' + (i === 0 ? ' active' : '');
+    tab.textContent = cat;
+    tab.addEventListener('click', function(){
+      tabsEl.querySelectorAll('.oc-emoji-tab').forEach(function(t){ t.classList.remove('active'); });
+      tab.classList.add('active');
+      renderEmojiGrid(cat);
+    });
+    tabsEl.appendChild(tab);
+  });
+  function renderEmojiGrid(cat){
+    gridEl.innerHTML = '';
+    EMOJI_DATA[cat].forEach(function(em){
+      var btn = document.createElement('button');
+      btn.textContent = em;
+      btn.addEventListener('click', function(){
+        var start = inputEl.selectionStart || 0;
+        var end = inputEl.selectionEnd || 0;
+        var val = inputEl.value;
+        inputEl.value = val.slice(0, start) + em + val.slice(end);
+        inputEl.selectionStart = inputEl.selectionEnd = start + em.length;
+        inputEl.focus();
+        emojiPicker.classList.remove('open');
+      });
+      gridEl.appendChild(btn);
+    });
+  }
+  renderEmojiGrid(emojiCats[0]);
+  emojiBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    emojiPicker.classList.toggle('open');
+  });
+  document.addEventListener('mousedown', function(e){
+    if(!emojiPicker.contains(e.target) && e.target !== emojiBtn) emojiPicker.classList.remove('open');
+  });
+
+  // --- Export chat ---
+  exportBtn.addEventListener('click', function(){
+    if(!chatHistory.length) return;
+    var md = '# Joey Chat Export\n_' + new Date().toLocaleString() + '_\n\n';
+    chatHistory.forEach(function(m){
+      if(m.role === 'user'){
+        md += '## You\n\n' + (m.displayText || m.content) + '\n\n';
+      } else {
+        md += '## Joey (N3S)\n\n' + m.content + '\n\n---\n\n';
+      }
+    });
+    var blob = new Blob([md], {type:'text/markdown'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'joey-chat-' + new Date().toISOString().slice(0,10) + '.md';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // --- Send via Vercel API proxy ---
+  async function sendMessage(){
+    var text = inputEl.value.trim();
+    if(!text && !pendingFiles.length) return;
+    if(streaming) return;
+    var config = getConfig();
+    var JOEY_PROMPT = 'You are Joey Tribbiani from Friends. You speak like Joey — confident, lovable, a little clueless sometimes, but always charming. You use Joey\'s catchphrases naturally (like "How you doin\'?", "Joey doesn\'t share food!", "It\'s a moo point"). You\'re helpful and give good answers, but always in Joey\'s voice and personality. Keep it fun but actually useful.\n\nYou can create tasks, subtasks, and calendar events for the user. When the user asks you to create something, include the action commands at the END of your response (after your conversational text) using this exact format:\n\n- To create a task: [ACTION:TASK]Task description here[/ACTION]\n- To create a goal (board card) with subtasks: [ACTION:GOAL]{"summary":"Goal title","desc":"Description","priority":"high","due":"2026-03-25","subtasks":["Subtask 1","Subtask 2","Subtask 3"]}[/ACTION]\n- To create a calendar event: [ACTION:EVENT]{"title":"Event title","date":"2026-03-25","time":"14:30","location":"Place","description":"Details"}[/ACTION]\n\nRules for actions:\n- Date format is always YYYY-MM-DD, time is HH:MM (24h)\n- Priority can be: highest, high, medium, low, lowest\n- You can include multiple actions in one response\n- Always confirm what you created in your conversational text\n- If the user says "today", use ' + new Date().toISOString().slice(0,10) + ' as the date\n- If no time specified for events, leave time as empty string\n- Always include actions — don\'t just describe what you would do';
+    var systemPrompt = config.system || JOEY_PROMPT;
+
+    var displayText = text;
+    var fullContent = text;
+    var fileNames = [];
+
+    if(pendingFiles.length){
+      var fileBlock = '';
+      pendingFiles.forEach(function(f){
+        fileNames.push(f.name);
+        fileBlock += '\n--- ' + f.name + ' ---\n' + f.content + '\n--- end ---\n';
+      });
+      fullContent = '[Attached files for analysis]' + fileBlock + '\n' + text;
+      pendingFiles = [];
+      renderFilePreviewPanel();
+    }
+
+    var historyEntry = {role:'user', content:fullContent, displayText:displayText};
+    if(fileNames.length) historyEntry.files = fileNames;
+    chatHistory.push(historyEntry);
+
+    var userEl = document.createElement('div');
+    userEl.className = 'oc-msg user';
+    userEl.innerHTML = '<button class="oc-copy-msg">Copy</button>' + escHtml(displayText);
+    if(fileNames.length){
+      var chips = document.createElement('div');
+      chips.className = 'oc-file-chips';
+      fileNames.forEach(function(n){
+        chips.innerHTML += '<span class="oc-file-chip"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' + escHtml(n) + '</span>';
+      });
+      userEl.appendChild(chips);
+    }
+    messagesEl.appendChild(userEl);
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    var apiMessages = [];
+    if(systemPrompt) apiMessages.push({role:'system', content:systemPrompt});
+    chatHistory.slice(-20).forEach(function(m){ apiMessages.push({role:m.role, content:m.content}); });
+
+    streaming = true;
+    sendBtn.disabled = true;
+    fabDot.className = 'fab-dot ok';
+    addTypingIndicator();
+
+    try{
+      var syncPass = localStorage.getItem('homer-sync-pass') || '';
+      var res = await fetch('/api/openclaw', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ messages: apiMessages, passphrase: syncPass })
+      });
+
+      removeTypingIndicator();
+
+      if(!res.ok){
+        var errText = await res.text().catch(function(){ return res.statusText; });
+        showError('Error ' + res.status + ': ' + (errText || 'Unknown error'));
+        streaming = false; sendBtn.disabled = false; fabDot.className = 'fab-dot off';
+        return;
+      }
+
+      var reader = res.body.getReader();
+      var decoder = new TextDecoder();
+      var buffer = '';
+
+      while(true){
+        var chunk = await reader.read();
+        if(chunk.done) break;
+        buffer += decoder.decode(chunk.value, {stream:true});
+        var lines = buffer.split('\n');
+        buffer = lines.pop();
+        for(var i = 0; i < lines.length; i++){
+          var line = lines[i].trim();
+          if(!line || !line.startsWith('data:')) continue;
+          var data = line.slice(5).trim();
+          if(data === '[DONE]') continue;
+          try{
+            var parsed = JSON.parse(data);
+            var delta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta;
+            if(delta && delta.content) appendBotChunk(delta.content);
+          }catch(e){}
+        }
+      }
+
+      var fullResponse = finalizeBotMessage();
+      if(fullResponse){
+        // Execute any actions (tasks, goals, events) and strip tags from display
+        var cleanResponse = executeActions(fullResponse);
+        chatHistory.push({role:'assistant', content:cleanResponse});
+        // Re-render the last bot message without action tags
+        var lastBot = messagesEl.querySelector('.oc-msg.bot:last-of-type');
+        if(lastBot && lastBot.querySelector('.oc-content')){
+          lastBot.querySelector('.oc-content').innerHTML = renderMd(cleanResponse);
+          injectCodeCopyButtons(lastBot);
+        }
+      }
+      saveChatToVault();
+
+    }catch(err){
+      removeTypingIndicator();
+      showError('Connection error: ' + err.message);
+    }
+    streaming = false;
+    sendBtn.disabled = false;
+    fabDot.className = 'fab-dot off';
+  }
+
+  sendBtn.addEventListener('click', sendMessage);
+  inputEl.addEventListener('keydown', function(e){
+    if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
+  });
+  inputEl.addEventListener('input', function(){
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  });
+
+  clearBtn.addEventListener('click', function(){
+    chatHistory = [];
+    renderMessages();
+    saveChatToVault();
+  });
+
+  document.addEventListener('mousedown', function(e){
+    if(panelOpen && !panel.contains(e.target) && !fabBtn.contains(e.target)){
+      panelOpen = false; panel.classList.remove('open');
+    }
+  });
+
+  if(window._homerVaultUnlocked) loadChatFromVault();
+})();
+</script>
+
+<!-- Goals Page Overlay -->
+<div id="goals-overlay" class="goals-overlay">
+  <div class="goals-page">
+    <div class="goals-topbar">
+      <h1>Goals Tracker</h1>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div class="goals-view-toggle">
+          <button class="gv-btn active" data-view="cards">Cards</button>
+          <button class="gv-btn" data-view="timeline">Timeline</button>
+        </div>
+        <button class="goals-close" id="goals-close-btn">&times; Close</button>
+      </div>
+    </div>
+    <div id="goals-stats-row" class="goals-stats"></div>
+    <div class="goals-filter-bar">
+      <input type="text" id="gp-search" placeholder="Search goals...">
+      <select id="gp-filter-status"><option value="">All Status</option><option value="todo">To Do</option><option value="progress">In Progress</option><option value="pending">Pending</option><option value="done">Done</option></select>
+      <select id="gp-filter-priority"><option value="">All Priority</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
+    </div>
+    <div id="gp-cards-view" class="goals-cards-grid"></div>
+    <div id="gp-timeline-view" class="goals-timeline" style="display:none;"></div>
+  </div>
+</div>
+
 <!-- Fullscreen Issue View (outside all cards to avoid backdrop-filter containing block) -->
 <div id="issue-overlay" class="issue-overlay"></div>
 </body>
