@@ -21,10 +21,16 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing messages' });
   }
 
-  // --- Forward to OpenClaw gateway ---
+  // --- Forward to LLM provider (Groq / OpenClaw / any OpenAI-compatible API) ---
   const GATEWAY_URL = (process.env.OC_GATEWAY_URL || 'http://localhost:18789').replace(/\/+$/, '');
   const GATEWAY_TOKEN = process.env.OC_GATEWAY_TOKEN || '';
-  const MODEL = process.env.OC_MODEL || 'minimax-m2.7:cloud';
+  const MODEL = process.env.OC_MODEL || 'llama-3.3-70b-versatile';
+  const JOEY_CONTEXT = process.env.JOEY_CONTEXT || '';
+
+  // Inject persistent context as the first system message if available
+  const finalMessages = JOEY_CONTEXT
+    ? [{ role: 'system', content: JOEY_CONTEXT }, ...messages]
+    : messages;
 
   const headers = { 'Content-Type': 'application/json' };
   if (GATEWAY_TOKEN) headers['Authorization'] = 'Bearer ' + GATEWAY_TOKEN;
@@ -35,7 +41,7 @@ export default async function handler(req, res) {
       headers,
       body: JSON.stringify({
         model: MODEL,
-        messages,
+        messages: finalMessages,
         stream: true
       })
     });
