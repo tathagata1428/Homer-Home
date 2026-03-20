@@ -1285,6 +1285,82 @@
       .oc-msg{max-width:90%;}
     }
 
+    /* ===== MOBILE OPTIMIZATION ===== */
+    @media(max-width:600px){
+      /* Reduce body padding since toolbar auto-hides */
+      body{padding:16px 8px calc(var(--tb) + env(safe-area-inset-bottom, 0px));font-size:15px;}
+      .shell{width:100%;}
+
+      /* Compact header */
+      .hero .title{font-size:1.6rem;}
+      .hero .subtitle{font-size:.78rem;margin-top:2px;}
+
+      /* Horizontal scrollable tabs */
+      .tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;gap:6px;
+        margin:10px -8px 12px;padding:0 8px;scrollbar-width:none;}
+      .tabs::-webkit-scrollbar{display:none;}
+      .tab-btn{padding:8px 12px;font-size:.82rem;white-space:nowrap;flex-shrink:0;}
+
+      /* Auto-hide toolbar on scroll */
+      .toolbar{transition:transform .3s ease, opacity .3s ease;}
+      .toolbar.tb-hidden{transform:translateY(calc(100% + 20px))!important;opacity:0;pointer-events:none;}
+
+      /* Compact FAB cluster */
+      .fab-cluster{bottom:calc(16px + env(safe-area-inset-bottom,0px));gap:8px;right:10px;
+        transition:transform .3s ease, opacity .3s ease;}
+      .fab-cluster.tb-hidden{transform:translateY(calc(100% + 20px));opacity:0;pointer-events:none;}
+      .fab-btn{width:42px;height:42px;}
+      #fab-cloud svg{width:20px;height:20px;}
+      #fab-openclaw{width:40px;height:40px;}
+      #fab-openclaw svg{width:18px;height:18px;}
+      #fab-wake{width:36px;height:36px;}
+      #fab-wake svg{width:16px;height:16px;}
+      #fab-clear{width:34px;height:34px;}
+      #fab-clear svg{width:14px;height:14px;}
+
+      /* Joey chat → fullscreen on mobile */
+      #oc-panel{
+        right:0!important;left:0!important;bottom:0!important;top:0!important;
+        width:100%!important;max-height:100vh!important;height:100vh!important;
+        border-radius:0!important;border:none!important;
+        z-index:9999!important;
+      }
+      #oc-panel-header{padding:12px 14px 10px;position:sticky;top:0;z-index:2;
+        background:linear-gradient(180deg,#1a2236 0%,#0d1520 100%);}
+      #oc-panel-header h3{font-size:.88rem;}
+      #oc-close-btn{font-size:1.4rem!important;padding:4px 12px!important;
+        background:rgba(255,255,255,.06)!important;border-radius:8px!important;}
+      #oc-chat-messages{padding:10px 10px 6px;}
+      .oc-msg{max-width:92%;font-size:.84rem;padding:8px 12px;border-radius:12px;}
+      #oc-chat-footer{padding:8px 10px calc(env(safe-area-inset-bottom,0px) + 8px);position:sticky;bottom:0;z-index:2;
+        background:rgba(13,21,32,.98);}
+      #oc-chat-input{font-size:.88rem;min-height:38px;padding:8px 12px;border-radius:12px;}
+      #oc-send-btn{width:38px;height:38px;}
+      .oc-action-btn{width:28px;height:28px;}
+      .oc-welcome{font-size:.85rem;}
+      .oc-welcome-icon{font-size:2rem!important;}
+
+      /* Reduce heavy animations for performance */
+      .oc-pulse{display:none!important;}
+      @keyframes ocSlideIn{from{opacity:1;transform:none;}to{opacity:1;transform:none;}}
+      .card{backdrop-filter:none;}
+      .toolbar{backdrop-filter:blur(6px);}
+
+      /* Cards tighter padding */
+      .card{padding:14px;border-radius:14px;}
+      .section{font-size:1rem;margin-bottom:8px;}
+
+      /* Footer hide on mobile */
+      .site-footer{font-size:.75rem;margin-top:16px;}
+    }
+
+    /* Extra small phones */
+    @media(max-width:375px){
+      body{padding:12px 6px calc(var(--tb) + env(safe-area-inset-bottom, 0px));}
+      .tab-btn{padding:7px 10px;font-size:.78rem;}
+      .hero .title{font-size:1.4rem;}
+    }
+
   </style>
 </head>
 <body>
@@ -2021,6 +2097,27 @@
       }
     }
     tabBtns.forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+    /* AUTO-HIDE TOOLBAR ON MOBILE SCROLL */
+    (function(){
+      if(window.innerWidth > 600) return;
+      var toolbar = document.querySelector('.toolbar');
+      var fabCluster = document.querySelector('.fab-cluster');
+      var lastY = window.scrollY;
+      var ticking = false;
+      window.addEventListener('scroll', function(){
+        if(ticking) return;
+        ticking = true;
+        requestAnimationFrame(function(){
+          var y = window.scrollY;
+          var hide = y > lastY && y > 80;
+          if(toolbar){toolbar.classList.toggle('tb-hidden', hide);}
+          if(fabCluster){fabCluster.classList.toggle('tb-hidden', hide);}
+          lastY = y;
+          ticking = false;
+        });
+      }, {passive:true});
+    })();
 
     /* 2. CLOCK */
     function updateClock(){
