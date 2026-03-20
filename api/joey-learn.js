@@ -27,7 +27,9 @@ export default async function handler(req, res) {
   if (!REDIS_URL || !REDIS_TOKEN) return res.status(500).json({ error: 'Redis not configured' });
 
   const MEMORY_KEY = 'joey:memories';
+  const PROFILE_KEY = 'joey:profile';
   const MAX_MEMORIES = 200;
+  const CONSOLIDATION_THRESHOLD = 150;
 
   async function redis(cmd) {
     const r = await fetch(REDIS_URL, {
@@ -38,102 +40,135 @@ export default async function handler(req, res) {
     return r.json();
   }
 
-  try {
-    // Load existing memories so the model knows what's already stored
-    const memResult = await redis(['GET', MEMORY_KEY]);
-    const existing = memResult.result ? JSON.parse(memResult.result) : [];
-    const existingText = existing.length
-      ? existing.map(m => '- [' + m.category + '] ' + m.text).join('\n')
-      : '(none yet)';
-
-    // Ask the LLM to extract new facts
-    const extractPrompt = `You are a memory extraction system. Analyze this conversation and extract NEW facts about the user that are worth remembering permanently.
-
-EXISTING MEMORIES (do NOT duplicate these):
-${existingText}
-
-RULES:
-- Only extract facts NOT already in existing memories
-- Focus on: personal info, preferences, people, dates, goals, lessons, wins, habits, opinions
-- Skip: small talk, greetings, temporary/trivial things, things the assistant said (only remember user facts)
-- Each memory should be a concise, standalone fact
-- Return ONLY valid JSON array, nothing else
-- If nothing new worth remembering, return []
-
-FORMAT (return ONLY this JSON, no markdown, no explanation):
-[{"text": "fact about the user", "category": "preference|fact|person|event|lesson|win|goal|habit"}]`;
-
-    // Only send last 6 messages (3 exchanges) to keep it focused
-    const recentMsgs = messages
-      .filter(m => m.role === 'user' || m.role === 'assistant')
-      .slice(-6);
-
+  function llmCall(msgs, maxTokens) {
     const headers = { 'Content-Type': 'application/json' };
     if (GATEWAY_TOKEN) headers['Authorization'] = 'Bearer ' + GATEWAY_TOKEN;
-
-    const llmRes = await fetch(GATEWAY_URL + '/v1/chat/completions', {
+    return fetch(GATEWAY_URL + '/v1/chat/completions', {
       method: 'POST',
       headers,
       body: JSON.stringify({
         model: MODEL,
-        messages: [
-          { role: 'system', content: extractPrompt },
-          ...recentMsgs,
-          { role: 'user', content: 'Extract new memories from the conversation above. Return JSON array only.' }
-        ],
+        messages: msgs,
         temperature: 0.1,
-        max_tokens: 500
+        max_tokens: maxTokens || 800
       })
-    });
+    }).then(r => r.json());
+  }
 
-    if (!llmRes.ok) {
-      return res.status(502).json({ error: 'LLM extraction failed' });
+  function parseLLMJson(raw) {
+    let cleaned = (raw || '').trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
     }
+    return JSON.parse(cleaned);
+  }
 
-    const llmData = await llmRes.json();
-    const rawContent = (llmData.choices && llmData.choices[0] && llmData.choices[0].message && llmData.choices[0].message.content) || '[]';
+  try {
+    // Load existing memories + profile in parallel
+    const [memResult, profileResult] = await Promise.all([
+      redis(['GET', MEMORY_KEY]),
+      redis(['GET', PROFILE_KEY])
+    ]);
 
-    // Parse the extracted memories — handle markdown-wrapped JSON
-    let newFacts = [];
+    const existing = memResult.result ? JSON.parse(memResult.result) : [];
+    const profile = profileResult.result ? JSON.parse(profileResult.result) : {};
+
+    const existingText = existing.length
+      ? existing.map(m => '- [' + m.category + '] ' + m.text).join('\n')
+      : '(none yet)';
+
+    const profileText = Object.keys(profile).length
+      ? JSON.stringify(profile, null, 1)
+      : '(empty)';
+
+    // --- Single LLM call: extract memories + update profile ---
+    const extractPrompt = `You are a personal memory & profile system. Analyze this conversation and do TWO things:
+
+1. EXTRACT NEW MEMORIES — facts about the user worth remembering permanently
+2. UPDATE USER PROFILE — maintain a living profile of who this person is
+
+EXISTING MEMORIES (do NOT duplicate):
+${existingText}
+
+CURRENT PROFILE:
+${profileText}
+
+MEMORY RULES:
+- Only extract facts NOT already in existing memories
+- Categories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work
+- Focus on: personal details, preferences, people & relationships, dates, goals, lessons learned, wins, habits, routines, opinions, health info, work details
+- Skip: trivial chat, greetings, things the assistant said, questions without answers
+- Each memory = one concise standalone fact
+- Capture EMOTIONAL context too (e.g. "User was frustrated about X", "User is excited about Y")
+- Capture TEMPORAL patterns (e.g. "Usually checks in mornings", "Works late on Wednesdays")
+
+PROFILE RULES:
+- The profile is a living document — update fields that changed, add new ones, keep existing ones
+- Track: name, nickname, location, timezone, profession, interests, communication_style, current_mood, people (with relationships), active_goals, recent_topics, languages, important_dates
+- Only update fields where the conversation reveals new/changed info
+- Return the FULL updated profile (not just changes)
+
+Return ONLY this JSON (no markdown, no explanation):
+{
+  "memories": [{"text": "fact", "category": "category"}],
+  "profile": { ...full updated profile object... }
+}
+
+If no new memories, set memories to []. Always return the profile (even if unchanged).`;
+
+    const recentMsgs = messages
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .slice(-8); // Last 4 exchanges
+
+    const llmData = await llmCall([
+      { role: 'system', content: extractPrompt },
+      ...recentMsgs,
+      { role: 'user', content: 'Extract memories and update profile from the conversation above. Return JSON only.' }
+    ], 1200);
+
+    const rawContent = (llmData.choices && llmData.choices[0] && llmData.choices[0].message && llmData.choices[0].message.content) || '{}';
+
+    let result;
     try {
-      // Strip markdown code fences if present
-      let cleaned = rawContent.trim();
-      if (cleaned.startsWith('```')) {
-        cleaned = cleaned.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
-      }
-      newFacts = JSON.parse(cleaned);
-      if (!Array.isArray(newFacts)) newFacts = [];
+      result = parseLLMJson(rawContent);
     } catch (e) {
-      return res.status(200).json({ ok: true, learned: 0, reason: 'No parseable facts' });
+      return res.status(200).json({ ok: true, learned: 0, profileUpdated: false, reason: 'Unparseable response' });
     }
 
-    if (!newFacts.length) {
-      return res.status(200).json({ ok: true, learned: 0 });
-    }
+    const newFacts = Array.isArray(result.memories) ? result.memories : [];
+    const updatedProfile = result.profile && typeof result.profile === 'object' ? result.profile : profile;
 
-    // Deduplicate against existing memories (fuzzy check)
+    // --- Save updated profile ---
+    updatedProfile._lastUpdated = new Date().toISOString();
+    await redis(['SET', PROFILE_KEY, JSON.stringify(updatedProfile)]);
+
+    // --- Deduplicate and save new memories ---
     const existingLower = existing.map(m => m.text.toLowerCase());
     const genuinelyNew = newFacts.filter(f => {
-      if (!f.text || typeof f.text !== 'string') return false;
+      if (!f.text || typeof f.text !== 'string' || f.text.length < 5) return false;
       const lower = f.text.toLowerCase();
-      // Skip if very similar to an existing memory
-      return !existingLower.some(e => e.includes(lower) || lower.includes(e));
+      return !existingLower.some(e =>
+        e.includes(lower) || lower.includes(e) ||
+        similarity(e, lower) > 0.85
+      );
     });
 
-    if (!genuinelyNew.length) {
-      return res.status(200).json({ ok: true, learned: 0, reason: 'All facts already known' });
-    }
-
-    // Add new memories
-    const updated = [...existing];
+    let updated = [...existing];
     for (const fact of genuinelyNew) {
       updated.push({
         id: Date.now() + Math.random(),
         text: fact.text.slice(0, 500),
         category: fact.category || 'general',
         ts: Date.now(),
-        auto: true // flag as auto-extracted
+        auto: true
       });
+    }
+
+    // --- Memory consolidation ---
+    let consolidated = false;
+    if (updated.length > CONSOLIDATION_THRESHOLD) {
+      updated = consolidateMemories(updated);
+      consolidated = true;
     }
 
     // Trim to max
@@ -145,10 +180,60 @@ FORMAT (return ONLY this JSON, no markdown, no explanation):
       ok: true,
       learned: genuinelyNew.length,
       facts: genuinelyNew.map(f => f.text),
+      profileUpdated: true,
+      consolidated,
       totalMemories: updated.length
     });
 
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
+}
+
+// Simple string similarity (Jaccard on word sets)
+function similarity(a, b) {
+  const wordsA = new Set(a.split(/\s+/));
+  const wordsB = new Set(b.split(/\s+/));
+  let intersection = 0;
+  for (const w of wordsA) { if (wordsB.has(w)) intersection++; }
+  const union = wordsA.size + wordsB.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+// Consolidate old memories: group by category, merge old ones into summaries
+function consolidateMemories(memories) {
+  // Sort by timestamp (newest last)
+  memories.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+
+  // Keep newest 100 as individual memories
+  const keepCount = 100;
+  const toKeep = memories.slice(-keepCount);
+  const toConsolidate = memories.slice(0, -keepCount);
+
+  if (toConsolidate.length < 10) return memories; // Not worth consolidating
+
+  // Group old memories by category
+  const groups = {};
+  for (const m of toConsolidate) {
+    const cat = m.category || 'general';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(m.text);
+  }
+
+  // Create one consolidated memory per category
+  const summaries = [];
+  for (const [cat, texts] of Object.entries(groups)) {
+    // Deduplicate within category
+    const unique = [...new Set(texts)];
+    summaries.push({
+      id: Date.now() + Math.random(),
+      text: '[CONSOLIDATED] ' + unique.join(' | '),
+      category: cat,
+      ts: Date.now(),
+      consolidated: true,
+      sourceCount: unique.length
+    });
+  }
+
+  return [...summaries, ...toKeep];
 }
