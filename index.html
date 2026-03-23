@@ -7502,12 +7502,56 @@ document.addEventListener("input", e => {
       </div>
 
       <div id="admin-panel" style="display:none;margin-top:12px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <span style="font-size:.82rem;font-weight:800;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;">Admin Panel</span>
-          <button id="admin-refresh" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--muted);cursor:pointer;font-size:.75rem;font-weight:700;">Refresh</button>
+        <!-- Admin Tabs -->
+        <div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px;">
+          <button id="admin-tab-backups" class="btn" style="font-size:.8rem;padding:6px 12px;background:linear-gradient(135deg,var(--accent),#16a34a);border:none;color:#fff;">Backups</button>
+          <button id="admin-tab-users" class="btn ghost" style="font-size:.8rem;padding:6px 12px;">Users</button>
         </div>
-        <div id="admin-status" style="color:var(--muted);font-size:.8rem;min-height:1em;margin-bottom:8px;"></div>
-        <div id="admin-list" style="display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto;"></div>
+        
+        <!-- Backups Tab -->
+        <div id="admin-backups-view">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <span style="font-size:.82rem;font-weight:800;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;">Backups</span>
+            <button id="admin-refresh" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--muted);cursor:pointer;font-size:.75rem;font-weight:700;">Refresh</button>
+          </div>
+          <div id="admin-status" style="color:var(--muted);font-size:.8rem;min-height:1em;margin-bottom:8px;"></div>
+          <div id="admin-list" style="display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto;"></div>
+        </div>
+        
+        <!-- Users Tab -->
+        <div id="admin-users-view" style="display:none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <span style="font-size:.82rem;font-weight:800;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;">User Management</span>
+            <button id="admin-users-refresh" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--muted);cursor:pointer;font-size:.75rem;font-weight:700;">Refresh</button>
+          </div>
+          
+          <!-- Create User Form -->
+          <div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;">
+            <h4 style="margin:0 0 10px;font-size:.85rem;color:var(--text);">Create New User</h4>
+            <input id="new-user-username" class="acct-field" type="text" placeholder="Username" style="font-size:.85rem;margin-bottom:8px;">
+            <input id="new-user-email" class="acct-field" type="email" placeholder="Email" style="font-size:.85rem;margin-bottom:8px;">
+            <div class="acct-field-wrap" style="margin-bottom:10px;">
+              <input id="new-user-password" class="acct-field" type="password" placeholder="Password" style="font-size:.85rem;margin-bottom:0;">
+              <button type="button" class="pw-toggle" onclick="var i=document.getElementById('new-user-password');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'👁‍🗨'">👁</button>
+            </div>
+            <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.8rem;color:var(--muted);">
+                <input id="new-user-vault" type="checkbox" style="accent-color:var(--accent);">
+                Access Vault
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.8rem;color:var(--muted);">
+                <input id="new-user-joey" type="checkbox" style="accent-color:var(--accent);">
+                Access Joey
+              </label>
+            </div>
+            <button id="admin-create-user" class="btn" style="width:100%;padding:8px;font-size:.85rem;background:linear-gradient(135deg,var(--accent),#16a34a);border:none;color:#fff;">Create User</button>
+            <p id="admin-create-error" style="color:#ef4444;font-size:.8rem;min-height:1em;margin:6px 0 0;"></p>
+          </div>
+          
+          <!-- Users List -->
+          <div id="admin-users-status" style="color:var(--muted);font-size:.8rem;min-height:1em;margin-bottom:8px;"></div>
+          <div id="admin-users-list" style="display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -7651,6 +7695,14 @@ document.addEventListener("input", e => {
         if(storedHash !== hash){ errorEl.textContent = 'Invalid username or password'; return; }
         localStorage.setItem('homer-sync-pass', hash);
         localStorage.setItem('homer-sync-auto', 'true');
+        // Fetch user permissions from server
+        fetch('/api/auth', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'getPermissions',username:user})})
+          .then(function(r){return r.json();})
+          .then(function(d){
+            if(d.ok && d.permissions){
+              localStorage.setItem('homer-user-permissions', JSON.stringify(d.permissions));
+            }
+          }).catch(function(){});
         updateUI();
         userInput.value = ''; passInput.value = '';
         modalBg.classList.remove('open');
@@ -7797,6 +7849,7 @@ document.addEventListener("input", e => {
             '</div>' +
             '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
               '<span style="font-size:.72rem;color:var(--muted);white-space:nowrap;">' + e.items + ' items &middot; ' + formatSize(e.size) + '</span>' +
+              '<button class="admin-restore-btn" data-key="' + escH(e.key) + '" data-name="' + escH(name) + '" style="background:none;border:1px solid rgba(34,197,94,.25);border-radius:6px;padding:3px 8px;color:#22c55e;cursor:pointer;font-size:.7rem;font-weight:700;">Restore</button>' +
               '<button class="admin-inspect-btn" data-key="' + escH(e.key) + '" style="background:none;border:1px solid rgba(96,165,250,.25);border-radius:6px;padding:3px 8px;color:#60a5fa;cursor:pointer;font-size:.7rem;font-weight:700;">View</button>' +
               '<button class="admin-del-btn" data-key="' + escH(e.key) + '" data-name="' + escH(name) + '" style="background:none;border:1px solid rgba(239,68,68,.25);border-radius:6px;padding:3px 8px;color:#ef4444;cursor:pointer;font-size:.7rem;font-weight:700;">Del</button>' +
             '</div>' +
@@ -7855,8 +7908,28 @@ document.addEventListener("input", e => {
 
   refreshBtn.addEventListener('click', loadEntries);
 
-  // Delegate clicks for inspect/delete
+  // Delegate clicks for restore/inspect/delete
   listEl.addEventListener('click', function(ev){
+    var rbtn = ev.target.closest('.admin-restore-btn');
+    if(rbtn){
+      var key = rbtn.dataset.key;
+      var name = rbtn.dataset.name;
+      if(!confirm('Restore backup for "' + name + '" to this device?\nThis will overwrite local data.')) return;
+      rbtn.textContent = '...';
+      adminFetch('inspect', key).then(function(d){
+        if(d.error){ alert('Error: ' + d.error); rbtn.textContent = 'Restore'; return; }
+        // Restore to localStorage
+        var data = d.data || {};
+        Object.keys(data).forEach(function(k){
+          if(k !== 'homer-auth-hash' && k !== 'homer-sync-pass') {
+            localStorage.setItem(k, typeof data[k] === 'string' ? data[k] : JSON.stringify(data[k]));
+          }
+        });
+        alert('Backup restored successfully!\nReloading page...');
+        location.reload();
+      }).catch(function(){ rbtn.textContent = 'Restore'; });
+      return;
+    }
     var btn = ev.target.closest('.admin-del-btn');
     if(btn){
       var key = btn.dataset.key;
@@ -7884,6 +7957,122 @@ document.addEventListener("input", e => {
         }).join('\n');
         alert('Backup contents (' + keys.length + ' keys):\n\n' + info);
       }).catch(function(){ ibtn.textContent = 'View'; });
+    }
+  });
+
+  // User Management
+  var backupsTab = document.getElementById('admin-tab-backups');
+  var usersTab = document.getElementById('admin-tab-users');
+  var backupsView = document.getElementById('admin-backups-view');
+  var usersView = document.getElementById('admin-users-view');
+  var usersListEl = document.getElementById('admin-users-list');
+  var usersStatusEl = document.getElementById('admin-users-status');
+  var createUserBtn = document.getElementById('admin-create-user');
+  var createErrorEl = document.getElementById('admin-create-error');
+  var newUserUsername = document.getElementById('new-user-username');
+  var newUserEmail = document.getElementById('new-user-email');
+  var newUserPassword = document.getElementById('new-user-password');
+  var newUserVault = document.getElementById('new-user-vault');
+  var newUserJoey = document.getElementById('new-user-joey');
+  var usersRefreshBtn = document.getElementById('admin-users-refresh');
+
+  function switchAdminTab(tab){
+    if(tab === 'backups'){
+      backupsView.style.display = 'block';
+      usersView.style.display = 'none';
+      backupsTab.style.background = 'linear-gradient(135deg,var(--accent),#16a34a)';
+      backupsTab.style.color = '#fff';
+      backupsTab.classList.remove('ghost');
+      usersTab.style.background = 'transparent';
+      usersTab.style.color = 'var(--muted)';
+      usersTab.classList.add('ghost');
+    } else {
+      backupsView.style.display = 'none';
+      usersView.style.display = 'block';
+      usersTab.style.background = 'linear-gradient(135deg,var(--accent),#16a34a)';
+      usersTab.style.color = '#fff';
+      usersTab.classList.remove('ghost');
+      backupsTab.style.background = 'transparent';
+      backupsTab.style.color = 'var(--muted)';
+      backupsTab.classList.add('ghost');
+      loadUsers();
+    }
+  }
+
+  backupsTab.addEventListener('click', function(){ switchAdminTab('backups'); });
+  usersTab.addEventListener('click', function(){ switchAdminTab('users'); });
+  usersRefreshBtn.addEventListener('click', loadUsers);
+
+  function loadUsers(){
+    usersStatusEl.textContent = 'Loading...';
+    adminFetch('listUsers').then(function(d){
+      if(d.error){ usersStatusEl.textContent = 'Error: ' + d.error; return; }
+      usersStatusEl.textContent = d.users.length + ' user' + (d.users.length !== 1 ? 's' : '');
+      usersListEl.innerHTML = '';
+      if(!d.users.length){ usersListEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:16px;font-size:.85rem;">No users found</div>'; return; }
+      d.users.forEach(function(u){
+        var card = document.createElement('div');
+        card.style.cssText = 'padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);';
+        var perms = [];
+        if(u.permissions.vault) perms.push('Vault');
+        if(u.permissions.joey) perms.push('Joey');
+        card.innerHTML = 
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
+            '<div style="min-width:0;">' +
+              '<div style="font-weight:800;font-size:.9rem;color:var(--text);">' + escH(u.username) + '</div>' +
+              '<div style="font-size:.75rem;color:var(--muted);margin-top:2px;">' + escH(u.email) + '</div>' +
+              '<div style="font-size:.7rem;color:rgba(255,255,255,.35);margin-top:4px;">' + (perms.length ? perms.join(' &middot; ') : 'No permissions') + '</div>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
+              '<button class="admin-user-edit-btn" data-user="' + escH(u.username) + '" style="background:none;border:1px solid rgba(96,165,250,.25);border-radius:6px;padding:3px 8px;color:#60a5fa;cursor:pointer;font-size:.7rem;font-weight:700;">Edit</button>' +
+              '<button class="admin-user-del-btn" data-user="' + escH(u.username) + '" style="background:none;border:1px solid rgba(239,68,68,.25);border-radius:6px;padding:3px 8px;color:#ef4444;cursor:pointer;font-size:.7rem;font-weight:700;">Del</button>' +
+            '</div>' +
+          '</div>';
+        usersListEl.appendChild(card);
+      });
+    }).catch(function(err){ usersStatusEl.textContent = 'Failed: ' + err.message; });
+  }
+
+  createUserBtn.addEventListener('click', function(){
+    var username = newUserUsername.value.trim();
+    var email = newUserEmail.value.trim();
+    var password = newUserPassword.value;
+    createErrorEl.textContent = '';
+    if(!username || !email || !password){ createErrorEl.textContent = 'Fill all fields'; return; }
+    createUserBtn.textContent = 'Creating...';
+    adminFetch('createUser', {username: username, email: email, password: password, permissions: {vault: newUserVault.checked, joey: newUserJoey.checked}}).then(function(d){
+      createUserBtn.textContent = 'Create User';
+      if(d.error){ createErrorEl.textContent = d.error; return; }
+      newUserUsername.value = '';
+      newUserEmail.value = '';
+      newUserPassword.value = '';
+      newUserVault.checked = false;
+      newUserJoey.checked = false;
+      loadUsers();
+    }).catch(function(err){ createUserBtn.textContent = 'Create User'; createErrorEl.textContent = err.message; });
+  });
+
+  usersListEl.addEventListener('click', function(ev){
+    var delBtn = ev.target.closest('.admin-user-del-btn');
+    if(delBtn){
+      var username = delBtn.dataset.user;
+      if(!confirm('Delete user "' + username + '"?')) return;
+      delBtn.textContent = '...';
+      adminFetch('deleteUser', username).then(function(d){
+        if(d.ok){ loadUsers(); }
+        else { alert('Error: ' + (d.error || 'Unknown')); delBtn.textContent = 'Del'; }
+      }).catch(function(){ delBtn.textContent = 'Del'; });
+      return;
+    }
+    var editBtn = ev.target.closest('.admin-user-edit-btn');
+    if(editBtn){
+      var username = editBtn.dataset.user;
+      var vault = confirm('Grant "' + username + '" access to Vault?');
+      var joey = confirm('Grant "' + username + '" access to Joey?');
+      adminFetch('updateUser', {username: username, permissions: {vault: vault, joey: joey}}).then(function(d){
+        if(d.ok){ loadUsers(); }
+        else { alert('Error: ' + (d.error || 'Unknown')); }
+      });
     }
   });
 })();
