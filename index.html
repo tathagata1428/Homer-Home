@@ -8811,7 +8811,8 @@ document.addEventListener("input", e => {
       } else {
         btn.textContent = '❌ Failed';
         console.error('[GDrive Backup]', d);
-        alert('ERROR:\n' + JSON.stringify(d, null, 2).slice(0, 500));
+        var debugInfo = d.debug ? '\n\nDebug:\n' + JSON.stringify(d.debug, null, 2) : '';
+        alert('ERROR:\n' + JSON.stringify(d, null, 2).slice(0, 300) + debugInfo.slice(0, 400));
         setTimeout(function(){ btn.innerHTML = '&#x2601; Backup'; btn.disabled = false; }, 2000);
       }
     }).catch(function(e){
