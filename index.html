@@ -8559,11 +8559,6 @@ document.addEventListener("input", e => {
 
   // --- Panel toggle ---
   fabBtn.addEventListener('click', function(){
-    if(!window._homerVaultUnlocked){
-      var vaultTab = document.querySelector('.tab-btn[data-tab="vault"]');
-      if(vaultTab){ vaultTab.style.animation='none'; vaultTab.offsetHeight; vaultTab.style.animation='fadeIn .5s ease 3'; }
-      return;
-    }
     panelOpen = !panelOpen;
     panel.classList.toggle('open', panelOpen);
     if(panelOpen){
