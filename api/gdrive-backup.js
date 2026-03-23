@@ -97,7 +97,8 @@ export default async function handler(req, res) {
           secretFirst10: GDRIVE_SECRET ? GDRIVE_SECRET.slice(0, 10) : 'none',
           secretLast10: GDRIVE_SECRET ? GDRIVE_SECRET.slice(-10) : 'none',
           payloadSecretSet: !!payload.secret,
-          payloadSecretLength: payload.secret ? payload.secret.length : 0
+          payloadSecretLength: payload.secret ? payload.secret.length : 0,
+          expectedSecret: 'OixSxy7gpV0N5PrMWHYzXEotWTZWTJ7Cwlgd79pHdao='.slice(0, 10) + '...'
         }
       });
     }
