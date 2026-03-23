@@ -2245,7 +2245,17 @@
       vault: document.getElementById('tab-vault'),
       news: document.getElementById('tab-news')
     };
+    function hasPermission(perm){
+      var perms = localStorage.getItem('homer-user-permissions');
+      if(!perms) return true; // Default allow if no permissions set
+      try{ return JSON.parse(perms)[perm] === true; }catch(e){ return true; }
+    }
     function showTab(name) {
+      // Check vault permission
+      if(name === 'vault' && !hasPermission('vault')){
+        alert('You do not have permission to access the Vault.');
+        return;
+      }
       Object.entries(tabs).forEach(([k, el]) => {
         if(el) el.style.display = (k === name) ? 'block' : 'none';
       });
@@ -8731,6 +8741,11 @@ document.addEventListener("input", e => {
   function updateFabVisibility(){
     var user = (localStorage.getItem('homer-auth-user') || '').toLowerCase();
     var show = user === ALLOWED_USER;
+    // Check Joey permission
+    var perms = localStorage.getItem('homer-user-permissions');
+    if(perms){
+      try{ var p = JSON.parse(perms); if(p.joey !== true) show = false; }catch(e){}
+    }
     console.log('[Joey] Checking visibility - user:', user, 'show:', show);
     fabBtn.classList.toggle('visible', show);
     var mnavJoey = document.getElementById('mnav-joey');
