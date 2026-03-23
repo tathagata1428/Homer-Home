@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // Auth
+  // Auth — accept admin hash OR any registered user
   const getPass = () => {
     if (req.method === 'GET') return req.query.passphrase;
     if (req.body && typeof req.body === 'object') return req.body.passphrase;
@@ -16,28 +16,39 @@ export default async function handler(req, res) {
   };
   const passphrase = getPass();
   if (!passphrase) return res.status(401).json({ error: 'Missing passphrase' });
-  const ADMIN_HASH = (process.env.HOMER_ADMIN_HASH || '').trim();
-  if (!ADMIN_HASH || passphrase.trim() !== ADMIN_HASH) return res.status(403).json({ error: 'Forbidden' });
 
   // Redis
   const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!REDIS_URL || !REDIS_TOKEN) return res.status(500).json({ error: 'Redis not configured' });
 
+  const redis = (cmd) => fetch(REDIS_URL, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN },
+    body: JSON.stringify(cmd)
+  }).then(r => r.json());
+
+  // Verify against admin hash or user database
+  const ADMIN_HASH = (process.env.HOMER_ADMIN_HASH || '').trim();
+  let isValid = ADMIN_HASH && passphrase.trim() === ADMIN_HASH;
+  if (!isValid) {
+    const usersData = await redis(['GET', 'homer:users']);
+    if (usersData.result) {
+      try {
+        const users = JSON.parse(usersData.result);
+        for (const user of users) {
+          if (user.passwordHash === passphrase.trim()) { isValid = true; break; }
+        }
+      } catch (e) {}
+    }
+  }
+  if (!isValid) return res.status(403).json({ error: 'Forbidden' });
+
   const MEMORY_KEY = 'joey:memories';
   const HISTORY_KEY = 'joey:history';
   const PROFILE_KEY = 'joey:profile';
   const MAX_MEMORIES = 200;
   const MAX_HISTORY = 50;
-
-  async function redis(cmd) {
-    const r = await fetch(REDIS_URL, {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN },
-      body: JSON.stringify(cmd)
-    });
-    return r.json();
-  }
 
   try {
     const { action } = req.query;
