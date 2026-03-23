@@ -84,30 +84,14 @@ export default async function handler(req, res) {
 
     // Check for Google Script error (either HTTP error or JSON error field)
     if (!gRes.ok || parsed.error) {
-      // Debug: compare character by character
-      const expected = 'OixSxy7gpV0N5PrMWHYzXEotWTZWTJ7Cwlgd79pHdao=';
-      const actual = payload.secret || '';
-      let mismatch = [];
-      for (let i = 0; i < Math.max(expected.length, actual.length); i++) {
-        if (expected[i] !== actual[i]) {
-          mismatch.push({pos: i, expected: expected[i] || 'null', actual: actual[i] || 'null'});
-          if (mismatch.length >= 5) break;
-        }
-      }
-      
       return res.status(502).json({ 
         error: 'Google Script error', 
         status: gRes.status, 
         detail: parsed,
         rawResponse: gData.slice(0, 500),
-        debug: {
-          webhookConfigured: !!GDRIVE_WEBHOOK,
-          secretLength: GDRIVE_SECRET ? GDRIVE_SECRET.length : 0,
-          payloadSecretLength: payload.secret ? payload.secret.length : 0,
-          secretMatch: GDRIVE_SECRET === expected,
-          payloadMatch: payload.secret === expected,
-          charMismatches: mismatch,
-          envSecretChars: GDRIVE_SECRET ? GDRIVE_SECRET.split('').map((c,i) => i < 5 || i > GDRIVE_SECRET.length - 5 ? c : '*').join('') : 'none'
+        whatWeSent: {
+          secret: payload.secret,
+          secretLength: payload.secret ? payload.secret.length : 0
         }
       });
     }
