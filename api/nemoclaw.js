@@ -26,12 +26,131 @@ export default async function handler(req, res) {
   const GATEWAY_TOKEN = process.env.NEMOCLAW_GATEWAY_TOKEN || '';
   const MODEL = process.env.NEMOCLAW_MODEL || 'nemotron-3-super:cloud';
 
-  // --- Build system prompt (lightweight — no Joey persona) ---
+  // --- Load all context from Redis in parallel (shared with Joey) ---
+  let memoriesText = '';
+  let profileText = '';
+  let historyMessages = [];
+
+  try {
+    const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+    const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+    if (REDIS_URL && REDIS_TOKEN) {
+      const redisFetch = (cmd) => fetch(REDIS_URL, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN },
+        body: JSON.stringify(cmd)
+      }).then(r => r.json());
+
+      const [memRes, profileRes, histRes] = await Promise.all([
+        redisFetch(['GET', 'joey:memories']),
+        redisFetch(['GET', 'joey:profile']),
+        redisFetch(['GET', 'joey:history'])
+      ]);
+
+      // --- User Profile ---
+      if (profileRes.result) {
+        try {
+          const profile = JSON.parse(profileRes.result);
+          const fields = [];
+          if (profile.name) fields.push('Name: ' + profile.name);
+          if (profile.nickname) fields.push('Preferred name: ' + profile.nickname);
+          if (profile.location) fields.push('Location: ' + profile.location);
+          if (profile.timezone) fields.push('Timezone: ' + profile.timezone);
+          if (profile.profession) fields.push('Profession: ' + profile.profession);
+          if (profile.communication_style) fields.push('Communication style: ' + profile.communication_style);
+          if (profile.current_mood) fields.push('Recent mood: ' + profile.current_mood);
+          if (profile.languages) fields.push('Languages: ' + (Array.isArray(profile.languages) ? profile.languages.join(', ') : profile.languages));
+          if (profile.interests) fields.push('Interests: ' + (Array.isArray(profile.interests) ? profile.interests.join(', ') : profile.interests));
+
+          if (profile.people && typeof profile.people === 'object') {
+            const ppl = Array.isArray(profile.people)
+              ? profile.people.map(p => (p.name || p) + (p.relationship ? ' (' + p.relationship + ')' : ''))
+              : Object.entries(profile.people).map(([k, v]) => k + ' (' + v + ')');
+            if (ppl.length) fields.push('People: ' + ppl.join(', '));
+          }
+
+          if (profile.active_goals && Array.isArray(profile.active_goals) && profile.active_goals.length) {
+            fields.push('Active goals: ' + profile.active_goals.join(', '));
+          }
+
+          if (profile.recent_topics && Array.isArray(profile.recent_topics) && profile.recent_topics.length) {
+            fields.push('Recent topics: ' + profile.recent_topics.slice(-5).join(', '));
+          }
+
+          if (profile.important_dates && typeof profile.important_dates === 'object') {
+            const dates = Array.isArray(profile.important_dates)
+              ? profile.important_dates.map(d => (d.label || d.event || '') + ': ' + (d.date || ''))
+              : Object.entries(profile.important_dates).map(([k, v]) => k + ': ' + v);
+            if (dates.length) fields.push('Important dates: ' + dates.join(', '));
+          }
+
+          if (fields.length) {
+            profileText = '\n\n=== WHO YOU ARE TALKING TO ===\n' + fields.join('\n');
+          }
+        } catch (e) { /* malformed profile */ }
+      }
+
+      // --- Memories ---
+      if (memRes.result) {
+        const mems = JSON.parse(memRes.result);
+        if (mems.length) {
+          const groups = {};
+          for (const m of mems) {
+            const cat = m.category || 'general';
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(m.text);
+          }
+
+          let memLines = [];
+          for (const [cat, texts] of Object.entries(groups)) {
+            memLines.push('[' + cat.toUpperCase() + ']');
+            for (const t of texts) memLines.push('  - ' + t);
+          }
+          memoriesText = '\n\n=== YOUR MEMORIES ABOUT THIS PERSON ===\n' + memLines.join('\n');
+        }
+      }
+
+      // --- Conversation history ---
+      if (histRes.result) {
+        historyMessages = JSON.parse(histRes.result);
+      }
+    }
+  } catch (e) { /* context unavailable — proceed without */ }
+
+  // --- Build system prompt (same Joey persona as openclaw) ---
+  const JOEY_CONTEXT = process.env.JOEY_CONTEXT || '';
   const systemParts = [];
-  systemParts.push(`You are NemoClaw, a helpful AI assistant powered by NVIDIA Nemotron-3-Super. You are knowledgeable, precise, and friendly. Current time: ${new Date().toISOString()}.`);
+  if (JOEY_CONTEXT) systemParts.push(JOEY_CONTEXT);
+  if (profileText) systemParts.push(profileText);
+  if (memoriesText) systemParts.push(memoriesText);
+
+  systemParts.push(`
+=== PERSONALIZATION INSTRUCTIONS ===
+- You have a profile and memories about this person. USE THEM NATURALLY.
+- Reference things you know: ask about their goals, mention their people by name, recall past conversations.
+- Adapt your tone to their communication_style and current_mood.
+- If they seem stressed, be supportive. If they're in a good mood, match their energy.
+- Don't announce "I remember that..." — just naturally use what you know, like a real friend would.
+- Track the time: it's currently ${new Date().toISOString()}. Greet appropriately (morning/afternoon/evening) for their timezone.
+- If they mention something new about themselves, you'll automatically remember it (your memory system handles this).
+- Build on previous conversations — reference what you discussed before when relevant.`);
+
+  const systemContent = systemParts.join('\n').trim();
+
+  // --- Merge history with client messages ---
+  const clientUserMsgs = messages.filter(m => m.role === 'user').map(m => m.content);
+  const backfillMessages = historyMessages.filter(m => {
+    if (m.role === 'user') return !clientUserMsgs.includes(m.content);
+    return true;
+  }).slice(-20);
 
   const finalMessages = [];
-  finalMessages.push({ role: 'system', content: systemParts.join('\n') });
+  if (systemContent) finalMessages.push({ role: 'system', content: systemContent });
+  if (backfillMessages.length) {
+    finalMessages.push({ role: 'system', content: '--- Previous conversation (for continuity) ---' });
+    finalMessages.push(...backfillMessages);
+    finalMessages.push({ role: 'system', content: '--- Current conversation ---' });
+  }
   finalMessages.push(...messages);
 
   const headers = { 'Content-Type': 'application/json' };

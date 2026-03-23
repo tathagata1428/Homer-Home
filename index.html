@@ -7397,16 +7397,19 @@ document.addEventListener("input", e => {
     </div>
   </div>
   <div class="oc-provider-bar">
-    <label id="oc-label-joey" class="active joey-active">Joey</label>
+    <label id="oc-label-joey" class="active joey-active">Joey Groq</label>
     <div id="oc-toggle-track" class="oc-toggle-track" title="Switch AI provider">
       <div class="oc-toggle-thumb"></div>
     </div>
-    <label id="oc-label-nemoclaw">NemoClaw</label>
+    <label id="oc-label-nemoclaw">Joey Nemo</label>
   </div>
   <div id="oc-settings-row">
     <label>System Prompt</label>
     <input id="oc-system-prompt" type="text" placeholder="Default: Joey Tribbiani persona. Override here." spellcheck="false">
-    <button id="oc-settings-save" style="align-self:flex-end;padding:7px 16px;border-radius:8px;border:none;background:linear-gradient(135deg,#ea580c,#c2410c);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;">Save</button>
+    <div style="display:flex;gap:8px;align-self:flex-end;">
+      <button id="oc-settings-save" style="padding:7px 16px;border-radius:8px;border:none;background:linear-gradient(135deg,#ea580c,#c2410c);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;">Save</button>
+      <button id="oc-gdrive-backup" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Backup agent context to Google Drive">&#x2601; Drive Backup</button>
+    </div>
   </div>
   <div id="oc-chat-messages">
     <div class="oc-welcome">
@@ -8570,6 +8573,35 @@ document.addEventListener("input", e => {
   settingsSave.addEventListener('click', function(){
     setConfig({ system: systemPromptInput.value.trim() });
     settingsRow.classList.remove('open');
+  });
+
+  // --- Google Drive context backup ---
+  document.getElementById('oc-gdrive-backup').addEventListener('click', function(){
+    var btn = this;
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass){ alert('Log in first (unlock vault) to backup.'); return; }
+    btn.disabled = true;
+    btn.textContent = '⏳ Backing up...';
+    fetch('/api/gdrive-backup', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ passphrase: pass })
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if(d.ok){
+        btn.textContent = '✅ Backed up!';
+        setTimeout(function(){ btn.innerHTML = '&#x2601; Drive Backup'; btn.disabled = false; }, 3000);
+      } else {
+        btn.textContent = '❌ Failed';
+        console.error('[GDrive Backup]', d);
+        alert('Backup failed: ' + (d.error || 'Unknown error'));
+        setTimeout(function(){ btn.innerHTML = '&#x2601; Drive Backup'; btn.disabled = false; }, 2000);
+      }
+    }).catch(function(e){
+      btn.textContent = '❌ Error';
+      console.error('[GDrive Backup]', e);
+      alert('Backup error: ' + e.message);
+      setTimeout(function(){ btn.innerHTML = '&#x2601; Drive Backup'; btn.disabled = false; }, 2000);
+    });
   });
 
   // --- Vault integration ---
