@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-const ADMIN_HASH = '9ad4931508302c96fbf50348ff0a35f7fe2c2ccac11d899a8a4c0a11d62a5d10';
+const ADMIN_HASH = 'e5d510e7c10f6dbafca09488da4fe64b08518188b9b061c3b5d0ef62a103e914';
 
 function verifyAdmin(user, pass) {
   if (!user || !pass) return false;
