@@ -1429,6 +1429,8 @@
       .mnav-btn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
       .mnav-btn span{font-size:.62rem;font-weight:700;letter-spacing:.02em;}
       .mnav-dot{position:absolute;top:2px;right:calc(50% - 14px);width:6px;height:6px;border-radius:50%;background:#ea580c;}
+      #mnav-joey{display:none;}
+      #mnav-joey.visible{display:flex;}
 
       /* ---- Bottom Sheet (More menu) ---- */
       #mobile-sheet{
@@ -8541,6 +8543,8 @@ document.addEventListener("input", e => {
     var user = (localStorage.getItem('homer-auth-user') || '').toLowerCase();
     var show = user === ALLOWED_USER;
     fabBtn.classList.toggle('visible', show);
+    var mnavJoey = document.getElementById('mnav-joey');
+    if(mnavJoey) mnavJoey.classList.toggle('visible', show);
     if(!show && panelOpen){ panelOpen = false; panel.classList.remove('open'); }
   }
   window.addEventListener('homer-auth', updateFabVisibility);
