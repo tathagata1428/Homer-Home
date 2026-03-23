@@ -7706,7 +7706,7 @@ document.addEventListener("input", e => {
         localStorage.setItem('homer-sync-pass', hash);
         localStorage.setItem('homer-sync-auto', 'true');
         // Fetch user permissions from server
-        fetch('/api/auth', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'getPermissions',username:user})})
+        fetch('/api/admin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'getPermissions',username:user})})
           .then(function(r){return r.json();})
           .then(function(d){
             if(d.ok && d.permissions){

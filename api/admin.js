@@ -23,9 +23,6 @@ export default async function handler(req, res) {
   var REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!REDIS_URL || !REDIS_TOKEN) return res.status(500).json({ error: 'Redis not configured' });
 
-  var body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-  if (!verifyAdmin(body.user, body.pass)) return res.status(403).json({ error: 'Unauthorized' });
-
   async function redis(cmd) {
     var r = await fetch(REDIS_URL, {
       method: 'POST',
@@ -36,7 +33,70 @@ export default async function handler(req, res) {
   }
 
   try {
+    var body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     var action = body.action;
+
+    // --- PUBLIC AUTH ENDPOINTS (no admin required) ---
+    if (action === 'verify' || action === 'getPermissions') {
+      if (action === 'verify') {
+        var username = body.username;
+        var password = body.password;
+        if (!username || !password) return res.status(400).json({ error: 'Missing credentials' });
+
+        var usersData = await redis(['GET', 'homer:users']);
+        var users = [];
+        if (usersData.result) {
+          try { users = JSON.parse(usersData.result); } catch (e) {}
+        }
+
+        // Create default user if none exist
+        if (users.length === 0) {
+          users = [{
+            username: 'bogdan',
+            email: 'bogdan.radu@b4it.ro',
+            passwordHash: hashUserPass('bogdan', 'QAZwsx098pl.!'),
+            permissions: { vault: true, joey: true },
+            createdAt: Date.now()
+          }];
+          await redis(['SET', 'homer:users', JSON.stringify(users)]);
+        }
+
+        var user = users.find(function(u) { return u.username.toLowerCase() === username.toLowerCase(); });
+        if (!user) return res.status(403).json({ error: 'User not found' });
+
+        var passHash = hashUserPass(username, password);
+        if (user.passwordHash !== passHash) return res.status(403).json({ error: 'Invalid password' });
+
+        return res.status(200).json({
+          ok: true,
+          username: user.username,
+          email: user.email,
+          permissions: user.permissions
+        });
+      }
+
+      if (action === 'getPermissions') {
+        var permUsername = body.username;
+        if (!permUsername) return res.status(400).json({ error: 'Missing username' });
+
+        var permUsersData = await redis(['GET', 'homer:users']);
+        var permUsers = [];
+        if (permUsersData.result) {
+          try { permUsers = JSON.parse(permUsersData.result); } catch (e) {}
+        }
+
+        var permUser = permUsers.find(function(u) { return u.username.toLowerCase() === permUsername.toLowerCase(); });
+        if (!permUser) return res.status(404).json({ error: 'User not found' });
+
+        return res.status(200).json({
+          ok: true,
+          permissions: permUser.permissions
+        });
+      }
+    }
+
+    // --- ADMIN ENDPOINTS (require admin auth) ---
+    if (!verifyAdmin(body.user, body.pass)) return res.status(403).json({ error: 'Unauthorized' });
 
     if (action === 'list') {
       var keys = await redis(['KEYS', 'homer:*']);
@@ -76,24 +136,24 @@ export default async function handler(req, res) {
 
     // --- USER MANAGEMENT ---
     if (action === 'listUsers') {
-      var usersData = await redis(['GET', 'homer:users']);
-      var users = [];
-      if (usersData.result) {
-        try { users = JSON.parse(usersData.result); } catch (e) {}
+      var listUsersData = await redis(['GET', 'homer:users']);
+      var listUsers = [];
+      if (listUsersData.result) {
+        try { listUsers = JSON.parse(listUsersData.result); } catch (e) {}
       }
       // Create default user if none exist
-      if (users.length === 0) {
-        users = [{
+      if (listUsers.length === 0) {
+        listUsers = [{
           username: 'bogdan',
           email: 'bogdan.radu@b4it.ro',
           passwordHash: hashUserPass('bogdan', 'QAZwsx098pl.!'),
           permissions: { vault: true, joey: true },
           createdAt: Date.now()
         }];
-        await redis(['SET', 'homer:users', JSON.stringify(users)]);
+        await redis(['SET', 'homer:users', JSON.stringify(listUsers)]);
       }
       // Return without password hashes
-      var safeUsers = users.map(function(u) {
+      var safeUsers = listUsers.map(function(u) {
         return {
           username: u.username,
           email: u.email,
@@ -109,23 +169,23 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Missing username, email, or password' });
       }
       var newUser = body.target;
-      var usersData = await redis(['GET', 'homer:users']);
-      var users = [];
-      if (usersData.result) {
-        try { users = JSON.parse(usersData.result); } catch (e) {}
+      var createUsersData = await redis(['GET', 'homer:users']);
+      var createUsers = [];
+      if (createUsersData.result) {
+        try { createUsers = JSON.parse(createUsersData.result); } catch (e) {}
       }
       // Check if username exists
-      if (users.find(function(u) { return u.username.toLowerCase() === newUser.username.toLowerCase(); })) {
+      if (createUsers.find(function(u) { return u.username.toLowerCase() === newUser.username.toLowerCase(); })) {
         return res.status(400).json({ error: 'Username already exists' });
       }
-      users.push({
+      createUsers.push({
         username: newUser.username,
         email: newUser.email,
         passwordHash: hashUserPass(newUser.username, newUser.password),
         permissions: newUser.permissions || { vault: false, joey: false },
         createdAt: Date.now()
       });
-      await redis(['SET', 'homer:users', JSON.stringify(users)]);
+      await redis(['SET', 'homer:users', JSON.stringify(createUsers)]);
       return res.status(200).json({ ok: true });
     }
 
@@ -133,31 +193,31 @@ export default async function handler(req, res) {
       if (!body.target || !body.target.username) {
         return res.status(400).json({ error: 'Missing username' });
       }
-      var usersData = await redis(['GET', 'homer:users']);
-      var users = [];
-      if (usersData.result) {
-        try { users = JSON.parse(usersData.result); } catch (e) {}
+      var updateUsersData = await redis(['GET', 'homer:users']);
+      var updateUsers = [];
+      if (updateUsersData.result) {
+        try { updateUsers = JSON.parse(updateUsersData.result); } catch (e) {}
       }
-      var idx = users.findIndex(function(u) { return u.username.toLowerCase() === body.target.username.toLowerCase(); });
+      var idx = updateUsers.findIndex(function(u) { return u.username.toLowerCase() === body.target.username.toLowerCase(); });
       if (idx === -1) return res.status(404).json({ error: 'User not found' });
       
-      if (body.target.email) users[idx].email = body.target.email;
-      if (body.target.password) users[idx].passwordHash = hashUserPass(users[idx].username, body.target.password);
-      if (body.target.permissions) users[idx].permissions = body.target.permissions;
+      if (body.target.email) updateUsers[idx].email = body.target.email;
+      if (body.target.password) updateUsers[idx].passwordHash = hashUserPass(updateUsers[idx].username, body.target.password);
+      if (body.target.permissions) updateUsers[idx].permissions = body.target.permissions;
       
-      await redis(['SET', 'homer:users', JSON.stringify(users)]);
+      await redis(['SET', 'homer:users', JSON.stringify(updateUsers)]);
       return res.status(200).json({ ok: true });
     }
 
     if (action === 'deleteUser') {
       if (!body.target) return res.status(400).json({ error: 'Missing username' });
-      var usersData = await redis(['GET', 'homer:users']);
-      var users = [];
-      if (usersData.result) {
-        try { users = JSON.parse(usersData.result); } catch (e) {}
+      var deleteUsersData = await redis(['GET', 'homer:users']);
+      var deleteUsers = [];
+      if (deleteUsersData.result) {
+        try { deleteUsers = JSON.parse(deleteUsersData.result); } catch (e) {}
       }
-      users = users.filter(function(u) { return u.username.toLowerCase() !== body.target.toLowerCase(); });
-      await redis(['SET', 'homer:users', JSON.stringify(users)]);
+      deleteUsers = deleteUsers.filter(function(u) { return u.username.toLowerCase() !== body.target.toLowerCase(); });
+      await redis(['SET', 'homer:users', JSON.stringify(deleteUsers)]);
       return res.status(200).json({ ok: true });
     }
 
