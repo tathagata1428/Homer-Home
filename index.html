@@ -8846,7 +8846,7 @@ document.addEventListener("input", e => {
   function saveHistoryToRedis(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass || !chatHistory.length) return;
-    fetch('/api/joey-history', {
+    fetch('/api/joey?action=history', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ passphrase:pass, messages:chatHistory })
@@ -8856,7 +8856,7 @@ document.addEventListener("input", e => {
   function loadHistoryFromRedis(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass) return;
-    fetch('/api/joey-history?passphrase=' + encodeURIComponent(pass))
+    fetch('/api/joey?action=history&passphrase=' + encodeURIComponent(pass))
       .then(function(r){ return r.json(); })
       .then(function(data){
         if(data.history && data.history.length && !chatHistory.length){
@@ -8872,7 +8872,7 @@ document.addEventListener("input", e => {
     if(!pass || chatHistory.length < 2) return;
     // Send last 8 messages (4 exchanges) for richer extraction
     var recent = chatHistory.slice(-8).map(function(m){ return {role:m.role, content:m.content}; });
-    fetch('/api/joey-learn', {
+    fetch('/api/joey?action=learn', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ passphrase:pass, messages:recent })
@@ -9127,7 +9127,7 @@ document.addEventListener("input", e => {
           try{ memData = JSON.parse(a.data); }catch(e){ memData = {memory: a.data, category: 'general'}; }
           var pass = localStorage.getItem('homer-sync-pass') || '';
           if(pass){
-            fetch('/api/joey-memory', {
+            fetch('/api/joey?action=memory', {
               method:'POST',
               headers:{'Content-Type':'application/json'},
               body:JSON.stringify({passphrase:pass, memory:memData.memory||memData.text||a.data, category:memData.category||'general'})
@@ -9141,7 +9141,7 @@ document.addEventListener("input", e => {
           // Remove from Joey's persistent memory
           var pass = localStorage.getItem('homer-sync-pass') || '';
           if(pass){
-            fetch('/api/joey-memory', {
+            fetch('/api/joey?action=memory', {
               method:'DELETE',
               headers:{'Content-Type':'application/json'},
               body:JSON.stringify({passphrase:pass, match:a.data})
