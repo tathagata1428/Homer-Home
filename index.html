@@ -9139,6 +9139,7 @@ document.addEventListener("input", e => {
     try{
       var syncPass = localStorage.getItem('homer-sync-pass') || '';
       var apiEndpoint = currentProvider === 'nemoclaw' ? '/api/nemoclaw' : '/api/openclaw';
+      console.log('[Joey/NemoClaw] provider=' + currentProvider + ' endpoint=' + apiEndpoint);
       var res = await fetch(apiEndpoint, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
