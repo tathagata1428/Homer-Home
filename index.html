@@ -8543,7 +8543,6 @@ document.addEventListener("input", e => {
     fabBtn.classList.toggle('visible', show);
     if(!show && panelOpen){ panelOpen = false; panel.classList.remove('open'); }
   }
-  window.addEventListener('homer-vault-state', updateFabVisibility);
   window.addEventListener('homer-auth', updateFabVisibility);
   window.addEventListener('storage', function(e){ if(e.key === 'homer-auth-user') updateFabVisibility(); });
   updateFabVisibility();
