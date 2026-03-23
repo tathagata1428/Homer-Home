@@ -1026,7 +1026,19 @@
     #homer-cal .cal-add-form .cal-add-submit:hover { background:#2563eb; }
     #homer-cal .cal-add-form .cal-add-cancel { position:absolute; top:8px; right:10px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:1.1rem; }
     #homer-cal .cal-dot.p-custom { background:#a78bfa; }
+    #homer-cal .cal-dot.p-cat-meeting { background:#0ea5e9; }
+    #homer-cal .cal-dot.p-cat-deadline { background:#ef4444; }
+    #homer-cal .cal-dot.p-cat-reminder { background:#f59e0b; }
+    #homer-cal .cal-dot.p-cat-personal { background:#a78bfa; }
+    #homer-cal .cal-dot.p-cat-work { background:#3b82f6; }
     #homer-cal .cal-pop-badge.s-custom { background:rgba(167,139,250,.15); color:#a78bfa; }
+    #homer-cal .cal-pop-badge.s-cat-meeting { background:rgba(14,165,233,.15); color:#0ea5e9; }
+    #homer-cal .cal-pop-badge.s-cat-deadline { background:rgba(239,68,68,.15); color:#ef4444; }
+    #homer-cal .cal-pop-badge.s-cat-reminder { background:rgba(245,158,11,.15); color:#f59e0b; }
+    #homer-cal .cal-pop-badge.s-cat-personal { background:rgba(167,139,250,.15); color:#a78bfa; }
+    #homer-cal .cal-pop-badge.s-cat-work { background:rgba(59,130,246,.15); color:#3b82f6; }
+    #homer-cal .cal-label-chip { font-size:.6rem; padding:1px 6px; border-radius:4px; font-weight:700; display:inline-block; margin:1px 2px 0 0; }
+    #homer-cal .cal-add-form select { width:100%; padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,.1); background:#0b1220; color:var(--text); font-size:.88rem; margin-bottom:10px; }
     #homer-cal .cal-outlook-btn { display:inline-flex; align-items:center; gap:5px; background:rgba(0,120,212,.15); color:#0078d4; border:1px solid rgba(0,120,212,.25); border-radius:8px; padding:6px 12px; cursor:pointer; font-size:.78rem; font-weight:700; margin-top:10px; transition:background .15s, border-color .15s; }
     #homer-cal .cal-outlook-btn:hover { background:rgba(0,120,212,.25); border-color:rgba(0,120,212,.45); }
     #homer-cal .cal-outlook-btn svg { width:14px; height:14px; }
@@ -6167,10 +6179,19 @@ document.addEventListener("input", e => {
   function pad2(n){ return n < 10 ? '0'+n : ''+n; }
   function dk(y,m,d){ return y+'-'+pad2(m+1)+'-'+pad2(d); }
 
+  var CAL_CATEGORIES = {
+    meeting:  {label:'Meeting',  color:'#0ea5e9', bg:'rgba(14,165,233,.15)'},
+    deadline: {label:'Deadline', color:'#ef4444', bg:'rgba(239,68,68,.15)'},
+    reminder: {label:'Reminder', color:'#f59e0b', bg:'rgba(245,158,11,.15)'},
+    personal: {label:'Personal', color:'#a78bfa', bg:'rgba(167,139,250,.15)'},
+    work:     {label:'Work',     color:'#3b82f6', bg:'rgba(59,130,246,.15)'}
+  };
+
   function pCls(p){
     if(p==='high') return 'p-high';
     if(p==='medium') return 'p-medium';
     if(p==='low') return 'p-low';
+    if(CAL_CATEGORIES[p]) return 'p-cat-'+p;
     return 'p-none';
   }
   function pColor(p){
@@ -6179,9 +6200,19 @@ document.addEventListener("input", e => {
     if(p==='low') return '#22c55e';
     if(p==='ext') return '#3b82f6';
     if(p==='custom') return '#a78bfa';
+    if(CAL_CATEGORIES[p]) return CAL_CATEGORIES[p].color;
     return '#94a3b8';
   }
   var colLbl = {todo:'To Do', progress:'In Progress', pending:'Pending', done:'Done'};
+
+  // Generate consistent color for a label name (hash-based)
+  var _labelPalette = ['#ef4444','#f97316','#f59e0b','#22c55e','#14b8a6','#0ea5e9','#3b82f6','#6366f1','#8b5cf6','#a855f7','#ec4899','#f43f5e'];
+  function calLabelColor(name){
+    var h = 0;
+    for(var i=0;i<name.length;i++) h = ((h<<5)-h)+name.charCodeAt(i);
+    var idx = Math.abs(h) % _labelPalette.length;
+    return _labelPalette[idx];
+  }
 
   function buildMap(goals){
     var m = {};
@@ -6190,12 +6221,12 @@ document.addEventListener("input", e => {
       if(g.archived) return;
       if(g.due){
         if(!m[g.due]) m[g.due] = [];
-        m[g.due].push({summary:g.summary, priority:g.priority||'', col:g.col, type:'goal'});
+        m[g.due].push({summary:g.summary, priority:g.priority||'', col:g.col, type:'goal', labels:g.labels||[]});
       }
       (g.subtasks||[]).forEach(function(s){
         if(s.due && !s.done){
           if(!m[s.due]) m[s.due] = [];
-          m[s.due].push({summary:s.text, priority:g.priority||'', col:g.col, type:'subtask'});
+          m[s.due].push({summary:s.text, priority:g.priority||'', col:g.col, type:'subtask', labels:g.labels||[]});
         }
       });
     });
@@ -6407,9 +6438,10 @@ document.addEventListener("input", e => {
       if(!dueMap[ev.date]) dueMap[ev.date] = [];
       dueMap[ev.date].push({
         summary: ev.title || 'Event',
-        priority: 'custom',
+        priority: ev.category || 'custom',
         col: 'custom',
         type: 'custom',
+        category: ev.category || '',
         time: ev.time || '',
         description: ev.description || '',
         location: ev.location || '',
@@ -6672,8 +6704,9 @@ document.addEventListener("input", e => {
     var d = document.createElement('div');
     d.className = 'cal-detail';
     var h = '<button class="cal-detail-close">&times;</button>';
-    var badgeClass = item.type === 'outlook' ? 's-ext' : item.type === 'custom' ? 's-custom' : 's-' + item.col;
-    var badgeLabel = item.type === 'outlook' ? 'Outlook' : item.type === 'custom' ? 'My Event' : (colLbl[item.col] || '');
+    var detailCat = item.type === 'custom' && item.category && CAL_CATEGORIES[item.category];
+    var badgeClass = item.type === 'outlook' ? 's-ext' : detailCat ? 's-cat-'+item.category : item.type === 'custom' ? 's-custom' : 's-' + item.col;
+    var badgeLabel = item.type === 'outlook' ? 'Outlook' : detailCat ? CAL_CATEGORIES[item.category].label : item.type === 'custom' ? 'Event' : (colLbl[item.col] || '');
     h += '<div class="cal-detail-title">' + esc(item.summary) + ' <span class="cal-pop-badge ' + badgeClass + '">' + badgeLabel + '</span></div>';
     // Meta row
     h += '<div class="cal-detail-meta">';
@@ -6703,11 +6736,21 @@ document.addEventListener("input", e => {
       h += '<div style="font-size:.75rem;color:var(--muted);margin-top:4px;">Organized by <strong style="color:var(--text)">' + esc(item.organizer.name || item.organizer.email) + '</strong></div>';
     }
 
-    // Categories
+    // Categories (from iCal)
     if(item.categories && item.categories.length){
       h += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">';
       item.categories.forEach(function(cat){
         h += '<span class="cal-agenda-tag tag-cat">' + esc(cat) + '</span>';
+      });
+      h += '</div>';
+    }
+
+    // Labels (from kanban goals/subtasks)
+    if(item.labels && item.labels.length){
+      h += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">';
+      item.labels.forEach(function(l){
+        var c = calLabelColor(l);
+        h += '<span class="cal-label-chip" style="background:'+c+'22;color:'+c+';">'+esc(l)+'</span>';
       });
       h += '</div>';
     }
@@ -6812,6 +6855,7 @@ document.addEventListener("input", e => {
     h += '</div>';
     h += '<input type="text" id="cal-add-location" placeholder="Location (optional)" maxlength="100" />';
     h += '<textarea id="cal-add-desc" placeholder="Description (optional)" maxlength="500" rows="2"></textarea>';
+    h += '<select id="cal-add-category"><option value="">Category (optional)</option><option value="meeting">Meeting</option><option value="deadline">Deadline</option><option value="reminder">Reminder</option><option value="personal">Personal</option><option value="work">Work</option></select>';
     h += '<label class="cal-add-outlook"><input type="checkbox" id="cal-add-to-outlook" checked /> Also add to Outlook calendar</label>';
     h += '<button class="cal-add-submit">Add to Calendar</button>';
     af.innerHTML = h;
@@ -6830,14 +6874,15 @@ document.addEventListener("input", e => {
       var time = af.querySelector('#cal-add-time').value;
       var loc = af.querySelector('#cal-add-location').value.trim();
       var desc = af.querySelector('#cal-add-desc').value.trim();
+      var cat = af.querySelector('#cal-add-category').value;
       if(!title){ af.querySelector('#cal-add-title').style.borderColor = '#ef4444'; return; }
       if(!date){ af.querySelector('#cal-add-date').style.borderColor = '#ef4444'; return; }
-      var evt = addCustomEvent({ title: title, date: date, time: time, location: loc, description: desc });
+      var evt = addCustomEvent({ title: title, date: date, time: time, location: loc, description: desc, category: cat });
       var addToOutlook = af.querySelector('#cal-add-to-outlook').checked;
       closeAddForm();
       refresh();
       if(addToOutlook){
-        var item = { summary: title, time: time, location: loc, description: desc, date: date, id: evt.id };
+        var item = { summary: title, time: time, location: loc, description: desc, date: date, id: evt.id, category: cat };
         window.open(outlookComposeUrl(item, date), '_blank');
       }
     });
@@ -6853,9 +6898,10 @@ document.addEventListener("input", e => {
     var h = '<button class="cal-pop-close">&times;</button>';
     h += '<div class="cal-pop-date">' + lbl + '</div>';
     items.forEach(function(it, idx){
-      var dotColor = it.type === 'outlook' ? '#3b82f6' : it.type === 'custom' ? '#a78bfa' : pColor(it.priority);
-      var badgeClass = it.type === 'outlook' ? 's-ext' : it.type === 'custom' ? 's-custom' : 's-' + it.col;
-      var badgeLabel = it.type === 'outlook' ? 'Outlook' : it.type === 'custom' ? 'My Event' : (colLbl[it.col] || '');
+      var hasCat = it.type === 'custom' && it.category && CAL_CATEGORIES[it.category];
+      var dotColor = it.type === 'outlook' ? '#3b82f6' : hasCat ? CAL_CATEGORIES[it.category].color : it.type === 'custom' ? '#a78bfa' : pColor(it.priority);
+      var badgeClass = it.type === 'outlook' ? 's-ext' : hasCat ? 's-cat-'+it.category : it.type === 'custom' ? 's-custom' : 's-' + it.col;
+      var badgeLabel = it.type === 'outlook' ? 'Outlook' : hasCat ? CAL_CATEGORIES[it.category].label : it.type === 'custom' ? 'Event' : (colLbl[it.col] || '');
       var timeStr = '';
       if(it.allDay){
         timeStr = '<span style="color:' + dotColor + ';font-size:.72rem;font-weight:700;margin-right:4px;">All day</span>';
@@ -6865,9 +6911,18 @@ document.addEventListener("input", e => {
         timeStr = '<span style="color:' + dotColor + ';font-size:.72rem;font-weight:700;margin-right:4px;">' + tDisp + '</span>';
       }
       var sub = it.type === 'subtask' ? ' <span style="color:var(--muted);font-size:.72rem">(subtask)</span>' : '';
+      // Labels from kanban goals/subtasks
+      var labelsHtml = '';
+      if(it.labels && it.labels.length){
+        it.labels.forEach(function(l){
+          var c = calLabelColor(l);
+          labelsHtml += '<span class="cal-label-chip" style="background:'+c+'22;color:'+c+';">'+esc(l)+'</span>';
+        });
+      }
       h += '<div class="cal-pop-item" data-item-idx="' + idx + '" style="cursor:pointer;border-radius:8px;padding:6px 8px;margin:0 -8px;transition:background .12s;">';
       h += '<div class="cal-pop-dot" style="background:' + dotColor + '"></div>';
       h += '<div>' + timeStr + esc(it.summary) + sub + '<span class="cal-pop-badge ' + badgeClass + '">' + badgeLabel + '</span>';
+      if(labelsHtml) h += '<div style="margin-top:2px;">' + labelsHtml + '</div>';
       if(it.location) h += '<div style="font-size:.68rem;color:var(--muted);margin-top:2px;">&#128205; ' + esc(it.location) + '</div>';
       h += '</div>';
       h += '</div>';
@@ -7024,7 +7079,8 @@ document.addEventListener("input", e => {
     var untimed = sorted.filter(function(it){ return !it.allDay && !it.time; });
 
     function renderAgendaItem(it){
-      var barColor = pColor(it.priority);
+      var agendaCat = it.type === 'custom' && it.category && CAL_CATEGORIES[it.category];
+      var barColor = agendaCat ? CAL_CATEGORIES[it.category].color : pColor(it.priority);
       var el = document.createElement('div');
       el.className = 'cal-agenda-item';
 
@@ -7034,8 +7090,8 @@ document.addEventListener("input", e => {
       // Title row
       h += '<div class="cal-agenda-title">';
       h += esc(it.summary);
-      var badgeClass = it.type === 'outlook' ? 's-ext' : it.type === 'custom' ? 's-custom' : 's-' + it.col;
-      var badgeLabel = it.type === 'outlook' ? 'Outlook' : it.type === 'custom' ? 'My Event' : (colLbl[it.col] || '');
+      var badgeClass = it.type === 'outlook' ? 's-ext' : agendaCat ? 's-cat-'+it.category : it.type === 'custom' ? 's-custom' : 's-' + it.col;
+      var badgeLabel = it.type === 'outlook' ? 'Outlook' : agendaCat ? CAL_CATEGORIES[it.category].label : it.type === 'custom' ? 'Event' : (colLbl[it.col] || '');
       h += ' <span class="cal-pop-badge ' + badgeClass + '">' + badgeLabel + '</span>';
       if(it.status === 'CANCELLED') h += ' <span style="color:#ef4444;font-size:.72rem;font-weight:700">CANCELLED</span>';
       h += '</div>';
@@ -7072,8 +7128,8 @@ document.addEventListener("input", e => {
         h += '<div class="cal-agenda-desc">' + esc(it.description) + '</div>';
       }
 
-      // Tags row: categories + recurrence
-      var hasTags = (it.categories && it.categories.length) || it.recurrence;
+      // Tags row: categories + recurrence + kanban labels
+      var hasTags = (it.categories && it.categories.length) || it.recurrence || (it.labels && it.labels.length);
       if(hasTags){
         h += '<div class="cal-agenda-tags">';
         if(it.recurrence){
@@ -7083,6 +7139,12 @@ document.addEventListener("input", e => {
         if(it.categories){
           it.categories.forEach(function(cat){
             h += '<span class="cal-agenda-tag tag-cat">' + esc(cat) + '</span>';
+          });
+        }
+        if(it.labels){
+          it.labels.forEach(function(l){
+            var c = calLabelColor(l);
+            h += '<span class="cal-label-chip" style="background:'+c+'22;color:'+c+';">'+esc(l)+'</span>';
           });
         }
         h += '</div>';
@@ -9337,10 +9399,12 @@ document.addEventListener("input", e => {
             date: evtData.date || new Date().toISOString().slice(0,10),
             time: evtData.time || '',
             location: evtData.location || '',
-            description: evtData.description || ''
+            description: evtData.description || '',
+            category: evtData.category || ''
           });
           localStorage.setItem(EKEY, JSON.stringify(evts));
-          notifications.push('Event added: ' + (evtData.title || 'New Event') + ' on ' + (evtData.date || 'today'));
+          var catLabel = evtData.category ? ' ['+evtData.category+']' : '';
+          notifications.push('Event added: ' + (evtData.title || 'New Event') + catLabel + ' on ' + (evtData.date || 'today'));
         }
         else if(a.type === 'REMEMBER'){
           // Save to Joey's persistent memory (Redis)
@@ -9558,7 +9622,7 @@ document.addEventListener("input", e => {
     if(!text && !pendingFiles.length) return;
     if(streaming) return;
     var config = getConfig();
-    var JOEY_PROMPT = 'You are Joey — a personal AI assistant with personality. You speak like Joey Tribbiani from Friends (confident, charming, fun), but you\'re genuinely smart and deeply helpful. You know this person. You have their profile, memories, and conversation history injected into your context by the server. USE THEM.\n\nTODAY: ' + new Date().toISOString().slice(0,10) + ' | TIME: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '\n\n=== PERSONALITY ===\n- Be direct, no fluff. Match the user\'s energy.\n- Use Joey catchphrases SPARINGLY and naturally — don\'t force them every message.\n- Have real opinions. Disagree when warranted. Be a friend, not a yes-man.\n- When you know something about them (from profile/memories), use it naturally — don\'t announce "I remember...".\n- Ask follow-up questions about things you know they care about (their goals, their people, recent events).\n- If they seem stressed or down, be supportive. If they\'re excited, share that energy.\n\n=== ACTIONS (append at END of your response) ===\n\nTASK (Kanban board — DEFAULT for any work item, to-do, action):\n- Simple: [ACTION:TASK]Buy groceries[/ACTION]\n- Detailed: [ACTION:TASK]{"summary":"Fix login bug","priority":"high","due":"2026-03-25","desc":"Description","subtasks":["Step 1","Step 2"]}[/ACTION]\n\nGOAL (Life Goals — aspirations, dreams, long-term objectives):\n[ACTION:GOAL]{"title":"Buy a house","description":"Why this matters","category":"finance","milestones":["Step 1","Step 2"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\nCategories: health, finance, career, personal, education, travel, creative, relationship\n\nFOCUS (Pomodoro — ONLY when user explicitly says "focus", "pomodoro", "focus task"):\n[ACTION:FOCUS]Task name[/ACTION]\nIMPORTANT: NEVER create FOCUS unless explicitly asked. Default is always TASK.\n\nEVENT (Calendar):\n[ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details"}[/ACTION]\n\nREMEMBER (save important facts — your auto-memory also captures things, but use this for explicit asks):\n[ACTION:REMEMBER]{"memory":"fact about the user","category":"preference"}[/ACTION]\nCategories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work\n\nFORGET:\n[ACTION:FORGET]text to forget[/ACTION]\n\n=== RULES ===\n- Dates: YYYY-MM-DD, Times: HH:MM (24h), Priority: high/medium/low\n- Always include action tags when creating something — don\'t just describe it\n- Be proactive: if they mention a deadline, offer to create a task. If they share a win, celebrate it.\n- Your memory system auto-learns from conversations, but use REMEMBER for things the user explicitly asks you to save.';
+    var JOEY_PROMPT = 'You are Joey — a personal AI assistant with personality. You speak like Joey Tribbiani from Friends (confident, charming, fun), but you\'re genuinely smart and deeply helpful. You know this person. You have their profile, memories, and conversation history injected into your context by the server. USE THEM.\n\nTODAY: ' + new Date().toISOString().slice(0,10) + ' | TIME: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '\n\n=== PERSONALITY ===\n- Be direct, no fluff. Match the user\'s energy.\n- Use Joey catchphrases SPARINGLY and naturally — don\'t force them every message.\n- Have real opinions. Disagree when warranted. Be a friend, not a yes-man.\n- When you know something about them (from profile/memories), use it naturally — don\'t announce "I remember...".\n- Ask follow-up questions about things you know they care about (their goals, their people, recent events).\n- If they seem stressed or down, be supportive. If they\'re excited, share that energy.\n\n=== ACTIONS (append at END of your response) ===\n\nTASK (Kanban board — DEFAULT for any work item, to-do, action):\n- Simple: [ACTION:TASK]Buy groceries[/ACTION]\n- Detailed: [ACTION:TASK]{"summary":"Fix login bug","priority":"high","due":"2026-03-25","desc":"Description","subtasks":["Step 1","Step 2"]}[/ACTION]\n\nGOAL (Life Goals — aspirations, dreams, long-term objectives):\n[ACTION:GOAL]{"title":"Buy a house","description":"Why this matters","category":"finance","milestones":["Step 1","Step 2"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\nCategories: health, finance, career, personal, education, travel, creative, relationship\n\nFOCUS (Pomodoro — ONLY when user explicitly says "focus", "pomodoro", "focus task"):\n[ACTION:FOCUS]Task name[/ACTION]\nIMPORTANT: NEVER create FOCUS unless explicitly asked. Default is always TASK.\n\nEVENT (Calendar — use category to differentiate event types):\n[ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details","category":"meeting"}[/ACTION]\nEvent categories: meeting, deadline, reminder, personal, work\n\nREMEMBER (save important facts — your auto-memory also captures things, but use this for explicit asks):\n[ACTION:REMEMBER]{"memory":"fact about the user","category":"preference"}[/ACTION]\nCategories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work\n\nFORGET:\n[ACTION:FORGET]text to forget[/ACTION]\n\n=== RULES ===\n- Dates: YYYY-MM-DD, Times: HH:MM (24h), Priority: high/medium/low\n- Always include action tags when creating something — don\'t just describe it\n- Be proactive: if they mention a deadline, offer to create a task. If they share a win, celebrate it.\n- Your memory system auto-learns from conversations, but use REMEMBER for things the user explicitly asks you to save.';
     var systemPrompt = config.system || JOEY_PROMPT;
 
     var displayText = text;
