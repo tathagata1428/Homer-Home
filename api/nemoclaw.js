@@ -1,3 +1,4 @@
+// NemoClaw - Nemotron-3-Super via Ollama Cloud
 export default async function handler(req, res) {
   const origin = req.headers.origin || '*';
   res.setHeader('Access-Control-Allow-Origin', origin);
