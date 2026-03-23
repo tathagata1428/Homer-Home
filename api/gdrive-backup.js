@@ -19,13 +19,10 @@ export default async function handler(req, res) {
   if (!GDRIVE_WEBHOOK) return res.status(500).json({ error: 'GDRIVE_WEBHOOK_URL not configured' });
   if (!GDRIVE_SECRET) return res.status(500).json({ error: 'GDRIVE_SECRET not configured' });
 
-  // --- Load context from Redis ---
+  // --- Redis ---
   const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (!REDIS_URL || !REDIS_TOKEN) {
-    return res.status(500).json({ error: 'Redis not configured' });
-  }
+  if (!REDIS_URL || !REDIS_TOKEN) return res.status(500).json({ error: 'Redis not configured' });
 
   const redisFetch = (cmd) => fetch(REDIS_URL, {
     method: 'POST',
@@ -33,13 +30,9 @@ export default async function handler(req, res) {
     body: JSON.stringify(cmd)
   }).then(r => r.json());
 
-  // Verify passphrase against user database
   async function verifyPassphrase(pass) {
-    // Check against admin hash (env var) if set
     const ADMIN_HASH = (process.env.HOMER_ADMIN_HASH || '').trim();
     if (ADMIN_HASH && pass.trim() === ADMIN_HASH) return true;
-
-    // Check against registered users
     const usersData = await redisFetch(['GET', 'homer:users']);
     if (usersData.result) {
       try {
@@ -53,7 +46,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Verify authentication
     const isValid = await verifyPassphrase(passphrase);
     if (!isValid) return res.status(403).json({ error: 'Forbidden' });
 
@@ -63,36 +55,77 @@ export default async function handler(req, res) {
       redisFetch(['GET', 'joey:history'])
     ]);
 
+    // Trim history to last 30 messages to keep payload small
+    let history = [];
+    try { history = histRes.result ? JSON.parse(histRes.result) : []; } catch (e) {}
+    if (history.length > 30) history = history.slice(-30);
+
     const payload = {
       secret: GDRIVE_SECRET,
       profile: profileRes.result ? JSON.parse(profileRes.result) : null,
       memories: memRes.result ? JSON.parse(memRes.result) : [],
-      history: histRes.result ? JSON.parse(histRes.result) : []
+      history
     };
 
-    // POST to Google Apps Script
-    const gRes = await fetch(GDRIVE_WEBHOOK, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      redirect: 'follow'
-    });
+    // --- POST to Google Apps Script with manual redirect following ---
+    // Google Apps Script returns 302 redirects; we follow manually for reliability
+    const bodyStr = JSON.stringify(payload);
+    let responseText = '';
+    let finalStatus = 0;
+    let redirectChain = [];
 
-    const gData = await gRes.text();
-    let parsed;
-    try { parsed = JSON.parse(gData); } catch { parsed = { raw: gData }; }
+    let url = GDRIVE_WEBHOOK;
+    for (let i = 0; i < 5; i++) {
+      const isPost = i === 0; // Only POST on first request, GET on redirects
+      const fetchOpts = isPost
+        ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: bodyStr, redirect: 'manual' }
+        : { method: 'GET', redirect: 'manual' };
 
-    // Check for Google Script error (either HTTP error or JSON error field)
-    if (!gRes.ok || parsed.error) {
-      return res.status(502).json({ 
-        error: 'Google Script error', 
-        status: gRes.status, 
-        detail: parsed,
-        rawResponse: gData.slice(0, 500),
-        whatWeSent: {
-          secret: payload.secret,
-          secretLength: payload.secret ? payload.secret.length : 0
+      const resp = await fetch(url, fetchOpts);
+      redirectChain.push({ url: url.slice(0, 80), status: resp.status, method: isPost ? 'POST' : 'GET' });
+
+      if (resp.status >= 300 && resp.status < 400) {
+        const location = resp.headers.get('location');
+        if (!location) {
+          return res.status(502).json({ error: 'Redirect without location', redirectChain });
         }
+        url = location;
+        continue;
+      }
+
+      finalStatus = resp.status;
+      responseText = await resp.text();
+      break;
+    }
+
+    if (!responseText) {
+      return res.status(502).json({ error: 'No response after redirects', redirectChain });
+    }
+
+    // Parse response
+    let parsed;
+    try {
+      parsed = JSON.parse(responseText);
+    } catch {
+      // Got HTML or non-JSON response — likely Google auth/error page
+      const isHtml = responseText.trim().startsWith('<');
+      return res.status(502).json({
+        error: isHtml ? 'Google returned HTML instead of JSON — the Apps Script may need redeployment' : 'Non-JSON response from Google',
+        status: finalStatus,
+        responsePreview: responseText.slice(0, 300),
+        redirectChain
+      });
+    }
+
+    // Check for script-level errors
+    if (parsed.error) {
+      return res.status(502).json({
+        error: 'Google Script rejected the request',
+        scriptError: parsed.error,
+        hint: parsed.error === 'Unauthorized'
+          ? 'GDRIVE_SECRET env var does not match the SECRET in your Google Apps Script. Check both values match exactly.'
+          : undefined,
+        redirectChain
       });
     }
 

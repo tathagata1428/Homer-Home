@@ -19,13 +19,10 @@ export default async function handler(req, res) {
   if (!GDRIVE_WEBHOOK) return res.status(500).json({ error: 'GDRIVE_WEBHOOK_URL not configured' });
   if (!GDRIVE_SECRET) return res.status(500).json({ error: 'GDRIVE_SECRET not configured' });
 
-  // --- Load context from Redis ---
+  // --- Redis ---
   const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (!REDIS_URL || !REDIS_TOKEN) {
-    return res.status(500).json({ error: 'Redis not configured' });
-  }
+  if (!REDIS_URL || !REDIS_TOKEN) return res.status(500).json({ error: 'Redis not configured' });
 
   const redisFetch = (cmd) => fetch(REDIS_URL, {
     method: 'POST',
@@ -33,11 +30,9 @@ export default async function handler(req, res) {
     body: JSON.stringify(cmd)
   }).then(r => r.json());
 
-  // Verify passphrase against admin hash or user database
   async function verifyPassphrase(pass) {
     const ADMIN_HASH = (process.env.HOMER_ADMIN_HASH || '').trim();
     if (ADMIN_HASH && pass.trim() === ADMIN_HASH) return true;
-
     const usersData = await redisFetch(['GET', 'homer:users']);
     if (usersData.result) {
       try {
@@ -51,27 +46,59 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Verify authentication
     const isValid = await verifyPassphrase(passphrase);
     if (!isValid) return res.status(403).json({ error: 'Forbidden' });
 
-    // Fetch latest context from Google Drive via Apps Script
-    const restoreUrl = GDRIVE_WEBHOOK + '?action=restore&secret=' + encodeURIComponent(GDRIVE_SECRET);
-    
-    const gRes = await fetch(restoreUrl, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
-    });
+    // --- GET from Google Apps Script with manual redirect following ---
+    const startUrl = GDRIVE_WEBHOOK + '?action=restore&secret=' + encodeURIComponent(GDRIVE_SECRET);
+    let responseText = '';
+    let finalStatus = 0;
+    let redirectChain = [];
 
-    const gData = await gRes.text();
+    let url = startUrl;
+    for (let i = 0; i < 5; i++) {
+      const resp = await fetch(url, { method: 'GET', redirect: 'manual' });
+      redirectChain.push({ url: url.slice(0, 80), status: resp.status });
+
+      if (resp.status >= 300 && resp.status < 400) {
+        const location = resp.headers.get('location');
+        if (!location) {
+          return res.status(502).json({ error: 'Redirect without location', redirectChain });
+        }
+        url = location;
+        continue;
+      }
+
+      finalStatus = resp.status;
+      responseText = await resp.text();
+      break;
+    }
+
+    if (!responseText) {
+      return res.status(502).json({ error: 'No response after redirects', redirectChain });
+    }
+
     let parsed;
-    try { parsed = JSON.parse(gData); } catch { parsed = { raw: gData }; }
+    try {
+      parsed = JSON.parse(responseText);
+    } catch {
+      const isHtml = responseText.trim().startsWith('<');
+      return res.status(502).json({
+        error: isHtml ? 'Google returned HTML — Apps Script may need redeployment' : 'Non-JSON response',
+        status: finalStatus,
+        responsePreview: responseText.slice(0, 300),
+        redirectChain
+      });
+    }
 
-    if (!gRes.ok || parsed.error) {
-      return res.status(502).json({ 
-        error: 'Google Script error', 
-        status: gRes.status, 
-        detail: parsed
+    if (parsed.error) {
+      return res.status(502).json({
+        error: 'Google Script rejected the request',
+        scriptError: parsed.error,
+        hint: parsed.error === 'Unauthorized'
+          ? 'GDRIVE_SECRET env var does not match the SECRET in your Google Apps Script.'
+          : undefined,
+        redirectChain
       });
     }
 
@@ -83,19 +110,17 @@ export default async function handler(req, res) {
       await redisFetch(['SET', 'joey:profile', JSON.stringify(profile || {})]);
       results.profile = true;
     }
-
     if (memories !== undefined) {
       await redisFetch(['SET', 'joey:memories', JSON.stringify(memories || [])]);
       results.memories = true;
     }
-
     if (history !== undefined) {
       await redisFetch(['SET', 'joey:history', JSON.stringify(history || [])]);
       results.history = true;
     }
 
-    return res.status(200).json({ 
-      ok: true, 
+    return res.status(200).json({
+      ok: true,
       restored: results,
       timestamp: parsed.exportedAt || null
     });
