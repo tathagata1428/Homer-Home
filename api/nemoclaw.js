@@ -37,7 +37,8 @@ export default async function handler(req, res) {
   if (GATEWAY_TOKEN) headers['Authorization'] = 'Bearer ' + GATEWAY_TOKEN;
 
   try {
-    const upstream = await fetch(GATEWAY_URL + '/v1/chat/completions', {
+    const chatUrl = GATEWAY_URL.endsWith('/v1') ? GATEWAY_URL + '/chat/completions' : GATEWAY_URL + '/v1/chat/completions';
+    const upstream = await fetch(chatUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify({
