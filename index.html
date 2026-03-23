@@ -1227,6 +1227,34 @@
       font-size:.6rem; color:rgba(234,88,12,.9); font-weight:700; background:rgba(234,88,12,.1);
       padding:2px 8px; border-radius:6px; letter-spacing:.03em; border:1px solid rgba(234,88,12,.15);
     }
+    /* Provider toggle bar */
+    .oc-provider-bar{
+      display:flex !important; align-items:center; justify-content:center; gap:10px;
+      padding:10px 16px; border-bottom:2px solid rgba(118,185,0,.4);
+      background:linear-gradient(135deg,rgba(234,88,12,.08),rgba(118,185,0,.08));
+      min-height:38px;
+    }
+    .oc-provider-bar label{
+      font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+      color:var(--muted); cursor:pointer; transition:color .2s; user-select:none;
+    }
+    .oc-provider-bar label.active{ color:#fff; }
+    .oc-provider-bar label.active.joey-active{ color:#ea580c; }
+    .oc-provider-bar label.active.nemo-active{ color:#76b900; }
+    .oc-toggle-track{
+      position:relative; width:40px; height:22px; border-radius:11px; cursor:pointer;
+      background:linear-gradient(135deg,#ea580c,#c2410c); transition:background .3s;
+      flex-shrink:0;
+    }
+    .oc-toggle-track.nemoclaw{
+      background:linear-gradient(135deg,#76b900,#4a8500);
+    }
+    .oc-toggle-thumb{
+      position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%;
+      background:#fff; transition:transform .25s cubic-bezier(.4,0,.2,1);
+      box-shadow:0 1px 4px rgba(0,0,0,.3);
+    }
+    .oc-toggle-track.nemoclaw .oc-toggle-thumb{ transform:translateX(18px); }
     .oc-header-actions{ display:flex; gap:4px; }
     .oc-header-actions button{
       background:none; border:none; color:var(--muted); cursor:pointer; padding:4px 8px;
@@ -7360,13 +7388,20 @@ document.addEventListener("input", e => {
 <!-- OpenClaw Chat Panel -->
 <div id="oc-panel">
   <div id="oc-panel-header">
-    <h3>🍕 Joey <span class="oc-model-badge">Nemotron 3 Super</span></h3>
+    <h3><span id="oc-provider-icon">🍕</span> <span id="oc-provider-name">Joey</span> <span class="oc-model-badge" id="oc-model-badge">Groq</span></h3>
     <div class="oc-header-actions">
       <button id="oc-export-btn" title="Export chat">&#8615;</button>
       <button id="oc-settings-btn" title="Settings">&#9881;</button>
       <button id="oc-clear-btn" title="Clear chat">Clear</button>
       <button id="oc-close-btn" title="Close">&times;</button>
     </div>
+  </div>
+  <div class="oc-provider-bar">
+    <label id="oc-label-joey" class="active joey-active">Joey</label>
+    <div id="oc-toggle-track" class="oc-toggle-track" title="Switch AI provider">
+      <div class="oc-toggle-thumb"></div>
+    </div>
+    <label id="oc-label-nemoclaw">NemoClaw</label>
   </div>
   <div id="oc-settings-row">
     <label>System Prompt</label>
@@ -8464,6 +8499,35 @@ document.addEventListener("input", e => {
   var panelOpen = false;
   var pendingFiles = [];
 
+  // --- Provider toggle ---
+  var currentProvider = localStorage.getItem('homer-oc-provider') || 'joey';
+  var toggleTrack = document.getElementById('oc-toggle-track');
+  var labelJoey = document.getElementById('oc-label-joey');
+  var labelNemoclaw = document.getElementById('oc-label-nemoclaw');
+  var providerIcon = document.getElementById('oc-provider-icon');
+  var providerName = document.getElementById('oc-provider-name');
+  var modelBadge = document.getElementById('oc-model-badge');
+
+  function applyProvider(p){
+    currentProvider = p;
+    localStorage.setItem('homer-oc-provider', p);
+    var isNemo = p === 'nemoclaw';
+    toggleTrack.classList.toggle('nemoclaw', isNemo);
+    labelJoey.className = isNemo ? '' : 'active joey-active';
+    labelNemoclaw.className = isNemo ? 'active nemo-active' : '';
+    providerIcon.textContent = isNemo ? '🟢' : '🍕';
+    providerName.textContent = isNemo ? 'NemoClaw' : 'Joey';
+    modelBadge.textContent = isNemo ? 'Nemotron 3 Super' : 'Groq';
+    inputEl.placeholder = isNemo ? 'Message NemoClaw...' : 'Message Joey...';
+  }
+  applyProvider(currentProvider);
+
+  toggleTrack.addEventListener('click', function(){
+    applyProvider(currentProvider === 'joey' ? 'nemoclaw' : 'joey');
+  });
+  labelJoey.addEventListener('click', function(){ applyProvider('joey'); });
+  labelNemoclaw.addEventListener('click', function(){ applyProvider('nemoclaw'); });
+
   function getConfig(){
     try{ return JSON.parse(localStorage.getItem(OC_CONFIG_KEY)) || {}; }catch(e){ return {}; }
   }
@@ -9074,7 +9138,8 @@ document.addEventListener("input", e => {
 
     try{
       var syncPass = localStorage.getItem('homer-sync-pass') || '';
-      var res = await fetch('/api/openclaw', {
+      var apiEndpoint = currentProvider === 'nemoclaw' ? '/api/nemoclaw' : '/api/openclaw';
+      var res = await fetch(apiEndpoint, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ messages: apiMessages, passphrase: syncPass })
