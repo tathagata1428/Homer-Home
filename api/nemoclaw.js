@@ -136,7 +136,6 @@ export default async function handler(req, res) {
       if (histRes.result) {
         historyMessages = JSON.parse(histRes.result);
       }
-    }
   } catch (e) { /* context unavailable — proceed without */ }
 
   // --- Build system prompt (same Joey persona as openclaw) ---

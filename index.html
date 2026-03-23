@@ -4670,8 +4670,18 @@ document.addEventListener("input", e => {
         // Subtask sidebar
         html += '<div class="issue-sidebar-card"><h4>Details</h4>';
         html += '<div class="issue-field-row"><span class="issue-field-label">Status</span><span class="issue-field-value">'+(sub.done?'<span class="issue-status-badge s-done">Done</span>':'<span class="issue-status-badge s-todo">Open</span>')+'</span></div>';
-        html += '<div class="issue-field-row"><span class="issue-field-label">Effort</span><span class="issue-field-value">'+(sub.effort?sub.effort.toUpperCase():'—')+'</span></div>';
-        html += '<div class="issue-field-row"><span class="issue-field-label">Due Date</span><span class="issue-field-value">'+(sub.due?new Date(sub.due+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—')+'</span></div>';
+        html += '<div class="issue-field-row"><span class="issue-field-label">Effort</span><span class="issue-field-value">';
+        html += '<select class="issue-edit-sub-effort" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;">';
+        html += '<option value=""'+(sub.effort?'':' selected')+'>None</option>';
+        html += '<option value="xs"'+(sub.effort==='xs'?' selected':'')+'>XS</option>';
+        html += '<option value="s"'+(sub.effort==='s'?' selected':'')+'>S (1pt)</option>';
+        html += '<option value="m"'+(sub.effort==='m'?' selected':'')+'>M (2pt)</option>';
+        html += '<option value="l"'+(sub.effort==='l'?' selected':'')+'>L (3pt)</option>';
+        html += '<option value="xl"'+(sub.effort==='xl'?' selected':'')+'>XL (5pt)</option>';
+        html += '</select></span></div>';
+        html += '<div class="issue-field-row"><span class="issue-field-label">Due Date</span><span class="issue-field-value">';
+        html += '<input type="date" class="issue-edit-sub-due" value="'+(sub.due||'')+'" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;max-width:150px;">';
+        html += '</span></div>';
         html += '</div>';
 
         html += '<div class="issue-sidebar-card"><h4>Actions</h4>';
@@ -4801,6 +4811,33 @@ document.addEventListener("input", e => {
             openIssueFullscreen(parseInt(this.dataset.gi));
           });
         });
+
+        // Subtask effort edit
+        var subEffortSel = ov.querySelector('.issue-edit-sub-effort');
+        if(subEffortSel){
+          subEffortSel.addEventListener('change', function(){
+            var val = this.value;
+            loadVault().then(function(d){
+              if(d.goals[goalIdx] && d.goals[goalIdx].subtasks[subIdx]){
+                d.goals[goalIdx].subtasks[subIdx].effort = val;
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx, subIdx); });
+              }
+            });
+          });
+        }
+        // Subtask due date edit
+        var subDueSel = ov.querySelector('.issue-edit-sub-due');
+        if(subDueSel){
+          subDueSel.addEventListener('change', function(){
+            var val = this.value;
+            loadVault().then(function(d){
+              if(d.goals[goalIdx] && d.goals[goalIdx].subtasks[subIdx]){
+                d.goals[goalIdx].subtasks[subIdx].due = val;
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx, subIdx); });
+              }
+            });
+          });
+        }
 
         // Subtask → Outlook calendar
         var subOutlookBtn = ov.querySelector('.issue-outlook-btn');
@@ -7420,6 +7457,7 @@ document.addEventListener("input", e => {
     <input id="oc-system-prompt" type="text" placeholder="Default: Joey Tribbiani persona. Override here." spellcheck="false">
     <div style="display:flex;gap:8px;align-self:flex-end;">
       <button id="oc-settings-save" style="padding:7px 16px;border-radius:8px;border:none;background:linear-gradient(135deg,#ea580c,#c2410c);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;">Save</button>
+      <button id="oc-save-db" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Save context (history, memories, profile) to database">&#x1f4be; Save to DB</button>
       <button id="oc-gdrive-restore" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Restore agent context from Google Drive">&#x21bb; Restore</button>
       <button id="oc-gdrive-sync" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Force read context from Google Drive">&#x27f3; Load Context</button>
       <button id="oc-gdrive-backup" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Backup agent context to Google Drive">&#x2601; Backup</button>
@@ -7723,7 +7761,7 @@ document.addEventListener("input", e => {
         // No local account — try cloud backup with these credentials
         submitBtn.disabled = true;
         submitBtn.textContent = 'Checking cloud...';
-        fetch('/api/sync?key='+encodeURIComponent(hash))
+        fetch(R2_WORKER_URL+'/sync',{headers:{'X-Sync-Key':hash}})
           .then(function(r){ return r.json(); })
           .then(function(d){
             if(d.data && d.data['homer-auth-user']){
@@ -8247,7 +8285,7 @@ document.addEventListener("input", e => {
 
     st('Backing up...');
     var svg=cloud.querySelector('svg'); svg.classList.add('fab-spinning');
-    return fetch('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:p,data:allData})})
+    return fetch(R2_WORKER_URL+'/sync',{method:'POST',headers:{'Content-Type':'application/json','X-Sync-Key':p},body:JSON.stringify({data:allData})})
       .then(function(r){return r.json();})
       .then(function(d){
         svg.classList.remove('fab-spinning');
@@ -8284,7 +8322,7 @@ document.addEventListener("input", e => {
       }
 
       // SAFETY: Always compare local vs cloud before overwriting
-      return fetch('/api/sync?key='+encodeURIComponent(p))
+      return fetch(R2_WORKER_URL+'/sync',{headers:{'X-Sync-Key':p}})
         .then(function(r){ return r.json(); })
         .then(function(d){
           if(!d.data){
@@ -8362,7 +8400,7 @@ document.addEventListener("input", e => {
     if(!p){ st('Not logged in — please sign in first'); return; }
     localStorage.setItem(SYNC_PASS_KEY,p);
     st('Restoring...');
-    fetch('/api/sync?key='+encodeURIComponent(p))
+    fetch(R2_WORKER_URL+'/sync',{headers:{'X-Sync-Key':p}})
       .then(function(r){return r.json();})
       .then(function(d){
         if(d.error){ st(d.error); return; }
@@ -8422,7 +8460,7 @@ document.addEventListener("input", e => {
     var p = pass.value.trim();
     if(!p) return;
     versionsDiv.style.display = 'block';
-    fetch('/api/sync?key=' + encodeURIComponent(p) + '&action=versions')
+    fetch(R2_WORKER_URL+'/versions',{headers:{'X-Sync-Key':p}})
       .then(function(r){ return r.json(); })
       .then(function(d){
         var versions = d.versions || [];
@@ -8449,7 +8487,7 @@ document.addEventListener("input", e => {
             var ts = this.getAttribute('data-ts');
             if(!confirm('Restore backup from ' + new Date(parseInt(ts)).toLocaleString() + '?\nThis will overwrite your current local data.')) return;
             btn.textContent = '...';
-            fetch('/api/sync?key=' + encodeURIComponent(p) + '&action=restore-version&ts=' + ts)
+            fetch(R2_WORKER_URL+'/restore?ts=' + ts,{headers:{'X-Sync-Key':p}})
               .then(function(r){ return r.json(); })
               .then(function(d){
                 if(d.error){ st('Error: ' + d.error); btn.textContent = 'Restore'; return; }
@@ -8572,7 +8610,7 @@ document.addEventListener("input", e => {
       d['homer-backup-keys'] = Object.keys(d).length.toString();
       d['homer-backup-source'] = 'beforeunload';
       var payload = JSON.stringify({ key: p, data: d });
-      navigator.sendBeacon('/api/sync', new Blob([payload], { type: 'application/json' }));
+      navigator.sendBeacon(R2_WORKER_URL+'/sync', new Blob([payload], { type: 'application/json' }));
     } catch(e){}
   });
 
@@ -8612,7 +8650,7 @@ document.addEventListener("input", e => {
       var p = pass.value.trim();
       if(!p) return;
       st('Restoring your data...');
-      fetch('/api/sync?key='+encodeURIComponent(p))
+      fetch(R2_WORKER_URL+'/sync',{headers:{'X-Sync-Key':p}})
         .then(function(r){ return r.json(); })
         .then(function(d){
           if(d.error || !d.data){
@@ -8791,6 +8829,43 @@ document.addEventListener("input", e => {
   settingsSave.addEventListener('click', function(){
     setConfig({ system: systemPromptInput.value.trim() });
     settingsRow.classList.remove('open');
+  });
+
+  // --- Save context to DB (Redis) ---
+  document.getElementById('oc-save-db').addEventListener('click', function(){
+    var btn = this;
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass){ alert('Log in first (unlock vault) to save.'); return; }
+    if(!chatHistory.length){ alert('No conversation to save.'); return; }
+    btn.disabled = true;
+    btn.textContent = '⏳ Saving...';
+    // Save history to Redis
+    var historyPromise = fetch('/api/joey?action=history', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ passphrase:pass, messages:chatHistory })
+    }).then(function(r){ return r.json(); });
+    // Trigger learn cycle to extract memories + update profile
+    var recent = chatHistory.slice(-8).map(function(m){ return {role:m.role, content:m.content}; });
+    var learnPromise = chatHistory.length >= 2 ? fetch('/api/joey?action=learn', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ passphrase:pass, messages:recent })
+    }).then(function(r){ return r.json(); }) : Promise.resolve({learned:0});
+    Promise.all([historyPromise, learnPromise]).then(function(results){
+      var histResult = results[0];
+      var learnResult = results[1];
+      btn.textContent = '✅ Saved!';
+      var msg = 'History: ' + (histResult.count || 0) + ' msgs';
+      if(learnResult.learned > 0) msg += ', Learned: ' + learnResult.learned + ' facts';
+      if(learnResult.profileUpdated) msg += ', Profile updated';
+      console.log('[Joey] Manual DB save:', msg);
+      setTimeout(function(){ btn.innerHTML = '&#x1f4be; Save to DB'; btn.disabled = false; }, 2000);
+    }).catch(function(e){
+      btn.textContent = '❌ Error';
+      console.error('[Joey] DB save error:', e);
+      setTimeout(function(){ btn.innerHTML = '&#x1f4be; Save to DB'; btn.disabled = false; }, 2000);
+    });
   });
 
   // --- Google Drive context backup ---
@@ -9009,13 +9084,32 @@ document.addEventListener("input", e => {
   // Run auto-restore after a delay (after Redis load attempt)
   setTimeout(autoRestoreFromDrive, 3000);
 
-  // --- Periodic sync every 5 minutes ---
+  // --- Periodic context save to DB every 5 minutes ---
   setInterval(function(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
-    if(!pass) return;
-    console.log('[Joey] Periodic sync check...');
-    syncContextFromDrive(false).catch(function(){});
+    if(!pass || !chatHistory.length) return;
+    console.log('[Joey] Periodic DB save...');
+    saveHistoryToRedis();
+    // Also trigger learn to keep memories/profile fresh
+    if(chatHistory.length >= 2) triggerAutoLearn();
   }, 5 * 60 * 1000); // 5 minutes
+
+  // --- Periodic auto-backup to Google Drive every 30 minutes ---
+  setInterval(function(){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass || !chatHistory.length) return;
+    console.log('[Joey] Auto-backup to Google Drive...');
+    fetch('/api/gdrive-backup', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ passphrase: pass })
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if(d.ok) console.log('[Joey] Auto-backup to Drive successful');
+      else console.log('[Joey] Auto-backup to Drive failed:', d);
+    }).catch(function(e){
+      console.log('[Joey] Auto-backup to Drive error:', e.message);
+    });
+  }, 30 * 60 * 1000); // 30 minutes
 
   // --- Markdown rendering ---
   function renderMd(raw){

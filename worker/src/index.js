@@ -28,6 +28,96 @@ export default {
     const path = url.pathname;
 
     try {
+      // === BACKUP/SYNC ENDPOINTS ===
+      
+      // GET /sync or /versions — retrieve backup or list versions
+      if (request.method === 'GET' && (path === '/sync' || path === '/versions')) {
+        const backupData = await env.BACKUPS.get(userHash);
+        if (!backupData) {
+          return Response.json({ error: 'No backup found' }, { status: 404, headers: cors });
+        }
+        const backup = JSON.parse(backupData);
+        
+        // Return different format for /sync vs legacy /api/sync compatibility
+        if (path === '/versions') {
+          // Return version history
+          return Response.json({ 
+            versions: backup.versions || [{ts: backup.ts, size: JSON.stringify(backup.data).length}]
+          }, { headers: cors });
+        }
+        
+        // /sync returns full data in same format as old API
+        return Response.json({
+          data: backup.data,
+          ts: backup.ts,
+          versionCount: backup.versions?.length || 1
+        }, { headers: cors });
+      }
+
+      // GET /restore — restore specific version (returns latest for now)
+      if (request.method === 'GET' && path === '/restore') {
+        const backupData = await env.BACKUPS.get(userHash);
+        if (!backupData) {
+          return Response.json({ error: 'No backup found' }, { status: 404, headers: cors });
+        }
+        const backup = JSON.parse(backupData);
+        return Response.json({
+          data: backup.data,
+          ts: backup.ts
+        }, { headers: cors });
+      }
+
+      // POST /sync — save backup
+      if (request.method === 'POST' && path === '/sync') {
+        let body;
+        try {
+          body = await request.json();
+        } catch (e) {
+          return Response.json({ error: 'Invalid JSON' }, { status: 400, headers: cors });
+        }
+        
+        if (!body.data) {
+          return Response.json({ error: 'Missing data' }, { status: 400, headers: cors });
+        }
+        
+        // Get existing backup for versioning
+        const existing = await env.BACKUPS.get(userHash);
+        let versions = [];
+        if (existing) {
+          try {
+            const parsed = JSON.parse(existing);
+            versions = parsed.versions || [{ts: parsed.ts, size: JSON.stringify(parsed.data).length}];
+          } catch (e) {}
+        }
+        
+        // Add new version
+        const now = Date.now();
+        versions.push({
+          ts: now,
+          size: JSON.stringify(body.data).length
+        });
+        
+        // Keep only last 10 versions
+        if (versions.length > 10) {
+          versions = versions.slice(-10);
+        }
+        
+        const backup = {
+          data: body.data,
+          ts: now,
+          versions: versions
+        };
+        
+        await env.BACKUPS.put(userHash, JSON.stringify(backup));
+        return Response.json({ 
+          ok: true, 
+          ts: now,
+          versionCount: versions.length
+        }, { headers: cors });
+      }
+
+      // === ATTACHMENT ENDPOINTS (existing) ===
+
       // POST /upload — store encrypted blob in R2
       if (request.method === 'POST' && path === '/upload') {
         const len = parseInt(request.headers.get('content-length') || '0');
