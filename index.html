@@ -8811,8 +8811,26 @@ document.addEventListener("input", e => {
       } else {
         btn.textContent = '❌ Failed';
         console.error('[GDrive Backup]', d);
-        var debugInfo = d.debug ? '\n\nDebug:\n' + JSON.stringify(d.debug, null, 2) : '';
-        alert('ERROR:\n' + JSON.stringify(d, null, 2).slice(0, 300) + debugInfo.slice(0, 400));
+        // Build detailed error message
+        var msg = 'Backup Error:\n\n';
+        msg += 'Status: ' + (d.status || 'unknown') + '\n';
+        msg += 'Error: ' + (d.error || 'unknown') + '\n\n';
+        
+        if (d.whatWeSent) {
+          msg += 'Sent to Google:\n';
+          msg += '  Secret: ' + (d.whatWeSent.secret ? d.whatWeSent.secret.substring(0, 15) + '...' : 'empty') + '\n';
+          msg += '  Length: ' + d.whatWeSent.secretLength + '\n\n';
+        }
+        
+        if (d.detail && d.detail.debug) {
+          msg += 'Google received:\n';
+          msg += '  Secret: ' + (d.detail.debug.received ? d.detail.debug.received.substring(0, 15) + '...' : 'empty') + '\n';
+          msg += '  Length: ' + d.detail.debug.receivedLength + '\n';
+          msg += '  Expected: ' + d.detail.debug.expectedLength + '\n';
+          msg += '  Match: ' + d.detail.debug.secretMatch + '\n';
+        }
+        
+        alert(msg);
         setTimeout(function(){ btn.innerHTML = '&#x2601; Backup'; btn.disabled = false; }, 2000);
       }
     }).catch(function(e){
