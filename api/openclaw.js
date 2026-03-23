@@ -12,9 +12,39 @@ export default async function handler(req, res) {
   const { messages, passphrase } = req.body || {};
   if (!passphrase) return res.status(401).json({ error: 'Missing passphrase' });
 
-  const ADMIN_HASH = (process.env.HOMER_ADMIN_HASH || '').trim();
-  if (!ADMIN_HASH) return res.status(500).json({ error: 'Server not configured (HOMER_ADMIN_HASH)' });
-  if (passphrase.trim() !== ADMIN_HASH) return res.status(403).json({ error: 'Forbidden' });
+  // --- Redis setup for auth and context ---
+  const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  
+  if (!REDIS_URL || !REDIS_TOKEN) {
+    return res.status(500).json({ error: 'Redis not configured' });
+  }
+
+  const redisFetch = (cmd) => fetch(REDIS_URL, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN },
+    body: JSON.stringify(cmd)
+  }).then(r => r.json());
+
+  // Verify passphrase against admin hash or user database
+  async function verifyPassphrase(pass) {
+    const ADMIN_HASH = (process.env.HOMER_ADMIN_HASH || '').trim();
+    if (ADMIN_HASH && pass.trim() === ADMIN_HASH) return true;
+
+    const usersData = await redisFetch(['GET', 'homer:users']);
+    if (usersData.result) {
+      try {
+        const users = JSON.parse(usersData.result);
+        for (const user of users) {
+          if (user.passwordHash === pass.trim()) return true;
+        }
+      } catch (e) {}
+    }
+    return false;
+  }
+
+  const isValid = await verifyPassphrase(passphrase);
+  if (!isValid) return res.status(403).json({ error: 'Forbidden' });
 
   if (!messages || !Array.isArray(messages) || !messages.length) {
     return res.status(400).json({ error: 'Missing messages' });
@@ -32,21 +62,12 @@ export default async function handler(req, res) {
   let historyMessages = [];
 
   try {
-    const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-    const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-    if (REDIS_URL && REDIS_TOKEN) {
-      const redisFetch = (cmd) => fetch(REDIS_URL, {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN },
-        body: JSON.stringify(cmd)
-      }).then(r => r.json());
-
-      // Fetch all three in parallel
-      const [memRes, profileRes, histRes] = await Promise.all([
-        redisFetch(['GET', 'joey:memories']),
-        redisFetch(['GET', 'joey:profile']),
-        redisFetch(['GET', 'joey:history'])
-      ]);
+    // Fetch all three in parallel
+    const [memRes, profileRes, histRes] = await Promise.all([
+      redisFetch(['GET', 'joey:memories']),
+      redisFetch(['GET', 'joey:profile']),
+      redisFetch(['GET', 'joey:history'])
+    ]);
 
       // --- TIER 1: User Profile (always injected, highest priority) ---
       if (profileRes.result) {

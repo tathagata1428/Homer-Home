@@ -1,13 +1,58 @@
 // Google Apps Script — paste this into script.google.com
-// This saves Joey's context (profile, memories, history) to a Google Drive folder
+// This saves/retrieves Joey's context (profile, memories, history) to/from Google Drive
+
+function doGet(e) {
+  try {
+    var action = e.parameter.action || 'restore';
+    var secret = e.parameter.secret;
+
+    // Simple auth
+    if (secret !== 'OixSxy7gpV0N5PrMWHYzXEotWTZWTJ7Cwlgd79pHdao=') {
+      return ContentService.createTextOutput(JSON.stringify({ error: 'Unauthorized' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'restore') {
+      // Find the folder
+      var folderName = 'Joey-Context-Backup';
+      var folders = DriveApp.getFoldersByName(folderName);
+      if (!folders.hasNext()) {
+        return ContentService.createTextOutput(JSON.stringify({ error: 'Backup folder not found' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      var folder = folders.next();
+
+      // Get the latest file
+      var latestFiles = folder.getFilesByName('joey-context-latest.json');
+      if (!latestFiles.hasNext()) {
+        return ContentService.createTextOutput(JSON.stringify({ error: 'No backup found' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      var file = latestFiles.next();
+      var content = file.getBlob().getDataAsString();
+      var data = JSON.parse(content);
+
+      return ContentService.createTextOutput(JSON.stringify(data))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({ error: 'Unknown action' }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ error: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
 
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
     var secret = data.secret;
 
-    // Simple auth — set this to a secret of your choice
-    if (secret !== 'CHANGE_THIS_SECRET') {
+    // Simple auth
+    if (secret !== 'OixSxy7gpV0N5PrMWHYzXEotWTZWTJ7Cwlgd79pHdao=') {
       return ContentService.createTextOutput(JSON.stringify({ error: 'Unauthorized' }))
         .setMimeType(ContentService.MimeType.JSON);
     }

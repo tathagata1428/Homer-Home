@@ -1,4 +1,4 @@
-// Google Drive context backup — fetches Joey context from Redis, POSTs to Google Apps Script
+// Google Drive context restore — fetches Joey context from Google Apps Script, restores to Redis
 export default async function handler(req, res) {
   const origin = req.headers.origin || '*';
   res.setHeader('Access-Control-Allow-Origin', origin);
@@ -33,13 +33,11 @@ export default async function handler(req, res) {
     body: JSON.stringify(cmd)
   }).then(r => r.json());
 
-  // Verify passphrase against user database
+  // Verify passphrase against admin hash or user database
   async function verifyPassphrase(pass) {
-    // Check against admin hash (env var) if set
     const ADMIN_HASH = (process.env.HOMER_ADMIN_HASH || '').trim();
     if (ADMIN_HASH && pass.trim() === ADMIN_HASH) return true;
 
-    // Check against registered users
     const usersData = await redisFetch(['GET', 'homer:users']);
     if (usersData.result) {
       try {
@@ -57,54 +55,52 @@ export default async function handler(req, res) {
     const isValid = await verifyPassphrase(passphrase);
     if (!isValid) return res.status(403).json({ error: 'Forbidden' });
 
-    const [memRes, profileRes, histRes] = await Promise.all([
-      redisFetch(['GET', 'joey:memories']),
-      redisFetch(['GET', 'joey:profile']),
-      redisFetch(['GET', 'joey:history'])
-    ]);
-
-    const payload = {
-      secret: GDRIVE_SECRET,
-      profile: profileRes.result ? JSON.parse(profileRes.result) : null,
-      memories: memRes.result ? JSON.parse(memRes.result) : [],
-      history: histRes.result ? JSON.parse(histRes.result) : []
-    };
-
-    // POST to Google Apps Script
-    const gRes = await fetch(GDRIVE_WEBHOOK, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      redirect: 'follow'
+    // Fetch latest context from Google Drive via Apps Script
+    const restoreUrl = GDRIVE_WEBHOOK + '?action=restore&secret=' + encodeURIComponent(GDRIVE_SECRET);
+    
+    const gRes = await fetch(restoreUrl, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
     });
 
     const gData = await gRes.text();
     let parsed;
     try { parsed = JSON.parse(gData); } catch { parsed = { raw: gData }; }
 
-    // Check for Google Script error (either HTTP error or JSON error field)
     if (!gRes.ok || parsed.error) {
       return res.status(502).json({ 
         error: 'Google Script error', 
         status: gRes.status, 
-        detail: parsed,
-        rawResponse: gData.slice(0, 500),
-        debug: {
-          webhookConfigured: !!GDRIVE_WEBHOOK,
-          webhookUrl: GDRIVE_WEBHOOK.slice(0, 50) + '...',
-          secretConfigured: !!GDRIVE_SECRET,
-          secretLength: GDRIVE_SECRET ? GDRIVE_SECRET.length : 0,
-          secretFirst10: GDRIVE_SECRET ? GDRIVE_SECRET.slice(0, 10) : 'none',
-          secretLast10: GDRIVE_SECRET ? GDRIVE_SECRET.slice(-10) : 'none',
-          payloadSecretSet: !!payload.secret,
-          payloadSecretLength: payload.secret ? payload.secret.length : 0
-        }
+        detail: parsed
       });
     }
 
-    return res.status(200).json({ ok: true, drive: parsed });
+    // Restore to Redis
+    const { profile, memories, history } = parsed;
+    const results = { profile: false, memories: false, history: false };
+
+    if (profile !== undefined) {
+      await redisFetch(['SET', 'joey:profile', JSON.stringify(profile || {})]);
+      results.profile = true;
+    }
+
+    if (memories !== undefined) {
+      await redisFetch(['SET', 'joey:memories', JSON.stringify(memories || [])]);
+      results.memories = true;
+    }
+
+    if (history !== undefined) {
+      await redisFetch(['SET', 'joey:history', JSON.stringify(history || [])]);
+      results.history = true;
+    }
+
+    return res.status(200).json({ 
+      ok: true, 
+      restored: results,
+      timestamp: parsed.exportedAt || null
+    });
 
   } catch (err) {
-    return res.status(500).json({ error: 'Backup failed', detail: err.message });
+    return res.status(500).json({ error: 'Restore failed', detail: err.message });
   }
 }

@@ -3135,7 +3135,7 @@ function renderQuote(q) {
     (function(){
       // Only register service worker if on HTTP/HTTPS
       if('serviceWorker'in navigator && location.protocol.startsWith('http')){
-        const swCode=`const CACHE='homer-v2'; const APP_SHELL=['/','/index.html','/manifest.json','/icon.svg','/icon-192.png','/icon-512.png'];
+        const swCode=`const CACHE='homer-v4'; const APP_SHELL=['/','/index.html','/manifest.json','/icon.svg','/icon-192.png','/icon-512.png'];
           self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(APP_SHELL)).then(()=>self.skipWaiting())); })
           self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); })
           self.addEventListener('fetch',e=>{
@@ -7420,7 +7420,9 @@ document.addEventListener("input", e => {
     <input id="oc-system-prompt" type="text" placeholder="Default: Joey Tribbiani persona. Override here." spellcheck="false">
     <div style="display:flex;gap:8px;align-self:flex-end;">
       <button id="oc-settings-save" style="padding:7px 16px;border-radius:8px;border:none;background:linear-gradient(135deg,#ea580c,#c2410c);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;">Save</button>
-      <button id="oc-gdrive-backup" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Backup agent context to Google Drive">&#x2601; Drive Backup</button>
+      <button id="oc-gdrive-restore" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Restore agent context from Google Drive">&#x21bb; Restore</button>
+      <button id="oc-gdrive-sync" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Force read context from Google Drive">&#x27f3; Load Context</button>
+      <button id="oc-gdrive-backup" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Backup agent context to Google Drive">&#x2601; Backup</button>
     </div>
   </div>
   <div id="oc-chat-messages">
@@ -8805,18 +8807,50 @@ document.addEventListener("input", e => {
     }).then(function(r){ return r.json(); }).then(function(d){
       if(d.ok){
         btn.textContent = '✅ Backed up!';
-        setTimeout(function(){ btn.innerHTML = '&#x2601; Drive Backup'; btn.disabled = false; }, 3000);
+        setTimeout(function(){ btn.innerHTML = '&#x2601; Backup'; btn.disabled = false; }, 3000);
       } else {
         btn.textContent = '❌ Failed';
         console.error('[GDrive Backup]', d);
-        alert('Backup failed: ' + (d.error || 'Unknown error'));
-        setTimeout(function(){ btn.innerHTML = '&#x2601; Drive Backup'; btn.disabled = false; }, 2000);
+        alert('ERROR:\n' + JSON.stringify(d, null, 2).slice(0, 500));
+        setTimeout(function(){ btn.innerHTML = '&#x2601; Backup'; btn.disabled = false; }, 2000);
       }
     }).catch(function(e){
       btn.textContent = '❌ Error';
       console.error('[GDrive Backup]', e);
-      alert('Backup error: ' + e.message);
-      setTimeout(function(){ btn.innerHTML = '&#x2601; Drive Backup'; btn.disabled = false; }, 2000);
+      alert('Network error: ' + e.message);
+      setTimeout(function(){ btn.innerHTML = '&#x2601; Backup'; btn.disabled = false; }, 2000);
+    });
+  });
+
+  // --- Google Drive context restore ---
+  document.getElementById('oc-gdrive-restore').addEventListener('click', function(){
+    var btn = this;
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass){ alert('Log in first (unlock vault) to restore.'); return; }
+    if(!confirm('Restore context from Google Drive? This will overwrite current memories.')) return;
+    btn.disabled = true;
+    btn.textContent = '⏳ Restoring...';
+    fetch('/api/gdrive-restore', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ passphrase: pass })
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if(d.ok){
+        btn.textContent = '✅ Restored!';
+        // Reload chat history if restored
+        if(d.restored && d.restored.history) loadHistoryFromRedis();
+        setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore'; btn.disabled = false; }, 3000);
+      } else {
+        btn.textContent = '❌ Failed';
+        console.error('[GDrive Restore]', d);
+        alert('ERROR:\n' + JSON.stringify(d, null, 2).slice(0, 500));
+        setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore'; btn.disabled = false; }, 2000);
+      }
+    }).catch(function(e){
+      btn.textContent = '❌ Error';
+      console.error('[GDrive Restore]', e);
+      alert('Network error: ' + e.message);
+      setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore'; btn.disabled = false; }, 2000);
     });
   });
 
@@ -8889,6 +8923,98 @@ document.addEventListener("input", e => {
 
   // Load conversation from Redis as fallback (cross-device continuity)
   setTimeout(loadHistoryFromRedis, 1500);
+
+  // --- Sync context from Google Drive (force refresh) ---
+  function syncContextFromDrive(showConfirmation){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return Promise.reject('No passphrase');
+    
+    console.log('[Joey] Syncing context from Google Drive...');
+    return fetch('/api/gdrive-restore', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ passphrase: pass })
+    }).then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d.ok){
+          console.log('[Joey] Context synced from Drive:', d.restored);
+          // Reload history if restored
+          if(d.restored && d.restored.history) loadHistoryFromRedis();
+          // Add agent acknowledgment message
+          if(showConfirmation){
+            addAgentMessage('Context loaded from Google Drive. I\'m up to date! 🧠✅');
+          }
+          return d;
+        } else {
+          console.log('[Joey] Sync failed:', d);
+          if(showConfirmation){
+            addAgentMessage('Sorry, couldn\'t sync context from Drive. ❌');
+          }
+          throw new Error(d.error || 'Sync failed');
+        }
+      });
+  }
+
+  // Helper to add agent message to chat
+  function addAgentMessage(text){
+    chatHistory.push({ role: 'assistant', content: text, timestamp: Date.now() });
+    renderMessages();
+    saveHistoryToRedis();
+  }
+
+  // --- Force sync button handler ---
+  document.getElementById('oc-gdrive-sync').addEventListener('click', function(){
+    var btn = this;
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass){ alert('Log in first (unlock vault) to sync.'); return; }
+    btn.disabled = true;
+    btn.textContent = '⏳ Syncing...';
+    syncContextFromDrive(true).then(function(){
+      btn.textContent = '✅ Synced!';
+      setTimeout(function(){ btn.innerHTML = '&#x27f3; Load Context'; btn.disabled = false; }, 2000);
+    }).catch(function(e){
+      btn.textContent = '❌ Failed';
+      setTimeout(function(){ btn.innerHTML = '&#x27f3; Load Context'; btn.disabled = false; }, 2000);
+    });
+  });
+
+  // --- Auto-restore from Google Drive if no local context ---
+  function autoRestoreFromDrive(){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return;
+    // Check if we have any context in Redis
+    fetch('/api/joey?action=profile&passphrase=' + encodeURIComponent(pass))
+      .then(function(r){ return r.json(); })
+      .then(function(profileData){
+        var hasProfile = profileData.profile && Object.keys(profileData.profile).length > 0;
+        // Also check memories
+        return fetch('/api/joey?action=memory&passphrase=' + encodeURIComponent(pass))
+          .then(function(r){ return r.json(); })
+          .then(function(memData){
+            var hasMemories = memData.memories && memData.memories.length > 0;
+            if(!hasProfile && !hasMemories){
+              console.log('[Joey] No local context found, attempting restore from Drive...');
+              syncContextFromDrive(false).then(function(){
+                console.log('[Joey] Auto-restored from Drive');
+              }).catch(function(e){
+                console.log('[Joey] Auto-restore error:', e.message);
+              });
+            } else {
+              console.log('[Joey] Local context exists, skipping auto-restore');
+            }
+          });
+      }).catch(function(){});
+  }
+  // Run auto-restore after a delay (after Redis load attempt)
+  setTimeout(autoRestoreFromDrive, 3000);
+
+  // --- Periodic sync every 5 minutes ---
+  setInterval(function(){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return;
+    console.log('[Joey] Periodic sync check...');
+    syncContextFromDrive(false).catch(function(){});
+  }, 5 * 60 * 1000); // 5 minutes
 
   // --- Markdown rendering ---
   function renderMd(raw){
