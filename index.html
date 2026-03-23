@@ -8542,6 +8542,7 @@ document.addEventListener("input", e => {
   function updateFabVisibility(){
     var user = (localStorage.getItem('homer-auth-user') || '').toLowerCase();
     var show = user === ALLOWED_USER;
+    console.log('[Joey] Checking visibility - user:', user, 'show:', show);
     fabBtn.classList.toggle('visible', show);
     var mnavJoey = document.getElementById('mnav-joey');
     if(mnavJoey) mnavJoey.classList.toggle('visible', show);
@@ -8549,7 +8550,12 @@ document.addEventListener("input", e => {
   }
   window.addEventListener('homer-auth', updateFabVisibility);
   window.addEventListener('storage', function(e){ if(e.key === 'homer-auth-user') updateFabVisibility(); });
-  updateFabVisibility();
+  // Run on load after DOM is ready
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', updateFabVisibility);
+  } else {
+    updateFabVisibility();
+  }
 
   // --- Panel toggle ---
   fabBtn.addEventListener('click', function(){
