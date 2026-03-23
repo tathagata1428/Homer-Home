@@ -7820,7 +7820,15 @@ document.addEventListener("input", e => {
   var adminPass = '';
 
   toggleBtn.addEventListener('click', function(){
-    if(panel.style.display === 'block') return;
+    if(panel.style.display === 'block'){
+      // Close panel and reset
+      panel.style.display = 'none';
+      loginSection.style.display = 'none';
+      userInput.value = '';
+      passInput.value = '';
+      errorEl.textContent = '';
+      return;
+    }
     loginSection.style.display = loginSection.style.display === 'none' ? 'block' : 'none';
   });
 
