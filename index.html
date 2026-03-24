@@ -8374,11 +8374,13 @@ document.addEventListener("input", e => {
     allData['homer-backup-ts'] = Date.now().toString();
     allData['homer-backup-keys'] = Object.keys(allData).length.toString();
 
+    console.log('[CloudSync] Starting POST backup, keys:', Object.keys(allData).length);
     st('Backing up...');
     var svg=cloud.querySelector('svg'); svg.classList.add('fab-spinning');
     return fetch(R2_WORKER_URL+'/sync',{method:'POST',headers:{'Content-Type':'application/json','X-Sync-Key':p},body:JSON.stringify({data:allData})})
-      .then(function(r){return r.json();})
+      .then(function(r){ console.log('[CloudSync] POST response status:', r.status); return r.json(); })
       .then(function(d){
+        console.log('[CloudSync] POST result:', d);
         svg.classList.remove('fab-spinning');
         if(d.ok){
           lastSyncTs = Date.now();
@@ -8391,7 +8393,7 @@ document.addEventListener("input", e => {
         else st('Error: '+(d.error||'Unknown'));
         updDot();
       })
-      .catch(function(e){ svg.classList.remove('fab-spinning'); st('Failed: '+e.message); });
+      .catch(function(e){ console.error('[CloudSync] POST failed:', e); svg.classList.remove('fab-spinning'); st('Failed: '+e.message); });
   }
 
   function backup(force){
@@ -8413,11 +8415,14 @@ document.addEventListener("input", e => {
       }
 
       // SAFETY: Always compare local vs cloud before overwriting
+      console.log('[CloudSync] Pre-check GET /sync...');
       return fetch(R2_WORKER_URL+'/sync',{headers:{'X-Sync-Key':p}})
-        .then(function(r){ return r.json(); })
+        .then(function(r){ console.log('[CloudSync] Pre-check status:', r.status); return r.json(); })
         .then(function(d){
+          console.log('[CloudSync] Pre-check result:', d);
           if(!d.data){
             // No cloud data — safe to push
+            console.log('[CloudSync] No cloud data, proceeding to backup...');
             return doBackup(p, allData);
           }
 
