@@ -7524,12 +7524,12 @@ document.addEventListener("input", e => {
   <div id="oc-panel-header">
     <h3><span id="oc-provider-icon">🍕</span> <span id="oc-provider-name">Joey</span> <span class="oc-model-badge" id="oc-model-badge">Groq</span></h3>
     <div class="oc-header-actions">
-      <button id="oc-export-btn" title="Export chat">&#8615;</button>
-      <button id="oc-settings-btn" title="Settings">&#9881;</button>
-      <button id="oc-expand-btn" title="Expand">&#x21F1;</button>
-      <button id="oc-fullscreen-btn" title="Fullscreen">&#x2922;</button>
-      <button id="oc-clear-btn" title="Clear chat">Clear</button>
-      <button id="oc-close-btn" title="Close">&times;</button>
+      <button type="button" id="oc-export-btn" title="Export chat">&#8615;</button>
+      <button type="button" id="oc-settings-btn" title="Settings">&#9881;</button>
+      <button type="button" id="oc-expand-btn" title="Expand">&#x21F1;</button>
+      <button type="button" id="oc-fullscreen-btn" title="Fullscreen">&#x2922;</button>
+      <button type="button" id="oc-clear-btn" title="Clear chat">Clear</button>
+      <button type="button" id="oc-close-btn" title="Close">&times;</button>
     </div>
   </div>
   <div class="oc-provider-bar">
@@ -7543,11 +7543,11 @@ document.addEventListener("input", e => {
     <label>System Prompt</label>
     <input id="oc-system-prompt" type="text" placeholder="Default: Joey Tribbiani persona. Override here." spellcheck="false">
     <div style="display:flex;gap:8px;align-self:flex-end;">
-      <button id="oc-settings-save" style="padding:7px 16px;border-radius:8px;border:none;background:linear-gradient(135deg,#ea580c,#c2410c);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;">Save</button>
-      <button id="oc-save-db" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Save context (history, memories, profile) to database">&#x1f4be; Save to DB</button>
-      <button id="oc-gdrive-restore" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Restore agent context from Google Drive">&#x21bb; Restore</button>
-      <button id="oc-gdrive-sync" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Force read context from Google Drive">&#x27f3; Load Context</button>
-      <button id="oc-gdrive-backup" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Backup agent context to Google Drive">&#x2601; Backup</button>
+        <button type="button" id="oc-settings-save" style="padding:7px 16px;border-radius:8px;border:none;background:linear-gradient(135deg,#ea580c,#c2410c);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;">Save</button>
+        <button type="button" id="oc-save-db" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Save context (history, memories, profile) to database">&#x1f4be; Save to DB</button>
+        <button type="button" id="oc-gdrive-restore" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Restore agent context from Google Drive">&#x21bb; Restore</button>
+        <button type="button" id="oc-gdrive-sync" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Force read context from Google Drive">&#x27f3; Load Context</button>
+        <button type="button" id="oc-gdrive-backup" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Backup agent context to Google Drive">&#x2601; Backup</button>
     </div>
   </div>
   <div id="oc-chat-messages">
@@ -7561,18 +7561,18 @@ document.addEventListener("input", e => {
     <div id="oc-file-preview"></div>
     <div id="oc-chat-input-row">
       <div class="oc-input-actions">
-        <button id="oc-attach-btn" class="oc-action-btn" title="Attach file">
+        <button type="button" id="oc-attach-btn" class="oc-action-btn" title="Attach file">
           <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
         </button>
-        <button id="oc-search-btn" class="oc-action-btn" title="Search the web">
+        <button type="button" id="oc-search-btn" class="oc-action-btn" title="Search the web">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </button>
-        <button id="oc-emoji-btn" class="oc-action-btn" title="Emoji">
+        <button type="button" id="oc-emoji-btn" class="oc-action-btn" title="Emoji">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
         </button>
       </div>
       <textarea id="oc-chat-input" rows="1" placeholder="Message Joey..."></textarea>
-      <button id="oc-send-btn" title="Send">
+      <button type="button" id="oc-send-btn" title="Send">
         <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
     </div>
@@ -8243,6 +8243,11 @@ document.addEventListener("input", e => {
   var IDB_KEYS = ['homer-vault-salt', 'homer-vault-hash', 'homer-vault-data'];
   var ALL_KEYS = LS_KEYS.concat(IDB_KEYS);
 
+  // Tab coordination keys (local only, never synced to cloud)
+  var LEADER_KEY = 'homer-tab-leader';
+  var LEADER_HB_KEY = 'homer-tab-leader-hb';
+  var TAB_COORD_KEYS = [LEADER_KEY, LEADER_HB_KEY];
+
   // IndexedDB access for cloud sync
   var IDB_NAME = 'homer-vault-idb';
   var IDB_STORE = 'kv';
@@ -8332,7 +8337,7 @@ document.addEventListener("input", e => {
   function getAll(){
     var d={};
     // Backup ALL localStorage keys to ensure nothing is missed
-    for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); d[k]=localStorage.getItem(k); }
+    for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if(TAB_COORD_KEYS.indexOf(k)>=0) continue; d[k]=localStorage.getItem(k); }
     // For vault data, use cloud-safe version (attachments stripped) to stay under size limits
     var idbTasks = IDB_KEYS.map(function(k){
       if(k === 'homer-vault-data' && window._vaultCloudData){
@@ -8375,13 +8380,11 @@ document.addEventListener("input", e => {
     allData['homer-backup-ts'] = Date.now().toString();
     allData['homer-backup-keys'] = Object.keys(allData).length.toString();
 
-    console.log('[CloudSync] Starting POST backup, keys:', Object.keys(allData).length);
     st('Backing up...');
     var svg=cloud.querySelector('svg'); svg.classList.add('fab-spinning');
     return fetch(R2_WORKER_URL+'/sync',{method:'POST',headers:{'Content-Type':'application/json','X-Sync-Key':p},body:JSON.stringify({data:allData})})
-      .then(function(r){ console.log('[CloudSync] POST response status:', r.status); return r.json(); })
+      .then(function(r){ return r.json(); })
       .then(function(d){
-        console.log('[CloudSync] POST result:', d);
         svg.classList.remove('fab-spinning');
         if(d.ok){
           lastSyncTs = Date.now();
@@ -8394,7 +8397,7 @@ document.addEventListener("input", e => {
         else st('Error: '+(d.error||'Unknown'));
         updDot();
       })
-      .catch(function(e){ console.error('[CloudSync] POST failed:', e); svg.classList.remove('fab-spinning'); st('Failed: '+e.message); });
+      .catch(function(e){ svg.classList.remove('fab-spinning'); st('Failed: '+e.message); });
   }
 
   function backup(force){
@@ -8416,14 +8419,10 @@ document.addEventListener("input", e => {
       }
 
       // SAFETY: Always compare local vs cloud before overwriting
-      console.log('[CloudSync] Pre-check GET /sync...');
       return fetch(R2_WORKER_URL+'/sync',{headers:{'X-Sync-Key':p}})
-        .then(function(r){ console.log('[CloudSync] Pre-check status:', r.status); return r.json(); })
+        .then(function(r){ return r.json(); })
         .then(function(d){
-          console.log('[CloudSync] Pre-check result:', d);
           if(!d.data){
-            // No cloud data — safe to push
-            console.log('[CloudSync] No cloud data, proceeding to backup...');
             return doBackup(p, allData);
           }
 
@@ -8636,18 +8635,22 @@ document.addEventListener("input", e => {
     updDot();
   });
 
-  // --- Smart Auto-Sync: backup on every change ---
-  var SYNC_DEBOUNCE = 8000; // 8s after last change
+  // --- Smart Auto-Sync: backup on every change, pull on focus ---
+  var SYNC_DEBOUNCE = 5000; // 5s after last change
   var SYNC_INTERVAL = 120000; // also sync every 2 min as safety net
   var debounceTimer = null;
   var lastSyncTs = 0;
+  var lastPullTs = 0;
   var dirty = false;
+  var pullInProgress = false;
+  var PULL_COOLDOWN = 30000; // Don't pull more often than every 30s
+  var isLeader = false;
 
   function markDirty(){
     if(!pass.value.trim()) return;
     if(localStorage.getItem(SYNC_AUTO_KEY) !== 'true') return;
     dirty = true;
-    // Debounce: wait 8s after last change, then backup
+    // Debounce: wait 5s after last change, then backup
     if(debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(function(){
       debounceTimer = null;
@@ -8656,6 +8659,7 @@ document.addEventListener("input", e => {
   }
 
   function autoBackup(){
+    if(!isLeader) return; // Only leader tab syncs to cloud
     if(!pass.value.trim()) return;
     dirty = false;
     backup().then(function(){
@@ -8663,9 +8667,78 @@ document.addEventListener("input", e => {
     });
   }
 
+  // --- Pull from cloud if newer (non-destructive merge) ---
+  function pullIfNewer(){
+    var p = pass.value.trim();
+    if(!p || pullInProgress) return Promise.resolve();
+    if(!isLeader) return Promise.resolve(); // Only leader pulls from cloud
+    if(Date.now() - lastPullTs < PULL_COOLDOWN) return Promise.resolve();
+    pullInProgress = true;
+    var localTs = parseInt(localStorage.getItem('homer-backup-ts') || '0');
+    return fetch(R2_WORKER_URL+'/sync/ts',{headers:{'X-Sync-Key':p}})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(!d.ts || d.ts <= localTs){
+          // Local is same or newer — nothing to pull
+          lastPullTs = Date.now();
+          pullInProgress = false;
+          return;
+        }
+        // Cloud is newer — fetch full data and merge
+        console.log('[CloudSync] Cloud is newer (cloud:'+d.ts+' vs local:'+localTs+'), pulling...');
+        return fetch(R2_WORKER_URL+'/sync',{headers:{'X-Sync-Key':p}})
+          .then(function(r){ return r.json(); })
+          .then(function(cd){
+            if(!cd.data){ pullInProgress = false; return; }
+            var merged = 0;
+            var idbWrites = [];
+            Object.keys(cd.data).forEach(function(k){
+              // Skip sync metadata to avoid overwriting current device's auth
+              if(syncMetaKeys.indexOf(k) >= 0) return;
+              if(k === 'homer-backup-ts' || k === 'homer-backup-keys' || k === 'homer-backup-source') return;
+              if(k === 'homer-pre-restore-backup' || k === 'homer-pre-restore-ts') return;
+              if(IDB_KEYS.indexOf(k) >= 0){
+                idbWrites.push(syncIdbSet(k, cd.data[k]));
+                merged++;
+              } else {
+                var local = localStorage.getItem(k);
+                if(local !== cd.data[k]){
+                  origSetItem(k, cd.data[k]); // Use origSetItem to avoid triggering markDirty
+                  merged++;
+                }
+              }
+            });
+            // Update local backup timestamp to match cloud
+            origSetItem('homer-backup-ts', cd.ts.toString());
+            return Promise.all(idbWrites).then(function(){
+              lastPullTs = Date.now();
+              pullInProgress = false;
+              if(merged > 0){
+                console.log('[CloudSync] Pulled ' + merged + ' updated items from cloud');
+                st('Pulled ' + merged + ' items from cloud');
+                // Reload if significant data changed (vault, goals, etc.)
+                var needsReload = false;
+                IDB_KEYS.forEach(function(k){ if(cd.data[k]) needsReload = true; });
+                if(needsReload){
+                  st('Pulled ' + merged + ' items — reloading...');
+                  setTimeout(function(){ location.reload(); }, 1200);
+                } else {
+                  // Dispatch event so UI components can refresh without full reload
+                  window.dispatchEvent(new CustomEvent('homer-cloud-pull', { detail: { count: merged } }));
+                }
+              }
+            });
+          });
+      })
+      .catch(function(e){
+        console.warn('[CloudSync] Pull check failed:', e.message || e);
+        pullInProgress = false;
+      });
+  }
+
   // Intercept localStorage.setItem to detect changes
   var origSetItem = localStorage.setItem.bind(localStorage);
-  var syncMetaKeys = ['homer-sync-pass','homer-sync-auto','homer-auth-hash'];
+  var syncMetaKeys = ['homer-sync-pass','homer-sync-auto','homer-auth-hash', LEADER_KEY, LEADER_HB_KEY];
   localStorage.setItem = function(key, value){
     origSetItem(key, value);
     if(syncMetaKeys.indexOf(key) >= 0) return;
@@ -8678,29 +8751,97 @@ document.addEventListener("input", e => {
   // Periodic safety-net sync
   function startAuto(){
     stopAuto();
-    timer = setInterval(function(){
-      if(pass.value.trim()){
-        if(dirty || (Date.now() - lastSyncTs) > SYNC_INTERVAL){
-          autoBackup();
+    // Pull first, then start backup cycle
+    pullIfNewer().then(function(){
+      timer = setInterval(function(){
+        if(pass.value.trim()){
+          if(dirty || (Date.now() - lastSyncTs) > SYNC_INTERVAL){
+            autoBackup();
+          }
         }
-      }
-    }, SYNC_INTERVAL);
-    if(pass.value.trim()){ autoBackup(); }
+      }, SYNC_INTERVAL);
+      if(pass.value.trim() && dirty){ autoBackup(); }
+    });
   }
   function stopAuto(){
     if(timer){ clearInterval(timer); timer=null; }
     if(debounceTimer){ clearTimeout(debounceTimer); debounceTimer=null; }
   }
 
-  // Save before page close — CRITICAL for bulletproof backup
+  // --- Tab Coordination (leader election + BroadcastChannel) ---
+  var TAB_ID = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  var HEARTBEAT_MS = 3000;
+  var LEADER_TIMEOUT_MS = 10000;
+  var hbTimer = null;
+  var bc = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('homer-tabs') : null;
+
+  function leaderAlive(){
+    var hb = parseInt(localStorage.getItem(LEADER_HB_KEY) || '0');
+    return (Date.now() - hb) <= LEADER_TIMEOUT_MS;
+  }
+
+  function claimLeader(){
+    isLeader = true;
+    origSetItem(LEADER_KEY, TAB_ID);
+    origSetItem(LEADER_HB_KEY, Date.now().toString());
+    if(hbTimer) clearInterval(hbTimer);
+    hbTimer = setInterval(function(){
+      origSetItem(LEADER_HB_KEY, Date.now().toString());
+    }, HEARTBEAT_MS);
+    if(bc) bc.postMessage({ type: 'leader', id: TAB_ID });
+    console.log('[TabSync] Leader:', TAB_ID);
+  }
+
+  function tryLead(triggerSync){
+    var cur = localStorage.getItem(LEADER_KEY);
+    if(cur === TAB_ID && isLeader) return;
+    if(!cur || cur === TAB_ID || !leaderAlive()){
+      claimLeader();
+      if(triggerSync && pass.value.trim() && localStorage.getItem(SYNC_AUTO_KEY) === 'true'){
+        pullIfNewer().then(function(){ startAuto(); });
+      }
+    }
+  }
+
+  if(bc){
+    bc.onmessage = function(e){
+      var m = e.data;
+      if(m.type === 'leader' && m.id !== TAB_ID){
+        isLeader = false;
+        if(hbTimer){ clearInterval(hbTimer); hbTimer = null; }
+      }
+      if(m.type === 'leader-dying'){
+        setTimeout(function(){ tryLead(true); }, 50 + Math.random() * 200);
+      }
+      if(m.type === 'request-pull' && isLeader){
+        pullIfNewer();
+      }
+    };
+  }
+
+  // Periodic fallback: detect dead leader (covers crashed tabs, no-BroadcastChannel browsers)
+  setInterval(function(){
+    if(!isLeader && !leaderAlive()) tryLead(true);
+  }, LEADER_TIMEOUT_MS);
+
+  // Claim on load (no sync trigger — page-load section handles initial sync)
+  tryLead(false);
+
+  // Save before page close — only leader sends beacon (or fallback if leader is dead)
   window.addEventListener('beforeunload', function(){
+    if(isLeader){
+      if(bc) bc.postMessage({ type: 'leader-dying' });
+      if(hbTimer){ clearInterval(hbTimer); hbTimer = null; }
+    }
     if(!pass.value.trim()) return;
-    // Always attempt final save when logged in (even if not dirty, for safety)
+    // Non-leader skips beacon unless leader is dead (last-tab-standing fallback)
+    if(!isLeader && leaderAlive()) return;
     try {
       var p = pass.value.trim();
       var d = {};
       for(var i=0; i<localStorage.length; i++){
         var k = localStorage.key(i);
+        if(TAB_COORD_KEYS.indexOf(k) >= 0) continue;
         d[k] = localStorage.getItem(k);
       }
       d['homer-backup-ts'] = Date.now().toString();
@@ -8711,11 +8852,37 @@ document.addEventListener("input", e => {
     } catch(e){}
   });
 
-  // Detect changes from other tabs
-  window.addEventListener('storage', function(e){
-    if(e.key && syncMetaKeys.indexOf(e.key) < 0){
-      markDirty();
+  // --- Sync on tab focus + tab coordination ---
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'visible'){
+      // Claim leadership if current leader is dead
+      if(!isLeader && !leaderAlive()) tryLead(true);
+      if(pass.value.trim() && localStorage.getItem(SYNC_AUTO_KEY) === 'true'){
+        if(isLeader){
+          pullIfNewer();
+        } else if(bc){
+          // Ask leader to pull (it will write to localStorage, triggering storage events here)
+          bc.postMessage({ type: 'request-pull' });
+        }
+      }
     }
+  });
+
+  // Detect changes from other tabs + leadership handoff
+  window.addEventListener('storage', function(e){
+    if(!e.key) return;
+    // Track leadership changes
+    if(e.key === LEADER_KEY){
+      var cur = localStorage.getItem(LEADER_KEY);
+      if(isLeader && cur !== TAB_ID){
+        isLeader = false;
+        if(hbTimer){ clearInterval(hbTimer); hbTimer = null; }
+        console.log('[TabSync] Lost leadership to:', cur);
+      }
+      return;
+    }
+    if(syncMetaKeys.indexOf(e.key) >= 0) return;
+    markDirty();
   });
 
     function updateSyncUI(){
@@ -8787,13 +8954,12 @@ document.addEventListener("input", e => {
     }
   });
 
-  // On page load: if logged in, ensure auto-backup is running
+  // On page load: if logged in, pull cloud data first, then start auto-backup
   if(pass.value.trim()){
-    // Always enable auto-backup when logged in
     autoChk.checked = true;
-    localStorage.setItem(SYNC_AUTO_KEY, 'true');
-    startAuto();
-    // Show version history panel
+    origSetItem(SYNC_AUTO_KEY, 'true'); // Use origSetItem to avoid triggering markDirty
+    // Pull newer cloud data before starting backup cycle
+    pullIfNewer().then(function(){ startAuto(); });
     versionsDiv.style.display = 'block';
   }
   updDot();
@@ -8916,6 +9082,12 @@ document.addEventListener("input", e => {
       loadChatFromVault();
       setTimeout(function(){ inputEl.focus(); }, 100);
     }
+  });
+  panel.addEventListener('mousedown', function(e){
+    e.stopPropagation();
+  });
+  panel.addEventListener('click', function(e){
+    e.stopPropagation();
   });
   closeBtn.addEventListener('click', function(){
     panelOpen = false;
@@ -9677,7 +9849,9 @@ document.addEventListener("input", e => {
 
   // --- Web search button ---
   var searchBtn = document.getElementById('oc-search-btn');
-  searchBtn.addEventListener('click', function(){
+  searchBtn.addEventListener('click', function(e){
+    e.preventDefault();
+    e.stopPropagation();
     var query = inputEl.value.trim();
     if(!query){ inputEl.placeholder = 'Type a search query first...'; setTimeout(function(){ inputEl.placeholder = currentProvider === 'nemoclaw' ? 'Message NemoClaw...' : 'Message Joey...'; }, 2000); return; }
     // Prepend "search for" to trigger the auto-search on the server side
@@ -9827,9 +10001,13 @@ document.addEventListener("input", e => {
     fabDot.className = 'fab-dot off';
   }
 
-  sendBtn.addEventListener('click', sendMessage);
+  sendBtn.addEventListener('click', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    sendMessage();
+  });
   inputEl.addEventListener('keydown', function(e){
-    if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
+    if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); e.stopPropagation(); sendMessage(); }
   });
   inputEl.addEventListener('input', function(){
     this.style.height = 'auto';
