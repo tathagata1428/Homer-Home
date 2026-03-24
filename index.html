@@ -570,6 +570,26 @@
     .goal-filters .archive-toggle{padding:7px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:none;color:var(--muted);cursor:pointer;font-size:.8rem;font-weight:600;transition:color .15s,border-color .15s;margin-left:auto;}
     .goal-filters .archive-toggle:hover{color:var(--text);border-color:rgba(255,255,255,.25);}
     .goal-filters .archive-toggle.active{color:#f59e0b;border-color:rgba(245,158,11,.4);}
+    .goal-backlog-strip{margin:-4px 0 14px;padding:10px 12px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:linear-gradient(135deg,rgba(148,163,184,.08),rgba(15,23,42,.32));display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+    .goal-backlog-toggle{display:inline-flex;align-items:center;gap:10px;padding:9px 14px;border-radius:999px;border:1px solid rgba(148,163,184,.22);background:rgba(15,23,42,.78);color:#cbd5e1;cursor:pointer;font-size:.82rem;font-weight:800;letter-spacing:.03em;transition:border-color .15s,transform .12s,background .15s;}
+    .goal-backlog-toggle:hover{border-color:rgba(148,163,184,.4);background:rgba(15,23,42,.92);}
+    .goal-backlog-toggle:active{transform:translateY(1px);}
+    .goal-backlog-toggle .goal-backlog-count{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:rgba(148,163,184,.14);color:#e2e8f0;font-size:.72rem;}
+    .goal-backlog-toggle .goal-backlog-caret{font-size:.72rem;color:#94a3b8;transition:transform .18s ease;}
+    .goal-backlog-strip.open .goal-backlog-caret{transform:rotate(180deg);}
+    .goal-backlog-note{font-size:.76rem;color:var(--muted);white-space:nowrap;}
+    .goal-backlog-peek{display:flex;align-items:flex-end;gap:0;min-height:34px;margin-left:auto;padding-right:4px;}
+    .goal-backlog-peek .goal-backlog-chip{width:34px;height:24px;margin-left:-10px;border-radius:9px 9px 7px 7px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(30,41,59,.95),rgba(15,23,42,.95));box-shadow:0 8px 18px rgba(0,0,0,.22);}
+    .goal-backlog-peek .goal-backlog-chip:first-child{margin-left:0;}
+    .goal-backlog-peek .goal-backlog-chip:nth-child(2){transform:translateY(2px) rotate(-4deg);}
+    .goal-backlog-peek .goal-backlog-chip:nth-child(3){transform:translateY(1px) rotate(3deg);}
+    .goal-backlog-panel{display:none;width:100%;padding-top:2px;}
+    .goal-backlog-strip.open .goal-backlog-panel{display:block;animation:fadeIn .16s ease both;}
+    .goal-backlog-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;padding:0 2px;}
+    .goal-backlog-panel-head strong{font-size:.82rem;color:#e2e8f0;letter-spacing:.04em;text-transform:uppercase;}
+    .goal-backlog-panel-head span{font-size:.74rem;color:var(--muted);}
+    .goal-backlog-items{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;}
+    .goal-backlog-empty{padding:16px;border-radius:12px;border:1px dashed rgba(148,163,184,.18);color:var(--muted);font-size:.8rem;text-align:center;}
     /* People badges */
     .k-people{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap;align-items:center;}
     .k-person{font-size:.7rem;padding:3px 9px;border-radius:6px;font-weight:700;display:inline-flex;align-items:center;gap:5px;}
@@ -838,6 +858,7 @@
     .issue-status-badge.s-todo{background:rgba(96,165,250,.15);color:#60a5fa;}
     .issue-status-badge.s-progress{background:rgba(251,191,36,.15);color:#fbbf24;}
     .issue-status-badge.s-pending{background:rgba(139,92,246,.15);color:#a78bfa;}
+    .issue-status-badge.s-backlog{background:rgba(148,163,184,.15);color:#cbd5e1;}
     .issue-status-badge.s-done{background:rgba(34,197,94,.15);color:#22c55e;}
     .issue-comment{padding:12px 14px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);margin-bottom:8px;position:relative;}
     .issue-comment-meta{font-size:.72rem;color:rgba(255,255,255,.3);margin-bottom:4px;}
@@ -991,6 +1012,7 @@
     #homer-cal .cal-pop-badge.s-todo { background:rgba(96,165,250,.15); color:#60a5fa; }
     #homer-cal .cal-pop-badge.s-progress { background:rgba(251,191,36,.15); color:#fbbf24; }
     #homer-cal .cal-pop-badge.s-pending { background:rgba(139,92,246,.15); color:#a78bfa; }
+    #homer-cal .cal-pop-badge.s-backlog { background:rgba(148,163,184,.15); color:#cbd5e1; }
     #homer-cal .cal-pop-badge.s-done { background:rgba(34,197,94,.15); color:#22c55e; }
     #homer-cal .cal-dot.p-ext { background:#3b82f6; }
     #homer-cal .cal-pop-badge.s-ext { background:rgba(59,130,246,.15); color:#3b82f6; }
@@ -2128,6 +2150,22 @@
       <select id="goal-filter-due"><option value="">All Dates</option><option value="overdue">Overdue</option><option value="week">Due This Week</option><option value="nodue">No Due Date</option></select>
       <button id="goal-show-archive" class="archive-toggle">Archive (0)</button>
     </div>
+    <div id="goal-backlog-strip" class="goal-backlog-strip" style="display:none;">
+      <button id="goal-backlog-toggle" class="goal-backlog-toggle" type="button">
+        <span>Backlog</span>
+        <span id="goal-backlog-count" class="goal-backlog-count">0</span>
+        <span class="goal-backlog-caret">&#9660;</span>
+      </button>
+      <div class="goal-backlog-note">Not-for-now tasks live here, off the main board.</div>
+      <div id="goal-backlog-peek" class="goal-backlog-peek"></div>
+      <div id="goal-backlog-panel" class="goal-backlog-panel">
+        <div class="goal-backlog-panel-head">
+          <strong>Backlog Deck</strong>
+          <span>Keep long-tail tasks parked without cluttering active work.</span>
+        </div>
+        <div id="goal-backlog-items" class="goal-backlog-items kanban-items" data-col="backlog"></div>
+      </div>
+    </div>
     <div id="kanban" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
       <div class="kanban-col" data-col="todo">
         <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(96,165,250,.15);color:#60a5fa;text-align:center;margin-bottom:10px;">To Do</div>
@@ -3170,7 +3208,7 @@ function renderQuote(q) {
     (function(){
       // Only register service worker if on HTTP/HTTPS
       if('serviceWorker'in navigator && location.protocol.startsWith('http')){
-        const swCode=`const CACHE='homer-v4'; const APP_SHELL=['/','/index.html','/manifest.json','/icon.svg','/icon-192.png','/icon-512.png'];
+        const swCode=`const CACHE='homer-v5'; const APP_SHELL=['/','/index.html','/manifest.json','/icon.svg','/icon-192.png','/icon-512.png'];
           self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(APP_SHELL)).then(()=>self.skipWaiting())); })
           self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); })
           self.addEventListener('fetch',e=>{
@@ -3872,10 +3910,16 @@ document.addEventListener("input", e => {
   var goalShowArchive = document.getElementById('goal-show-archive');
   var goalArchiveSection = document.getElementById('goal-archive');
   var goalArchiveList = document.getElementById('goal-archive-list');
+  var goalBacklogStrip = document.getElementById('goal-backlog-strip');
+  var goalBacklogToggle = document.getElementById('goal-backlog-toggle');
+  var goalBacklogCount = document.getElementById('goal-backlog-count');
+  var goalBacklogPeek = document.getElementById('goal-backlog-peek');
+  var goalBacklogItems = document.getElementById('goal-backlog-items');
   var pendingGoalFiles = [];
   var pendingSubFiles = [];
   var selectedGoalLabels = [];
   var showArchive = false;
+  var showBacklog = false;
 
   // Label definitions
   var DEFAULT_LABELS = [
@@ -4527,6 +4571,7 @@ document.addEventListener("input", e => {
   // Auto-move goal based on subtask completion
   function autoMoveGoal(g){
     if(!g.subtasks || g.subtasks.length === 0) return;
+    if(g.col === 'backlog') return;
     var doneCount = g.subtasks.filter(function(s){ return s.done; }).length;
     var total = g.subtasks.length;
     if(doneCount === total) g.col = 'pending';
@@ -4585,7 +4630,7 @@ document.addEventListener("input", e => {
       var sub = isSub ? g.subtasks[subIdx] : null;
       if(isSub && !sub) return;
 
-      var colLabels = {todo:'To Do',progress:'In Progress',pending:'Pending',done:'Done'};
+      var colLabels = {todo:'To Do',progress:'In Progress',pending:'Pending',backlog:'Backlog',done:'Done'};
       var html = '<div class="issue-panel">';
 
       // Header
@@ -4774,7 +4819,7 @@ document.addEventListener("input", e => {
         // Move / Status
         html += '<div class="issue-sidebar-card"><h4>Move To</h4>';
         html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
-        ['todo','progress','pending','done'].forEach(function(col){
+        ['todo','progress','pending','backlog','done'].forEach(function(col){
           var active = g.col === col;
           html += '<button class="issue-move-btn" data-to="'+col+'" style="padding:6px 12px;border-radius:8px;border:1px solid '+(active?'var(--accent)':'rgba(255,255,255,.15)')+';background:'+(active?'rgba(96,165,250,.1)':'none')+';color:'+(active?'var(--accent)':'var(--muted)')+';cursor:pointer;font-size:.78rem;font-weight:700;transition:all .15s;">'+colLabels[col]+'</button>';
         });
@@ -5215,14 +5260,30 @@ document.addEventListener("input", e => {
   }
   function _renderGoalsNow(goals){
     _attachDataMap = {}; // clear attachment data cache for fresh render
-    ['todo','progress','pending','done'].forEach(function(col){
+    ['todo','progress','pending','done','backlog'].forEach(function(col){
       document.querySelector('.kanban-items[data-col="'+col+'"]').innerHTML = '';
     });
+    if(goalBacklogItems) goalBacklogItems.innerHTML = '';
+    if(goalBacklogPeek) goalBacklogPeek.innerHTML = '';
 
     // Update label filter and archive count
     updateLabelFilter(goals);
     var archivedCount = goals.filter(function(g){ return g.archived; }).length;
+    var backlogCount = goals.filter(function(g){ return !g.archived && g.col === 'backlog'; }).length;
     goalShowArchive.textContent = 'Archive (' + archivedCount + ')';
+    if(goalBacklogCount) goalBacklogCount.textContent = backlogCount;
+    if(goalBacklogStrip){
+      goalBacklogStrip.style.display = backlogCount ? 'flex' : 'none';
+      goalBacklogStrip.classList.toggle('open', showBacklog && backlogCount > 0);
+    }
+    if(goalBacklogPeek){
+      var peekCount = Math.min(backlogCount, 3);
+      for(var p = 0; p < peekCount; p++){
+        var chip = document.createElement('div');
+        chip.className = 'goal-backlog-chip';
+        goalBacklogPeek.appendChild(chip);
+      }
+    }
 
     // Filter
     var filtered = filterGoals(goals);
@@ -5271,6 +5332,7 @@ document.addEventListener("input", e => {
       var statusBadge = '';
       if(g.col==='pending') statusBadge = '<span style="font-size:.6rem;padding:1px 6px;border-radius:5px;background:rgba(139,92,246,.15);color:#a78bfa;font-weight:700;">PENDING</span>';
       if(g.col==='done' && g.completedAt) statusBadge = '<span style="font-size:.6rem;padding:1px 6px;border-radius:5px;background:rgba(34,197,94,.15);color:#22c55e;font-weight:700;">Done '+new Date(g.completedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</span>';
+      if(g.col==='backlog') statusBadge = '<span style="font-size:.6rem;padding:1px 6px;border-radius:5px;background:rgba(148,163,184,.16);color:#cbd5e1;font-weight:700;">BACKLOG</span>';
 
       var headerRow = '<div class="k-header">' + idBadge +
         '<button class="k-cal-btn" data-gi="'+i+'" title="Add to Outlook Calendar" style="background:none;border:none;color:#0078d4;cursor:pointer;font-size:.8rem;padding:0 2px;display:inline-flex;align-items:center;opacity:.6;transition:opacity .15s;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>' +
@@ -5361,6 +5423,7 @@ document.addEventListener("input", e => {
           '<button data-to="todo" class="'+(g.col==='todo'?'active':'')+'">To Do</button>' +
           '<button data-to="progress" class="'+(g.col==='progress'?'active':'')+'">In Progress</button>' +
           '<button data-to="pending" class="'+(g.col==='pending'?'active':'')+'">Pending</button>' +
+          '<button data-to="backlog" class="'+(g.col==='backlog'?'active':'')+'">Not for now</button>' +
           '<button data-to="done" class="'+(g.col==='done'?'active':'')+'">Done</button>' +
           (g.col==='done' ? '<button class="k-archive" style="color:#f59e0b;border-color:rgba(245,158,11,.3);">Archive</button>' : '') +
           '<button class="k-del" style="margin-left:auto;color:#ef4444;border-color:rgba(239,68,68,.3);">Delete</button>' +
@@ -5391,6 +5454,8 @@ document.addEventListener("input", e => {
 
       if(g.archived){
         goalArchiveList.appendChild(card);
+      } else if(g.col === 'backlog') {
+        if(goalBacklogItems) goalBacklogItems.appendChild(card);
       } else {
         var container = document.querySelector('.kanban-items[data-col="'+g.col+'"]');
         if(container) container.appendChild(card);
@@ -5869,6 +5934,10 @@ document.addEventListener("input", e => {
     goalShowArchive.classList.toggle('active', showArchive);
     loadVault().then(function(data){ renderGoals(data.goals); });
   });
+  if(goalBacklogToggle) goalBacklogToggle.addEventListener('click', function(){
+    showBacklog = !showBacklog;
+    loadVault().then(function(data){ renderGoals(data.goals); });
+  });
 
   // Render label chips in goal modal (defaults + custom from all goals)
   var _cachedAllLabels = DEFAULT_LABELS.slice();
@@ -6082,7 +6151,7 @@ document.addEventListener("input", e => {
     notesArea.value = '';
     linksList.innerHTML = '';
     credsList.innerHTML = '';
-    ['todo','progress','pending','done'].forEach(function(c){ document.querySelector('.kanban-items[data-col="'+c+'"]').innerHTML=''; });
+    ['todo','progress','pending','backlog','done'].forEach(function(c){ var zone = document.querySelector('.kanban-items[data-col="'+c+'"]'); if(zone) zone.innerHTML=''; });
     // Close all overlays on lock
     ['kanban-overlay','secrets-overlay','notes-overlay','goals-overlay'].forEach(function(id){
       var el = document.getElementById(id);
@@ -6226,7 +6295,7 @@ document.addEventListener("input", e => {
     if(CAL_CATEGORIES[p]) return CAL_CATEGORIES[p].color;
     return '#94a3b8';
   }
-  var colLbl = {todo:'To Do', progress:'In Progress', pending:'Pending', done:'Done'};
+  var colLbl = {todo:'To Do', progress:'In Progress', pending:'Pending', backlog:'Backlog', done:'Done'};
 
   // Generate consistent color for a label name (hash-based)
   var _labelPalette = ['#ef4444','#f97316','#f59e0b','#22c55e','#14b8a6','#0ea5e9','#3b82f6','#6366f1','#8b5cf6','#a855f7','#ec4899','#f43f5e'];
@@ -8637,7 +8706,7 @@ document.addEventListener("input", e => {
 
   // --- Smart Auto-Sync: backup on every change, pull on focus ---
   var SYNC_DEBOUNCE = 5000; // 5s after last change
-  var SYNC_INTERVAL = 120000; // also sync every 2 min as safety net
+  var SYNC_INTERVAL = 900000; // 15 min safety net; normal changes still sync via debounce
   var debounceTimer = null;
   var lastSyncTs = 0;
   var lastPullTs = 0;
@@ -8716,16 +8785,15 @@ document.addEventListener("input", e => {
               if(merged > 0){
                 console.log('[CloudSync] Pulled ' + merged + ' updated items from cloud');
                 st('Pulled ' + merged + ' items from cloud');
-                // Reload if significant data changed (vault, goals, etc.)
-                var needsReload = false;
-                IDB_KEYS.forEach(function(k){ if(cd.data[k]) needsReload = true; });
-                if(needsReload){
-                  st('Pulled ' + merged + ' items — reloading...');
-                  setTimeout(function(){ location.reload(); }, 1200);
-                } else {
-                  // Dispatch event so UI components can refresh without full reload
-                  window.dispatchEvent(new CustomEvent('homer-cloud-pull', { detail: { count: merged } }));
-                }
+                // Refresh app sections in place instead of forcing a full page reload.
+                window.dispatchEvent(new CustomEvent('homer-cloud-pull', {
+                  detail: {
+                    count: merged,
+                    keys: Object.keys(cd.data),
+                    hasIndexedDbData: IDB_KEYS.some(function(k){ return !!cd.data[k]; })
+                  }
+                }));
+                window.dispatchEvent(new Event('vault-goals-changed'));
               }
             });
           });
@@ -9309,6 +9377,14 @@ document.addEventListener("input", e => {
   window.addEventListener('homer-vault-state', function(){
     if(window._homerVaultUnlocked) loadChatFromVault();
   });
+  window.addEventListener('homer-cloud-pull', function(){
+    if(window._homerVaultUnlocked) loadChatFromVault();
+    if(panelOpen){
+      setTimeout(function(){
+        loadHistoryFromRedis(true);
+      }, 300);
+    }
+  });
 
   // Load conversation from Redis as fallback (cross-device continuity)
   setTimeout(loadHistoryFromRedis, 1500);
@@ -9854,10 +9930,7 @@ document.addEventListener("input", e => {
     e.stopPropagation();
     var query = inputEl.value.trim();
     if(!query){ inputEl.placeholder = 'Type a search query first...'; setTimeout(function(){ inputEl.placeholder = currentProvider === 'nemoclaw' ? 'Message NemoClaw...' : 'Message Joey...'; }, 2000); return; }
-    // Prepend "search for" to trigger the auto-search on the server side
-    if(!/\b(search|find|look up|what|who|when|where|how|latest|news)\b/i.test(query)){
-      inputEl.value = 'Search for: ' + query;
-    }
+    inputEl.value = '[FORCE_WEB_SEARCH] ' + query;
     sendMessage();
   });
 
@@ -9890,8 +9963,10 @@ document.addEventListener("input", e => {
     var JOEY_PROMPT = 'You are Joey — a personal AI assistant with personality. You speak like Joey Tribbiani from Friends (confident, charming, fun), but you\'re genuinely smart and deeply helpful. You know this person. You have their profile, memories, and conversation history injected into your context by the server. USE THEM.\n\nTODAY: ' + new Date().toISOString().slice(0,10) + ' | TIME: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '\n\n=== PERSONALITY ===\n- Be direct, no fluff. Match the user\'s energy.\n- Use Joey catchphrases SPARINGLY and naturally — don\'t force them every message.\n- Have real opinions. Disagree when warranted. Be a friend, not a yes-man.\n- When you know something about them (from profile/memories), use it naturally — don\'t announce "I remember...".\n- Ask follow-up questions about things you know they care about (their goals, their people, recent events).\n- If they seem stressed or down, be supportive. If they\'re excited, share that energy.\n\n=== ACTIONS (append at END of your response) ===\n\nTASK (Kanban board — DEFAULT for any work item, to-do, action):\n- Simple: [ACTION:TASK]Buy groceries[/ACTION]\n- Detailed: [ACTION:TASK]{"summary":"Fix login bug","priority":"high","due":"2026-03-25","desc":"Description","subtasks":["Step 1","Step 2"]}[/ACTION]\n\nGOAL (Life Goals — aspirations, dreams, long-term objectives):\n[ACTION:GOAL]{"title":"Buy a house","description":"Why this matters","category":"finance","milestones":["Step 1","Step 2"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\nCategories: health, finance, career, personal, education, travel, creative, relationship\n\nFOCUS (Pomodoro — ONLY when user explicitly says "focus", "pomodoro", "focus task"):\n[ACTION:FOCUS]Task name[/ACTION]\nIMPORTANT: NEVER create FOCUS unless explicitly asked. Default is always TASK.\n\nEVENT (Calendar — use category to differentiate event types):\n[ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details","category":"meeting"}[/ACTION]\nEvent categories: meeting, deadline, reminder, personal, work\n\nREMEMBER (save important facts — your auto-memory also captures things, but use this for explicit asks):\n[ACTION:REMEMBER]{"memory":"fact about the user","category":"preference"}[/ACTION]\nCategories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work\n\nFORGET:\n[ACTION:FORGET]text to forget[/ACTION]\n\n=== WEB SEARCH ===\n- You may receive LIVE WEB SEARCH RESULTS in your system prompt when the user asks about current events, facts, or anything that needs up-to-date info.\n- When you have search results, use them to give accurate answers. Cite sources naturally (e.g. "According to...", link titles).\n- If search results are present, prioritize them over your training data for current facts.\n- You can suggest the user search for something specific if you don\'t have results: just say "let me look that up" — the system will search automatically on their next related question.\n\n=== RULES ===\n- Dates: YYYY-MM-DD, Times: HH:MM (24h), Priority: high/medium/low\n- Always include action tags when creating something — don\'t just describe it\n- Be proactive: if they mention a deadline, offer to create a task. If they share a win, celebrate it.\n- Your memory system auto-learns from conversations, but use REMEMBER for things the user explicitly asks you to save.';
     var systemPrompt = config.system || JOEY_PROMPT;
 
-    var displayText = text;
-    var fullContent = text;
+    var forceWebSearch = /^\[FORCE_WEB_SEARCH\]\s*/i.test(text);
+    var cleanText = text.replace(/^\[FORCE_WEB_SEARCH\]\s*/i, '').trim();
+    var displayText = cleanText || text;
+    var fullContent = forceWebSearch ? '[FORCE_WEB_SEARCH] ' + cleanText : (cleanText || text);
     var fileNames = [];
 
     if(pendingFiles.length){
@@ -9900,7 +9975,7 @@ document.addEventListener("input", e => {
         fileNames.push(f.name);
         fileBlock += '\n--- ' + f.name + ' ---\n' + f.content + '\n--- end ---\n';
       });
-      fullContent = '[Attached files for analysis]' + fileBlock + '\n' + text;
+      fullContent = '[Attached files for analysis]' + fileBlock + '\n' + fullContent;
       pendingFiles = [];
       renderFilePreviewPanel();
     }

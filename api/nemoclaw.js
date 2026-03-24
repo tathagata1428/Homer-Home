@@ -51,10 +51,12 @@ export default async function handler(req, res) {
   const GATEWAY_TOKEN = process.env.NEMOCLAW_GATEWAY_TOKEN || '';
   const MODEL = process.env.NEMOCLAW_MODEL || 'nemotron-3-super:cloud';
   const BRAVE_KEY = (process.env.BRAVE_SEARCH_API_KEY || '').trim();
+  const TAVILY_KEY = (process.env.TAVILY_API_KEY || '').trim();
 
   function sanitizeUserQuery(raw) {
     return String(raw || '')
       .replace(/\[Attached files for analysis\][\s\S]*?--- end ---\n*/g, '')
+      .replace(/\[FORCE_WEB_SEARCH\]\s*/gi, '')
       .replace(/^(search for|search|look up|find)\s*:?\s*/i, '')
       .trim()
       .slice(0, 240);
@@ -144,15 +146,18 @@ export default async function handler(req, res) {
 
   let searchContext = '';
   let searchState = 'not-needed';
+  let searchProvider = 'none';
   const lastUserMsg = messages.filter((m) => m.role === 'user').pop();
-  const userQuery = sanitizeUserQuery(lastUserMsg && lastUserMsg.content);
-  const needsSearch = isWebSearchIntent(userQuery);
+  const rawLastUserContent = String((lastUserMsg && lastUserMsg.content) || '');
+  const forceWebSearch = /\[FORCE_WEB_SEARCH\]/i.test(rawLastUserContent);
+  const userQuery = sanitizeUserQuery(rawLastUserContent);
+  const needsSearch = forceWebSearch || isWebSearchIntent(userQuery);
 
   if (needsSearch) {
-    searchState = BRAVE_KEY ? 'attempted' : 'unavailable';
+    searchState = (BRAVE_KEY || TAVILY_KEY) ? 'attempted' : 'unavailable';
   }
 
-  if (BRAVE_KEY && needsSearch) {
+  if (needsSearch && BRAVE_KEY) {
     try {
       const searchUrl = 'https://api.search.brave.com/res/v1/web/search?q=' + encodeURIComponent(userQuery) + '&count=6&text_decorations=false';
       const searchResp = await fetch(searchUrl, {
@@ -167,6 +172,7 @@ export default async function handler(req, res) {
           );
           searchContext = '\n\n=== WEB SEARCH RESULTS (live) ===\nQuery: "' + userQuery.slice(0, 120) + '"\n' + snippets.join('\n') + '\n\nUse these results for any time-sensitive claim. Cite the source names naturally and prefer saying you are unsure over filling gaps.';
           searchState = 'results';
+          searchProvider = 'brave';
         } else {
           searchState = 'empty';
         }
@@ -179,6 +185,46 @@ export default async function handler(req, res) {
       }
     } catch (e) {
       searchState = 'failed';
+    }
+  }
+
+  if (needsSearch && searchState !== 'results' && TAVILY_KEY) {
+    try {
+      const looksNewsy = /\b(latest|news|today|tonight|tomorrow|recent|current|update|updates|happening)\b/i.test(userQuery);
+      const tavilyResp = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          Authorization: 'Bearer ' + TAVILY_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          query: userQuery,
+          topic: looksNewsy ? 'news' : 'general',
+          search_depth: 'basic',
+          max_results: 6,
+          include_answer: false,
+          include_raw_content: false
+        })
+      });
+
+      if (tavilyResp.ok) {
+        const tavilyData = await tavilyResp.json();
+        if (Array.isArray(tavilyData.results) && tavilyData.results.length) {
+          const snippets = tavilyData.results.slice(0, 6).map((r, i) =>
+            (i + 1) + '. ' + (r.title || '') + '\n   ' + (r.content || '') + '\n   Source: ' + (r.url || '')
+          );
+          searchContext = '\n\n=== WEB SEARCH RESULTS (live) ===\nQuery: "' + userQuery.slice(0, 120) + '"\n' + snippets.join('\n') + '\n\nUse these results for any time-sensitive claim. Cite the source names naturally and prefer saying you are unsure over filling gaps.';
+          searchState = 'results';
+          searchProvider = 'tavily';
+        } else if (searchState !== 'results') {
+          searchState = 'empty';
+        }
+      } else if (searchState !== 'results') {
+        searchState = 'failed';
+      }
+    } catch (e) {
+      if (searchState !== 'results') searchState = 'failed';
     }
   }
 
@@ -204,9 +250,22 @@ export default async function handler(req, res) {
 === WEB RELIABILITY RULES ===
 - For current events, recent news, live prices, schedules, reviews, rankings, or anything that depends on the web right now, do not answer from memory alone.
 - Search status for this turn: ${searchState}.
+- Search provider for this turn: ${searchProvider}.
+- Forced live search mode: ${forceWebSearch ? 'yes' : 'no'}.
 - If search status is "results", ground the answer in the provided WEB SEARCH RESULTS and cite source names or domains naturally.
 - If search status is not "results" but the user is asking for current or web-dependent information, say plainly that you couldn't verify it live right now and ask the user to retry. Do not guess, invent sources, or act certain.
 - If the user explicitly asks you to search, treat that as a requirement for live verification.`);
+
+  if (needsSearch) {
+    systemParts.push(`
+=== SEARCH-GROUNDED ANSWER MODE ===
+- This turn requires a web-grounded answer.
+- Use only the WEB SEARCH RESULTS for factual claims.
+- Do not answer from model memory, prior beliefs, or unstated assumptions.
+- If the results are incomplete or conflicting, say that clearly.
+- Include a short "Sources:" line at the end with the source domains or titles you relied on.
+- If search status is not "results", reply that live verification failed and do not provide the requested facts anyway.`);
+  }
 
   const systemContent = systemParts.join('\n').trim();
 
@@ -228,6 +287,7 @@ export default async function handler(req, res) {
   const headers = { 'Content-Type': 'application/json' };
   if (GATEWAY_TOKEN) headers.Authorization = 'Bearer ' + GATEWAY_TOKEN;
   res.setHeader('X-OpenClaw-Search-State', searchState);
+  res.setHeader('X-OpenClaw-Search-Provider', searchProvider);
 
   try {
     const chatUrl = GATEWAY_URL.endsWith('/v1') ? GATEWAY_URL + '/chat/completions' : GATEWAY_URL + '/v1/chat/completions';
