@@ -8,4 +8,4 @@ bucket_name = "attachments"
 
 [[kv_namespaces]]
 binding = "BACKUPS"
-id = "your-backups-kv-namespace-id"
+id = "0e382f1f237f422a829cbc24c4e1cebe"
