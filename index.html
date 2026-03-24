@@ -1227,6 +1227,29 @@
       animation:ocSlideIn .25s cubic-bezier(.4,0,.2,1);
     }
     #oc-panel.open{ display:flex; }
+    /* Expanded mode (bigger on desktop) */
+    #oc-panel.oc-expanded{
+      width:min(680px,calc(100vw - 60px)); max-height:min(80vh,calc(100vh - 80px));
+      right:40px; bottom:calc(var(--tb) + env(safe-area-inset-bottom,0px) + 10px);
+    }
+    /* Fullscreen mode (desktop) */
+    #oc-panel.oc-fullscreen{
+      position:fixed!important; inset:0!important; width:100%!important; height:100%!important;
+      max-height:none!important; border-radius:0!important; border:none!important;
+      z-index:9999!important; animation:none!important; right:0!important; bottom:0!important;
+    }
+    #oc-panel.oc-fullscreen #oc-panel-header{ padding:16px 24px 12px; }
+    #oc-panel.oc-fullscreen #oc-chat-messages{ padding:16px 24px 8px; }
+    #oc-panel.oc-fullscreen #oc-chat-footer{ padding:14px 24px; }
+    #oc-panel.oc-fullscreen .oc-msg{ max-width:min(720px, 70%); }
+    #oc-panel.oc-fullscreen #oc-chat-input{ font-size:1rem; }
+    /* Search indicator */
+    .oc-search-badge{
+      display:inline-flex; align-items:center; gap:4px; font-size:.62rem; font-weight:700;
+      color:#60a5fa; background:rgba(96,165,250,.1); border:1px solid rgba(96,165,250,.2);
+      padding:2px 8px; border-radius:6px; margin-left:6px; letter-spacing:.03em;
+    }
+    .oc-search-badge svg{ width:10px; height:10px; stroke:currentColor; fill:none; stroke-width:2; }
     @keyframes ocSlideIn{from{opacity:0;transform:translateY(12px) scale(.96);}to{opacity:1;transform:translateY(0) scale(1);}}
 
     #oc-panel-header{
@@ -7503,6 +7526,8 @@ document.addEventListener("input", e => {
     <div class="oc-header-actions">
       <button id="oc-export-btn" title="Export chat">&#8615;</button>
       <button id="oc-settings-btn" title="Settings">&#9881;</button>
+      <button id="oc-expand-btn" title="Expand">&#x21F1;</button>
+      <button id="oc-fullscreen-btn" title="Fullscreen">&#x2922;</button>
       <button id="oc-clear-btn" title="Clear chat">Clear</button>
       <button id="oc-close-btn" title="Close">&times;</button>
     </div>
@@ -7538,6 +7563,9 @@ document.addEventListener("input", e => {
       <div class="oc-input-actions">
         <button id="oc-attach-btn" class="oc-action-btn" title="Attach file">
           <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+        </button>
+        <button id="oc-search-btn" class="oc-action-btn" title="Search the web">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </button>
         <button id="oc-emoji-btn" class="oc-action-btn" title="Emoji">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
@@ -8808,6 +8836,8 @@ document.addEventListener("input", e => {
   var filePreview = document.getElementById('oc-file-preview');
   var emojiBtn = document.getElementById('oc-emoji-btn');
   var emojiPicker = document.getElementById('oc-emoji-picker');
+  var expandBtn = document.getElementById('oc-expand-btn');
+  var fullscreenBtn = document.getElementById('oc-fullscreen-btn');
   var chatHistory = [];
   var streaming = false;
   var panelOpen = false;
@@ -8881,7 +8911,10 @@ document.addEventListener("input", e => {
     }
   });
   closeBtn.addEventListener('click', function(){
-    panelOpen = false; panel.classList.remove('open');
+    panelOpen = false;
+    panel.classList.remove('open', 'oc-expanded', 'oc-fullscreen');
+    expandBtn.title = 'Expand';
+    fullscreenBtn.title = 'Fullscreen';
   });
 
   // --- Settings ---
@@ -8891,6 +8924,41 @@ document.addEventListener("input", e => {
   settingsSave.addEventListener('click', function(){
     setConfig({ system: systemPromptInput.value.trim() });
     settingsRow.classList.remove('open');
+  });
+
+  // --- Expand / Fullscreen toggles ---
+  expandBtn.addEventListener('click', function(){
+    if(panel.classList.contains('oc-fullscreen')){
+      panel.classList.remove('oc-fullscreen');
+      panel.classList.add('oc-expanded');
+      expandBtn.innerHTML = '&#x26F6;';
+      fullscreenBtn.title = 'Fullscreen';
+    } else {
+      panel.classList.toggle('oc-expanded');
+    }
+    expandBtn.title = panel.classList.contains('oc-expanded') ? 'Default size' : 'Expand';
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  });
+  fullscreenBtn.addEventListener('click', function(){
+    var goFs = !panel.classList.contains('oc-fullscreen');
+    panel.classList.remove('oc-expanded');
+    panel.classList.toggle('oc-fullscreen', goFs);
+    fullscreenBtn.title = goFs ? 'Exit fullscreen' : 'Fullscreen';
+    expandBtn.title = 'Expand';
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  });
+  // Escape key exits fullscreen/expand
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      if(panel.classList.contains('oc-fullscreen')){
+        panel.classList.remove('oc-fullscreen');
+        fullscreenBtn.title = 'Fullscreen';
+        expandBtn.title = 'Expand';
+      } else if(panel.classList.contains('oc-expanded')){
+        panel.classList.remove('oc-expanded');
+        expandBtn.title = 'Expand';
+      }
+    }
   });
 
   // --- Save context to DB (Redis) ---
@@ -8976,7 +9044,7 @@ document.addEventListener("input", e => {
       if(d.ok){
         btn.textContent = '✅ Restored!';
         // Reload chat history if restored
-        if(d.restored && d.restored.history) loadHistoryFromRedis();
+        if(d.restored && d.restored.history) loadHistoryFromRedis(true);
         setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore'; btn.disabled = false; }, 3000);
       } else {
         btn.textContent = '❌ Failed';
@@ -9025,17 +9093,21 @@ document.addEventListener("input", e => {
     }).catch(function(){});
   }
 
-  function loadHistoryFromRedis(){
+  function loadHistoryFromRedis(force){
     var pass = localStorage.getItem('homer-sync-pass') || '';
-    if(!pass) return;
+    if(!pass){ console.warn('[Joey] No passphrase — cannot load history from Redis'); return; }
     fetch('/api/joey?action=history&passphrase=' + encodeURIComponent(pass))
       .then(function(r){ return r.json(); })
       .then(function(data){
-        if(data.history && data.history.length && !chatHistory.length){
+        if(data.error){ console.error('[Joey] Redis history error:', data.error); return; }
+        if(data.history && data.history.length && (force || !chatHistory.length)){
           chatHistory = data.history;
           renderMessages();
+          console.log('[Joey] Loaded ' + data.history.length + ' messages from Redis' + (force ? ' (forced)' : ''));
+        } else if(!data.history || !data.history.length){
+          console.warn('[Joey] Redis history is empty');
         }
-      }).catch(function(){});
+      }).catch(function(e){ console.error('[Joey] Failed to load history from Redis:', e.message || e); });
   }
 
   // --- Auto-learning: extract memories after each exchange ---
@@ -9077,7 +9149,7 @@ document.addEventListener("input", e => {
         if(d.ok){
           console.log('[Joey] Context synced from Drive:', d.restored);
           // Reload history if restored
-          if(d.restored && d.restored.history) loadHistoryFromRedis();
+          if(d.restored && d.restored.history) loadHistoryFromRedis(true);
           // Add agent acknowledgment message
           if(showConfirmation){
             addAgentMessage('Context loaded from Google Drive. I\'m up to date! 🧠✅');
@@ -9596,6 +9668,18 @@ document.addEventListener("input", e => {
     if(!emojiPicker.contains(e.target) && e.target !== emojiBtn) emojiPicker.classList.remove('open');
   });
 
+  // --- Web search button ---
+  var searchBtn = document.getElementById('oc-search-btn');
+  searchBtn.addEventListener('click', function(){
+    var query = inputEl.value.trim();
+    if(!query){ inputEl.placeholder = 'Type a search query first...'; setTimeout(function(){ inputEl.placeholder = currentProvider === 'nemoclaw' ? 'Message NemoClaw...' : 'Message Joey...'; }, 2000); return; }
+    // Prepend "search for" to trigger the auto-search on the server side
+    if(!/\b(search|find|look up|what|who|when|where|how|latest|news)\b/i.test(query)){
+      inputEl.value = 'Search for: ' + query;
+    }
+    sendMessage();
+  });
+
   // --- Export chat ---
   exportBtn.addEventListener('click', function(){
     if(!chatHistory.length) return;
@@ -9622,7 +9706,7 @@ document.addEventListener("input", e => {
     if(!text && !pendingFiles.length) return;
     if(streaming) return;
     var config = getConfig();
-    var JOEY_PROMPT = 'You are Joey — a personal AI assistant with personality. You speak like Joey Tribbiani from Friends (confident, charming, fun), but you\'re genuinely smart and deeply helpful. You know this person. You have their profile, memories, and conversation history injected into your context by the server. USE THEM.\n\nTODAY: ' + new Date().toISOString().slice(0,10) + ' | TIME: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '\n\n=== PERSONALITY ===\n- Be direct, no fluff. Match the user\'s energy.\n- Use Joey catchphrases SPARINGLY and naturally — don\'t force them every message.\n- Have real opinions. Disagree when warranted. Be a friend, not a yes-man.\n- When you know something about them (from profile/memories), use it naturally — don\'t announce "I remember...".\n- Ask follow-up questions about things you know they care about (their goals, their people, recent events).\n- If they seem stressed or down, be supportive. If they\'re excited, share that energy.\n\n=== ACTIONS (append at END of your response) ===\n\nTASK (Kanban board — DEFAULT for any work item, to-do, action):\n- Simple: [ACTION:TASK]Buy groceries[/ACTION]\n- Detailed: [ACTION:TASK]{"summary":"Fix login bug","priority":"high","due":"2026-03-25","desc":"Description","subtasks":["Step 1","Step 2"]}[/ACTION]\n\nGOAL (Life Goals — aspirations, dreams, long-term objectives):\n[ACTION:GOAL]{"title":"Buy a house","description":"Why this matters","category":"finance","milestones":["Step 1","Step 2"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\nCategories: health, finance, career, personal, education, travel, creative, relationship\n\nFOCUS (Pomodoro — ONLY when user explicitly says "focus", "pomodoro", "focus task"):\n[ACTION:FOCUS]Task name[/ACTION]\nIMPORTANT: NEVER create FOCUS unless explicitly asked. Default is always TASK.\n\nEVENT (Calendar — use category to differentiate event types):\n[ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details","category":"meeting"}[/ACTION]\nEvent categories: meeting, deadline, reminder, personal, work\n\nREMEMBER (save important facts — your auto-memory also captures things, but use this for explicit asks):\n[ACTION:REMEMBER]{"memory":"fact about the user","category":"preference"}[/ACTION]\nCategories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work\n\nFORGET:\n[ACTION:FORGET]text to forget[/ACTION]\n\n=== RULES ===\n- Dates: YYYY-MM-DD, Times: HH:MM (24h), Priority: high/medium/low\n- Always include action tags when creating something — don\'t just describe it\n- Be proactive: if they mention a deadline, offer to create a task. If they share a win, celebrate it.\n- Your memory system auto-learns from conversations, but use REMEMBER for things the user explicitly asks you to save.';
+    var JOEY_PROMPT = 'You are Joey — a personal AI assistant with personality. You speak like Joey Tribbiani from Friends (confident, charming, fun), but you\'re genuinely smart and deeply helpful. You know this person. You have their profile, memories, and conversation history injected into your context by the server. USE THEM.\n\nTODAY: ' + new Date().toISOString().slice(0,10) + ' | TIME: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '\n\n=== PERSONALITY ===\n- Be direct, no fluff. Match the user\'s energy.\n- Use Joey catchphrases SPARINGLY and naturally — don\'t force them every message.\n- Have real opinions. Disagree when warranted. Be a friend, not a yes-man.\n- When you know something about them (from profile/memories), use it naturally — don\'t announce "I remember...".\n- Ask follow-up questions about things you know they care about (their goals, their people, recent events).\n- If they seem stressed or down, be supportive. If they\'re excited, share that energy.\n\n=== ACTIONS (append at END of your response) ===\n\nTASK (Kanban board — DEFAULT for any work item, to-do, action):\n- Simple: [ACTION:TASK]Buy groceries[/ACTION]\n- Detailed: [ACTION:TASK]{"summary":"Fix login bug","priority":"high","due":"2026-03-25","desc":"Description","subtasks":["Step 1","Step 2"]}[/ACTION]\n\nGOAL (Life Goals — aspirations, dreams, long-term objectives):\n[ACTION:GOAL]{"title":"Buy a house","description":"Why this matters","category":"finance","milestones":["Step 1","Step 2"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\nCategories: health, finance, career, personal, education, travel, creative, relationship\n\nFOCUS (Pomodoro — ONLY when user explicitly says "focus", "pomodoro", "focus task"):\n[ACTION:FOCUS]Task name[/ACTION]\nIMPORTANT: NEVER create FOCUS unless explicitly asked. Default is always TASK.\n\nEVENT (Calendar — use category to differentiate event types):\n[ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details","category":"meeting"}[/ACTION]\nEvent categories: meeting, deadline, reminder, personal, work\n\nREMEMBER (save important facts — your auto-memory also captures things, but use this for explicit asks):\n[ACTION:REMEMBER]{"memory":"fact about the user","category":"preference"}[/ACTION]\nCategories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work\n\nFORGET:\n[ACTION:FORGET]text to forget[/ACTION]\n\n=== WEB SEARCH ===\n- You may receive LIVE WEB SEARCH RESULTS in your system prompt when the user asks about current events, facts, or anything that needs up-to-date info.\n- When you have search results, use them to give accurate answers. Cite sources naturally (e.g. "According to...", link titles).\n- If search results are present, prioritize them over your training data for current facts.\n- You can suggest the user search for something specific if you don\'t have results: just say "let me look that up" — the system will search automatically on their next related question.\n\n=== RULES ===\n- Dates: YYYY-MM-DD, Times: HH:MM (24h), Priority: high/medium/low\n- Always include action tags when creating something — don\'t just describe it\n- Be proactive: if they mention a deadline, offer to create a task. If they share a win, celebrate it.\n- Your memory system auto-learns from conversations, but use REMEMBER for things the user explicitly asks you to save.';
     var systemPrompt = config.system || JOEY_PROMPT;
 
     var displayText = text;

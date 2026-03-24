@@ -63,6 +63,7 @@ export default async function handler(req, res) {
       if (resp.status >= 300 && resp.status < 400) {
         const location = resp.headers.get('location');
         if (!location) {
+          console.error('[gdrive-restore] Redirect without location at step ' + i, JSON.stringify(redirectChain));
           return res.status(502).json({ error: 'Redirect without location', redirectChain });
         }
         url = location;
@@ -75,6 +76,7 @@ export default async function handler(req, res) {
     }
 
     if (!responseText) {
+      console.error('[gdrive-restore] No response after redirects', JSON.stringify(redirectChain));
       return res.status(502).json({ error: 'No response after redirects', redirectChain });
     }
 
@@ -83,6 +85,8 @@ export default async function handler(req, res) {
       parsed = JSON.parse(responseText);
     } catch {
       const isHtml = responseText.trim().startsWith('<');
+      console.error('[gdrive-restore] Non-JSON response, status=' + finalStatus + ', isHtml=' + isHtml + ', preview=' + responseText.slice(0, 200));
+      console.error('[gdrive-restore] Redirect chain:', JSON.stringify(redirectChain));
       return res.status(502).json({
         error: isHtml ? 'Google returned HTML — Apps Script may need redeployment' : 'Non-JSON response',
         status: finalStatus,
@@ -92,6 +96,7 @@ export default async function handler(req, res) {
     }
 
     if (parsed.error) {
+      console.error('[gdrive-restore] Script error:', parsed.error, JSON.stringify(redirectChain));
       return res.status(502).json({
         error: 'Google Script rejected the request',
         scriptError: parsed.error,
@@ -126,6 +131,7 @@ export default async function handler(req, res) {
     });
 
   } catch (err) {
+    console.error('[gdrive-restore] Exception:', err.message, err.stack);
     return res.status(500).json({ error: 'Restore failed', detail: err.message });
   }
 }

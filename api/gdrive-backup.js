@@ -87,6 +87,7 @@ export default async function handler(req, res) {
       if (resp.status >= 300 && resp.status < 400) {
         const location = resp.headers.get('location');
         if (!location) {
+          console.error('[gdrive-backup] Redirect without location at step ' + i, JSON.stringify(redirectChain));
           return res.status(502).json({ error: 'Redirect without location', redirectChain });
         }
         url = location;
@@ -99,6 +100,7 @@ export default async function handler(req, res) {
     }
 
     if (!responseText) {
+      console.error('[gdrive-backup] No response after redirects', JSON.stringify(redirectChain));
       return res.status(502).json({ error: 'No response after redirects', redirectChain });
     }
 
@@ -109,6 +111,8 @@ export default async function handler(req, res) {
     } catch {
       // Got HTML or non-JSON response — likely Google auth/error page
       const isHtml = responseText.trim().startsWith('<');
+      console.error('[gdrive-backup] Non-JSON response, status=' + finalStatus + ', isHtml=' + isHtml + ', preview=' + responseText.slice(0, 200));
+      console.error('[gdrive-backup] Redirect chain:', JSON.stringify(redirectChain));
       return res.status(502).json({
         error: isHtml ? 'Google returned HTML instead of JSON — the Apps Script may need redeployment' : 'Non-JSON response from Google',
         status: finalStatus,
@@ -119,6 +123,7 @@ export default async function handler(req, res) {
 
     // Check for script-level errors
     if (parsed.error) {
+      console.error('[gdrive-backup] Script error:', parsed.error, JSON.stringify(redirectChain));
       return res.status(502).json({
         error: 'Google Script rejected the request',
         scriptError: parsed.error,
@@ -132,6 +137,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, drive: parsed });
 
   } catch (err) {
+    console.error('[gdrive-backup] Exception:', err.message, err.stack);
     return res.status(500).json({ error: 'Backup failed', detail: err.message });
   }
 }

@@ -55,6 +55,7 @@ export default async function handler(req, res) {
   const GATEWAY_TOKEN = process.env.OC_GATEWAY_TOKEN || '';
   const MODEL = process.env.OC_MODEL || 'llama-3.3-70b-versatile';
   const JOEY_CONTEXT = process.env.JOEY_CONTEXT || '';
+  const BRAVE_KEY = (process.env.BRAVE_SEARCH_API_KEY || '').trim();
 
   // --- Load all context from Redis in parallel ---
   let memoriesText = '';
@@ -143,12 +144,43 @@ export default async function handler(req, res) {
       }
   } catch (e) { /* context unavailable — proceed without */ }
 
+  // --- Web search for current information ---
+  let searchContext = '';
+  if (BRAVE_KEY) {
+    const lastUserMsg = messages.filter(m => m.role === 'user').pop();
+    const rawQuery = (lastUserMsg && lastUserMsg.content) || '';
+    // Strip file attachments from search query, keep only the user's actual text
+    const userQuery = rawQuery.replace(/\[Attached files for analysis\][\s\S]*?--- end ---\n*/g, '').trim().slice(0, 200);
+    const needsSearch = /\b(search|find|look up|what('s| is| are)|who is|when is|where is|how (to|do|does|can|much)|latest|news|events?|weather|price|score|results?|happening|schedule|review|recommend|best|top \d|near me|today|tonight|this week|upcoming|current|recent|2025|2026)\b/i.test(userQuery) && userQuery.length > 10;
+    if (needsSearch) {
+      try {
+        const searchUrl = 'https://api.search.brave.com/res/v1/web/search?q=' + encodeURIComponent(userQuery) + '&count=5';
+        const searchResp = await fetch(searchUrl, {
+          headers: { 'Accept': 'application/json', 'X-Subscription-Token': BRAVE_KEY }
+        });
+        if (searchResp.ok) {
+          const searchData = await searchResp.json();
+          if (searchData.web && searchData.web.results && searchData.web.results.length) {
+            const snippets = searchData.web.results.slice(0, 5).map((r, i) =>
+              (i + 1) + '. ' + (r.title || '') + '\n   ' + (r.description || '') + '\n   Source: ' + (r.url || '')
+            );
+            searchContext = '\n\n=== WEB SEARCH RESULTS (live) ===\nQuery: "' + userQuery.slice(0, 100) + '"\n' + snippets.join('\n') + '\n\nUse these results to give accurate, up-to-date answers. Cite sources when helpful.';
+          }
+          if (searchData.infobox) {
+            searchContext += '\n\nKnowledge panel: ' + (searchData.infobox.title || '') + ' — ' + (searchData.infobox.description || '');
+          }
+        }
+      } catch (e) { /* search failed, proceed without */ }
+    }
+  }
+
   // --- Build the system prompt ---
-  // Layer: personality → profile → memories → instructions
+  // Layer: personality → profile → memories → search → instructions
   const systemParts = [];
   if (JOEY_CONTEXT) systemParts.push(JOEY_CONTEXT);
   if (profileText) systemParts.push(profileText);
   if (memoriesText) systemParts.push(memoriesText);
+  if (searchContext) systemParts.push(searchContext);
 
   // Add meta-instructions for personalization
   systemParts.push(`
