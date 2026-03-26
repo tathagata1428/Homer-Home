@@ -2821,9 +2821,9 @@
       </div>
 
       <div id="vault-login-fields" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
-        <input id="vault-pw-user" type="text" placeholder="Username" autocomplete="username" class="acct-field" style="text-align:center;margin-bottom:0;">
+        <input id="vault-pw-user" type="text" placeholder="Username" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" class="acct-field" style="text-align:center;margin-bottom:0;">
         <div class="acct-field-wrap" style="margin-bottom:0;">
-          <input id="vault-pw" type="password" placeholder="Password" autocomplete="current-password" class="acct-field" style="text-align:center;margin-bottom:0;">
+          <input id="vault-pw" type="password" placeholder="Password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" class="acct-field" style="text-align:center;margin-bottom:0;">
           <button type="button" class="pw-toggle" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'👁‍🗨'">👁</button>
         </div>
       </div>
@@ -8691,14 +8691,14 @@ document.addEventListener("input", e => {
 
     <!-- Logged-out view: create / sign-in -->
     <div id="acct-form">
-      <input id="acct-user" class="acct-field" type="text" placeholder="Username" autocomplete="username">
+      <input id="acct-user" class="acct-field" type="text" placeholder="Username" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
       <div class="acct-field-wrap">
-        <input id="acct-pass" class="acct-field" type="password" placeholder="Password" autocomplete="current-password">
+        <input id="acct-pass" class="acct-field" type="password" placeholder="Password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
         <button type="button" class="pw-toggle" onclick="var i=document.getElementById('acct-pass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'👁‍🗨'">👁</button>
       </div>
       <div id="acct-confirm-wrap" style="display:none;">
         <div class="acct-field-wrap">
-          <input id="acct-confirm" class="acct-field" type="password" placeholder="Confirm password" autocomplete="new-password">
+          <input id="acct-confirm" class="acct-field" type="password" placeholder="Confirm password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
           <button type="button" class="pw-toggle" onclick="var i=document.getElementById('acct-confirm');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'👁‍🗨'">👁</button>
         </div>
       </div>
@@ -8729,9 +8729,9 @@ document.addEventListener("input", e => {
       </div>
 
       <div id="admin-login" style="display:none;margin-top:12px;">
-        <input id="admin-user" class="acct-field" type="text" placeholder="Admin email" autocomplete="off" style="font-size:.88rem;">
+        <input id="admin-user" class="acct-field" type="text" placeholder="Admin email" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" style="font-size:.88rem;">
         <div class="acct-field-wrap">
-          <input id="admin-pass" class="acct-field" type="password" placeholder="Admin password" autocomplete="off" style="font-size:.88rem;">
+          <input id="admin-pass" class="acct-field" type="password" placeholder="Admin password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" style="font-size:.88rem;">
           <button type="button" class="pw-toggle" onclick="var i=document.getElementById('admin-pass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'👁‍🗨'">👁</button>
         </div>
         <button id="admin-signin" class="btn" style="width:100%;padding:9px;font-size:.88rem;background:linear-gradient(135deg,#8b5cf6,#6d28d9);border:none;color:#fff;">Authenticate</button>
@@ -8768,7 +8768,7 @@ document.addEventListener("input", e => {
             <input id="new-user-username" class="acct-field" type="text" placeholder="Username" style="font-size:.85rem;margin-bottom:8px;">
             <input id="new-user-email" class="acct-field" type="email" placeholder="Email" style="font-size:.85rem;margin-bottom:8px;">
             <div class="acct-field-wrap" style="margin-bottom:10px;">
-              <input id="new-user-password" class="acct-field" type="password" placeholder="Password" style="font-size:.85rem;margin-bottom:0;">
+              <input id="new-user-password" class="acct-field" type="password" placeholder="Password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" style="font-size:.85rem;margin-bottom:0;">
               <button type="button" class="pw-toggle" onclick="var i=document.getElementById('new-user-password');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'👁‍🗨'">👁</button>
             </div>
             <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
@@ -10614,6 +10614,7 @@ document.addEventListener("input", e => {
   function updateMobileViewport(){
     var mobile = isMobileShell();
     document.body.classList.toggle('mobile-shell', mobile);
+    if(mobile) neutralizeMobilePasswordAssist();
     setMobileInputIsolation(mobile && panelOpen);
     if(!mobile){
       document.body.classList.remove('mobile-keyboard-open');
@@ -10665,6 +10666,18 @@ document.addEventListener("input", e => {
       el.setAttribute('tabindex', '-1');
       if(el.isContentEditable || el.getAttribute('contenteditable') === '') el.setAttribute('contenteditable', 'false');
       mobileSuppressedFields.push(record);
+    });
+  }
+  function neutralizeMobilePasswordAssist(){
+    if(!isMobileShell()) return;
+    Array.prototype.forEach.call(document.querySelectorAll('#vault-login-fields input, #acct-form input, #admin-login input, #admin-panel input, #vault-cred-pass'), function(el){
+      if(!el) return;
+      el.setAttribute('autocomplete', 'off');
+      el.setAttribute('autocorrect', 'off');
+      el.setAttribute('autocapitalize', 'none');
+      el.setAttribute('spellcheck', 'false');
+      el.setAttribute('data-lpignore', 'true');
+      el.setAttribute('data-1p-ignore', 'true');
     });
   }
   function openPanel(){
