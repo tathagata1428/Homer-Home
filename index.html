@@ -8598,8 +8598,8 @@ document.addEventListener("input", e => {
   <div id="oc-mobile-menu" aria-hidden="true">
     <div class="oc-mobile-menu-section">
       <span class="oc-mobile-menu-label">Model</span>
-      <button type="button" id="oc-mobile-provider-joey">Joey Kilo</button>
-      <button type="button" id="oc-mobile-provider-nemoclaw">Joey Titan</button>
+      <button type="button" id="oc-mobile-provider-joey">MiMo-V2-Pro</button>
+      <button type="button" id="oc-mobile-provider-nemoclaw">Nemotron 3 Super</button>
     </div>
     <div class="oc-mobile-menu-section">
       <span class="oc-mobile-menu-label">Memory</span>
@@ -10269,11 +10269,11 @@ document.addEventListener("input", e => {
     if(!mobileMenu) return;
     if(mobileProviderJoeyBtn){
       mobileProviderJoeyBtn.classList.toggle('active', currentProvider === 'joey');
-      mobileProviderJoeyBtn.textContent = 'Joey Kilo';
+      mobileProviderJoeyBtn.textContent = 'MiMo-V2-Pro';
     }
     if(mobileProviderNemoclawBtn){
       mobileProviderNemoclawBtn.classList.toggle('active', currentProvider === 'nemoclaw');
-      mobileProviderNemoclawBtn.textContent = getProviderDisplayName('nemoclaw', currentContextMode);
+      mobileProviderNemoclawBtn.textContent = getProviderDefaultModel('nemoclaw', currentContextMode);
     }
     if(mobileModePersonalBtn) mobileModePersonalBtn.classList.toggle('active', currentContextMode !== 'work');
     if(mobileModeWorkBtn) mobileModeWorkBtn.classList.toggle('active', currentContextMode === 'work');
