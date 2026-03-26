@@ -7924,6 +7924,11 @@ document.addEventListener("input", e => {
       <button type="button" id="oc-mobile-mode-personal">Personal</button>
       <button type="button" id="oc-mobile-mode-work">Work</button>
     </div>
+    <div class="oc-mobile-menu-section">
+      <span class="oc-mobile-menu-label">Persona</span>
+      <button type="button" id="oc-mobile-edit-prompt">Edit System Prompt</button>
+      <button type="button" id="oc-mobile-clear-prompt">Use Default Joey</button>
+    </div>
   </div>
   <div class="oc-provider-bar">
     <label id="oc-label-joey" class="active joey-active">Joey Kilo</label>
@@ -7972,7 +7977,7 @@ document.addEventListener("input", e => {
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
         </button>
       </div>
-      <textarea id="oc-chat-input" rows="1" placeholder="Message Joey..."></textarea>
+      <textarea id="oc-chat-input" rows="1" placeholder="Message Joey..." autocomplete="off" autocorrect="off" autocapitalize="sentences" enterkeyhint="send"></textarea>
       <button id="oc-send-btn" title="Send">
         <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
@@ -9249,11 +9254,14 @@ document.addEventListener("input", e => {
   var mobileProviderNemoclawBtn = document.getElementById('oc-mobile-provider-nemoclaw');
   var mobileModePersonalBtn = document.getElementById('oc-mobile-mode-personal');
   var mobileModeWorkBtn = document.getElementById('oc-mobile-mode-work');
+  var mobileEditPromptBtn = document.getElementById('oc-mobile-edit-prompt');
+  var mobileClearPromptBtn = document.getElementById('oc-mobile-clear-prompt');
   var chatHistory = [];
   var streaming = false;
   var panelOpen = false;
   var pendingFiles = [];
   var uploadStatusTimer = 0;
+  var mobileSuppressedFields = [];
 
   // --- Provider toggle ---
   var currentProvider = localStorage.getItem('homer-oc-provider') || 'joey';
@@ -9277,7 +9285,7 @@ document.addEventListener("input", e => {
     labelNemoclaw.textContent = currentContextMode === 'work' ? 'Joey Max' : 'Joey Titan';
     providerIcon.textContent = isNemo ? '🟢' : '🍕';
     providerName.textContent = isNemo ? (currentContextMode === 'work' ? 'Joey Max' : 'Joey Titan') : 'Joey Kilo';
-    modelBadge.textContent = isNemo ? (currentContextMode === 'work' ? 'MiniMax M2.7' : 'Nemotron 3 Super') : 'MiMo-V2-Pro';
+    modelBadge.textContent = isNemo ? (currentContextMode === 'work' ? 'minimax-m2.7:cloud' : 'Nemotron 3 Super') : 'MiMo-V2-Pro';
     inputEl.placeholder = isNemo ? ('Message ' + providerName.textContent + '...') : 'Message Joey Kilo...';
     syncMobileMenuUi();
   }
@@ -9426,10 +9434,12 @@ document.addEventListener("input", e => {
   function updateMobileViewport(){
     if(!isMobileShell()){
       document.body.classList.remove('mobile-shell', 'mobile-keyboard-open');
+      setMobileInputIsolation(false);
       document.documentElement.style.setProperty('--app-vh', window.innerHeight + 'px');
       return;
     }
     document.body.classList.add('mobile-shell');
+    setMobileInputIsolation(panelOpen);
     var vv = window.visualViewport;
     var height = vv ? vv.height : window.innerHeight;
     var keyboardDelta = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
@@ -9444,6 +9454,37 @@ document.addEventListener("input", e => {
   function closeMobileSheet(){
     var sheet = document.getElementById('mobile-sheet');
     if(sheet) sheet.classList.remove('open');
+  }
+  function setMobileInputIsolation(active){
+    if(!active){
+      mobileSuppressedFields.forEach(function(entry){
+        if(!entry || !entry.el || !entry.el.isConnected) return;
+        if('disabled' in entry.el) entry.el.disabled = entry.disabled;
+        if(entry.tabIndex === null) entry.el.removeAttribute('tabindex');
+        else entry.el.setAttribute('tabindex', entry.tabIndex);
+        if(entry.contentEditable !== null) entry.el.setAttribute('contenteditable', entry.contentEditable);
+        else if(entry.restoreContentEditable) entry.el.removeAttribute('contenteditable');
+      });
+      mobileSuppressedFields = [];
+      return;
+    }
+    if(mobileSuppressedFields.length) return;
+    Array.prototype.forEach.call(document.querySelectorAll('input, textarea, select, [contenteditable=\"\"], [contenteditable=\"true\"]'), function(el){
+      if(!el || panel.contains(el)) return;
+      if(el.matches && el.matches('input[type=\"hidden\"], input[type=\"file\"], input[type=\"button\"], input[type=\"submit\"], input[type=\"reset\"]')) return;
+      var record = {
+        el: el,
+        hadDisabled: ('disabled' in el),
+        disabled: ('disabled' in el) ? !!el.disabled : false,
+        tabIndex: el.hasAttribute('tabindex') ? el.getAttribute('tabindex') : null,
+        contentEditable: el.hasAttribute('contenteditable') ? el.getAttribute('contenteditable') : null,
+        restoreContentEditable: !el.hasAttribute('contenteditable') && el.isContentEditable
+      };
+      if('disabled' in el) el.disabled = true;
+      el.setAttribute('tabindex', '-1');
+      if(el.isContentEditable || el.getAttribute('contenteditable') === '') el.setAttribute('contenteditable', 'false');
+      mobileSuppressedFields.push(record);
+    });
   }
   function openPanel(pushHistory){
     panelOpen = true;
@@ -9593,6 +9634,23 @@ document.addEventListener("input", e => {
   if(mobileModeWorkBtn){
     mobileModeWorkBtn.addEventListener('click', function(){
       applyContextMode('work');
+      closeMobileMenu();
+    });
+  }
+  if(mobileEditPromptBtn){
+    mobileEditPromptBtn.addEventListener('click', function(){
+      var current = (getConfig().system || '').trim();
+      var next = window.prompt('Set Joey system prompt / persona. Leave empty to use default Joey.', current);
+      if(next === null) return;
+      systemPromptInput.value = next;
+      setConfig({ system: String(next || '').trim() });
+      closeMobileMenu();
+    });
+  }
+  if(mobileClearPromptBtn){
+    mobileClearPromptBtn.addEventListener('click', function(){
+      systemPromptInput.value = '';
+      setConfig({});
       closeMobileMenu();
     });
   }
