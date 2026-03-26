@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
   <title>Homer</title>
 
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
@@ -23,7 +23,7 @@
       --accent:#22c55e; --accent-2:#60a5fa; --border:rgba(255,255,255,.12);
       --card-a: rgba(255,255,255,.06); --card-b: rgba(255,255,255,.03);
       --shadow:0 24px 60px rgba(0,0,0,.45); --radius:18px; --countdown-track: rgba(255,255,255,.18);
-      --tb: 88px;
+      --tb: 88px; --app-vh:100vh;
     }
     *{box-sizing:border-box}
     /* Dark-themed selects & options globally */
@@ -31,7 +31,7 @@
     select option{background:#1e293b;color:#e5e7eb;padding:8px 12px;}
     select option:hover,select option:checked{background:#334155;color:#fff;}
     select optgroup{background:#0f172a;color:#94a3b8;font-weight:700;}
-    html, body{min-height:100%;height:auto;margin:0;-webkit-text-size-adjust:100%}
+    html, body{min-height:100%;height:auto;margin:0;-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
     body{
       background:
         radial-gradient(1400px 700px at 50% -200px, #1f2937 0%, var(--bg) 55%),
@@ -1328,6 +1328,18 @@
     }
     #oc-file-preview{display:none;flex-wrap:wrap;gap:6px;padding:0 0 8px;align-items:center;}
     #oc-file-preview.has-files{display:flex;}
+    #oc-upload-status{
+      display:none; align-items:center; gap:8px; padding:0 0 8px;
+      font-size:.74rem; color:#cbd5e1;
+    }
+    #oc-upload-status.visible{display:flex;}
+    .oc-upload-pill{
+      display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px;
+      border:1px solid rgba(148,163,184,.16); background:rgba(15,23,42,.68); color:#e2e8f0;
+    }
+    .oc-upload-pill.success{border-color:rgba(34,197,94,.28); background:rgba(20,83,45,.26); color:#86efac;}
+    .oc-upload-pill.warn{border-color:rgba(245,158,11,.28); background:rgba(120,53,15,.22); color:#fcd34d;}
+    .oc-upload-pill.error{border-color:rgba(239,68,68,.28); background:rgba(127,29,29,.24); color:#fca5a5;}
     .oc-file-tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:8px;font-size:.72rem;font-weight:600;
       background:rgba(234,88,12,.1);border:1px solid rgba(234,88,12,.2);color:#fb923c;}
     .oc-file-tag button{background:none;border:none;color:#fb923c;cursor:pointer;padding:0;font-size:.85rem;line-height:1;opacity:.7;}
@@ -1378,6 +1390,28 @@
     }
     #oc-settings-row input:focus{border-color:rgba(234,88,12,.35);}
     #oc-settings-row label{font-size:.72rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+    #oc-library-panel{
+      display:none; flex-direction:column; gap:8px; margin-top:4px; padding-top:12px;
+      border-top:1px solid rgba(255,255,255,.06);
+    }
+    #oc-library-panel.open{display:flex;}
+    .oc-library-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+    .oc-library-head strong{font-size:.76rem;color:#f8fafc;letter-spacing:.04em;text-transform:uppercase;}
+    .oc-library-meta{font-size:.72rem;color:var(--muted);}
+    .oc-library-list{display:flex;flex-direction:column;gap:8px;max-height:220px;overflow:auto;padding-right:4px;}
+    .oc-library-item{
+      display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:12px;
+      background:rgba(255,255,255,.04);border:1px solid rgba(148,163,184,.12);
+    }
+    .oc-library-item strong{font-size:.82rem;color:#f8fafc;word-break:break-word;}
+    .oc-library-item span{font-size:.72rem;color:var(--muted);line-height:1.45;word-break:break-word;}
+    .oc-library-actions{display:flex;gap:8px;flex-wrap:wrap;}
+    .oc-library-actions a{
+      display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:999px;
+      text-decoration:none;font-size:.7rem;font-weight:700;color:#cbd5e1;background:rgba(15,23,42,.78);
+      border:1px solid rgba(148,163,184,.16);
+    }
+    .oc-library-empty{font-size:.76rem;color:var(--muted);padding:8px 0;}
 
     @media(max-width:430px){
       #oc-panel{right:8px;left:8px;width:auto;bottom:calc(var(--tb) + env(safe-area-inset-bottom,0px) + 8px);max-height:calc(100vh - 90px);}
@@ -1387,8 +1421,9 @@
     /* ===== MOBILE NAV — Notion-style bottom bar ===== */
     #mobile-nav{display:none;}
     #mobile-sheet{display:none;}
+    #mobile-overlay-dock{display:none;}
 
-    @media(max-width:480px){
+    @media (hover:none) and (pointer:coarse) and (max-width:500px), (hover:none) and (pointer:coarse) and (max-height:500px){
       /* Hide desktop UI */
       .tabs{display:none!important;}
       .toolbar{display:none!important;}
@@ -1396,9 +1431,12 @@
       .site-footer{display:none!important;}
 
       /* Body: edge-to-edge, reserve safe areas for notch/Dynamic Island + bottom nav */
-      :root{--tb:60px;--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);--sal:env(safe-area-inset-left,0px);--sar:env(safe-area-inset-right,0px);}
-      body{padding:var(--sat) 0 calc(var(--tb) + var(--sab));}
+      :root{--tb:64px;--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);--sal:env(safe-area-inset-left,0px);--sar:env(safe-area-inset-right,0px);}
+      html,body{min-height:var(--app-vh);height:var(--app-vh);}
+      body{padding:var(--sat) 0 calc(var(--tb) + var(--sab));min-height:var(--app-vh);overflow-x:hidden;overscroll-behavior:none;-webkit-overflow-scrolling:touch;}
+      body.mobile-shell{position:relative;}
       .shell{width:100%;padding:0 max(var(--sal),10px) 0 max(var(--sar),10px);}
+      input,textarea,select{font-size:16px!important;}
 
       /* Compact hero — extend behind Dynamic Island for seamless look */
       .hero{padding:12px 14px 12px;border-radius:0;margin:calc(-1 * var(--sat)) -10px 8px;padding-top:calc(var(--sat) + 12px);border-left:0;border-right:0;border-top:0;}
@@ -1418,7 +1456,9 @@
         background:#0a0f1a;border-top:1px solid rgba(255,255,255,.08);
         padding:6px 0 max(env(safe-area-inset-bottom,6px),6px);
         justify-content:space-around;align-items:center;
+        transition:transform .2s ease,opacity .2s ease;
       }
+      body.mobile-keyboard-open #mobile-nav{transform:translateY(120%);opacity:0;pointer-events:none;}
       .mnav-btn{
         display:flex;flex-direction:column;align-items:center;gap:2px;
         background:none;border:none;color:var(--muted);cursor:pointer;
@@ -1462,19 +1502,419 @@
       .oc-pulse{display:none!important;}
       .card{backdrop-filter:none;}
 
-      /* Joey chat → fullscreen */
+      /* Joey chat → Messenger-style fullscreen */
       #oc-panel{
-        position:fixed!important;inset:0!important;width:100%!important;height:100%!important;
+        position:fixed!important;inset:0!important;
+        width:100%!important;height:100%!important;
         max-height:none!important;border-radius:0!important;border:none!important;
-        z-index:9999!important;animation:none!important;
+        z-index:999!important;animation:none!important;box-shadow:none!important;background:#0d1520!important;
       }
-      #oc-panel-header{padding:max(env(safe-area-inset-top,12px),12px) 14px 10px;background:#0d1520;}
-      #oc-close-btn{font-size:1.5rem!important;padding:6px 14px!important;}
-      #oc-chat-messages{padding:10px 12px 8px;}
-      .oc-msg{max-width:88%;font-size:.86rem;}
-      #oc-chat-footer{padding:10px 12px max(env(safe-area-inset-bottom,8px),8px);background:#0d1520;}
+      body.mobile-shell.mobile-keyboard-open #oc-panel{height:100%!important;}
+      /* Header: back arrow + avatar + name */
+      #oc-panel-header{
+        padding:max(env(safe-area-inset-top,16px),16px) 12px 12px!important;
+        background:#0d1520!important;justify-content:flex-start!important;gap:10px!important;
+      }
+      #oc-close-btn{
+        order:-1!important;font-size:0!important;width:38px!important;height:38px!important;
+        border-radius:50%!important;padding:0!important;flex-shrink:0!important;
+        background:rgba(255,255,255,.07)!important;
+        display:flex!important;align-items:center!important;justify-content:center!important;
+      }
+      #oc-close-btn::before{content:'←';font-size:1.3rem;color:var(--text);}
+      #oc-provider-icon{
+        width:40px!important;height:40px!important;border-radius:50%!important;
+        background:linear-gradient(135deg,#ea580c,#c2410c)!important;
+        display:inline-flex!important;align-items:center!important;justify-content:center!important;
+        font-size:1.1rem!important;flex-shrink:0!important;position:relative!important;
+        box-shadow:0 2px 10px rgba(234,88,12,.3)!important;
+      }
+      #oc-provider-icon::after{
+        content:'';position:absolute;bottom:1px;right:1px;
+        width:10px;height:10px;border-radius:50%;
+        background:#22c55e;border:2px solid #0d1520;
+      }
+      #oc-panel-header h3{flex:1!important;font-size:.92rem!important;gap:6px!important;}
+      #oc-provider-name{font-size:.92rem!important;font-weight:700!important;}
+      #oc-model-badge{
+        font-size:.6rem!important;background:transparent!important;
+        border:none!important;padding:0!important;color:rgba(255,255,255,.4)!important;font-weight:600!important;
+      }
+      #oc-export-btn,#oc-clear-btn{display:none!important;}
+      .oc-header-actions{gap:4px!important;}
+      /* Hide provider toggle */
+      .oc-provider-bar{display:none!important;}
+      /* Messages: pill bubbles */
+      #oc-chat-messages{padding:10px 14px 8px!important;overscroll-behavior:contain!important;gap:5px!important;}
+      .oc-msg{max-width:80%!important;font-size:.88rem!important;padding:9px 14px!important;}
+      .oc-msg.user{border-radius:18px 18px 4px 18px!important;}
+      .oc-msg.bot{border-radius:18px 18px 18px 4px!important;background:#1e2d42!important;border:none!important;}
+      /* Footer */
+      #oc-chat-footer{padding:10px 12px max(env(safe-area-inset-bottom,12px),12px)!important;background:#0d1520!important;}
+      body.mobile-shell.mobile-keyboard-open #oc-chat-footer{padding-bottom:max(env(safe-area-inset-bottom,8px),8px)!important;}
+      /* Messenger input: icons left, pill input, circular send right */
+      #oc-chat-input-row{flex-wrap:nowrap!important;align-items:center!important;gap:8px!important;}
+      .oc-input-actions{order:1!important;flex-direction:row!important;gap:4px!important;padding:0!important;width:auto!important;}
+      .oc-action-btn{width:34px!important;height:34px!important;background:transparent!important;border:none!important;}
+      .oc-action-btn svg{stroke:rgba(255,255,255,.45)!important;}
+      #oc-chat-input{order:2!important;border-radius:22px!important;padding:10px 16px!important;min-height:44px!important;background:rgba(255,255,255,.07)!important;border-color:rgba(255,255,255,.1)!important;}
+      #oc-send-btn{order:3!important;width:44px!important;height:44px!important;}
+
+      /* Joey mobile overrides: WhatsApp-like dark interface */
+      #oc-close-btn{background:transparent!important;}
+      #oc-close-btn::before{content:'\2190';font-size:1.3rem;color:#e9edef!important;}
+      #oc-panel{
+        background:
+          radial-gradient(circle at top, rgba(37,211,102,.09), rgba(11,20,26,0) 28%),
+          linear-gradient(180deg,#0b141a 0%,#0b141a 100%)!important;
+      }
+      #oc-panel-header{
+        padding:max(env(safe-area-inset-top,16px),16px) 12px 10px!important;
+        background:#202c33!important;
+        border-bottom:1px solid rgba(255,255,255,.05)!important;
+      }
+      #oc-provider-icon{
+        background:linear-gradient(135deg,#25d366,#128c7e)!important;
+        font-size:1.05rem!important;
+        box-shadow:none!important;
+      }
+      #oc-provider-icon::after{display:none!important;}
+      #oc-panel-header h3{gap:4px!important;color:#e9edef!important;}
+      #oc-provider-name{font-size:.95rem!important;}
+      #oc-model-badge{
+        font-size:.66rem!important;
+        color:rgba(233,237,239,.68)!important;
+        font-weight:500!important;
+      }
+      #oc-chat-messages{
+        padding:12px 10px 8px!important;
+        gap:8px!important;
+        background:
+          linear-gradient(rgba(11,20,26,.88), rgba(11,20,26,.88)),
+          radial-gradient(circle at 20% 20%, rgba(255,255,255,.025), transparent 24%),
+          radial-gradient(circle at 80% 10%, rgba(255,255,255,.02), transparent 20%);
+      }
+      .oc-copy-msg,
+      .oc-joey-avatar,
+      .oc-msg.bot .oc-model-tag{display:none!important;}
+      .oc-msg{
+        max-width:82%!important;
+        font-size:.9rem!important;
+        line-height:1.45!important;
+        padding:10px 12px!important;
+        border-radius:8px!important;
+        box-shadow:0 1px 1px rgba(0,0,0,.18)!important;
+      }
+      .oc-msg.user{
+        margin-left:auto!important;
+        border-top-right-radius:2px!important;
+        background:#005c4b!important;
+        color:#e9edef!important;
+      }
+      .oc-msg.bot{
+        border-top-left-radius:2px!important;
+        background:#202c33!important;
+        border:1px solid rgba(255,255,255,.04)!important;
+      }
+      #oc-chat-footer{
+        padding:8px 10px max(env(safe-area-inset-bottom,10px),10px)!important;
+        background:#111b21!important;
+        border-top:1px solid rgba(255,255,255,.04)!important;
+      }
+      #oc-chat-input-row{align-items:flex-end!important;}
+      .oc-input-actions{padding:0 0 5px!important;}
+      .oc-action-btn{background:transparent!important;border:none!important;}
+      .oc-action-btn svg{stroke:#8696a0!important;}
+      #oc-chat-input{
+        border-radius:24px!important;
+        padding:11px 15px!important;
+        background:#202c33!important;
+        border-color:transparent!important;
+        color:#e9edef!important;
+      }
+      #oc-chat-input::placeholder{color:#8696a0!important;}
+      #oc-send-btn{
+        width:42px!important;
+        height:42px!important;
+        background:linear-gradient(135deg,#25d366,#128c7e)!important;
+        box-shadow:none!important;
+      }
+
+      /* Joey mobile app-screen behavior */
+      body.mobile-shell.oc-panel-open{
+        padding:0!important;
+        background:#0b141a!important;
+      }
+      body.mobile-shell.oc-panel-open::before{display:none!important;}
+      body.mobile-shell.oc-panel-open .shell,
+      body.mobile-shell.oc-panel-open .fab-cluster,
+      body.mobile-shell.oc-panel-open #mobile-nav,
+      body.mobile-shell.oc-panel-open #mobile-overlay-dock,
+      body.mobile-shell.oc-panel-open #mobile-sheet{display:none!important;}
+      body.mobile-shell #oc-panel.open{
+        display:flex!important;
+        flex-direction:column!important;
+      }
+      body.mobile-shell #oc-panel-header{
+        position:sticky!important;
+        top:0!important;
+        z-index:5!important;
+      }
+      body.mobile-shell #oc-panel-header h3{
+        display:grid!important;
+        grid-template-columns:40px minmax(0,1fr)!important;
+        grid-template-rows:auto auto!important;
+        column-gap:10px!important;
+        row-gap:1px!important;
+        align-items:center!important;
+      }
+      body.mobile-shell #oc-provider-icon{
+        grid-column:1!important;
+        grid-row:1 / span 2!important;
+      }
+      body.mobile-shell #oc-provider-name{
+        grid-column:2!important;
+        grid-row:1!important;
+        align-self:end!important;
+      }
+      body.mobile-shell #oc-model-badge{
+        grid-column:2!important;
+        grid-row:2!important;
+        align-self:start!important;
+      }
+      body.mobile-shell #oc-settings-row{display:none!important;}
+      body.mobile-shell #oc-chat-messages{
+        flex:1 1 auto!important;
+        min-height:0!important;
+        padding-top:14px!important;
+        padding-bottom:14px!important;
+      }
+      body.mobile-shell .oc-welcome{
+        margin:auto!important;
+        max-width:260px!important;
+        padding:16px 14px!important;
+        border-radius:12px!important;
+        background:rgba(32,44,51,.9)!important;
+        color:#8696a0!important;
+        font-size:.82rem!important;
+        line-height:1.5!important;
+        box-shadow:0 1px 1px rgba(0,0,0,.18)!important;
+      }
+      body.mobile-shell .oc-welcome-icon{display:none!important;}
+      body.mobile-shell #oc-chat-footer{
+        position:sticky!important;
+        bottom:0!important;
+        z-index:5!important;
+      }
+      body.mobile-shell #oc-scroll-latest{
+        right:14px!important;
+        bottom:78px!important;
+        background:#202c33!important;
+        border-color:rgba(255,255,255,.08)!important;
+      }
     }
 
+    /* Joey mobile shell: class-driven so phones stay in chat mode even in landscape */
+    body.mobile-shell #oc-panel{
+      position:fixed!important;
+      inset:0!important;
+      width:100%!important;
+      height:100%!important;
+      min-width:0!important;
+      min-height:0!important;
+      max-height:none!important;
+      border:none!important;
+      border-radius:0!important;
+      right:0!important;
+      bottom:0!important;
+      box-shadow:none!important;
+      animation:none!important;
+      z-index:999!important;
+      background:
+        radial-gradient(circle at top, rgba(37,211,102,.09), rgba(11,20,26,0) 28%),
+        linear-gradient(180deg,#0b141a 0%,#0b141a 100%)!important;
+    }
+    body.mobile-shell #oc-panel.open{display:flex!important;flex-direction:column!important;}
+    body.mobile-shell #oc-panel-header{
+      position:sticky!important;
+      top:0!important;
+      z-index:5!important;
+      padding:max(env(safe-area-inset-top,16px),16px) max(env(safe-area-inset-right,12px),12px) 10px max(env(safe-area-inset-left,12px),12px)!important;
+      background:#202c33!important;
+      border-bottom:1px solid rgba(255,255,255,.05)!important;
+      justify-content:flex-start!important;
+      gap:10px!important;
+      cursor:default!important;
+    }
+    body.mobile-shell #oc-expand-btn,
+    body.mobile-shell #oc-fullscreen-btn,
+    body.mobile-shell #oc-export-btn,
+    body.mobile-shell #oc-clear-btn,
+    body.mobile-shell #oc-settings-btn,
+    body.mobile-shell .oc-provider-bar,
+    body.mobile-shell #oc-settings-row,
+    body.mobile-shell .oc-copy-msg,
+    body.mobile-shell .oc-joey-avatar,
+    body.mobile-shell .oc-msg.bot .oc-model-tag{display:none!important;}
+    body.mobile-shell #oc-close-btn{
+      order:-1!important;
+      width:38px!important;
+      height:38px!important;
+      padding:0!important;
+      border-radius:50%!important;
+      background:transparent!important;
+      font-size:0!important;
+      flex-shrink:0!important;
+      display:flex!important;
+      align-items:center!important;
+      justify-content:center!important;
+    }
+    body.mobile-shell #oc-close-btn::before{content:'\2190';font-size:1.3rem;color:#e9edef!important;}
+    body.mobile-shell #oc-panel-header h3{
+      flex:1!important;
+      display:grid!important;
+      grid-template-columns:40px minmax(0,1fr)!important;
+      grid-template-rows:auto auto!important;
+      column-gap:10px!important;
+      row-gap:1px!important;
+      align-items:center!important;
+      margin:0!important;
+    }
+    body.mobile-shell #oc-provider-icon{
+      grid-column:1!important;
+      grid-row:1 / span 2!important;
+      width:40px!important;
+      height:40px!important;
+      border-radius:50%!important;
+      background:linear-gradient(135deg,#25d366,#128c7e)!important;
+      display:inline-flex!important;
+      align-items:center!important;
+      justify-content:center!important;
+      box-shadow:none!important;
+      font-size:1.05rem!important;
+    }
+    body.mobile-shell #oc-provider-icon::after{display:none!important;}
+    body.mobile-shell #oc-provider-name{
+      grid-column:2!important;
+      grid-row:1!important;
+      align-self:end!important;
+      font-size:.95rem!important;
+      font-weight:700!important;
+      color:#e9edef!important;
+    }
+    body.mobile-shell #oc-model-badge{
+      grid-column:2!important;
+      grid-row:2!important;
+      align-self:start!important;
+      background:transparent!important;
+      border:none!important;
+      padding:0!important;
+      font-size:.66rem!important;
+      font-weight:500!important;
+      color:rgba(233,237,239,.68)!important;
+    }
+    body.mobile-shell #oc-chat-messages{
+      flex:1 1 auto!important;
+      min-height:0!important;
+      padding:14px max(env(safe-area-inset-right,10px),10px) 14px max(env(safe-area-inset-left,10px),10px)!important;
+      gap:8px!important;
+      overscroll-behavior:contain!important;
+      background:
+        linear-gradient(rgba(11,20,26,.88), rgba(11,20,26,.88)),
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,.025), transparent 24%),
+        radial-gradient(circle at 80% 10%, rgba(255,255,255,.02), transparent 20%);
+    }
+    body.mobile-shell .oc-msg{
+      max-width:82%!important;
+      font-size:.9rem!important;
+      line-height:1.45!important;
+      padding:10px 12px!important;
+      border-radius:8px!important;
+      box-shadow:0 1px 1px rgba(0,0,0,.18)!important;
+    }
+    body.mobile-shell .oc-msg.user{
+      margin-left:auto!important;
+      border-top-right-radius:2px!important;
+      background:#005c4b!important;
+      color:#e9edef!important;
+    }
+    body.mobile-shell .oc-msg.bot{
+      border-top-left-radius:2px!important;
+      background:#202c33!important;
+      border:1px solid rgba(255,255,255,.04)!important;
+    }
+    body.mobile-shell .oc-welcome{
+      margin:auto!important;
+      max-width:260px!important;
+      padding:16px 14px!important;
+      border-radius:12px!important;
+      background:rgba(32,44,51,.9)!important;
+      color:#8696a0!important;
+      font-size:.82rem!important;
+      line-height:1.5!important;
+      box-shadow:0 1px 1px rgba(0,0,0,.18)!important;
+    }
+    body.mobile-shell .oc-welcome-icon{display:none!important;}
+    body.mobile-shell #oc-chat-footer{
+      position:sticky!important;
+      bottom:0!important;
+      z-index:5!important;
+      padding:8px max(env(safe-area-inset-right,10px),10px) max(env(safe-area-inset-bottom,10px),10px) max(env(safe-area-inset-left,10px),10px)!important;
+      background:#111b21!important;
+      border-top:1px solid rgba(255,255,255,.04)!important;
+    }
+    body.mobile-shell #oc-chat-input-row{
+      flex-wrap:nowrap!important;
+      align-items:flex-end!important;
+      gap:8px!important;
+    }
+    body.mobile-shell .oc-input-actions{
+      order:1!important;
+      flex-direction:row!important;
+      gap:4px!important;
+      padding:0 0 5px!important;
+      width:auto!important;
+    }
+    body.mobile-shell .oc-action-btn{
+      width:34px!important;
+      height:34px!important;
+      background:transparent!important;
+      border:none!important;
+    }
+    body.mobile-shell .oc-action-btn svg{stroke:#8696a0!important;}
+    body.mobile-shell #oc-chat-input{
+      order:2!important;
+      min-height:44px!important;
+      border-radius:24px!important;
+      padding:11px 15px!important;
+      background:#202c33!important;
+      border-color:transparent!important;
+      color:#e9edef!important;
+    }
+    body.mobile-shell #oc-chat-input::placeholder{color:#8696a0!important;}
+    body.mobile-shell #oc-send-btn{
+      order:3!important;
+      width:42px!important;
+      height:42px!important;
+      background:linear-gradient(135deg,#25d366,#128c7e)!important;
+      box-shadow:none!important;
+    }
+    body.mobile-shell.oc-panel-open{
+      padding:0!important;
+      background:#0b141a!important;
+    }
+    body.mobile-shell.oc-panel-open::before{display:none!important;}
+    body.mobile-shell.oc-panel-open .shell,
+    body.mobile-shell.oc-panel-open .fab-cluster,
+    body.mobile-shell.oc-panel-open #mobile-nav,
+    body.mobile-shell.oc-panel-open #mobile-overlay-dock,
+    body.mobile-shell.oc-panel-open #mobile-sheet{display:none!important;}
+    body.mobile-shell #oc-scroll-latest{
+      right:14px!important;
+      bottom:78px!important;
+      background:#202c33!important;
+      border-color:rgba(255,255,255,.08)!important;
+    }
   </style>
 </head>
 <body>
@@ -2265,6 +2705,8 @@
       if(name === 'investing') {
         setTimeout(initInvestingTab, 50);
       }
+      document.body.dataset.activeTab = name;
+      window.dispatchEvent(new CustomEvent('homer-tab-change', { detail:{ tab:name } }));
     }
     tabBtns.forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
@@ -7400,7 +7842,7 @@ document.addEventListener("input", e => {
 <!-- OpenClaw Chat Panel -->
 <div id="oc-panel">
   <div id="oc-panel-header">
-    <h3><span id="oc-provider-icon">🍕</span> <span id="oc-provider-name">Joey</span> <span class="oc-model-badge" id="oc-model-badge">Groq</span></h3>
+    <h3><span id="oc-provider-icon">🍕</span> <span id="oc-provider-name">Joey</span> <span class="oc-model-badge" id="oc-model-badge">Kilo</span></h3>
     <div class="oc-header-actions">
       <button id="oc-export-btn" title="Export chat">&#8615;</button>
       <button id="oc-settings-btn" title="Settings">&#9881;</button>
@@ -7409,7 +7851,7 @@ document.addEventListener("input", e => {
     </div>
   </div>
   <div class="oc-provider-bar">
-    <label id="oc-label-joey" class="active joey-active">Joey Groq</label>
+    <label id="oc-label-joey" class="active joey-active">Joey Kilo</label>
     <div id="oc-toggle-track" class="oc-toggle-track" title="Switch AI provider">
       <div class="oc-toggle-thumb"></div>
     </div>
@@ -7418,11 +7860,22 @@ document.addEventListener("input", e => {
   <div id="oc-settings-row">
     <label>System Prompt</label>
     <input id="oc-system-prompt" type="text" placeholder="Default: Joey Tribbiani persona. Override here." spellcheck="false">
-    <div style="display:flex;gap:8px;align-self:flex-end;">
-      <button id="oc-settings-save" style="padding:7px 16px;border-radius:8px;border:none;background:linear-gradient(135deg,#ea580c,#c2410c);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;">Save</button>
-      <button id="oc-gdrive-restore" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Restore agent context from Google Drive">&#x21bb; Restore</button>
-      <button id="oc-gdrive-sync" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Force read context from Google Drive">&#x27f3; Load Context</button>
-      <button id="oc-gdrive-backup" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Backup agent context to Google Drive">&#x2601; Backup</button>
+    <div style="display:flex;gap:8px;align-self:flex-end;flex-wrap:wrap;">
+      <button type="button" id="oc-settings-save" style="padding:7px 16px;border-radius:8px;border:none;background:linear-gradient(135deg,#ea580c,#c2410c);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;">Save</button>
+      <button type="button" id="oc-library-btn" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#334155,#1e293b);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Browse remembered uploaded files">&#x1f4ce; Uploads</button>
+      <button type="button" id="oc-rebuild-files" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#0f766e,#0d9488);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Rebuild canonical context files from current data">&#x21bb; Rebuild Files</button>
+      <button type="button" id="oc-view-files" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Inspect the shared canonical context files">&#x1f4c2; View Files</button>
+      <button type="button" id="oc-export-files" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#4338ca,#4f46e5);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Export the canonical context files bundle">&#x2b07; Export Files</button>
+      <button type="button" id="oc-gdrive-restore" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Restore agent context from Google Drive">&#x21bb; Restore</button>
+      <button type="button" id="oc-gdrive-sync" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Force read context from Google Drive">&#x27f3; Load Context</button>
+      <button type="button" id="oc-gdrive-backup" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Backup agent context to Google Drive">&#x2601; Backup</button>
+    </div>
+    <div id="oc-library-panel">
+      <div class="oc-library-head">
+        <strong>Remembered Uploads</strong>
+        <span id="oc-library-meta" class="oc-library-meta"></span>
+      </div>
+      <div id="oc-library-list" class="oc-library-list"></div>
     </div>
   </div>
   <div id="oc-chat-messages">
@@ -7434,6 +7887,7 @@ document.addEventListener("input", e => {
   </div>
   <div id="oc-chat-footer" style="position:relative;">
     <div id="oc-file-preview"></div>
+    <div id="oc-upload-status"></div>
     <div id="oc-chat-input-row">
       <div class="oc-input-actions">
         <button id="oc-attach-btn" class="oc-action-btn" title="Attach file">
@@ -8685,6 +9139,8 @@ document.addEventListener("input", e => {
 <!-- PDF text extraction for Joey file uploads -->
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/build/pdf.min.mjs" type="module" defer></script>
 <script>window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='undefined')pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/build/pdf.worker.min.mjs';});</script>
+<!-- DOCX text extraction for Joey file uploads -->
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js" defer></script>
 <!-- OpenClaw Chat -->
 <script>
 (function(){
@@ -8706,12 +9162,18 @@ document.addEventListener("input", e => {
   var attachBtn = document.getElementById('oc-attach-btn');
   var fileInput = document.getElementById('oc-file-input');
   var filePreview = document.getElementById('oc-file-preview');
+  var uploadStatusEl = document.getElementById('oc-upload-status');
   var emojiBtn = document.getElementById('oc-emoji-btn');
   var emojiPicker = document.getElementById('oc-emoji-picker');
+  var libraryBtn = document.getElementById('oc-library-btn');
+  var libraryPanel = document.getElementById('oc-library-panel');
+  var libraryList = document.getElementById('oc-library-list');
+  var libraryMeta = document.getElementById('oc-library-meta');
   var chatHistory = [];
   var streaming = false;
   var panelOpen = false;
   var pendingFiles = [];
+  var uploadStatusTimer = 0;
 
   // --- Provider toggle ---
   var currentProvider = localStorage.getItem('homer-oc-provider') || 'joey';
@@ -8721,6 +9183,8 @@ document.addEventListener("input", e => {
   var providerIcon = document.getElementById('oc-provider-icon');
   var providerName = document.getElementById('oc-provider-name');
   var modelBadge = document.getElementById('oc-model-badge');
+  var panelHistoryStateActive = false;
+  var suppressPanelPop = false;
 
   function applyProvider(p){
     currentProvider = p;
@@ -8731,7 +9195,7 @@ document.addEventListener("input", e => {
     labelNemoclaw.className = isNemo ? 'active nemo-active' : '';
     providerIcon.textContent = isNemo ? '🟢' : '🍕';
     providerName.textContent = isNemo ? 'NemoClaw' : 'Joey';
-    modelBadge.textContent = isNemo ? 'Nemotron 3 Super' : 'Groq';
+    modelBadge.textContent = isNemo ? 'MiniMax M2.7' : 'Kilo';
     inputEl.placeholder = isNemo ? 'Message NemoClaw...' : 'Message Joey...';
   }
   applyProvider(currentProvider);
@@ -8746,6 +9210,163 @@ document.addEventListener("input", e => {
     try{ return JSON.parse(localStorage.getItem(OC_CONFIG_KEY)) || {}; }catch(e){ return {}; }
   }
   function setConfig(c){ localStorage.setItem(OC_CONFIG_KEY, JSON.stringify(c)); }
+  function isMobileShell(){
+    var coarse = window.matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window);
+    var shortSide = Math.min(window.innerWidth, window.innerHeight);
+    var longSide = Math.max(window.innerWidth, window.innerHeight);
+    var ua = navigator.userAgent || '';
+    var phoneUa = /iPhone|Android.+Mobile|Mobile\/|CriOS|FxiOS/.test(ua);
+    return coarse && ((shortSide <= 600 && longSide <= 980) || phoneUa);
+  }
+  function formatUploadSize(size){
+    var value = Number(size) || 0;
+    if(!value) return '';
+    if(value >= 1024 * 1024) return (value / (1024 * 1024)).toFixed(1).replace(/\.0$/,'') + ' MB';
+    if(value >= 1024) return Math.round(value / 1024) + ' KB';
+    return value + ' B';
+  }
+  function formatUploadTime(value){
+    if(!value) return '';
+    var dt = new Date(value);
+    if(Number.isNaN(dt.getTime())) return String(value);
+    return dt.toLocaleString();
+  }
+  function setUploadStatus(message, tone, sticky){
+    if(!uploadStatusEl) return;
+    if(uploadStatusTimer){
+      clearTimeout(uploadStatusTimer);
+      uploadStatusTimer = 0;
+    }
+    if(!message){
+      uploadStatusEl.innerHTML = '';
+      uploadStatusEl.classList.remove('visible');
+      return;
+    }
+    uploadStatusEl.innerHTML = '<span class="oc-upload-pill ' + escHtml(tone || '') + '">' + escHtml(message) + '</span>';
+    uploadStatusEl.classList.add('visible');
+    if(!sticky){
+      uploadStatusTimer = window.setTimeout(function(){
+        uploadStatusEl.innerHTML = '';
+        uploadStatusEl.classList.remove('visible');
+        uploadStatusTimer = 0;
+      }, 4200);
+    }
+  }
+  function renderFileLibrary(items){
+    if(!libraryList || !libraryMeta) return;
+    var files = Array.isArray(items) ? items.slice() : [];
+    files.sort(function(a, b){
+      return String((b && b.uploadedAt) || '').localeCompare(String((a && a.uploadedAt) || ''));
+    });
+    libraryMeta.textContent = files.length ? (files.length + ' remembered file' + (files.length === 1 ? '' : 's')) : 'No remembered files yet';
+    if(!files.length){
+      libraryList.innerHTML = '<div class="oc-library-empty">Upload a file in chat and it will show up here with its Drive link.</div>';
+      return;
+    }
+    libraryList.innerHTML = files.map(function(file){
+      var name = file.name || file.fileName || 'Untitled upload';
+      var parts = [];
+      var stamp = formatUploadTime(file.uploadedAt);
+      var size = formatUploadSize(file.size);
+      if(stamp) parts.push(stamp);
+      if(size) parts.push(size);
+      if(file.mimeType) parts.push(file.mimeType);
+      var excerpt = file.excerpt || file.summary || '';
+      var links = '';
+      if(file.folderUrl) links += '<a href="' + escAttr(file.folderUrl) + '" target="_blank" rel="noopener noreferrer">Folder</a>';
+      if(file.driveUrl) links += '<a href="' + escAttr(file.driveUrl) + '" target="_blank" rel="noopener noreferrer">Drive link</a>';
+      if(file.downloadUrl) links += '<a href="' + escAttr(file.downloadUrl) + '" target="_blank" rel="noopener noreferrer">Download</a>';
+      return '<div class="oc-library-item">' +
+        '<strong>' + escHtml(name) + '</strong>' +
+        '<span>' + escHtml(parts.join(' • ') || 'Remembered upload') + '</span>' +
+        (excerpt ? '<span>' + escHtml(excerpt) + '</span>' : '') +
+        (links ? '<div class="oc-library-actions">' + links + '</div>' : '') +
+      '</div>';
+    }).join('');
+  }
+  function fetchFileLibrary(opts){
+    opts = opts || {};
+    if(!libraryList || !libraryMeta) return Promise.resolve([]);
+    if(!opts.silent){
+      libraryMeta.textContent = 'Loading...';
+      libraryList.innerHTML = '<div class="oc-library-empty">Loading remembered uploads...</div>';
+    }
+    return fetch('/api/joey?action=file-library', { cache:'no-store' })
+      .then(function(res){ return res.json().then(function(data){ return { ok:res.ok, data:data }; }); })
+      .then(function(result){
+        if(!result.ok || !result.data || !result.data.ok) throw new Error((result.data && (result.data.detail || result.data.error)) || 'Could not load uploads');
+        var files = Array.isArray(result.data.files) ? result.data.files : [];
+        renderFileLibrary(files);
+        return files;
+      })
+      .catch(function(err){
+        if(!opts.silent){
+          libraryMeta.textContent = 'Unavailable';
+          libraryList.innerHTML = '<div class="oc-library-empty">' + escHtml(err.message || 'Could not load uploads') + '</div>';
+        }
+        return [];
+      });
+  }
+  function toggleLibraryPanel(forceOpen){
+    if(!libraryPanel) return;
+    var shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !libraryPanel.classList.contains('open');
+    libraryPanel.classList.toggle('open', shouldOpen);
+    if(shouldOpen) fetchFileLibrary();
+  }
+  function updateMobileViewport(){
+    if(!isMobileShell()){
+      document.body.classList.remove('mobile-shell', 'mobile-keyboard-open');
+      document.documentElement.style.setProperty('--app-vh', window.innerHeight + 'px');
+      return;
+    }
+    document.body.classList.add('mobile-shell');
+    var vv = window.visualViewport;
+    var height = vv ? vv.height : window.innerHeight;
+    var keyboardDelta = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
+    document.documentElement.style.setProperty('--app-vh', height + 'px');
+    document.body.classList.toggle('mobile-keyboard-open', keyboardDelta > 120);
+    if(panelOpen) messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+  function syncPanelState(){
+    document.body.classList.toggle('oc-panel-open', panelOpen);
+    window.dispatchEvent(new CustomEvent('homer-joey-panel', { detail:{ open: panelOpen } }));
+  }
+  function closeMobileSheet(){
+    var sheet = document.getElementById('mobile-sheet');
+    if(sheet) sheet.classList.remove('open');
+  }
+  function openPanel(pushHistory){
+    panelOpen = true;
+    panel.classList.add('open');
+    syncPanelState();
+    closeMobileSheet();
+    if(libraryPanel && libraryPanel.classList.contains('open')) fetchFileLibrary({ silent:true });
+    loadChatFromVault();
+    if(isMobileShell() && pushHistory !== false && !panelHistoryStateActive){
+      history.pushState({ ocPanel:true }, '');
+      panelHistoryStateActive = true;
+    }
+    setTimeout(function(){
+      try{ inputEl.focus({ preventScroll:true }); }catch(e){ inputEl.focus(); }
+      updateMobileViewport();
+    }, 100);
+  }
+  function closePanel(opts){
+    opts = opts || {};
+    panelOpen = false;
+    panel.classList.remove('open');
+    if(opts.blur !== false && document.activeElement === inputEl) inputEl.blur();
+    if(panelHistoryStateActive && opts.syncHistory !== false){
+      suppressPanelPop = true;
+      history.back();
+    }
+    if(opts.syncHistory === false) panelHistoryStateActive = false;
+    syncPanelState();
+    updateMobileViewport();
+  }
+  window._homerToggleJoeyPanel = function(){ if(panelOpen) closePanel(); else openPanel(); };
+  window._homerCloseJoeyPanel = function(){ if(panelOpen) closePanel(); };
+  window._homerIsJoeyOpen = function(){ return panelOpen; };
 
   // --- FAB visibility ---
   function updateFabVisibility(){
@@ -8760,7 +9381,7 @@ document.addEventListener("input", e => {
     fabBtn.classList.toggle('visible', show);
     var mnavJoey = document.getElementById('mnav-joey');
     if(mnavJoey) mnavJoey.classList.toggle('visible', show);
-    if(!show && panelOpen){ panelOpen = false; panel.classList.remove('open'); }
+    if(!show && panelOpen) closePanel({ syncHistory:false, blur:true });
   }
   window.addEventListener('homer-auth', updateFabVisibility);
   window.addEventListener('storage', function(e){ if(e.key === 'homer-auth-user') updateFabVisibility(); });
@@ -8770,40 +9391,104 @@ document.addEventListener("input", e => {
   } else {
     updateFabVisibility();
   }
+  updateMobileViewport();
+  window.addEventListener('resize', updateMobileViewport);
+  window.addEventListener('orientationchange', function(){ setTimeout(updateMobileViewport, 80); });
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize', updateMobileViewport);
+    window.visualViewport.addEventListener('scroll', updateMobileViewport);
+  }
+  document.addEventListener('focusin', function(e){
+    if(!isMobileShell()) return;
+    var t = e.target;
+    if(t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) setTimeout(updateMobileViewport, 80);
+  });
+  document.addEventListener('focusout', function(){
+    if(!isMobileShell()) return;
+    setTimeout(updateMobileViewport, 120);
+  });
+  window.addEventListener('popstate', function(){
+    if(suppressPanelPop){
+      suppressPanelPop = false;
+      panelHistoryStateActive = false;
+      return;
+    }
+    if(panelOpen) closePanel({ syncHistory:false, blur:true });
+  });
 
   // --- Panel toggle ---
   fabBtn.addEventListener('click', function(){
-    panelOpen = !panelOpen;
-    panel.classList.toggle('open', panelOpen);
-    if(panelOpen){
-      loadChatFromVault();
-      setTimeout(function(){ inputEl.focus(); }, 100);
-    }
+    if(panelOpen) closePanel();
+    else openPanel();
   });
   closeBtn.addEventListener('click', function(){
-    panelOpen = false; panel.classList.remove('open');
+    closePanel();
   });
+  (function(){
+    var startY = 0;
+    var tracking = false;
+    var header = document.getElementById('oc-panel-header');
+    if(!header) return;
+    header.addEventListener('touchstart', function(e){
+      if(!isMobileShell()) return;
+      startY = e.touches[0].clientY;
+      tracking = true;
+    }, { passive:true });
+    header.addEventListener('touchmove', function(e){
+      if(!tracking || !isMobileShell()) return;
+      if(e.touches[0].clientY - startY > 72){
+        tracking = false;
+        closePanel();
+      }
+    }, { passive:true });
+    header.addEventListener('touchend', function(){ tracking = false; }, { passive:true });
+  })();
 
   // --- Settings ---
   var cfg = getConfig();
   systemPromptInput.value = cfg.system || '';
   settingsBtn.addEventListener('click', function(){ settingsRow.classList.toggle('open'); });
+  if(libraryBtn){
+    libraryBtn.addEventListener('click', function(){
+      toggleLibraryPanel();
+    });
+  }
   settingsSave.addEventListener('click', function(){
     setConfig({ system: systemPromptInput.value.trim() });
     settingsRow.classList.remove('open');
   });
 
   // --- Google Drive context backup ---
+  function collectTaskSnapshot(){
+    if(typeof window._homerLoadVault !== 'function' || !window._homerVaultUnlocked) return Promise.resolve([]);
+    return window._homerLoadVault().then(function(data){
+      return ((data && data.goals) || []).map(function(g){
+        return {
+          summary: g.summary || '',
+          notes: g.notes || g.desc || '',
+          due: g.due || '',
+          priority: g.priority || '',
+          col: g.col || 'todo',
+          subtasks: (g.subtasks || []).map(function(s){
+            if(typeof s === 'string') return { text: s };
+            return { text: s.text || '', notes: s.notes || '', due: s.due || '', done: !!s.done };
+          })
+        };
+      });
+    }).catch(function(){ return []; });
+  }
   document.getElementById('oc-gdrive-backup').addEventListener('click', function(){
     var btn = this;
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass){ alert('Log in first (unlock vault) to backup.'); return; }
     btn.disabled = true;
     btn.textContent = '⏳ Backing up...';
-    fetch('/api/gdrive-backup', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ passphrase: pass })
+    collectTaskSnapshot().then(function(tasks){
+      return fetch('/api/gdrive-backup', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ passphrase: pass, tasks: tasks })
+      });
     }).then(function(r){ return r.json(); }).then(function(d){
       if(d.ok){
         btn.textContent = '✅ Backed up!';
@@ -8887,6 +9572,112 @@ document.addEventListener("input", e => {
     }).catch(function(){});
   }
 
+  function refreshCanonicalFiles(){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return Promise.resolve();
+    return collectTaskSnapshot().then(function(tasks){
+      return fetch('/api/joey?action=files', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ passphrase:pass, tasks:tasks })
+      }).then(function(r){ return r.json(); }).catch(function(){});
+    });
+  }
+
+  function fetchContextFiles(){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return Promise.reject(new Error('Log in first (unlock vault) to access context files.'));
+    return fetch('/api/joey?action=files&passphrase=' + encodeURIComponent(pass))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data && data.files) return data.files;
+        throw new Error((data && data.error) || 'No files returned');
+      });
+  }
+
+  function showContextFilesModal(files){
+    var existing = document.getElementById('oc-context-files-modal');
+    if(existing) existing.remove();
+    var names = Object.keys(files || {}).sort();
+    var modal = document.createElement('div');
+    modal.id = 'oc-context-files-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,.78);z-index:10030;display:flex;align-items:center;justify-content:center;padding:18px;';
+    var panel = document.createElement('div');
+    panel.style.cssText = 'width:min(1100px,96vw);height:min(86vh,900px);background:#07111f;border:1px solid rgba(148,163,184,.28);border-radius:18px;box-shadow:0 25px 70px rgba(0,0,0,.45);display:grid;grid-template-columns:260px 1fr;overflow:hidden;';
+    var sidebar = document.createElement('div');
+    sidebar.style.cssText = 'border-right:1px solid rgba(148,163,184,.18);padding:16px;overflow:auto;background:linear-gradient(180deg,rgba(15,23,42,.96),rgba(2,6,23,.96));';
+    var content = document.createElement('div');
+    content.style.cssText = 'padding:18px;overflow:auto;color:#e5eefb;';
+    var title = document.createElement('div');
+    title.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;color:#f8fafc;font-weight:800;';
+    title.innerHTML = '<span>Canonical Context Files</span><button type="button" style="padding:6px 10px;border-radius:10px;border:none;background:#1e293b;color:#fff;cursor:pointer;">Close</button>';
+    title.querySelector('button').addEventListener('click', function(){ modal.remove(); });
+    sidebar.appendChild(title);
+    names.forEach(function(name, idx){
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = name;
+      btn.style.cssText = 'display:block;width:100%;text-align:left;margin:0 0 8px;padding:10px 12px;border-radius:12px;border:1px solid rgba(148,163,184,.16);background:rgba(15,23,42,.78);color:#dbeafe;cursor:pointer;font-weight:700;';
+      btn.addEventListener('click', function(){
+        content.innerHTML = '<div style="font-size:1rem;font-weight:800;margin-bottom:10px;color:#f8fafc;">' + escHtml(name) + '</div><pre style="white-space:pre-wrap;word-break:break-word;background:rgba(15,23,42,.72);border-radius:14px;padding:16px;border:1px solid rgba(148,163,184,.18);line-height:1.5;font-size:.87rem;">' + escHtml(files[name] || '') + '</pre>';
+        Array.from(sidebar.querySelectorAll('button')).forEach(function(el){ if(el !== title.querySelector('button')) el.style.background = 'rgba(15,23,42,.78)'; });
+        btn.style.background = 'rgba(37,99,235,.35)';
+      });
+      sidebar.appendChild(btn);
+      if(idx === 0) setTimeout(function(){ btn.click(); }, 0);
+    });
+    panel.appendChild(sidebar);
+    panel.appendChild(content);
+    modal.appendChild(panel);
+    modal.addEventListener('click', function(e){ if(e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+  }
+
+  document.getElementById('oc-rebuild-files').addEventListener('click', function(){
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = '⏳ Rebuilding...';
+    refreshCanonicalFiles().then(function(data){
+      if(data && data.ok){
+        btn.textContent = '✅ Rebuilt!';
+      } else {
+        btn.textContent = '❌ Failed';
+        alert('Rebuild failed: ' + JSON.stringify(data || {}).slice(0, 400));
+      }
+    }).catch(function(err){
+      btn.textContent = '❌ Failed';
+      alert('Rebuild failed: ' + err.message);
+    }).finally(function(){
+      setTimeout(function(){ btn.innerHTML = '&#x21bb; Rebuild Files'; btn.disabled = false; }, 2200);
+    });
+  });
+
+  document.getElementById('oc-view-files').addEventListener('click', function(){
+    fetchContextFiles().then(showContextFilesModal).catch(function(err){
+      alert(err.message);
+    });
+  });
+
+  document.getElementById('oc-export-files').addEventListener('click', function(){
+    fetchContextFiles().then(function(files){
+      var bundle = {
+        exportedAt: new Date().toISOString(),
+        files: files
+      };
+      var blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'joey-context-files.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+    }).catch(function(err){
+      alert(err.message);
+    });
+  });
+
   function loadHistoryFromRedis(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass) return;
@@ -8915,6 +9706,7 @@ document.addEventListener("input", e => {
         if(data.learned > 0) console.log('[Joey] Auto-learned ' + data.learned + ' new fact(s):', data.facts);
         if(data.profileUpdated) console.log('[Joey] Profile updated');
         if(data.consolidated) console.log('[Joey] Memories consolidated');
+        refreshCanonicalFiles().catch(function(){});
       }).catch(function(){});
   }
   window.addEventListener('homer-vault-state', function(){
@@ -9013,6 +9805,7 @@ document.addEventListener("input", e => {
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass) return;
     console.log('[Joey] Periodic sync check...');
+    refreshCanonicalFiles().catch(function(){});
     syncContextFromDrive(false).catch(function(){});
   }, 5 * 60 * 1000); // 5 minutes
 
@@ -9100,15 +9893,22 @@ document.addEventListener("input", e => {
   }
 
   var streamRaw = '';
-  function appendBotChunk(text){
+  function formatModelLabel(model){
+    var raw = String(model || '').trim();
+    if(!raw) return currentProvider === 'nemoclaw' ? 'NemoClaw' : 'Joey';
+    return raw.split('/').pop();
+  }
+  function appendBotChunk(text, modelLabel){
     var existing = messagesEl.querySelector('.oc-msg.bot.streaming');
     if(!existing){
       existing = document.createElement('div');
       existing.className = 'oc-msg bot streaming';
-      existing.innerHTML = '<button class="oc-copy-msg">Copy</button><span class="oc-joey-avatar">JT</span><span class="oc-model-tag">Joey Tribbiani</span><span class="oc-content"></span>';
+      existing.innerHTML = '<button class="oc-copy-msg">Copy</button><span class="oc-joey-avatar">JT</span><span class="oc-model-tag"></span><span class="oc-content"></span>';
       messagesEl.appendChild(existing);
       streamRaw = '';
     }
+    var tag = existing.querySelector('.oc-model-tag');
+    if(tag) tag.textContent = modelLabel || (currentProvider === 'nemoclaw' ? 'NemoClaw' : 'Joey');
     streamRaw += text;
     var c = existing.querySelector('.oc-content');
     if(c) c.textContent = streamRaw;
@@ -9155,22 +9955,24 @@ document.addEventListener("input", e => {
               var subtasks = [];
               if(taskData.subtasks && Array.isArray(taskData.subtasks)){
                 taskData.subtasks.forEach(function(st){
+                  var stObj = typeof st === 'string' ? { text: st } : (st || {});
                   subtasks.push({
                     id: data._nextSubId++,
-                    text: typeof st === 'string' ? st : st.text,
+                    text: stObj.text || stObj.summary || stObj.title || 'Subtask',
                     done: false,
-                    effort: '',
-                    due: (typeof st === 'object' && st.due) ? st.due : '',
-                    notes: '',
+                    effort: stObj.effort || '',
+                    due: stObj.due || '',
+                    notes: stObj.notes || stObj.description || stObj.desc || '',
                     attachments: []
                   });
                 });
               }
+              var taskNotes = taskData.notes || taskData.description || taskData.desc || '';
               var task = {
                 id: data._nextId++,
                 summary: taskData.summary || taskData.title || 'New Task',
-                desc: taskData.desc || taskData.description || '',
-                notes: taskData.notes || '',
+                desc: taskNotes,
+                notes: taskNotes,
                 due: taskData.due || '',
                 priority: taskData.priority || '',
                 reporter: '',
@@ -9185,6 +9987,7 @@ document.addEventListener("input", e => {
               data.goals.push(task);
               window._homerSaveVault(data);
               try{ window.dispatchEvent(new Event('vault-goals-changed')); }catch(e){}
+              refreshCanonicalFiles().catch(function(){});
             });
           } else {
             notifications.push('Vault is locked — unlock it first to add tasks to the Kanban board');
@@ -9214,6 +10017,7 @@ document.addEventListener("input", e => {
               });
               window._homerSaveVault(data);
               if(typeof window._refreshLifeGoals === 'function') window._refreshLifeGoals();
+              refreshCanonicalFiles().catch(function(){});
             });
           } else {
             notifications.push('Vault is locked — unlock it first to add life goals');
@@ -9256,9 +10060,19 @@ document.addEventListener("input", e => {
             fetch('/api/joey?action=memory', {
               method:'POST',
               headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({passphrase:pass, memory:memData.memory||memData.text||a.data, category:memData.category||'general'})
+              body:JSON.stringify({
+                passphrase:pass,
+                memory:memData.memory||memData.text||a.data,
+                category:memData.category||'general',
+                source:memData.source||'explicit-agent-action',
+                confidence:typeof memData.confidence === 'number' ? memData.confidence : 0.96,
+                pinned:!!memData.pinned || String(memData.category||'').toLowerCase() === 'pin'
+              })
             }).then(function(r){return r.json();}).then(function(d){
-              if(d.ok) console.log('Memory saved, total:', d.count);
+              if(d.ok){
+                console.log('Memory saved, total:', d.count);
+                refreshCanonicalFiles().catch(function(){});
+              }
             }).catch(function(){});
           }
           notifications.push('Remembered: ' + (memData.memory||memData.text||a.data));
@@ -9272,7 +10086,10 @@ document.addEventListener("input", e => {
               headers:{'Content-Type':'application/json'},
               body:JSON.stringify({passphrase:pass, match:a.data})
             }).then(function(r){return r.json();}).then(function(d){
-              if(d.ok) console.log('Memory removed, remaining:', d.count);
+              if(d.ok){
+                console.log('Memory removed, remaining:', d.count);
+                refreshCanonicalFiles().catch(function(){});
+              }
             }).catch(function(){});
           }
           notifications.push('Forgot: ' + a.data);
@@ -9306,7 +10123,18 @@ document.addEventListener("input", e => {
 
   // --- File attachment ---
   var TEXT_EXTS = /\.(txt|md|json|csv|js|ts|jsx|tsx|py|html|css|xml|yaml|yml|log|sql|sh|toml|ini|cfg|env|java|go|rs|c|cpp|h|rb|php|swift|kt|r|m|bat|ps1|makefile|dockerfile|gitignore|svelte|vue|scss|less|sass|graphql|proto|tf|hcl|asm|lua|pl|ex|exs|clj|hs|erl|dart|scala|groovy|diff|patch)$/i;
-  var MAX_FILE_SIZE = 1024 * 1024; // 1MB
+  var MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+
+  function base64FromArrayBuffer(arrayBuffer, maxChars){
+    var bytes = new Uint8Array(arrayBuffer);
+    var chunkSize = 0x8000;
+    var binary = '';
+    for(var i = 0; i < bytes.length; i += chunkSize){
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+    }
+    var base64 = btoa(binary);
+    return maxChars ? base64.slice(0, maxChars) : base64;
+  }
 
   function extractPdfText(arrayBuffer){
     return new Promise(function(resolve){
@@ -9333,6 +10161,21 @@ document.addEventListener("input", e => {
     });
   }
 
+  function extractDocxText(arrayBuffer){
+    return new Promise(function(resolve){
+      if(typeof mammoth === 'undefined' || !mammoth.extractRawText){
+        resolve('[DOCX content - Mammoth not loaded. The file was still attached and saved for later reuse.]');
+        return;
+      }
+      mammoth.extractRawText({ arrayBuffer: arrayBuffer }).then(function(result){
+        var text = String((result && result.value) || '').trim();
+        resolve(text || '[DOCX parsed successfully but no text was extracted]');
+      }).catch(function(err){
+        resolve('[DOCX parsing failed: ' + err.message + ']');
+      });
+    });
+  }
+
   function readFileContent(file){
     return new Promise(function(resolve){
       var ext = file.name.split('.').pop().toLowerCase();
@@ -9340,6 +10183,10 @@ document.addEventListener("input", e => {
         var r = new FileReader();
         r.onload = function(e){ extractPdfText(e.target.result).then(resolve); };
         r.readAsArrayBuffer(file);
+      } else if(ext === 'docx'){
+        var rDocx = new FileReader();
+        rDocx.onload = function(e){ extractDocxText(e.target.result).then(resolve); };
+        rDocx.readAsArrayBuffer(file);
       } else if(TEXT_EXTS.test(file.name) || file.type.startsWith('text/')){
         var r2 = new FileReader();
         r2.onload = function(e){ resolve(e.target.result); };
@@ -9347,16 +10194,59 @@ document.addEventListener("input", e => {
       } else {
         var r3 = new FileReader();
         r3.onload = function(e){
-          var text = e.target.result;
-          var printable = text.replace(/[^\x20-\x7E\n\r\t]/g, '').trim();
-          if(printable.length > text.length * 0.5){
-            resolve(text);
-          } else {
-            resolve('[Binary file: ' + file.name + ' (' + (file.size/1024).toFixed(1) + 'KB, type: ' + (file.type||'unknown') + ')]\nBase64 preview (first 2000 chars):\n' + btoa(text.slice(0,1500)));
-          }
+          var preview = base64FromArrayBuffer(e.target.result, 2000);
+          resolve(
+            '[Binary file: ' + file.name +
+            ' (' + (file.size / 1024).toFixed(1) + 'KB, type: ' + (file.type || 'unknown') + ')]\n' +
+            'The original binary is attached for Drive upload and later reuse.\n' +
+            'Base64 preview (first 2000 chars):\n' + preview
+          );
         };
-        r3.readAsText(file);
+        r3.readAsArrayBuffer(file);
       }
+    });
+  }
+
+  function fileToBase64(file){
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onload = function(e){
+        var result = String(e.target.result || '');
+        var comma = result.indexOf(',');
+        resolve(comma >= 0 ? result.slice(comma + 1) : result);
+      };
+      reader.onerror = function(){ reject(new Error('Could not read file bytes')); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function uploadFileToDrive(file, extractedText){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return Promise.reject(new Error('Unlock vault first so uploads can be saved to Google Drive.'));
+    return fileToBase64(file).then(function(base64Data){
+      return fetch('/api/gdrive-file', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          passphrase: pass,
+          fileName: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          size: file.size,
+          base64Data: base64Data,
+          extractedText: extractedText,
+          source: 'joey-chat'
+        })
+      }).then(function(r){
+        return r.json().catch(function(){ return {}; }).then(function(data){
+          if(!r.ok || !data || !data.ok || !data.file){
+            var reason = (data && [data.detail, data.hint, data.error].filter(Boolean).join(' — ')) || 'Upload failed';
+            throw new Error(reason);
+          }
+          return data;
+        });
+      }).then(function(data){
+        return data.file;
+      });
     });
   }
 
@@ -9364,12 +10254,29 @@ document.addEventListener("input", e => {
   fileInput.addEventListener('change', function(){
     Array.from(fileInput.files).forEach(function(file){
       if(file.size > MAX_FILE_SIZE){
-        showError('File too large: ' + file.name + ' (max 1MB)');
+        showError('File too large: ' + file.name + ' (max 25MB)');
         return;
       }
       readFileContent(file).then(function(content){
-        pendingFiles.push({name: file.name, content: content});
-        renderFilePreviewPanel();
+        return uploadFileToDrive(file, content).then(function(saved){
+          pendingFiles.push({
+            name: file.name,
+            content: content,
+            driveUrl: saved.driveUrl || '',
+            downloadUrl: saved.downloadUrl || '',
+            libraryId: saved.id || '',
+            uploadedAt: saved.uploadedAt || '',
+            excerpt: saved.excerpt || ''
+          });
+          renderFilePreviewPanel();
+          setUploadStatus('Saved "' + file.name + '" to Google Drive.', 'success');
+          if(libraryPanel && libraryPanel.classList.contains('open')) fetchFileLibrary({ silent:true });
+          refreshCanonicalFiles().catch(function(){});
+        }).catch(function(err){
+          pendingFiles.push({name: file.name, content: content, localOnly: true});
+          renderFilePreviewPanel();
+          setUploadStatus('Could not save "' + file.name + '" to Drive. ' + err.message, 'warn', true);
+        });
       });
     });
     fileInput.value = '';
@@ -9380,7 +10287,7 @@ document.addEventListener("input", e => {
     pendingFiles.forEach(function(f, idx){
       var tag = document.createElement('span');
       tag.className = 'oc-file-tag';
-      tag.innerHTML = escHtml(f.name) + ' <button title="Remove">&times;</button>';
+      tag.innerHTML = escHtml(f.name) + (f.driveUrl ? ' <span title="Saved to Google Drive">☁</span>' : ' <span title="Not synced">local</span>') + ' <button title="Remove">&times;</button>';
       tag.querySelector('button').addEventListener('click', function(){
         pendingFiles.splice(idx, 1);
         renderFilePreviewPanel();
@@ -9463,20 +10370,30 @@ document.addEventListener("input", e => {
     if(!text && !pendingFiles.length) return;
     if(streaming) return;
     var config = getConfig();
-    var JOEY_PROMPT = 'You are Joey — a personal AI assistant with personality. You speak like Joey Tribbiani from Friends (confident, charming, fun), but you\'re genuinely smart and deeply helpful. You know this person. You have their profile, memories, and conversation history injected into your context by the server. USE THEM.\n\nTODAY: ' + new Date().toISOString().slice(0,10) + ' | TIME: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '\n\n=== PERSONALITY ===\n- Be direct, no fluff. Match the user\'s energy.\n- Use Joey catchphrases SPARINGLY and naturally — don\'t force them every message.\n- Have real opinions. Disagree when warranted. Be a friend, not a yes-man.\n- When you know something about them (from profile/memories), use it naturally — don\'t announce "I remember...".\n- Ask follow-up questions about things you know they care about (their goals, their people, recent events).\n- If they seem stressed or down, be supportive. If they\'re excited, share that energy.\n\n=== ACTIONS (append at END of your response) ===\n\nTASK (Kanban board — DEFAULT for any work item, to-do, action):\n- Simple: [ACTION:TASK]Buy groceries[/ACTION]\n- Detailed: [ACTION:TASK]{"summary":"Fix login bug","priority":"high","due":"2026-03-25","desc":"Description","subtasks":["Step 1","Step 2"]}[/ACTION]\n\nGOAL (Life Goals — aspirations, dreams, long-term objectives):\n[ACTION:GOAL]{"title":"Buy a house","description":"Why this matters","category":"finance","milestones":["Step 1","Step 2"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\nCategories: health, finance, career, personal, education, travel, creative, relationship\n\nFOCUS (Pomodoro — ONLY when user explicitly says "focus", "pomodoro", "focus task"):\n[ACTION:FOCUS]Task name[/ACTION]\nIMPORTANT: NEVER create FOCUS unless explicitly asked. Default is always TASK.\n\nEVENT (Calendar):\n[ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details"}[/ACTION]\n\nREMEMBER (save important facts — your auto-memory also captures things, but use this for explicit asks):\n[ACTION:REMEMBER]{"memory":"fact about the user","category":"preference"}[/ACTION]\nCategories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work\n\nFORGET:\n[ACTION:FORGET]text to forget[/ACTION]\n\n=== RULES ===\n- Dates: YYYY-MM-DD, Times: HH:MM (24h), Priority: high/medium/low\n- Always include action tags when creating something — don\'t just describe it\n- Be proactive: if they mention a deadline, offer to create a task. If they share a win, celebrate it.\n- Your memory system auto-learns from conversations, but use REMEMBER for things the user explicitly asks you to save.';
+    var JOEY_PROMPT = 'You are Joey — a personal AI assistant with personality. You speak like Joey Tribbiani from Friends (confident, charming, fun), but you\'re genuinely smart and deeply helpful. You know this person. You have their profile, memories, and conversation history injected into your context by the server. USE THEM.\n\nTODAY: ' + new Date().toISOString().slice(0,10) + ' | TIME: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '\n\n=== PERSONALITY ===\n- Be direct, no fluff. Match the user\'s energy.\n- Use Joey catchphrases SPARINGLY and naturally — don\'t force them every message.\n- Have real opinions. Disagree when warranted. Be a friend, not a yes-man.\n- When you know something about them (from profile/memories), use it naturally — don\'t announce "I remember...".\n- Ask follow-up questions about things you know they care about (their goals, their people, recent events).\n- If they seem stressed or down, be supportive. If they\'re excited, share that energy.\n\n=== ACTIONS (append at END of your response) ===\n\nTASK (Kanban board — DEFAULT for any work item, to-do, action):\n- Create a TASK only when the user explicitly asks you to add, create, save, track, put on the board, or turn something into a task.\n- Do NOT create tasks proactively, by implication, or just because a deadline/problem/action item was mentioned.\n- If the user is only discussing plans or problems, respond normally without action tags.\n- For explicit task requests, include: summary, notes, priority when implied, due when mentioned, and 2-5 concrete subtasks.\n- Use notes for the task description. Do not use GOAL for normal actionable work items.\n- Simple fallback: [ACTION:TASK]Buy groceries[/ACTION]\n- Preferred detailed format: [ACTION:TASK]{\"summary\":\"Fix login bug\",\"notes\":\"Users cannot sign in after password reset. Investigate the reset flow, patch the regression, and verify the happy path.\",\"priority\":\"high\",\"due\":\"2026-03-25\",\"subtasks\":[{\"text\":\"Reproduce the bug locally\",\"notes\":\"Test the password reset flow with an affected account.\"},{\"text\":\"Identify the failing auth step\"},{\"text\":\"Implement and verify the fix\"}]}[/ACTION]\n\nGOAL (Life Goals — aspirations, dreams, long-term objectives):\n[ACTION:GOAL]{"title":"Buy a house","description":"Why this matters","category":"finance","milestones":["Step 1","Step 2"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\nCategories: health, finance, career, personal, education, travel, creative, relationship\n\nFOCUS (Pomodoro — ONLY when user explicitly says "focus", "pomodoro", "focus task"):\n[ACTION:FOCUS]Task name[/ACTION]\nIMPORTANT: NEVER create FOCUS unless explicitly asked. Default is always TASK.\n\nEVENT (Calendar):\n[ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details"}[/ACTION]\n\nREMEMBER (save important facts — your auto-memory also captures things, but use this for explicit asks):\n[ACTION:REMEMBER]{"memory":"fact about the user","category":"preference"}[/ACTION]\nCategories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work\n\nFORGET:\n[ACTION:FORGET]text to forget[/ACTION]\n\n=== RULES ===\n- Dates: YYYY-MM-DD, Times: HH:MM (24h), Priority: high/medium/low\n- Always include action tags only when the user explicitly asked to create something.\n- When the user explicitly asks to add or create a task, append a TASK action unless they explicitly refuse.\n- For TASK actions, prefer JSON over plain text so the Kanban card is fully populated.\n- Do not offer or create a task just because a deadline, plan, or obligation was mentioned.\n- Your memory system auto-learns from conversations, but use REMEMBER for things the user explicitly asks you to save.';
     var systemPrompt = config.system || JOEY_PROMPT;
+    systemPrompt += '\n\n=== CANONICAL FILES ===\n- Shared context lives in AgentContext.md, Today.md, OpenLoops.md, Projects.md, Areas.md, Resources.md, People.md, Wins.md, Lessons.md, WeeklyReview.md, Decisions.md, PinnedContext.md, Archive.md, FilesIndex.md, and Uploads/*.md.\n- FilesIndex.md lists remembered uploaded files and their Google Drive links.\n- Uploads/*.md contains extracted text for previously processed files when relevant.\n- Prefer REMEMBER with categories win, lesson, resource, decision, pin, or archive when the user explicitly asks to save something.\n- If the user says "save this as a win", store category "win".\n- If the user says "save this as a lesson", store category "lesson".\n- If the user says "save this as a resource" or "keep this note", store category "resource".\n- If the user says "pin this" or "always remember this", store category "pin" with pinned:true.\n- If the user asks for deeper recall, tell them they can say "use full context".';
 
-    var displayText = text;
-    var fullContent = text;
+    var forceWebSearch = /^\[FORCE_WEB_SEARCH\]\s*/i.test(text);
+    var forceFullContext = /^(use full context|deep context)\b/i.test(text) || /^\[(USE_FULL_CONTEXT|DEEP_CONTEXT)\]\s*/i.test(text);
+    var cleanText = text.replace(/^\[FORCE_WEB_SEARCH\]\s*/i, '').replace(/^\[(USE_FULL_CONTEXT|DEEP_CONTEXT)\]\s*/i, '').trim();
+    var displayText = cleanText || text;
+    var fullContent = cleanText || text;
+    if(forceWebSearch) fullContent = '[FORCE_WEB_SEARCH] ' + fullContent;
+    if(forceFullContext) fullContent = '[USE_FULL_CONTEXT] ' + fullContent;
     var fileNames = [];
 
     if(pendingFiles.length){
       var fileBlock = '';
       pendingFiles.forEach(function(f){
         fileNames.push(f.name);
-        fileBlock += '\n--- ' + f.name + ' ---\n' + f.content + '\n--- end ---\n';
+        fileBlock += '\n--- ' + f.name + ' ---\n';
+        if(f.libraryId) fileBlock += 'Library ID: ' + f.libraryId + '\n';
+        if(f.driveUrl) fileBlock += 'Drive URL: ' + f.driveUrl + '\n';
+        if(f.downloadUrl) fileBlock += 'Download URL: ' + f.downloadUrl + '\n';
+        fileBlock += f.content + '\n--- end ---\n';
       });
-      fullContent = '[Attached files for analysis]' + fileBlock + '\n' + text;
+      fullContent = '[Attached files for analysis]' + fileBlock + '\n' + fullContent;
       pendingFiles = [];
       renderFilePreviewPanel();
     }
@@ -9501,9 +10418,13 @@ document.addEventListener("input", e => {
     inputEl.style.height = 'auto';
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
+    if(currentProvider === 'joey'){
+      try { await refreshCanonicalFiles(); } catch(e){}
+    }
+
     var apiMessages = [];
     if(systemPrompt) apiMessages.push({role:'system', content:systemPrompt});
-    chatHistory.slice(-20).forEach(function(m){ apiMessages.push({role:m.role, content:m.content}); });
+    chatHistory.slice(currentProvider === 'nemoclaw' ? -30 : -20).forEach(function(m){ apiMessages.push({role:m.role, content:m.content}); });
 
     streaming = true;
     sendBtn.disabled = true;
@@ -9519,6 +10440,9 @@ document.addEventListener("input", e => {
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ messages: apiMessages, passphrase: syncPass })
       });
+      var activeModel = res.headers.get('X-OpenClaw-Model') || '';
+      var modelLabel = formatModelLabel(activeModel);
+      if(modelBadge) modelBadge.textContent = modelLabel;
 
       removeTypingIndicator();
 
@@ -9547,7 +10471,7 @@ document.addEventListener("input", e => {
           try{
             var parsed = JSON.parse(data);
             var delta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta;
-            if(delta && delta.content) appendBotChunk(delta.content);
+            if(delta && delta.content) appendBotChunk(delta.content, modelLabel);
           }catch(e){}
         }
       }
@@ -9560,6 +10484,8 @@ document.addEventListener("input", e => {
         // Re-render the last bot message without action tags
         var lastBot = messagesEl.querySelector('.oc-msg.bot:last-of-type');
         if(lastBot && lastBot.querySelector('.oc-content')){
+          var tag = lastBot.querySelector('.oc-model-tag');
+          if(tag) tag.textContent = modelLabel;
           lastBot.querySelector('.oc-content').innerHTML = renderMd(cleanResponse);
           injectCodeCopyButtons(lastBot);
         }
@@ -9887,6 +10813,10 @@ document.addEventListener("input", e => {
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
     <span>Focus</span>
   </button>
+  <button class="mnav-btn" data-tab="tools">
+    <svg viewBox="0 0 24 24"><path d="M14.7 6.3a3 3 0 0 0 3.96 3.96l-8.38 8.38a2 2 0 1 1-2.83-2.83l8.38-8.38A3 3 0 0 0 14.7 6.3z"/><path d="M13 7l4 4"/></svg>
+    <span>Tools</span>
+  </button>
   <button class="mnav-btn" data-tab="vault">
     <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
     <span>Vault</span>
@@ -9940,29 +10870,41 @@ document.addEventListener("input", e => {
   var sheet = document.getElementById('mobile-sheet');
   var sheetContent = document.getElementById('mobile-sheet-content');
   if(!nav) return;
+  function closeJoeyPanel(){
+    if(typeof window._homerCloseJoeyPanel === 'function') window._homerCloseJoeyPanel();
+  }
+  function toggleJoeyPanel(){
+    if(typeof window._homerToggleJoeyPanel === 'function') window._homerToggleJoeyPanel();
+  }
+  function isJoeyOpen(){
+    return typeof window._homerIsJoeyOpen === 'function' && window._homerIsJoeyOpen();
+  }
+  function syncActive(tab, panelOpen){
+    nav.querySelectorAll('.mnav-btn').forEach(function(b){
+      var isActive = panelOpen ? b.id === 'mnav-joey' : (tab ? b.dataset.tab === tab : false);
+      if(b.id === 'mnav-more' && sheet.classList.contains('open')) isActive = true;
+      b.classList.toggle('active', isActive);
+    });
+  }
 
   // Tab switching from bottom nav
   nav.querySelectorAll('.mnav-btn[data-tab]').forEach(function(btn){
     btn.addEventListener('click', function(){
       var tab = btn.dataset.tab;
-      // Use the existing showTab function
+      closeJoeyPanel();
       if(typeof showTab === 'function') showTab(tab);
-      // Update active state
-      nav.querySelectorAll('.mnav-btn').forEach(function(b){b.classList.remove('active');});
-      btn.classList.add('active');
-      // Close sheet if open
       sheet.classList.remove('open');
-      // Scroll to top
+      syncActive(tab, false);
       window.scrollTo(0,0);
     });
   });
 
-  // Joey button — trigger the fab-openclaw click
+  // Joey button — toggle the panel
   var joeyBtn = document.getElementById('mnav-joey');
   if(joeyBtn){
     joeyBtn.addEventListener('click', function(){
-      var fab = document.getElementById('fab-openclaw');
-      if(fab) fab.click();
+      sheet.classList.remove('open');
+      toggleJoeyPanel();
     });
   }
 
@@ -9971,7 +10913,7 @@ document.addEventListener("input", e => {
   if(moreBtn){
     moreBtn.addEventListener('click', function(){
       sheet.classList.toggle('open');
-      nav.querySelectorAll('.mnav-btn').forEach(function(b){b.classList.toggle('active', b===moreBtn && sheet.classList.contains('open'));});
+      syncActive(document.body.dataset.activeTab || 'home', isJoeyOpen());
     });
   }
 
@@ -9979,9 +10921,10 @@ document.addEventListener("input", e => {
   sheet.querySelectorAll('.msheet-item[data-tab]').forEach(function(item){
     item.addEventListener('click', function(){
       var tab = item.dataset.tab;
+      closeJoeyPanel();
       if(typeof showTab === 'function') showTab(tab);
       sheet.classList.remove('open');
-      nav.querySelectorAll('.mnav-btn').forEach(function(b){b.classList.remove('active');});
+      syncActive(tab, false);
       window.scrollTo(0,0);
     });
   });
@@ -9994,20 +10937,34 @@ document.addEventListener("input", e => {
       var fab = document.getElementById(actions[key]);
       if(fab) fab.click();
       sheet.classList.remove('open');
+      syncActive(document.body.dataset.activeTab || 'home', isJoeyOpen());
     });
   });
 
   // Close sheet on backdrop tap
   sheet.addEventListener('click', function(e){
-    if(e.target === sheet) sheet.classList.remove('open');
+    if(e.target === sheet){
+      sheet.classList.remove('open');
+      syncActive(document.body.dataset.activeTab || 'home', isJoeyOpen());
+    }
   });
 
   // Swipe down to close sheet
   var startY = 0;
   sheetContent.addEventListener('touchstart', function(e){startY = e.touches[0].clientY;}, {passive:true});
   sheetContent.addEventListener('touchmove', function(e){
-    if(e.touches[0].clientY - startY > 60){sheet.classList.remove('open');}
+    if(e.touches[0].clientY - startY > 60){
+      sheet.classList.remove('open');
+      syncActive(document.body.dataset.activeTab || 'home', isJoeyOpen());
+    }
   }, {passive:true});
+  window.addEventListener('homer-tab-change', function(e){
+    syncActive((e.detail && e.detail.tab) || document.body.dataset.activeTab || 'home', isJoeyOpen());
+  });
+  window.addEventListener('homer-joey-panel', function(e){
+    syncActive(document.body.dataset.activeTab || 'home', !!(e.detail && e.detail.open));
+  });
+  syncActive(document.body.dataset.activeTab || 'home', false);
 })();
 </script>
 
