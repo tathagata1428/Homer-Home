@@ -1487,12 +1487,78 @@
       border-bottom:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.1);
     }
     #oc-settings-row.open{display:flex;}
+    .oc-settings-copy{
+      display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    }
+    .oc-settings-title{
+      font-size:.82rem; font-weight:800; color:#f8fafc; letter-spacing:.02em;
+    }
+    .oc-settings-note{
+      font-size:.74rem; color:var(--muted); line-height:1.45;
+    }
+    .oc-settings-input-row{
+      display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:8px; align-items:center;
+    }
     #oc-settings-row input{
       padding:9px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);
       background:rgba(255,255,255,.04);color:var(--text);font-size:.84rem;font-family:inherit;outline:none;
     }
     #oc-settings-row input:focus{border-color:rgba(234,88,12,.35);}
     #oc-settings-row label{font-size:.72rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+    .oc-settings-actions{
+      display:flex; flex-direction:column; gap:10px;
+    }
+    .oc-settings-actions-row{
+      display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+    }
+    .oc-settings-btn{
+      padding:8px 12px; border-radius:10px; border:none; color:#fff; font-weight:700; font-size:.78rem; cursor:pointer;
+      display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    }
+    .oc-settings-btn.secondary{
+      background:rgba(15,23,42,.82); color:#e2e8f0; border:1px solid rgba(148,163,184,.18);
+    }
+    .oc-settings-btn.ghost{
+      background:rgba(255,255,255,.04); color:#cbd5e1; border:1px solid rgba(148,163,184,.16);
+    }
+    .oc-settings-btn.primary{
+      background:linear-gradient(135deg,#ea580c,#c2410c);
+    }
+    .oc-settings-btn.library{
+      background:linear-gradient(135deg,#334155,#1e293b);
+    }
+    .oc-settings-btn.sync{
+      background:linear-gradient(135deg,#8b5cf6,#7c3aed);
+    }
+    .oc-settings-btn.backup{
+      background:linear-gradient(135deg,#4285f4,#34a853);
+    }
+    .oc-settings-btn.warn{
+      background:linear-gradient(135deg,#f59e0b,#d97706);
+    }
+    .oc-settings-btn.danger{
+      background:linear-gradient(135deg,#ef4444,#dc2626);
+    }
+    .oc-settings-btn.teal{
+      background:linear-gradient(135deg,#0f766e,#0d9488);
+    }
+    .oc-settings-btn.blue{
+      background:linear-gradient(135deg,#1d4ed8,#2563eb);
+    }
+    .oc-settings-btn.indigo{
+      background:linear-gradient(135deg,#4338ca,#4f46e5);
+    }
+    .oc-settings-btn[aria-expanded="true"]{
+      box-shadow:0 0 0 1px rgba(148,163,184,.24) inset;
+    }
+    .oc-settings-advanced{
+      display:none; flex-direction:column; gap:8px; padding:10px 12px; border-radius:14px;
+      border:1px solid rgba(148,163,184,.14); background:rgba(15,23,42,.5);
+    }
+    .oc-settings-advanced.open{display:flex;}
+    .oc-settings-advanced-note{
+      font-size:.72rem; color:var(--muted); line-height:1.45;
+    }
     #oc-library-panel{
       display:none; flex-direction:column; gap:8px; margin-top:4px; padding-top:12px;
       border-top:1px solid rgba(255,255,255,.06);
@@ -1531,6 +1597,7 @@
       .oc-msg{max-width:90%;}
       #oc-scroll-latest{right:14px;bottom:88px;}
       #oc-resize-handle{display:none;}
+      .oc-settings-input-row{grid-template-columns:1fr;}
     }
 
     /* ===== MOBILE NAV — Notion-style bottom bar ===== */
@@ -8624,18 +8691,35 @@ document.addEventListener("input", e => {
     <button type="button" id="oc-mode-work" style="padding:6px 12px;border-radius:999px;border:1px solid rgba(148,163,184,.25);background:rgba(15,23,42,.82);color:#e2e8f0;font-weight:700;font-size:.76rem;cursor:pointer;">Work</button>
   </div>
   <div id="oc-settings-row">
+    <div class="oc-settings-copy">
+      <div>
+        <div class="oc-settings-title">Joey Settings</div>
+        <div class="oc-settings-note">Usually you only need persona, uploads, sync from Drive, and backup. Recovery and export tools are under Advanced.</div>
+      </div>
+    </div>
     <label>System Prompt</label>
-    <input id="oc-system-prompt" type="text" placeholder="Default: Joey Tribbiani persona. Override here." spellcheck="false">
-    <div style="display:flex;gap:8px;align-self:flex-end;flex-wrap:wrap;">
-        <button type="button" id="oc-settings-save" style="padding:7px 16px;border-radius:8px;border:none;background:linear-gradient(135deg,#ea580c,#c2410c);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;">Save</button>
-        <button type="button" id="oc-library-btn" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#334155,#1e293b);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Browse remembered uploaded files">&#x1f4ce; Uploads</button>
-        <button type="button" id="oc-save-db" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Save context (history, memories, profile) to database">&#x1f4be; Save to DB</button>
-        <button type="button" id="oc-rebuild-files" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#0f766e,#0d9488);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Rebuild canonical context files from current data">&#x21bb; Rebuild Files</button>
-        <button type="button" id="oc-view-files" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Inspect the shared canonical context files">&#x1f4c2; View Files</button>
-        <button type="button" id="oc-export-files" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#4338ca,#4f46e5);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Export the canonical context files bundle">&#x2b07; Export Files</button>
-        <button type="button" id="oc-gdrive-restore" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Restore agent context from Google Drive">&#x21bb; Restore</button>
-        <button type="button" id="oc-gdrive-sync" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Force read context from Google Drive">&#x27f3; Load Context</button>
-        <button type="button" id="oc-gdrive-backup" style="padding:7px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;" title="Backup agent context to Google Drive">&#x2601; Backup</button>
+    <div class="oc-settings-input-row">
+      <input id="oc-system-prompt" type="text" placeholder="Default: Joey Tribbiani persona. Override here." spellcheck="false">
+      <button type="button" id="oc-settings-save" class="oc-settings-btn primary">Save Persona</button>
+      <button type="button" id="oc-settings-clear" class="oc-settings-btn ghost">Default Joey</button>
+    </div>
+    <div class="oc-settings-actions">
+      <div class="oc-settings-actions-row">
+        <button type="button" id="oc-library-btn" class="oc-settings-btn library" title="Browse remembered uploaded files">&#x1f4ce; Uploads</button>
+        <button type="button" id="oc-gdrive-sync" class="oc-settings-btn sync" title="Refresh Joey from the latest Google Drive context">&#x27f3; Sync from Drive</button>
+        <button type="button" id="oc-gdrive-backup" class="oc-settings-btn backup" title="Backup agent context to Google Drive">&#x2601; Backup to Drive</button>
+        <button type="button" id="oc-settings-advanced-toggle" class="oc-settings-btn secondary" aria-expanded="false" title="Show repair and export tools">Advanced Tools</button>
+      </div>
+      <div id="oc-settings-advanced" class="oc-settings-advanced">
+        <div class="oc-settings-advanced-note">Use these only when you want to repair Joey state, inspect stored context, or export data.</div>
+        <div class="oc-settings-actions-row">
+          <button type="button" id="oc-save-db" class="oc-settings-btn danger" title="Save context (history, memories, profile) to database">&#x1f4be; Commit Memory Now</button>
+          <button type="button" id="oc-gdrive-restore" class="oc-settings-btn warn" title="Restore agent context from Google Drive and overwrite current mode context">&#x21bb; Restore from Drive</button>
+          <button type="button" id="oc-rebuild-files" class="oc-settings-btn teal" title="Rebuild canonical context files from current data">&#x21bb; Rebuild Context</button>
+          <button type="button" id="oc-view-files" class="oc-settings-btn blue" title="Inspect the shared canonical context files">&#x1f4c2; View Context</button>
+          <button type="button" id="oc-export-files" class="oc-settings-btn indigo" title="Export the canonical context files bundle">&#x2b07; Export Context</button>
+        </div>
+      </div>
     </div>
     <div id="oc-library-panel">
       <div class="oc-library-head">
@@ -10178,6 +10262,9 @@ document.addEventListener("input", e => {
   var settingsBtn = document.getElementById('oc-settings-btn');
   var settingsRow = document.getElementById('oc-settings-row');
   var settingsSave = document.getElementById('oc-settings-save');
+  var settingsClear = document.getElementById('oc-settings-clear');
+  var settingsAdvancedToggle = document.getElementById('oc-settings-advanced-toggle');
+  var settingsAdvanced = document.getElementById('oc-settings-advanced');
   var systemPromptInput = document.getElementById('oc-system-prompt');
   var exportBtn = document.getElementById('oc-export-btn');
   var attachBtn = document.getElementById('oc-attach-btn');
@@ -10210,6 +10297,11 @@ document.addEventListener("input", e => {
   var autoStickToBottom = true;
   var uploadStatusTimer = 0;
   var fallbackStatusActive = false;
+  var autoLearnRequest = Promise.resolve(null);
+  var autoLearnQueuedPayload = null;
+  var autoLearnQueuedReason = '';
+  var autoLearnLastCommittedKey = '';
+  var autoLearnLastErrorKey = '';
   var mobileSuppressedFields = [];
   var OC_WINDOW_STATE_KEY = 'homer-oc-window-state';
   var desktopWindowState = loadDesktopWindowState();
@@ -10364,8 +10456,9 @@ document.addEventListener("input", e => {
   if(modePersonalBtn) modePersonalBtn.addEventListener('click', function(){ applyContextMode('personal'); });
   if(modeWorkBtn) modeWorkBtn.addEventListener('click', function(){ applyContextMode('work'); });
 
-  function joeyActionUrl(action, passphrase){
-    var url = '/api/joey?action=' + encodeURIComponent(action) + '&mode=' + encodeURIComponent(currentContextMode);
+  function joeyActionUrl(action, passphrase, modeOverride){
+    var activeMode = modeOverride === 'work' ? 'work' : 'personal';
+    var url = '/api/joey?action=' + encodeURIComponent(action) + '&mode=' + encodeURIComponent(activeMode);
     if(passphrase) url += '&passphrase=' + encodeURIComponent(passphrase);
     return url;
   }
@@ -10956,6 +11049,13 @@ document.addEventListener("input", e => {
       toggleLibraryPanel();
     });
   }
+  if(settingsAdvancedToggle && settingsAdvanced){
+    settingsAdvancedToggle.addEventListener('click', function(){
+      var nextOpen = !settingsAdvanced.classList.contains('open');
+      settingsAdvanced.classList.toggle('open', nextOpen);
+      settingsAdvancedToggle.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+    });
+  }
   settingsSave.addEventListener('click', function(){
     var nextConfig = getConfig();
     var nextPrompt = systemPromptInput.value.trim();
@@ -10967,6 +11067,15 @@ document.addEventListener("input", e => {
     saveDesktopWindowState();
     renderMessages();
   });
+  if(settingsClear){
+    settingsClear.addEventListener('click', function(){
+      systemPromptInput.value = '';
+      var nextConfig = getConfig();
+      delete nextConfig.system;
+      setConfig(nextConfig);
+      renderMessages();
+    });
+  }
 
   // --- Expand / Fullscreen toggles ---
   expandBtn.addEventListener('click', function(){
@@ -11051,12 +11160,9 @@ document.addEventListener("input", e => {
       body: JSON.stringify(withContextMode({ passphrase:pass, messages:chatHistory }))
     }).then(function(r){ return r.json(); }) : Promise.resolve({ ok:true, count:0, skipped:true });
     // Trigger learn cycle to extract memories + update profile
-    var recent = chatHistory.slice(-8).map(function(m){ return {role:m.role, content:m.content}; });
-    var learnPromise = chatHistory.length >= 2 ? fetch(joeyActionUrl('learn'), {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(withContextMode({ passphrase:pass, messages:recent }))
-    }).then(function(r){ return r.json(); }) : Promise.resolve({learned:0});
+    var learnPromise = chatHistory.length >= 2
+      ? triggerAutoLearn('manual-save').then(function(data){ return data || { learned:0 }; })
+      : Promise.resolve({ learned:0 });
     var filesPromise = collectTaskSnapshot().then(function(tasks){
       return fetch(joeyActionUrl('files'), {
         method:'POST',
@@ -11078,11 +11184,11 @@ document.addEventListener("input", e => {
       if(backupResult && backupResult.ok) msg += ', Vault/app mirrored to DB';
       else if(backupResult && backupResult.error) msg += ', Vault/app DB mirror failed';
       console.log('[Joey] Manual DB save:', msg);
-      setTimeout(function(){ btn.innerHTML = '&#x1f4be; Save to DB'; btn.disabled = false; }, 2000);
+      setTimeout(function(){ btn.innerHTML = '&#x1f4be; Commit Memory Now'; btn.disabled = false; }, 2000);
     }).catch(function(e){
       btn.textContent = '❌ Error';
       console.error('[Joey] DB save error:', e);
-      setTimeout(function(){ btn.innerHTML = '&#x1f4be; Save to DB'; btn.disabled = false; }, 2000);
+      setTimeout(function(){ btn.innerHTML = '&#x1f4be; Commit Memory Now'; btn.disabled = false; }, 2000);
     });
   });
 
@@ -11102,19 +11208,19 @@ document.addEventListener("input", e => {
     }).then(function(r){ return r.json(); }).then(function(d){
       if(d.ok){
         btn.textContent = '✅ Backed up!';
-        setTimeout(function(){ btn.innerHTML = '&#x2601; Backup'; btn.disabled = false; }, 3000);
+        setTimeout(function(){ btn.innerHTML = '&#x2601; Backup to Drive'; btn.disabled = false; }, 3000);
       } else {
         btn.textContent = '❌ Failed';
         console.error('[GDrive Backup]', d);
         // Show full error details
         alert('BACKUP ERROR:\n\n' + JSON.stringify(d, null, 2).substring(0, 800));
-        setTimeout(function(){ btn.innerHTML = '&#x2601; Backup'; btn.disabled = false; }, 2000);
+        setTimeout(function(){ btn.innerHTML = '&#x2601; Backup to Drive'; btn.disabled = false; }, 2000);
       }
     }).catch(function(e){
       btn.textContent = '❌ Error';
       console.error('[GDrive Backup]', e);
       alert('Network error: ' + e.message);
-      setTimeout(function(){ btn.innerHTML = '&#x2601; Backup'; btn.disabled = false; }, 2000);
+      setTimeout(function(){ btn.innerHTML = '&#x2601; Backup to Drive'; btn.disabled = false; }, 2000);
     });
   });
 
@@ -11135,18 +11241,18 @@ document.addEventListener("input", e => {
         btn.textContent = '✅ Restored!';
         // Reload chat history if restored
         if(d.restored && d.restored.history) loadHistoryFromRedis(true);
-        setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore'; btn.disabled = false; }, 3000);
+        setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore from Drive'; btn.disabled = false; }, 3000);
       } else {
         btn.textContent = '❌ Failed';
         console.error('[GDrive Restore]', d);
         alert('ERROR:\n' + JSON.stringify(d, null, 2).slice(0, 500));
-        setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore'; btn.disabled = false; }, 2000);
+        setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore from Drive'; btn.disabled = false; }, 2000);
       }
     }).catch(function(e){
       btn.textContent = '❌ Error';
       console.error('[GDrive Restore]', e);
       alert('Network error: ' + e.message);
-      setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore'; btn.disabled = false; }, 2000);
+      setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore from Drive'; btn.disabled = false; }, 2000);
     });
   });
 
@@ -11262,7 +11368,7 @@ document.addEventListener("input", e => {
       btn.textContent = '❌ Failed';
       alert('Rebuild failed: ' + err.message);
     }).finally(function(){
-      setTimeout(function(){ btn.innerHTML = '&#x21bb; Rebuild Files'; btn.disabled = false; }, 2200);
+      setTimeout(function(){ btn.innerHTML = '&#x21bb; Rebuild Context'; btn.disabled = false; }, 2200);
     });
   });
 
@@ -11316,23 +11422,93 @@ document.addEventListener("input", e => {
   }
 
   // --- Auto-learning: extract memories after each exchange ---
-  function triggerAutoLearn(){
+  function buildAutoLearnPayload(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
-    if(!pass || chatHistory.length < 2) return;
-    // Send last 8 messages (4 exchanges) for richer extraction
-    var recent = chatHistory.slice(-8).map(function(m){ return {role:m.role, content:m.content}; });
-    fetch(joeyActionUrl('learn'), {
+    if(!pass || chatHistory.length < 2) return null;
+    return withContextMode({
+      passphrase: pass,
+      messages: chatHistory.slice(-8).map(function(m){ return { role:m.role, content:m.content }; })
+    });
+  }
+  function getAutoLearnKey(payload){
+    if(!payload) return '';
+    return JSON.stringify({ mode: payload.mode, messages: payload.messages || [] });
+  }
+  function parseJoeyJsonResponse(r){
+    return r.text().then(function(text){
+      var data = {};
+      try{ data = text ? JSON.parse(text) : {}; }catch(e){ data = { error: text || ('HTTP ' + r.status) }; }
+      if(!r.ok){
+        throw new Error((data && (data.error || data.reason)) || ('HTTP ' + r.status));
+      }
+      return data;
+    });
+  }
+  function reportAutoLearnFailure(key, message){
+    if(!key || autoLearnLastErrorKey === key) return;
+    autoLearnLastErrorKey = key;
+    console.error('[Joey] Auto-learn failed:', message);
+    if(panelOpen && document.visibilityState !== 'hidden'){
+      showError('Joey could not save this chat to memory. ' + message);
+    }
+  }
+  function runAutoLearnPayload(payload, reason){
+    var key = getAutoLearnKey(payload);
+    if(!payload || !key || key === autoLearnLastCommittedKey) return Promise.resolve(null);
+    return fetch(joeyActionUrl('learn', '', payload.mode), {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(withContextMode({ passphrase:pass, messages:recent }))
-    }).then(function(r){ return r.json(); })
+      keepalive: true,
+      credentials: 'same-origin',
+      body: JSON.stringify(payload)
+    }).then(parseJoeyJsonResponse)
       .then(function(data){
-        if(data.learned > 0) console.log('[Joey] Auto-learned ' + data.learned + ' new fact(s):', data.facts);
-        if(data.profileUpdated) console.log('[Joey] Profile updated');
-        if(data.consolidated) console.log('[Joey] Memories consolidated');
+        if(data && data.error) throw new Error(data.error);
+        if(data && data.reason && /unparseable/i.test(String(data.reason))){
+          throw new Error(data.reason);
+        }
+        autoLearnLastCommittedKey = key;
+        autoLearnLastErrorKey = '';
+        if(data && data.learned > 0) console.log('[Joey] Auto-learned ' + data.learned + ' new fact(s):', data.facts);
+        else if(data && data.reason) console.warn('[Joey] Auto-learn skipped (' + (reason || 'auto') + '): ' + data.reason);
+        if(data && data.profileUpdated) console.log('[Joey] Profile updated');
+        if(data && data.consolidated) console.log('[Joey] Memories consolidated');
         refreshCanonicalFiles().catch(function(){});
-      }).catch(function(){});
+        return data;
+      }).catch(function(err){
+        reportAutoLearnFailure(key, err && err.message ? err.message : String(err));
+        throw err;
+      });
   }
+  function flushQueuedAutoLearn(){
+    if(!autoLearnQueuedPayload) return autoLearnRequest;
+    var payload = autoLearnQueuedPayload;
+    autoLearnQueuedPayload = null;
+    var reason = autoLearnQueuedReason || 'auto';
+    autoLearnQueuedReason = '';
+    autoLearnRequest = runAutoLearnPayload(payload, reason)
+      .catch(function(){ return null; })
+      .then(function(){ return flushQueuedAutoLearn(); });
+    return autoLearnRequest;
+  }
+  function triggerAutoLearn(reason){
+    var payload = buildAutoLearnPayload();
+    if(!payload){
+      if(chatHistory.length >= 2 && !localStorage.getItem('homer-sync-pass')){
+        reportAutoLearnFailure('missing-passphrase:' + currentContextMode, 'Missing sync passphrase');
+      }
+      return Promise.resolve(null);
+    }
+    autoLearnQueuedPayload = payload;
+    autoLearnQueuedReason = reason || 'auto';
+    return flushQueuedAutoLearn();
+  }
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'hidden') triggerAutoLearn('visibility-hidden');
+  });
+  window.addEventListener('pagehide', function(){
+    triggerAutoLearn('pagehide');
+  });
   window.addEventListener('homer-vault-state', function(){
     if(window._homerVaultUnlocked) loadChatFromVault();
   });
@@ -11403,10 +11579,10 @@ document.addEventListener("input", e => {
     btn.textContent = '⏳ Syncing...';
     syncContextFromDrive(true).then(function(){
       btn.textContent = '✅ Synced!';
-      setTimeout(function(){ btn.innerHTML = '&#x27f3; Load Context'; btn.disabled = false; }, 2000);
+      setTimeout(function(){ btn.innerHTML = '&#x27f3; Sync from Drive'; btn.disabled = false; }, 2000);
     }).catch(function(e){
       btn.textContent = '❌ Failed';
-      setTimeout(function(){ btn.innerHTML = '&#x27f3; Load Context'; btn.disabled = false; }, 2000);
+      setTimeout(function(){ btn.innerHTML = '&#x27f3; Sync from Drive'; btn.disabled = false; }, 2000);
     });
   });
 
