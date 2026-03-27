@@ -9530,7 +9530,8 @@ document.addEventListener("input", e => {
       libraryMeta.textContent = 'Loading...';
       libraryList.innerHTML = '<div class="oc-library-empty">Loading remembered uploads...</div>';
     }
-    return fetch('/api/joey?action=file-library', { cache:'no-store' })
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    return fetch(joeyActionUrl('file-library', pass), { cache:'no-store' })
       .then(function(res){ return res.json().then(function(data){ return { ok:res.ok, data:data }; }); })
       .then(function(result){
         if(!result.ok || !result.data || !result.data.ok) throw new Error((result.data && (result.data.detail || result.data.error)) || 'Could not load uploads');
@@ -9918,10 +9919,11 @@ document.addEventListener("input", e => {
   function loadChatFromVault(){
     if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
       window._homerLoadVault().then(function(data){
-        if(data && data.ocChat && data.ocChat.length){
-          chatHistory = data.ocChat;
-          renderMessages();
-        }
+        var scopes = data && data.ocChatScopes && typeof data.ocChatScopes === 'object' ? data.ocChatScopes : {};
+        var next = scopes[currentContextMode];
+        if(!Array.isArray(next) && currentContextMode === 'personal' && data && Array.isArray(data.ocChat)) next = data.ocChat;
+        chatHistory = Array.isArray(next) ? next : [];
+        renderMessages();
       });
     }
   }
@@ -9929,7 +9931,9 @@ document.addEventListener("input", e => {
     if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
       window._homerLoadVault().then(function(data){
         if(data){
-          data.ocChat = chatHistory;
+          if(!data.ocChatScopes || typeof data.ocChatScopes !== 'object') data.ocChatScopes = {};
+          data.ocChatScopes[currentContextMode] = chatHistory;
+          if(currentContextMode === 'personal') data.ocChat = chatHistory;
           window._homerSaveVault(data);
         }
       });
@@ -10219,7 +10223,7 @@ document.addEventListener("input", e => {
     return fetch('/api/gdrive-restore', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ passphrase: pass })
+      body: JSON.stringify(withContextMode({ passphrase: pass }))
     }).then(function(r){ return r.json(); })
       .then(function(d){
         if(d.ok){
@@ -10268,13 +10272,14 @@ document.addEventListener("input", e => {
   function autoRestoreFromDrive(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass) return;
+    if(currentContextMode === 'work') return;
     // Check if we have any context in Redis
-    fetch('/api/joey?action=profile&passphrase=' + encodeURIComponent(pass))
+    fetch(joeyActionUrl('profile', pass))
       .then(function(r){ return r.json(); })
       .then(function(profileData){
         var hasProfile = profileData.profile && Object.keys(profileData.profile).length > 0;
         // Also check memories
-        return fetch('/api/joey?action=memory&passphrase=' + encodeURIComponent(pass))
+        return fetch(joeyActionUrl('memory', pass))
           .then(function(r){ return r.json(); })
           .then(function(memData){
             var hasMemories = memData.memories && memData.memories.length > 0;
@@ -10552,17 +10557,17 @@ document.addEventListener("input", e => {
           try{ memData = JSON.parse(a.data); }catch(e){ memData = {memory: a.data, category: 'general'}; }
           var pass = localStorage.getItem('homer-sync-pass') || '';
           if(pass){
-            fetch('/api/joey?action=memory', {
+            fetch(joeyActionUrl('memory'), {
               method:'POST',
               headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({
+              body:JSON.stringify(withContextMode({
                 passphrase:pass,
                 memory:memData.memory||memData.text||a.data,
                 category:memData.category||'general',
                 source:memData.source||'explicit-agent-action',
                 confidence:typeof memData.confidence === 'number' ? memData.confidence : 0.96,
                 pinned:!!memData.pinned || String(memData.category||'').toLowerCase() === 'pin'
-              })
+              }))
             }).then(function(r){return r.json();}).then(function(d){
               if(d.ok){
                 console.log('Memory saved, total:', d.count);
@@ -10577,10 +10582,10 @@ document.addEventListener("input", e => {
           // Remove from Joey's persistent memory
           var pass = localStorage.getItem('homer-sync-pass') || '';
           if(pass){
-            fetch('/api/joey?action=memory', {
+            fetch(joeyActionUrl('memory'), {
               method:'DELETE',
               headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({passphrase:pass, match:a.data})
+              body:JSON.stringify(withContextMode({passphrase:pass, match:a.data}))
             }).then(function(r){return r.json();}).then(function(d){
               if(d.ok){
                 console.log('Memory removed, remaining:', d.count);
