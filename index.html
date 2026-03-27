@@ -10208,6 +10208,7 @@ document.addEventListener("input", e => {
   var unreadCount = 0;
   var autoStickToBottom = true;
   var uploadStatusTimer = 0;
+  var fallbackStatusActive = false;
   var mobileSuppressedFields = [];
   var OC_WINDOW_STATE_KEY = 'homer-oc-window-state';
   var desktopWindowState = loadDesktopWindowState();
@@ -10317,6 +10318,7 @@ document.addEventListener("input", e => {
   function applyProvider(p){
     currentProvider = p;
     localStorage.setItem('homer-oc-provider', p);
+    rememberModelLabel(currentProvider, currentContextMode, getProviderDefaultModel(currentProvider, currentContextMode));
     syncProviderUi();
     renderMessages();
   }
@@ -10326,6 +10328,7 @@ document.addEventListener("input", e => {
     currentContextMode = mode === 'work' ? 'work' : 'personal';
     localStorage.setItem('homer-oc-mode', currentContextMode);
     localStorage.setItem('homer-vault-mode', currentContextMode);
+    rememberModelLabel(currentProvider, currentContextMode, getProviderDefaultModel(currentProvider, currentContextMode));
     syncProviderUi();
     renderMessages();
     if(!options.silent){
@@ -12135,9 +12138,21 @@ document.addEventListener("input", e => {
         body: JSON.stringify(withContextMode({ messages: apiMessages, passphrase: syncPass, systemPromptOverride: systemPrompt }))
       });
       var activeModel = res.headers.get('X-OpenClaw-Model') || '';
+      var primaryModel = res.headers.get('X-OpenClaw-Primary-Model') || '';
+      var fallbackUsed = res.headers.get('X-OpenClaw-Fallback-Used') === '1';
       var modelLabel = formatModelLabel(activeModel);
-      if(modelLabel) rememberModelLabel(currentProvider, currentContextMode, modelLabel);
-      applyModelBadge(modelLabel);
+      var primaryModelLabel = formatModelLabel(primaryModel) || getProviderDefaultModel(currentProvider, currentContextMode);
+      if(primaryModelLabel) rememberModelLabel(currentProvider, currentContextMode, primaryModelLabel);
+      applyModelBadge(primaryModelLabel);
+      if(fallbackUsed){
+        var fallbackNotice = getProviderDisplayName(currentProvider, currentContextMode) + ' switched to fallback: ' + (modelLabel || 'llama-3.1-8b-instant');
+        if(!fallbackStatusActive && isMobileShell()) showError(fallbackNotice);
+        fallbackStatusActive = true;
+        setUploadStatus(fallbackNotice, 'warn', true);
+      } else if(fallbackStatusActive){
+        fallbackStatusActive = false;
+        setUploadStatus('');
+      }
 
       removeTypingIndicator();
 
@@ -12175,13 +12190,13 @@ document.addEventListener("input", e => {
       if(fullResponse){
         // Execute any actions (tasks, goals, events) and strip tags from display
         var cleanResponse = executeActions(fullResponse);
-        chatHistory.push({role:'assistant', content:cleanResponse, provider:currentProvider, model:modelLabel || getStoredModelLabel(currentProvider, currentContextMode), mode:currentContextMode});
+        chatHistory.push({role:'assistant', content:cleanResponse, provider:currentProvider, model:modelLabel || primaryModelLabel || getStoredModelLabel(currentProvider, currentContextMode), mode:currentContextMode});
         incrementUnread();
         // Re-render the last bot message without action tags
         var lastBot = messagesEl.querySelector('.oc-msg.bot:last-of-type');
         if(lastBot && lastBot.querySelector('.oc-content')){
           var tag = lastBot.querySelector('.oc-model-tag');
-          if(tag) tag.textContent = modelLabel || getStoredModelLabel(currentProvider, currentContextMode);
+          if(tag) tag.textContent = modelLabel || primaryModelLabel || getStoredModelLabel(currentProvider, currentContextMode);
           lastBot.querySelector('.oc-content').innerHTML = renderMd(cleanResponse);
           injectCodeCopyButtons(lastBot);
         }

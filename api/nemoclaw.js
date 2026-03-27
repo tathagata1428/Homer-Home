@@ -69,7 +69,7 @@ export default async function handler(req, res) {
         primaryModel: mode === 'work'
           ? String(env.NEMOCLAW_WORK_MODEL || env.NEMOCLAW_MODEL || 'minimax-m2.7:cloud').trim()
           : String(env.NEMOCLAW_PERSONAL_MODEL || 'nemotron-3-super:cloud').trim(),
-        fallbackModel: String(env.NEMOCLAW_FALLBACK_MODEL || '').trim(),
+        fallbackModel: 'llama-3.1-8b-instant',
         largeContext: true
       };
     },

@@ -9261,6 +9261,7 @@ document.addEventListener("input", e => {
   var panelOpen = false;
   var pendingFiles = [];
   var uploadStatusTimer = 0;
+  var fallbackStatusActive = false;
   var mobileSuppressedFields = [];
 
   // --- Provider toggle ---
@@ -9278,6 +9279,7 @@ document.addEventListener("input", e => {
   function applyProvider(p){
     currentProvider = p;
     localStorage.setItem('homer-oc-provider', p);
+    localStorage.setItem('homer-oc-model-label-' + currentProvider + '-' + (currentContextMode === 'work' ? 'work' : 'personal'), currentProvider === 'nemoclaw' ? (currentContextMode === 'work' ? 'minimax-m2.7:cloud' : 'Nemotron 3 Super') : 'MiMo-V2-Pro');
     var isNemo = p === 'nemoclaw';
     toggleTrack.classList.toggle('nemoclaw', isNemo);
     labelJoey.className = isNemo ? '' : 'active joey-active';
@@ -9292,6 +9294,7 @@ document.addEventListener("input", e => {
   function applyContextMode(mode){
     currentContextMode = mode === 'work' ? 'work' : 'personal';
     localStorage.setItem('homer-oc-mode', currentContextMode);
+    localStorage.setItem('homer-oc-model-label-' + currentProvider + '-' + (currentContextMode === 'work' ? 'work' : 'personal'), currentProvider === 'nemoclaw' ? (currentContextMode === 'work' ? 'minimax-m2.7:cloud' : 'Nemotron 3 Super') : 'MiMo-V2-Pro');
     applyProvider(currentProvider);
   }
   function closeMobileMenu(){
@@ -10660,8 +10663,20 @@ document.addEventListener("input", e => {
         body: JSON.stringify({ messages: apiMessages, passphrase: syncPass })
       });
       var activeModel = res.headers.get('X-OpenClaw-Model') || '';
+      var primaryModel = res.headers.get('X-OpenClaw-Primary-Model') || '';
+      var fallbackUsed = res.headers.get('X-OpenClaw-Fallback-Used') === '1';
       var modelLabel = formatModelLabel(activeModel);
-      if(modelBadge) modelBadge.textContent = modelLabel;
+      var primaryModelLabel = formatModelLabel(primaryModel) || (currentProvider === 'nemoclaw' ? (currentContextMode === 'work' ? 'minimax-m2.7:cloud' : 'Nemotron 3 Super') : 'MiMo-V2-Pro');
+      if(modelBadge) modelBadge.textContent = primaryModelLabel;
+      if(fallbackUsed){
+        var fallbackNotice = (currentProvider === 'nemoclaw' ? (currentContextMode === 'work' ? 'Joey Max' : 'Joey Titan') : 'Joey Kilo') + ' switched to fallback: ' + (modelLabel || 'llama-3.1-8b-instant');
+        if(!fallbackStatusActive && typeof isMobileShell === 'function' && isMobileShell()) showError(fallbackNotice);
+        fallbackStatusActive = true;
+        setUploadStatus(fallbackNotice, 'warn', true);
+      } else if(fallbackStatusActive){
+        fallbackStatusActive = false;
+        setUploadStatus('');
+      }
 
       removeTypingIndicator();
 
