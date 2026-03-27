@@ -1,4 +1,14 @@
 // Google Drive context restore — fetches Joey context from Google Apps Script, restores to Redis
+import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
+import {
+  createRedisFetch,
+  fetchWithRedirects,
+  getGoogleDriveConfig,
+  getRedisConfig,
+  saveRedisJson,
+  verifyJoeyPassphrase
+} from '../lib/joey-server.js';
+
 export default async function handler(req, res) {
   const origin = req.headers.origin || '*';
   res.setHeader('Access-Control-Allow-Origin', origin);
@@ -12,85 +22,43 @@ export default async function handler(req, res) {
   // --- Auth ---
   const { passphrase } = req.body || {};
   if (!passphrase) return res.status(401).json({ error: 'Missing passphrase' });
+  const mode = getJoeyMode(req);
+  const { MEMORY_KEY, PROFILE_KEY, HISTORY_KEY, FILES_KEY, FILE_LIBRARY_KEY, CUSTOM_FILES_KEY } = getJoeyContextKeys(mode);
 
   // --- Google Apps Script webhook ---
-  const GDRIVE_WEBHOOK = (process.env.GDRIVE_WEBHOOK_URL || '').trim();
-  const GDRIVE_SECRET = (process.env.GDRIVE_SECRET || '').trim();
-  if (!GDRIVE_WEBHOOK) return res.status(500).json({ error: 'GDRIVE_WEBHOOK_URL not configured' });
-  if (!GDRIVE_SECRET) return res.status(500).json({ error: 'GDRIVE_SECRET not configured' });
+  const { webhook: gdriveWebhook, secret: gdriveSecret } = getGoogleDriveConfig();
+  if (!gdriveWebhook) return res.status(500).json({ error: 'GDRIVE_WEBHOOK_URL not configured' });
+  if (!gdriveSecret) return res.status(500).json({ error: 'GDRIVE_SECRET not configured' });
 
   // --- Redis ---
-  const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!REDIS_URL || !REDIS_TOKEN) return res.status(500).json({ error: 'Redis not configured' });
-
-  const redisFetch = (cmd) => fetch(REDIS_URL, {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN },
-    body: JSON.stringify(cmd)
-  }).then(r => r.json());
-
-  async function verifyPassphrase(pass) {
-    const ADMIN_HASH = (process.env.HOMER_ADMIN_HASH || '').trim();
-    if (ADMIN_HASH && pass.trim() === ADMIN_HASH) return true;
-    const usersData = await redisFetch(['GET', 'homer:users']);
-    if (usersData.result) {
-      try {
-        const users = JSON.parse(usersData.result);
-        for (const user of users) {
-          if (user.passwordHash === pass.trim()) return true;
-        }
-      } catch (e) {}
-    }
-    return false;
-  }
+  const redisFetch = createRedisFetch();
+  const { url: redisUrl, token: redisToken } = getRedisConfig();
+  if (!redisUrl || !redisToken || !redisFetch) return res.status(500).json({ error: 'Redis not configured' });
 
   try {
-    const isValid = await verifyPassphrase(passphrase);
+    const isValid = await verifyJoeyPassphrase(passphrase, redisFetch);
     if (!isValid) return res.status(403).json({ error: 'Forbidden' });
 
-    // --- GET from Google Apps Script with manual redirect following ---
-    const startUrl = GDRIVE_WEBHOOK + '?action=restore&secret=' + encodeURIComponent(GDRIVE_SECRET);
-    let responseText = '';
-    let finalStatus = 0;
-    let redirectChain = [];
+    const restoreUrl = gdriveWebhook + '?action=restore&secret=' + encodeURIComponent(gdriveSecret) + '&mode=' + encodeURIComponent(mode);
+    const response = await fetchWithRedirects(restoreUrl, { method: 'GET' });
+    const redirectChain = response.redirectChain || [];
 
-    let url = startUrl;
-    for (let i = 0; i < 5; i++) {
-      const resp = await fetch(url, { method: 'GET', redirect: 'manual' });
-      redirectChain.push({ url: url.slice(0, 80), status: resp.status });
-
-      if (resp.status >= 300 && resp.status < 400) {
-        const location = resp.headers.get('location');
-        if (!location) {
-          console.error('[gdrive-restore] Redirect without location at step ' + i, JSON.stringify(redirectChain));
-          return res.status(502).json({ error: 'Redirect without location', redirectChain });
-        }
-        url = location;
-        continue;
-      }
-
-      finalStatus = resp.status;
-      responseText = await resp.text();
-      break;
-    }
-
-    if (!responseText) {
-      console.error('[gdrive-restore] No response after redirects', JSON.stringify(redirectChain));
-      return res.status(502).json({ error: 'No response after redirects', redirectChain });
+    if (!response.text) {
+      console.error('[gdrive-restore] ' + (response.error || 'No response after redirects'), JSON.stringify(redirectChain));
+      return res.status(response.status || 502).json({ error: response.error || 'No response after redirects', redirectChain });
     }
 
     let parsed;
     try {
-      parsed = JSON.parse(responseText);
+      parsed = JSON.parse(response.text);
     } catch {
-      const isHtml = responseText.trim().startsWith('<');
-      console.error('[gdrive-restore] Non-JSON response, status=' + finalStatus + ', isHtml=' + isHtml + ', preview=' + responseText.slice(0, 200));
+      const isHtml = response.text.trim().startsWith('<');
+      console.error('[gdrive-restore] Non-JSON response, status=' + response.status + ', isHtml=' + isHtml + ', preview=' + response.text.slice(0, 200));
       console.error('[gdrive-restore] Redirect chain:', JSON.stringify(redirectChain));
       return res.status(502).json({
         error: isHtml ? 'Google returned HTML — Apps Script may need redeployment' : 'Non-JSON response',
-        status: finalStatus,
-        responsePreview: responseText.slice(0, 300),
+        status: response.status,
+        responsePreview: response.text.slice(0, 300),
         redirectChain
       });
     }
@@ -108,20 +76,32 @@ export default async function handler(req, res) {
     }
 
     // Restore to Redis
-    const { profile, memories, history } = parsed;
-    const results = { profile: false, memories: false, history: false };
+    const { profile, memories, history, files, fileLibrary, customFiles } = parsed;
+    const results = { profile: false, memories: false, history: false, files: false, fileLibrary: false, customFiles: false };
 
     if (profile !== undefined) {
-      await redisFetch(['SET', 'joey:profile', JSON.stringify(profile || {})]);
+      await saveRedisJson(redisFetch, PROFILE_KEY, profile || {});
       results.profile = true;
     }
     if (memories !== undefined) {
-      await redisFetch(['SET', 'joey:memories', JSON.stringify(memories || [])]);
+      await saveRedisJson(redisFetch, MEMORY_KEY, memories || []);
       results.memories = true;
     }
     if (history !== undefined) {
-      await redisFetch(['SET', 'joey:history', JSON.stringify(history || [])]);
+      await saveRedisJson(redisFetch, HISTORY_KEY, history || []);
       results.history = true;
+    }
+    if (files !== undefined) {
+      await saveRedisJson(redisFetch, FILES_KEY, files || {});
+      results.files = true;
+    }
+    if (fileLibrary !== undefined) {
+      await saveRedisJson(redisFetch, FILE_LIBRARY_KEY, fileLibrary || []);
+      results.fileLibrary = true;
+    }
+    if (customFiles !== undefined) {
+      await saveRedisJson(redisFetch, CUSTOM_FILES_KEY, customFiles || {});
+      results.customFiles = true;
     }
 
     return res.status(200).json({

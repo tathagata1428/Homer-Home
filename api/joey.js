@@ -1,4 +1,5 @@
-import crypto from 'crypto';
+import { buildContextFiles } from '../lib/context-files.js';
+import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
 
 export default async function handler(req, res) {
   const origin = req.headers.origin || '*';
@@ -44,11 +45,18 @@ export default async function handler(req, res) {
   }
   if (!isValid) return res.status(403).json({ error: 'Forbidden' });
 
-  const MEMORY_KEY = 'joey:memories';
-  const HISTORY_KEY = 'joey:history';
-  const PROFILE_KEY = 'joey:profile';
+  const mode = getJoeyMode(req);
+  const { MEMORY_KEY, HISTORY_KEY, PROFILE_KEY, FILES_KEY, FILE_LIBRARY_KEY, CUSTOM_FILES_KEY } = getJoeyContextKeys(mode);
   const MAX_MEMORIES = 200;
   const MAX_HISTORY = 50;
+
+  function buildChatUrl(baseUrl) {
+    const normalized = String(baseUrl || '').replace(/\/+$/, '');
+    if (/\/openai\/v1$/i.test(normalized) || /\/v1$/i.test(normalized)) {
+      return normalized + '/chat/completions';
+    }
+    return normalized + '/v1/chat/completions';
+  }
 
   try {
     const { action } = req.query;
@@ -83,11 +91,19 @@ export default async function handler(req, res) {
         return res.status(200).json({ memories });
       }
       if (req.method === 'POST') {
-        const { memory, category } = req.body || {};
+        const { memory, category, source, confidence, pinned } = req.body || {};
         if (!memory) return res.status(400).json({ error: 'Missing memory' });
         const result = await redis(['GET', MEMORY_KEY]);
         const memories = result.result ? JSON.parse(result.result) : [];
-        memories.push({ id: Date.now(), text: memory, category: category || 'general', ts: Date.now() });
+        memories.push({
+          id: Date.now(),
+          text: memory,
+          category: category || 'general',
+          ts: Date.now(),
+          source: source || 'manual',
+          confidence: typeof confidence === 'number' ? Math.max(0, Math.min(1, confidence)) : undefined,
+          pinned: !!pinned
+        });
         while (memories.length > MAX_MEMORIES) memories.shift();
         await redis(['SET', MEMORY_KEY, JSON.stringify(memories)]);
         return res.status(200).json({ ok: true, count: memories.length });
@@ -120,6 +136,80 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
+    if (action === 'files') {
+      if (req.method === 'GET') {
+        const result = await redis(['GET', FILES_KEY]);
+        const files = result.result ? JSON.parse(result.result) : {};
+        return res.status(200).json({ files });
+      }
+      if (req.method === 'POST') {
+        const { tasks } = req.body || {};
+        const effectiveTasks = mode === 'work' ? [] : (Array.isArray(tasks) ? tasks : []);
+        const [memRes, profileRes, histRes, libraryRes, customFilesRes] = await Promise.all([
+          redis(['GET', MEMORY_KEY]),
+          redis(['GET', PROFILE_KEY]),
+          redis(['GET', HISTORY_KEY]),
+          redis(['GET', FILE_LIBRARY_KEY]),
+          redis(['GET', CUSTOM_FILES_KEY])
+        ]);
+        const files = buildContextFiles({
+          profile: profileRes.result ? JSON.parse(profileRes.result) : {},
+          memories: memRes.result ? JSON.parse(memRes.result) : [],
+          history: histRes.result ? JSON.parse(histRes.result) : [],
+          tasks: effectiveTasks,
+          fileLibrary: libraryRes.result ? JSON.parse(libraryRes.result) : [],
+          customFiles: customFilesRes.result ? JSON.parse(customFilesRes.result) : {},
+          scope: mode
+        });
+        await redis(['SET', FILES_KEY, JSON.stringify(files)]);
+        return res.status(200).json({ ok: true, files });
+      }
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    if (action === 'file-library') {
+      if (req.method === 'GET') {
+        const result = await redis(['GET', FILE_LIBRARY_KEY]);
+        const files = result.result ? JSON.parse(result.result) : [];
+        return res.status(200).json({ files });
+      }
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    // --- CUSTOM FILES CRUD ---
+    if (action === 'custom-files') {
+      if (req.method === 'GET') {
+        const result = await redis(['GET', CUSTOM_FILES_KEY]);
+        const customFiles = result.result ? JSON.parse(result.result) : {};
+        return res.status(200).json({ customFiles });
+      }
+      if (req.method === 'POST') {
+        const { name, content } = req.body || {};
+        if (!name || typeof content !== 'string') return res.status(400).json({ error: 'Missing name or content' });
+        const safeName = String(name).trim().replace(/\.\./g, '').replace(/^\/+/, '').slice(0, 200);
+        if (!safeName) return res.status(400).json({ error: 'Invalid file name' });
+        const result = await redis(['GET', CUSTOM_FILES_KEY]);
+        const customFiles = result.result ? JSON.parse(result.result) : {};
+        if (!content.trim()) {
+          delete customFiles[safeName];
+        } else {
+          customFiles[safeName] = content.trim().slice(0, 50000);
+        }
+        await redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(customFiles)]);
+        return res.status(200).json({ ok: true, name: safeName, count: Object.keys(customFiles).length });
+      }
+      if (req.method === 'DELETE') {
+        const { name } = req.body || {};
+        if (!name) return res.status(400).json({ error: 'Missing name' });
+        const result = await redis(['GET', CUSTOM_FILES_KEY]);
+        const customFiles = result.result ? JSON.parse(result.result) : {};
+        delete customFiles[String(name).trim()];
+        await redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(customFiles)]);
+        return res.status(200).json({ ok: true, count: Object.keys(customFiles).length });
+      }
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
     // --- LEARN ACTION (POST only) ---
     if (action === 'learn' && req.method === 'POST') {
       const { messages } = req.body || {};
@@ -127,14 +217,14 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Need at least 2 messages' });
       }
 
-      const GATEWAY_URL = (process.env.OC_GATEWAY_URL || 'http://localhost:18789').replace(/\/+$/, '');
-      const GATEWAY_TOKEN = process.env.OC_GATEWAY_TOKEN || '';
-      const MODEL = process.env.OC_MODEL || 'llama-3.3-70b-versatile';
+      const GATEWAY_URL = String(process.env.OC_GATEWAY_URL || 'https://api.kilo.ai/api/gateway').trim().replace(/\/+$/, '');
+      const GATEWAY_TOKEN = String(process.env.OC_GATEWAY_TOKEN || '').trim();
+      const MODEL = String(process.env.OC_MODEL || 'xiaomi/mimo-v2-pro:free').trim();
 
       function llmCall(msgs, maxTokens) {
         const headers = { 'Content-Type': 'application/json' };
         if (GATEWAY_TOKEN) headers['Authorization'] = 'Bearer ' + GATEWAY_TOKEN;
-        return fetch(GATEWAY_URL + '/v1/chat/completions', {
+        return fetch(buildChatUrl(GATEWAY_URL), {
           method: 'POST',
           headers,
           body: JSON.stringify({ model: MODEL, messages: msgs, temperature: 0.1, max_tokens: maxTokens || 800 })
@@ -169,7 +259,43 @@ export default async function handler(req, res) {
       const existingText = existing.length ? existing.map(m => '- [' + m.category + '] ' + m.text).join('\n') : '(none yet)';
       const profileText = Object.keys(profile).length ? JSON.stringify(profile, null, 1) : '(empty)';
 
-      const extractPrompt = `You are a personal memory & profile system. Analyze this conversation and do TWO things:
+      const extractPrompt = mode === 'work'
+        ? `You are a work memory and operations system. Analyze this conversation and do TWO things:
+
+1. EXTRACT NEW WORKING MEMORY - tasks, commitments, blockers, deadlines, stakeholders, decisions, and reusable work notes worth remembering
+2. UPDATE WORK PROFILE - maintain a practical profile of current projects, responsibilities, collaborators, and working style
+
+EXISTING MEMORIES (do NOT duplicate):
+${existingText}
+
+CURRENT PROFILE:
+${profileText}
+
+WORK MEMORY RULES:
+- Only extract facts NOT already in existing memories
+- Bias strongly toward work recall: responsibilities, deadlines, owners, blockers, follow-ups, meeting outcomes, commitments, processes, and project context
+- Categories: work, decision, resource, fact, person, goal, routine, lesson, win, pin, archive
+- Each memory = one concise standalone fact
+- Prefer "decision" for choices, defaults, approvals, policies, or "we decided..."
+- Prefer "resource" for docs, links, procedures, commands, templates, and reusable notes
+- Prefer "work" for open responsibilities, recurring obligations, project facts, clients, systems, and status context
+- Prefer "pin" for always-important work context that should stay front-and-center
+- Prefer "lesson" for misses, blockers, and what they imply for future work
+- Prefer "win" for shipped work, praise, progress, and breakthroughs
+- Capture exact dates, deadlines, and stakeholders when mentioned
+- Do not save generic chit-chat or non-actionable filler
+
+WORK PROFILE RULES:
+- Update fields that changed, add new ones, keep existing ones
+- Track: profession, communication_style, people, active_goals, recent_topics, current_mood, timezone, projects, responsibilities, stakeholders, routines, important_dates
+- Keep it operational and concise
+
+Return ONLY this JSON:
+{
+  "memories": [{"text": "fact", "category": "category", "source": "auto-learn", "confidence": 0.0-1.0}],
+  "profile": { ...full updated profile object... }
+}`
+        : `You are a personal memory & profile system. Analyze this conversation and do TWO things:
 
 1. EXTRACT NEW MEMORIES — facts about the user worth remembering permanently
 2. UPDATE USER PROFILE — maintain a living profile of who this person is
@@ -182,9 +308,16 @@ ${profileText}
 
 MEMORY RULES:
 - Only extract facts NOT already in existing memories
-- Categories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work
+- Categories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work, resource, decision, pin, archive
 - Each memory = one concise standalone fact
 - Capture EMOTIONAL context too
+- Use category "win" for achievements, proud moments, things that went really well, breakthroughs, compliments, progress, or anything the user feels good about.
+- Use category "lesson" for painful mistakes, setbacks, bad experiences, regrets, failures, hard realizations, or anything the user explicitly says taught them something.
+- Use category "resource" for reusable notes, references, research, frameworks, links, or useful information the user will likely want later.
+- Use category "decision" for explicit choices, commitments, defaults, policies, or "we decided to..." statements.
+- Use category "pin" only for always-important context that should stay front-and-center for future turns.
+- Prefer "win" or "lesson" over generic "event" whenever the conversation clearly frames the experience that way.
+- If the user says things like "I'm proud", "this went well", "I nailed it", "I learned", "this taught me", "I won't do that again", or similar, strongly prefer saving a memory in the matching category.
 
 PROFILE RULES:
 - Update fields that changed, add new ones, keep existing ones
@@ -192,7 +325,7 @@ PROFILE RULES:
 
 Return ONLY this JSON:
 {
-  "memories": [{"text": "fact", "category": "category"}],
+  "memories": [{"text": "fact", "category": "category", "source": "auto-learn", "confidence": 0.0-1.0}],
   "profile": { ...full updated profile object... }
 }`;
 
@@ -225,7 +358,17 @@ Return ONLY this JSON:
 
       let updated = [...existing];
       for (const fact of genuinelyNew) {
-        updated.push({ id: Date.now() + Math.random(), text: fact.text.slice(0, 500), category: fact.category || 'general', ts: Date.now(), auto: true });
+        const confidence = typeof fact.confidence === 'number' ? Math.max(0, Math.min(1, fact.confidence)) : 0.72;
+        updated.push({
+          id: Date.now() + Math.random(),
+          text: fact.text.slice(0, 500),
+          category: fact.category || 'general',
+          ts: Date.now(),
+          auto: true,
+          source: fact.source || 'auto-learn',
+          confidence,
+          pinned: (fact.category || '').toLowerCase() === 'pin'
+        });
       }
 
       // Consolidate if too many

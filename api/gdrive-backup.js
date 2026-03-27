@@ -1,3 +1,15 @@
+import { buildContextFiles } from '../lib/context-files.js';
+import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
+import {
+  createRedisFetch,
+  fetchWithRedirects,
+  getGoogleDriveConfig,
+  getRedisConfig,
+  loadRedisJson,
+  saveRedisJson,
+  verifyJoeyPassphrase
+} from '../lib/joey-server.js';
+
 // Google Drive context backup — fetches Joey context from Redis, POSTs to Google Apps Script
 export default async function handler(req, res) {
   const origin = req.headers.origin || '*';
@@ -12,111 +24,89 @@ export default async function handler(req, res) {
   // --- Auth ---
   const { passphrase } = req.body || {};
   if (!passphrase) return res.status(401).json({ error: 'Missing passphrase' });
+  const mode = getJoeyMode(req);
+  const { MEMORY_KEY, PROFILE_KEY, HISTORY_KEY, FILES_KEY, FILE_LIBRARY_KEY, CUSTOM_FILES_KEY } = getJoeyContextKeys(mode);
 
   // --- Google Apps Script webhook ---
-  const GDRIVE_WEBHOOK = (process.env.GDRIVE_WEBHOOK_URL || '').trim();
-  const GDRIVE_SECRET = (process.env.GDRIVE_SECRET || '').trim();
-  if (!GDRIVE_WEBHOOK) return res.status(500).json({ error: 'GDRIVE_WEBHOOK_URL not configured' });
-  if (!GDRIVE_SECRET) return res.status(500).json({ error: 'GDRIVE_SECRET not configured' });
+  const { webhook: gdriveWebhook, secret: gdriveSecret } = getGoogleDriveConfig();
+  if (!gdriveWebhook) return res.status(500).json({ error: 'GDRIVE_WEBHOOK_URL not configured' });
+  if (!gdriveSecret) return res.status(500).json({ error: 'GDRIVE_SECRET not configured' });
 
   // --- Redis ---
-  const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!REDIS_URL || !REDIS_TOKEN) return res.status(500).json({ error: 'Redis not configured' });
-
-  const redisFetch = (cmd) => fetch(REDIS_URL, {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN },
-    body: JSON.stringify(cmd)
-  }).then(r => r.json());
-
-  async function verifyPassphrase(pass) {
-    const ADMIN_HASH = (process.env.HOMER_ADMIN_HASH || '').trim();
-    if (ADMIN_HASH && pass.trim() === ADMIN_HASH) return true;
-    const usersData = await redisFetch(['GET', 'homer:users']);
-    if (usersData.result) {
-      try {
-        const users = JSON.parse(usersData.result);
-        for (const user of users) {
-          if (user.passwordHash === pass.trim()) return true;
-        }
-      } catch (e) {}
-    }
-    return false;
-  }
+  const redisFetch = createRedisFetch();
+  const { url: redisUrl, token: redisToken } = getRedisConfig();
+  if (!redisUrl || !redisToken || !redisFetch) return res.status(500).json({ error: 'Redis not configured' });
 
   try {
-    const isValid = await verifyPassphrase(passphrase);
+    const taskSnapshot = Array.isArray((req.body || {}).tasks) ? req.body.tasks : [];
+    const effectiveTasks = mode === 'work' ? [] : taskSnapshot;
+    const isValid = await verifyJoeyPassphrase(passphrase, redisFetch);
     if (!isValid) return res.status(403).json({ error: 'Forbidden' });
 
-    const [memRes, profileRes, histRes] = await Promise.all([
-      redisFetch(['GET', 'joey:memories']),
-      redisFetch(['GET', 'joey:profile']),
-      redisFetch(['GET', 'joey:history'])
+    const [memories, profile, fullHistory, filesResult, fileLibrary, customFiles] = await Promise.all([
+      loadRedisJson(redisFetch, MEMORY_KEY, []),
+      loadRedisJson(redisFetch, PROFILE_KEY, null),
+      loadRedisJson(redisFetch, HISTORY_KEY, []),
+      loadRedisJson(redisFetch, FILES_KEY, {}),
+      loadRedisJson(redisFetch, FILE_LIBRARY_KEY, []),
+      loadRedisJson(redisFetch, CUSTOM_FILES_KEY, {})
     ]);
 
-    // Trim history to last 30 messages to keep payload small
-    let history = [];
-    try { history = histRes.result ? JSON.parse(histRes.result) : []; } catch (e) {}
+    let history = Array.isArray(fullHistory) ? fullHistory : [];
     if (history.length > 30) history = history.slice(-30);
 
+    let files = filesResult && typeof filesResult === 'object' ? filesResult : {};
+    if (!files || !files['AgentContext.md'] || effectiveTasks.length) {
+      files = buildContextFiles({
+        profile: profile || {},
+        memories,
+        history,
+        tasks: effectiveTasks,
+        fileLibrary,
+        customFiles,
+        scope: mode
+      });
+    }
+    await saveRedisJson(redisFetch, FILES_KEY, files);
+
     const payload = {
-      secret: GDRIVE_SECRET,
-      profile: profileRes.result ? JSON.parse(profileRes.result) : null,
-      memories: memRes.result ? JSON.parse(memRes.result) : [],
-      history
+      secret: gdriveSecret,
+      mode,
+      profile,
+      memories,
+      history,
+      files,
+      fileLibrary,
+      customFiles
     };
 
     // --- POST to Google Apps Script with manual redirect following ---
     // Google Apps Script returns 302 redirects; we follow manually for reliability
-    const bodyStr = JSON.stringify(payload);
-    let responseText = '';
-    let finalStatus = 0;
-    let redirectChain = [];
+    const response = await fetchWithRedirects(gdriveWebhook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const redirectChain = response.redirectChain || [];
 
-    let url = GDRIVE_WEBHOOK;
-    for (let i = 0; i < 5; i++) {
-      const isPost = i === 0; // Only POST on first request, GET on redirects
-      const fetchOpts = isPost
-        ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: bodyStr, redirect: 'manual' }
-        : { method: 'GET', redirect: 'manual' };
-
-      const resp = await fetch(url, fetchOpts);
-      redirectChain.push({ url: url.slice(0, 80), status: resp.status, method: isPost ? 'POST' : 'GET' });
-
-      if (resp.status >= 300 && resp.status < 400) {
-        const location = resp.headers.get('location');
-        if (!location) {
-          console.error('[gdrive-backup] Redirect without location at step ' + i, JSON.stringify(redirectChain));
-          return res.status(502).json({ error: 'Redirect without location', redirectChain });
-        }
-        url = location;
-        continue;
-      }
-
-      finalStatus = resp.status;
-      responseText = await resp.text();
-      break;
-    }
-
-    if (!responseText) {
-      console.error('[gdrive-backup] No response after redirects', JSON.stringify(redirectChain));
-      return res.status(502).json({ error: 'No response after redirects', redirectChain });
+    if (!response.text) {
+      console.error('[gdrive-backup] ' + (response.error || 'No response after redirects'), JSON.stringify(redirectChain));
+      return res.status(response.status || 502).json({ error: response.error || 'No response after redirects', redirectChain });
     }
 
     // Parse response
     let parsed;
     try {
-      parsed = JSON.parse(responseText);
+      parsed = JSON.parse(response.text);
     } catch {
       // Got HTML or non-JSON response — likely Google auth/error page
-      const isHtml = responseText.trim().startsWith('<');
-      console.error('[gdrive-backup] Non-JSON response, status=' + finalStatus + ', isHtml=' + isHtml + ', preview=' + responseText.slice(0, 200));
+      const isHtml = response.text.trim().startsWith('<');
+      console.error('[gdrive-backup] Non-JSON response, status=' + response.status + ', isHtml=' + isHtml + ', preview=' + response.text.slice(0, 200));
       console.error('[gdrive-backup] Redirect chain:', JSON.stringify(redirectChain));
       return res.status(502).json({
         error: isHtml ? 'Google returned HTML instead of JSON — the Apps Script may need redeployment' : 'Non-JSON response from Google',
-        status: finalStatus,
-        responsePreview: responseText.slice(0, 300),
+        status: response.status,
+        responsePreview: response.text.slice(0, 300),
         redirectChain
       });
     }
