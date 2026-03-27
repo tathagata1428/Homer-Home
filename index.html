@@ -8684,6 +8684,10 @@ document.addEventListener("input", e => {
       <button type="button" id="oc-mobile-sync-drive">Sync from Drive</button>
       <button type="button" id="oc-mobile-backup-drive">Backup to Drive</button>
     </div>
+    <div class="oc-mobile-menu-section">
+      <span class="oc-mobile-menu-label">Chat</span>
+      <button type="button" id="oc-mobile-clear-chat">Clear Chat Window</button>
+    </div>
   </div>
   <div class="oc-provider-bar">
     <label id="oc-label-joey" class="active joey-active">Joey Kilo</label>
@@ -10291,6 +10295,7 @@ document.addEventListener("input", e => {
   var mobileClearPromptBtn = document.getElementById('oc-mobile-clear-prompt');
   var mobileSyncDriveBtn = document.getElementById('oc-mobile-sync-drive');
   var mobileBackupDriveBtn = document.getElementById('oc-mobile-backup-drive');
+  var mobileClearChatBtn = document.getElementById('oc-mobile-clear-chat');
   var expandBtn = document.getElementById('oc-expand-btn');
   var fullscreenBtn = document.getElementById('oc-fullscreen-btn');
   var scrollLatestBtn = document.getElementById('oc-scroll-latest');
@@ -11065,6 +11070,12 @@ document.addEventListener("input", e => {
       if(desktopBackupBtn) desktopBackupBtn.click();
     });
   }
+  if(mobileClearChatBtn){
+    mobileClearChatBtn.addEventListener('click', function(){
+      closeMobileMenu();
+      clearChatWindow();
+    });
+  }
   if(libraryBtn){
     libraryBtn.addEventListener('click', function(){
       toggleLibraryPanel();
@@ -11311,6 +11322,19 @@ document.addEventListener("input", e => {
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(withContextMode({ passphrase:pass, messages:chatHistory }))
     }).catch(function(){});
+  }
+  function clearChatWindow(){
+    chatHistory = [];
+    renderMessages();
+    saveChatToVault();
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(pass){
+      fetch(joeyActionUrl('history'), {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(withContextMode({ passphrase:pass, messages:[] }))
+      }).catch(function(){});
+    }
   }
 
   function refreshCanonicalFiles(){
@@ -12427,9 +12451,7 @@ document.addEventListener("input", e => {
   });
 
   clearBtn.addEventListener('click', function(){
-    chatHistory = [];
-    renderMessages();
-    saveChatToVault();
+    clearChatWindow();
   });
 
   document.addEventListener('mousedown', function(e){
