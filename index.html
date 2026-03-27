@@ -8679,6 +8679,11 @@ document.addEventListener("input", e => {
       <button type="button" id="oc-mobile-edit-prompt">Edit System Prompt</button>
       <button type="button" id="oc-mobile-clear-prompt">Use Default Joey</button>
     </div>
+    <div class="oc-mobile-menu-section">
+      <span class="oc-mobile-menu-label">Cloud</span>
+      <button type="button" id="oc-mobile-sync-drive">Sync from Drive</button>
+      <button type="button" id="oc-mobile-backup-drive">Backup to Drive</button>
+    </div>
   </div>
   <div class="oc-provider-bar">
     <label id="oc-label-joey" class="active joey-active">Joey Kilo</label>
@@ -10284,6 +10289,8 @@ document.addEventListener("input", e => {
   var mobileModeWorkBtn = document.getElementById('oc-mobile-mode-work');
   var mobileEditPromptBtn = document.getElementById('oc-mobile-edit-prompt');
   var mobileClearPromptBtn = document.getElementById('oc-mobile-clear-prompt');
+  var mobileSyncDriveBtn = document.getElementById('oc-mobile-sync-drive');
+  var mobileBackupDriveBtn = document.getElementById('oc-mobile-backup-drive');
   var expandBtn = document.getElementById('oc-expand-btn');
   var fullscreenBtn = document.getElementById('oc-fullscreen-btn');
   var scrollLatestBtn = document.getElementById('oc-scroll-latest');
@@ -11042,6 +11049,20 @@ document.addEventListener("input", e => {
       setConfig(nextConfig);
       renderMessages();
       closeMobileMenu();
+    });
+  }
+  if(mobileSyncDriveBtn){
+    mobileSyncDriveBtn.addEventListener('click', function(){
+      closeMobileMenu();
+      var desktopSyncBtn = document.getElementById('oc-gdrive-sync');
+      if(desktopSyncBtn) desktopSyncBtn.click();
+    });
+  }
+  if(mobileBackupDriveBtn){
+    mobileBackupDriveBtn.addEventListener('click', function(){
+      closeMobileMenu();
+      var desktopBackupBtn = document.getElementById('oc-gdrive-backup');
+      if(desktopBackupBtn) desktopBackupBtn.click();
     });
   }
   if(libraryBtn){
