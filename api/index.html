@@ -10102,6 +10102,10 @@ document.addEventListener("input", e => {
   }
   function reportAutoLearnFailure(key, message){
     if(!key || autoLearnLastErrorKey === key) return;
+    if(/unparseable response/i.test(String(message || ''))){
+      console.warn('[Joey] Auto-learn skipped:', message);
+      return;
+    }
     autoLearnLastErrorKey = key;
     console.error('[Joey] Auto-learn failed:', message);
     if(panelOpen && document.visibilityState !== 'hidden'){
@@ -10120,9 +10124,6 @@ document.addEventListener("input", e => {
     }).then(parseJoeyJsonResponse)
       .then(function(data){
         if(data && data.error) throw new Error(data.error);
-        if(data && data.reason && /unparseable/i.test(String(data.reason))){
-          throw new Error(data.reason);
-        }
         autoLearnLastCommittedKey = key;
         autoLearnLastErrorKey = '';
         if(data && data.learned > 0) console.log('[Joey] Auto-learned ' + data.learned + ' new fact(s):', data.facts);
