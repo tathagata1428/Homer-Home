@@ -9367,6 +9367,8 @@ document.addEventListener("input", e => {
   var autoLearnQueuedReason = '';
   var autoLearnLastCommittedKey = '';
   var autoLearnLastErrorKey = '';
+  var joeyDriveBackupTimer = null;
+  var joeyDriveBackupInFlight = false;
   var mobileSuppressedFields = [];
 
   // --- Provider toggle ---
@@ -9943,6 +9945,38 @@ document.addEventListener("input", e => {
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(withContextMode({ passphrase:pass, messages:chatHistory }))
     }).catch(function(){});
+    scheduleJoeyDriveBackup('history-change');
+  }
+  function runJoeyDriveBackup(reason){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass || joeyDriveBackupInFlight) return Promise.resolve({ ok:false, skipped:true, reason:'unavailable' });
+    joeyDriveBackupInFlight = true;
+    return collectTaskSnapshot().then(function(tasks){
+      return fetch('/api/gdrive-backup', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(withContextMode({ passphrase: pass, tasks: tasks }))
+      });
+    }).then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d && d.ok) console.log('[Joey] Auto-backup to Drive successful' + (reason ? ' (' + reason + ')' : ''));
+        else console.warn('[Joey] Auto-backup to Drive failed' + (reason ? ' (' + reason + ')' : '') + ':', d);
+        return d;
+      }).catch(function(e){
+        console.warn('[Joey] Auto-backup to Drive error' + (reason ? ' (' + reason + ')' : '') + ':', e && e.message ? e.message : e);
+        return { ok:false, error:e && e.message ? e.message : String(e) };
+      }).finally(function(){
+        joeyDriveBackupInFlight = false;
+      });
+  }
+  function scheduleJoeyDriveBackup(reason, delayMs){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return;
+    if(joeyDriveBackupTimer) clearTimeout(joeyDriveBackupTimer);
+    joeyDriveBackupTimer = setTimeout(function(){
+      joeyDriveBackupTimer = null;
+      runJoeyDriveBackup(reason || 'auto');
+    }, typeof delayMs === 'number' ? delayMs : 90000);
   }
   function clearChatWindow(){
     chatHistory = [];
@@ -10131,6 +10165,9 @@ document.addEventListener("input", e => {
         if(data && data.profileUpdated) console.log('[Joey] Profile updated');
         if(data && data.consolidated) console.log('[Joey] Memories consolidated');
         refreshCanonicalFiles().catch(function(){});
+        if((data && data.learned > 0) || (data && data.profileUpdated)){
+          scheduleJoeyDriveBackup('memory-update');
+        }
         return data;
       }).catch(function(err){
         reportAutoLearnFailure(key, err && err.message ? err.message : String(err));
@@ -10264,6 +10301,7 @@ document.addEventListener("input", e => {
     console.log('[Joey] Periodic sync check...');
     refreshCanonicalFiles().catch(function(){});
     syncContextFromDrive(false).catch(function(){});
+    runJoeyDriveBackup('interval');
   }, 5 * 60 * 1000); // 5 minutes
 
   // --- Markdown rendering ---
@@ -10529,6 +10567,7 @@ document.addEventListener("input", e => {
               if(d.ok){
                 console.log('Memory saved, total:', d.count);
                 refreshCanonicalFiles().catch(function(){});
+                scheduleJoeyDriveBackup('remember-action');
               }
             }).catch(function(){});
           }
@@ -10546,6 +10585,7 @@ document.addEventListener("input", e => {
               if(d.ok){
                 console.log('Memory removed, remaining:', d.count);
                 refreshCanonicalFiles().catch(function(){});
+                scheduleJoeyDriveBackup('forget-action');
               }
             }).catch(function(){});
           }
