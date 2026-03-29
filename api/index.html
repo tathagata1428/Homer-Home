@@ -5860,6 +5860,25 @@ document.addEventListener("input", e => {
   };
   var vaultMirrorRefreshInFlight = null;
   var vaultMirrorRefreshAt = 0;
+  function getVaultSyncPassphrase(){
+    return String(localStorage.getItem('homer-sync-pass') || '').trim();
+  }
+  function formatVaultSyncStamp(ts){
+    var num = parseInt(ts || '0', 10);
+    if(!num) return 'Not yet';
+    return new Date(num).toLocaleString();
+  }
+  function formatVaultSyncShortStamp(ts){
+    var num = parseInt(ts || '0', 10);
+    if(!num) return 'new';
+    var dt = new Date(num);
+    if(isNaN(dt.getTime())) return 'new';
+    var now = new Date();
+    var sameDay = dt.getFullYear() === now.getFullYear() && dt.getMonth() === now.getMonth() && dt.getDate() === now.getDate();
+    return sameDay
+      ? dt.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
+      : dt.toLocaleDateString([], { day:'2-digit', month:'short' });
+  }
   function renderVaultMirrorStatus(){
     var state = vaultMirrorStatusState || {};
     if(vaultSyncStateChip){
@@ -5882,16 +5901,17 @@ document.addEventListener("input", e => {
     renderVaultMirrorStatus();
     updateVaultSyncBadge();
   }
+  window._homerSetVaultMirrorStatus = setVaultMirrorStatus;
   function getVaultSyncBadgeState(){
-    var syncPass = String(localStorage.getItem(SYNC_PASS_KEY) || '').trim();
-    var lastDbSync = parseInt(localStorage.getItem(BACKUP_DB_TS_KEY) || '0', 10);
-    var lastSave = parseInt(localStorage.getItem(BACKUP_LOCAL_SAVE_TS_KEY) || '0', 10);
+    var syncPass = getVaultSyncPassphrase();
+    var lastDbSync = parseInt(localStorage.getItem('homer-db-backup-ts') || '0', 10);
+    var lastSave = parseInt(localStorage.getItem('homer-local-save-ts') || '0', 10);
     var compared = vaultMirrorStatusState || {};
     if(compared.badgeTone === 'mismatch'){
       return { tone:'alert', text:'drift', title:compared.summary || 'This device differs from the server mirror.' };
     }
     if(compared.badgeTone === 'match'){
-      return { tone:'synced', text:'match', title:compared.summary || ('Updated ' + formatBackupStamp(lastDbSync)) };
+      return { tone:'synced', text:'match', title:compared.summary || ('Updated ' + formatVaultSyncStamp(lastDbSync)) };
     }
     if(lastSave && (!lastDbSync || lastSave > lastDbSync)){
       return { tone:'pending', text:'save', title:'Local changes are waiting to sync.' };
@@ -5904,8 +5924,8 @@ document.addEventListener("input", e => {
     }
     return {
       tone:'synced',
-      text:formatBackupShortStamp(lastDbSync),
-      title:'Updated ' + formatBackupStamp(lastDbSync)
+      text:formatVaultSyncShortStamp(lastDbSync),
+      title:'Updated ' + formatVaultSyncStamp(lastDbSync)
     };
   }
   function updateVaultSyncBadge(){
@@ -6217,7 +6237,7 @@ document.addEventListener("input", e => {
   }
   function backupProjectsNow(btn){
     var original = btn ? btn.textContent : '';
-    var syncPass = String(localStorage.getItem(SYNC_PASS_KEY) || pass.value || '').trim();
+    var syncPass = getVaultSyncPassphrase();
     if(!syncPass){
       if(btn){
         btn.disabled = true;
@@ -11212,6 +11232,10 @@ document.addEventListener("input", e => {
   var DB_BACKUP_URL = '/api/sync';
   var SYNC_PASS_KEY = 'homer-sync-pass';
   var SYNC_AUTO_KEY = 'homer-sync-auto';
+  window._homerSyncPassKey = SYNC_PASS_KEY;
+  var setVaultMirrorStatus = window._homerSetVaultMirrorStatus || function(){};
+  var vaultMirrorRefreshInFlight = null;
+  var vaultMirrorRefreshAt = 0;
   var LS_KEYS = [
     'motivator.savedQuotes.v1', 'homer-quotes-seen', 'homer-quotes-cache',
     'pom.settings.v1', 'pom.tasks.v1', 'pom.state.v1',
@@ -13430,6 +13454,7 @@ document.addEventListener("input", e => {
   var autoLearnQueuedReason = '';
   var autoLearnLastCommittedKey = '';
   var autoLearnLastErrorKey = '';
+  var autoLearnFlushActive = false;
   var joeyDriveBackupTimer = null;
   var joeyDriveBackupInFlight = false;
   var joeyAutoCommitTimer = null;
@@ -14942,14 +14967,24 @@ document.addEventListener("input", e => {
       });
   }
   function flushQueuedAutoLearn(){
-    if(!autoLearnQueuedPayload) return autoLearnRequest;
+    if(autoLearnFlushActive) return autoLearnRequest || Promise.resolve(null);
+    if(!autoLearnQueuedPayload) return Promise.resolve(null);
     var payload = autoLearnQueuedPayload;
     autoLearnQueuedPayload = null;
     var reason = autoLearnQueuedReason || 'auto';
     autoLearnQueuedReason = '';
+    autoLearnFlushActive = true;
     autoLearnRequest = runAutoLearnPayload(payload, reason)
       .catch(function(){ return null; })
-      .then(function(){ return flushQueuedAutoLearn(); });
+      .then(function(){
+        autoLearnFlushActive = false;
+        autoLearnRequest = null;
+        return autoLearnQueuedPayload ? flushQueuedAutoLearn() : null;
+      }, function(){
+        autoLearnFlushActive = false;
+        autoLearnRequest = null;
+        return autoLearnQueuedPayload ? flushQueuedAutoLearn() : null;
+      });
     return autoLearnRequest;
   }
   function triggerAutoLearn(reason){

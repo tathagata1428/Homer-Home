@@ -1,6 +1,7 @@
 import { buildContextFiles } from '../lib/context-files.js';
 import handleJoeyCommit from '../lib/joey-commit-handler.js';
 import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
+import { loadRedisJson, saveRedisJson, safeJsonParse } from '../lib/joey-server.js';
 import { computeJoeySyncMeta } from '../lib/joey-sync-meta.js';
 
 export default async function handler(req, res) {
@@ -37,13 +38,9 @@ export default async function handler(req, res) {
   let isValid = ADMIN_HASH && passphrase.trim() === ADMIN_HASH;
   if (!isValid) {
     const usersData = await redis(['GET', 'homer:users']);
-    if (usersData.result) {
-      try {
-        const users = JSON.parse(usersData.result);
-        for (const user of users) {
-          if (user.passwordHash === passphrase.trim()) { isValid = true; break; }
-        }
-      } catch (e) {}
+    const users = safeJsonParse(usersData && usersData.result, []);
+    for (const user of users) {
+      if (user && user.passwordHash === passphrase.trim()) { isValid = true; break; }
     }
   }
   if (!isValid) return res.status(403).json({ error: 'Forbidden' });
