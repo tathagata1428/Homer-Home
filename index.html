@@ -16580,6 +16580,7 @@ document.addEventListener("input", e => {
     initMobileOverlayDock();
     syncPageScrollLock();
   }
+  window.addEventListener('resize', syncPageScrollLock);
 })();
 </script>
 
