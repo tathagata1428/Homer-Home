@@ -33,7 +33,7 @@
     select option{background:#1e293b;color:#e5e7eb;padding:8px 12px;}
     select option:hover,select option:checked{background:#334155;color:#fff;}
     select optgroup{background:#0f172a;color:#94a3b8;font-weight:700;}
-    html, body{min-height:100%;height:auto;margin:0;-webkit-text-size-adjust:100%;overscroll-behavior-y:none;background-color:#050b16}
+    html, body{min-height:100%;height:auto;margin:0;-webkit-text-size-adjust:100%;overscroll-behavior-y:none;background-color:#050b16;overflow-x:hidden}
     body{
       background:
         radial-gradient(1400px 700px at 50% -200px, #1f2937 0%, var(--bg) 55%),
@@ -43,7 +43,8 @@
       padding:28px 14px calc(var(--tb) + env(safe-area-inset-bottom, 0px));
       display:grid; place-items:start center;
       transition: background 0.5s ease;
-      overflow-x:clip;
+      overflow-x:hidden;
+      overflow-y:auto;
     }
 
     /* === ZEN MODE OVERRIDES === */
@@ -1880,7 +1881,7 @@
       .shell{
         width:100%;
         max-width:none;
-        padding:0 max(var(--sal),12px) var(--mobile-nav-clearance) max(var(--sar),12px);
+        padding:0 max(var(--sal),12px) calc(var(--mobile-nav-clearance) + 12px) max(var(--sar),12px);
         scroll-padding-bottom:var(--mobile-nav-clearance);
       }
       input,textarea,select{font-size:16px!important;}
@@ -2118,6 +2119,10 @@
         order:-1;
       }
       #kanban-overlay .vault-ov-page{padding-left:10px!important;padding-right:10px!important;}
+      #projects-overlay .vault-ov-page,
+      #kanban-overlay .vault-ov-page,
+      #notes-overlay .vault-ov-page,
+      #secrets-overlay .vault-ov-page{padding-bottom:calc(var(--mobile-overlay-clearance) + 18px)!important;}
       #vault-content{padding-bottom:var(--mobile-nav-clearance);}
       #homer-cal{
         margin-bottom:var(--mobile-nav-clearance)!important;
@@ -7339,6 +7344,7 @@ document.addEventListener("input", e => {
       ov.scrollTop = 0;
       ov.classList.add('open');
       document.body.style.overflow = 'hidden';
+      if(typeof window._homerSyncPageScrollLock === 'function') window._homerSyncPageScrollLock();
 
       // --- Wire fullscreen events ---
 
@@ -7346,6 +7352,8 @@ document.addEventListener("input", e => {
       function closeIssue(){
         ov.classList.remove('open');
         window._homerCloseIssue = null;
+        if(typeof window._homerSyncPageScrollLock === 'function') window._homerSyncPageScrollLock();
+        else document.body.style.overflow = '';
         if(typeof window._homerSyncMobileOverlayState === 'function') window._homerSyncMobileOverlayState();
         loadVault().then(function(d){ renderGoals(d.goals, d.projects); });
       }
@@ -8947,6 +8955,7 @@ document.addEventListener("input", e => {
     if(el){
       el.style.display = 'block';
       document.body.style.overflow = 'hidden';
+      if(typeof window._homerSyncPageScrollLock === 'function') window._homerSyncPageScrollLock();
       if(typeof window._homerSyncMobileOverlayState === 'function') window._homerSyncMobileOverlayState();
       if(onOpen) onOpen();
     }
@@ -8954,6 +8963,8 @@ document.addEventListener("input", e => {
   function closeVaultOverlay(id){
     var el = document.getElementById(id);
     if(el){ el.style.display = 'none'; }
+    if(typeof window._homerSyncPageScrollLock === 'function') window._homerSyncPageScrollLock();
+    else document.body.style.overflow = '';
     if(typeof window._homerSyncMobileOverlayState === 'function') window._homerSyncMobileOverlayState();
     renderVault(); // refresh badges
   }
@@ -14022,6 +14033,7 @@ document.addEventListener("input", e => {
   }
   function syncPanelState(){
     document.body.classList.toggle('oc-panel-open', panelOpen);
+    if(typeof window._homerSyncPageScrollLock === 'function') window._homerSyncPageScrollLock();
     window.dispatchEvent(new CustomEvent('homer-joey-panel', { detail:{ open: panelOpen } }));
   }
   function closeMobileSheet(){
@@ -16241,10 +16253,13 @@ document.addEventListener("input", e => {
     applyGoalsCopy();
     overlay.classList.add('open');
     document.body.style.overflow = 'hidden';
+    if(typeof window._homerSyncPageScrollLock === 'function') window._homerSyncPageScrollLock();
     if(typeof window._homerSyncMobileOverlayState === 'function') window._homerSyncMobileOverlayState();
   }
   function closeGoalsOverlay(){
     overlay.classList.remove('open');
+    if(typeof window._homerSyncPageScrollLock === 'function') window._homerSyncPageScrollLock();
+    else document.body.style.overflow = '';
     if(typeof window._homerSyncMobileOverlayState === 'function') window._homerSyncMobileOverlayState();
   }
   window._homerOpenGoalsOverlay = openGoalsOverlay;
@@ -16461,6 +16476,26 @@ document.addEventListener("input", e => {
 
 <script>
 (function(){
+  function syncPageScrollLock(){
+    var body = document.body;
+    if(!body) return false;
+    var overlayIds = ['issue-overlay','goals-overlay','notes-overlay','secrets-overlay','projects-overlay','kanban-overlay'];
+    var hasOverlay = overlayIds.some(function(id){
+      var el = document.getElementById(id);
+      if(!el) return false;
+      if(id === 'issue-overlay' || id === 'goals-overlay') return el.classList.contains('open');
+      return window.getComputedStyle(el).display !== 'none';
+    });
+    var hasModal = !!document.querySelector('.fab-overlay.open');
+    var mobileJoeyOpen = body.classList.contains('mobile-shell') && body.classList.contains('oc-panel-open');
+    var mobileSheet = document.getElementById('mobile-sheet');
+    var mobileSheetOpen = !!(mobileSheet && mobileSheet.classList.contains('open'));
+    var shouldLock = hasOverlay || hasModal || mobileJoeyOpen || mobileSheetOpen;
+    body.style.overflow = shouldLock ? 'hidden' : '';
+    return shouldLock;
+  }
+  window._homerSyncPageScrollLock = syncPageScrollLock;
+
   function initMobileOverlayDock(){
     if(window.innerWidth > 480) return;
     var body = document.body;
@@ -16513,7 +16548,7 @@ document.addEventListener("input", e => {
       var current = activeOverlay();
       var open = !!current;
       body.classList.toggle('mobile-overlay-active', open);
-      body.style.overflow = open ? 'hidden' : '';
+      syncPageScrollLock();
       backBtn.querySelector('span').textContent = current === 'issue' ? 'Back' : 'Close';
     }
     window._homerSyncMobileOverlayState = sync;
@@ -16537,8 +16572,14 @@ document.addEventListener("input", e => {
     sync();
   }
 
-  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initMobileOverlayDock, { once:true });
-  else initMobileOverlayDock();
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){
+    initMobileOverlayDock();
+    syncPageScrollLock();
+  }, { once:true });
+  else {
+    initMobileOverlayDock();
+    syncPageScrollLock();
+  }
 })();
 </script>
 
