@@ -701,42 +701,36 @@
       #project-modal-bg .fab-dialog textarea{min-width:0!important;width:100%;}
     }
     /* â”€â”€ Vault Dashboard â”€â”€ */
-    .vault-home-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr);gap:14px;align-items:start;}
-    .vault-command-list{display:flex;flex-direction:column;gap:12px;}
-    .vd-card{width:100%;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:18px;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:16px;position:relative;overflow:hidden;text-align:left;}
-    .vd-card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.18);box-shadow:0 12px 28px rgba(0,0,0,.28);}
+    .vault-dashboard{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    .vd-card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s;display:flex;align-items:center;gap:16px;position:relative;overflow:hidden;}
+    .vd-card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.18);box-shadow:0 8px 24px rgba(0,0,0,.3);}
     .vd-card:active{transform:translateY(-1px);}
-    .vd-card::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:linear-gradient(180deg,rgba(96,165,250,.95),rgba(56,189,248,.18));opacity:.95;}
-    .vd-icon{font-size:1.2rem;width:50px;height:50px;border-radius:15px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(30,41,59,.88),rgba(15,23,42,.62));border:1px solid rgba(148,163,184,.16);flex-shrink:0;font-weight:900;color:#e2e8f0;}
-    .vd-info{min-width:0;}
-    .vd-info h3{margin:0;font-size:.96rem;font-weight:900;color:var(--text);}
-    .vd-info p{margin:4px 0 0;font-size:.79rem;color:var(--muted);line-height:1.45;}
-    .vd-metrics{display:grid;grid-template-columns:repeat(2,minmax(74px,1fr));gap:8px;min-width:170px;}
-    .vd-metric{padding:10px 11px;border-radius:13px;background:rgba(255,255,255,.04);border:1px solid rgba(148,163,184,.12);display:flex;flex-direction:column;gap:4px;min-width:0;}
-    .vd-metric strong{font-size:.98rem;font-weight:900;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .vd-metric span{font-size:.63rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
-    .vault-sync-panel{background:linear-gradient(180deg,rgba(15,23,42,.82),rgba(2,6,23,.88));border:1px solid rgba(148,163,184,.14);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:14px;box-shadow:0 16px 36px rgba(0,0,0,.22);}
-    .vault-sync-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;}
-    .vault-sync-panel-head h3{margin:0;font-size:.98rem;font-weight:900;color:var(--text);}
-    .vault-sync-panel-head p{margin:4px 0 0;font-size:.78rem;color:var(--muted);line-height:1.45;max-width:32ch;}
+    .vd-icon{font-size:2rem;width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:rgba(255,255,255,.04);flex-shrink:0;}
+    .vd-info h3{margin:0;font-size:.95rem;font-weight:800;color:var(--text);}
+    .vd-info p{margin:3px 0 0;font-size:.78rem;color:var(--muted);}
+    .vd-badge{position:absolute;top:12px;right:14px;font-size:.7rem;font-weight:800;padding:3px 10px;border-radius:20px;background:rgba(96,165,250,.12);color:#60a5fa;}
+    .vault-sync-panel{grid-column:1 / -1;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 12px;border-radius:16px;border:1px solid rgba(148,163,184,.12);background:linear-gradient(180deg,rgba(9,16,29,.78),rgba(4,8,18,.9));box-shadow:0 10px 24px rgba(0,0,0,.16);}
+    .vault-sync-panel-head{display:flex;align-items:center;gap:10px;flex:1;min-width:min(260px,100%);flex-wrap:wrap;}
+    .vault-sync-panel-head h3{display:none;}
+    .vault-sync-panel-head p{display:none;}
     .vault-sync-state-chip{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:999px;border:1px solid rgba(148,163,184,.16);background:rgba(255,255,255,.04);font-size:.72rem;font-weight:800;letter-spacing:.03em;color:#cbd5e1;white-space:nowrap;}
     .vault-sync-state-chip::before{content:"";width:8px;height:8px;border-radius:999px;background:currentColor;box-shadow:0 0 0 3px rgba(255,255,255,.03);}
     .vault-sync-state-chip.match{color:#86efac;border-color:rgba(34,197,94,.22);background:rgba(22,101,52,.16);}
     .vault-sync-state-chip.mismatch{color:#fca5a5;border-color:rgba(239,68,68,.22);background:rgba(127,29,29,.16);}
     .vault-sync-state-chip.pending{color:#fbbf24;border-color:rgba(245,158,11,.24);background:rgba(120,53,15,.18);}
     .vault-sync-state-chip.idle{color:#94a3b8;border-color:rgba(148,163,184,.16);background:rgba(15,23,42,.28);}
-    .vault-sync-summary{font-size:.82rem;line-height:1.55;color:#dbeafe;}
-    .vault-sync-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
-    .vault-sync-card{padding:11px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(148,163,184,.12);display:flex;flex-direction:column;gap:4px;}
-    .vault-sync-card span{font-size:.64rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
-    .vault-sync-card strong{font-size:.84rem;color:var(--text);}
-    .vault-sync-drift{display:flex;flex-wrap:wrap;gap:8px;}
+    .vault-sync-summary{font-size:.79rem;line-height:1.45;color:#dbeafe;min-width:min(220px,100%);flex:1;}
+    .vault-sync-grid{display:none;align-items:center;gap:8px;flex-wrap:wrap;}
+    .vault-sync-card{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(148,163,184,.12);display:inline-flex;align-items:center;gap:6px;}
+    .vault-sync-card span{font-size:.62rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+    .vault-sync-card strong{font-size:.74rem;color:var(--text);}
+    .vault-sync-drift{display:none;flex-wrap:wrap;gap:8px;}
     .vault-sync-drift-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;border:1px solid rgba(148,163,184,.16);background:rgba(255,255,255,.04);font-size:.7rem;font-weight:800;color:#cbd5e1;}
     .vault-sync-drift-chip.good{color:#86efac;border-color:rgba(34,197,94,.2);background:rgba(22,101,52,.14);}
     .vault-sync-drift-chip.warn{color:#fbbf24;border-color:rgba(245,158,11,.22);background:rgba(120,53,15,.16);}
     .vault-sync-drift-chip.bad{color:#fca5a5;border-color:rgba(239,68,68,.22);background:rgba(127,29,29,.16);}
-    .vault-sync-actions{display:flex;gap:10px;flex-wrap:wrap;}
-    .vault-sync-actions .project-action-btn{flex:1;min-width:140px;justify-content:center;}
+    .vault-sync-actions{display:flex;gap:8px;flex-wrap:wrap;}
+    .vault-sync-actions .project-action-btn{flex:1;min-width:128px;justify-content:center;}
     .vault-mode-switch{display:inline-flex;align-items:center;gap:6px;padding:5px 6px;border-radius:999px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);}
     .vault-mode-switch .vault-mode-label{font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0 6px 0 4px;}
     .vault-mode-switch button{padding:7px 12px;border-radius:999px;border:1px solid rgba(148,163,184,.2);background:transparent;color:var(--muted);font-size:.76rem;font-weight:800;cursor:pointer;transition:all .18s ease;}
@@ -831,13 +825,11 @@
       .vault-command-list{gap:10px;}
       .vd-card{padding:15px;grid-template-columns:auto minmax(0,1fr);gap:12px;}
       .vd-icon{font-size:1.05rem;width:42px;height:42px;border-radius:12px;}
+      .vault-dashboard{grid-template-columns:1fr;}
+      .vd-card{padding:16px;gap:12px;}
+      .vd-icon{font-size:1.6rem;width:44px;height:44px;border-radius:12px;}
       .vd-info h3{font-size:.88rem;}
-      .vd-metrics{grid-column:1 / -1;grid-template-columns:repeat(2,minmax(0,1fr));min-width:0;}
       .vault-sync-badge{font-size:.6rem;padding:4px 7px;}
-      .vault-sync-panel{padding:15px;}
-      .vault-sync-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
-      .vault-sync-actions{flex-direction:column;}
-      .vault-sync-actions .project-action-btn{width:100%;}
       .projects-hub{padding:14px;border-radius:16px;}
       .projects-hub-head{align-items:flex-start;}
       .projects-grid{grid-template-columns:1fr;}
@@ -3166,61 +3158,25 @@
       </div>
     </div>
     <p id="vault-mode-meta" class="vault-mode-meta">Personal profile is active. Tasks, notes, goals, and secrets stay separate from Work.</p>
-    <div class="vault-home-grid">
-      <div class="vault-command-list">
-        <button class="vd-card" id="vd-open-kanban" type="button">
-          <div class="vd-icon">PC</div>
-          <div class="vd-info"><h3 id="vd-kanban-title">Project Command Center</h3><p id="vd-kanban-desc">Open projects, progress, and agile flow</p></div>
-          <div class="vd-metrics">
-            <div class="vd-metric"><strong id="vd-project-count">0</strong><span>Projects</span></div>
-            <div class="vd-metric"><strong id="vd-task-count">0</strong><span>Open Work</span></div>
-          </div>
-        </button>
-        <button class="vd-card" id="vd-open-goals" type="button">
-          <div class="vd-icon">LG</div>
-          <div class="vd-info"><h3 id="vd-goals-title">Life Goals</h3><p id="vd-goals-desc">Track your aspirations</p></div>
-          <div class="vd-metrics">
-            <div class="vd-metric"><strong id="vd-goal-count">0</strong><span>Goals</span></div>
-            <div class="vd-metric"><strong id="vd-goal-progress-count">0%</strong><span>Progress</span></div>
-          </div>
-        </button>
-        <button class="vd-card" id="vd-open-secrets" type="button">
-          <div class="vd-icon">PW</div>
-          <div class="vd-info"><h3>Passwords & Secrets</h3><p>Credentials, private links, and account access</p></div>
-          <div class="vd-metrics">
-            <div class="vd-metric"><strong id="vd-secrets-count">0</strong><span>Total Items</span></div>
-            <div class="vd-metric"><strong id="vd-cred-count">0</strong><span>Passwords</span></div>
-          </div>
-        </button>
-        <button class="vd-card" id="vd-open-notes" type="button">
-          <div class="vd-icon">NT</div>
-          <div class="vd-info"><h3>Secret Notes</h3><p>Encrypted notes, drafts, and reference fragments</p></div>
-          <div class="vd-metrics">
-            <div class="vd-metric"><strong id="vd-notes-count">0</strong><span>Words</span></div>
-            <div class="vd-metric"><strong id="vd-notes-status-pill">Encrypted</strong><span>Storage</span></div>
-          </div>
-        </button>
+    <div class="vault-dashboard">
+      <div class="vd-card" id="vd-open-kanban">
+        <div class="vd-icon">&#x1F4CB;</div>
+        <div class="vd-info"><h3 id="vd-kanban-title">Project Command Center</h3><p id="vd-kanban-desc">Open projects, progress, and agile flow</p></div>
+        <span class="vd-badge" id="vd-task-count">0</span>
       </div>
-      <div class="vault-sync-panel">
-        <div class="vault-sync-panel-head">
-          <div>
-            <h3>Sync Pulse</h3>
-            <p>Track whether this device matches the server mirror before you close the vault.</p>
-          </div>
-          <div id="vault-sync-state-chip" class="vault-sync-state-chip idle">Checking</div>
-        </div>
-        <div id="vault-sync-summary" class="vault-sync-summary">Checking encrypted mirror status...</div>
-        <div class="vault-sync-grid">
-          <div class="vault-sync-card"><span>Local Save</span><strong id="vault-sync-local-stamp">Not yet</strong></div>
-          <div class="vault-sync-card"><span>Server Mirror</span><strong id="vault-sync-server-stamp">Not yet</strong></div>
-          <div class="vault-sync-card"><span>Cloud Snapshot</span><strong id="vault-sync-cloud-stamp">Not yet</strong></div>
-          <div class="vault-sync-card"><span>Field Sync</span><strong id="vault-sync-field-version">v0</strong></div>
-        </div>
-        <div id="vault-sync-drift" class="vault-sync-drift"></div>
-        <div class="vault-sync-actions">
-          <button id="vault-sync-now" class="project-action-btn backup" type="button">Mirror Now</button>
-          <button id="vault-open-recovery" class="project-action-btn" type="button">Open Recovery</button>
-        </div>
+      <div class="vd-card" id="vd-open-goals">
+        <div class="vd-icon">&#x1F3AF;</div>
+        <div class="vd-info"><h3 id="vd-goals-title">Life Goals</h3><p id="vd-goals-desc">Track your aspirations</p></div>
+        <span class="vd-badge" id="vd-goal-count">0</span>
+      </div>
+      <div class="vd-card" id="vd-open-secrets">
+        <div class="vd-icon">&#x1F511;</div>
+        <div class="vd-info"><h3>Passwords & Secrets</h3><p>Credentials & private links</p></div>
+        <span class="vd-badge" id="vd-secrets-count">0</span>
+      </div>
+      <div class="vd-card" id="vd-open-notes">
+        <div class="vd-icon">&#x1F4DD;</div>
+        <div class="vd-info"><h3>Secret Notes</h3><p>Encrypted private notes</p></div>
       </div>
     </div>
     <!-- Calendar stays inline -->
@@ -3389,7 +3345,7 @@
 <div id="project-modal-bg" class="fab-overlay" style="z-index:9990;">
   <div class="fab-dialog" style="width:min(460px,92vw);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-      <h3 style="margin:0;font-size:1.1rem;">Ã°Å¸Å¡â‚¬ New Project</h3>
+      <h3 style="margin:0;font-size:1.1rem;">New Project</h3>
       <button id="project-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:10px;">
@@ -3398,7 +3354,7 @@
     </div>
     <textarea id="project-desc" placeholder="What does this project cover?" rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;font-family:inherit;resize:vertical;margin-bottom:10px;"></textarea>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
-      <input id="project-icon" type="text" maxlength="2" placeholder="Ã°Å¸Â§Â©" style="width:72px;padding:10px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:1.25rem;text-align:center;">
+      <input id="project-icon" type="text" maxlength="2" placeholder="PR" style="width:72px;padding:10px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:1.25rem;text-align:center;">
       <label style="flex:1;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--muted);font-size:.85rem;">Accent color
         <input id="project-color" type="color" value="#60a5fa" style="width:34px;height:34px;border:none;background:none;padding:0;cursor:pointer;">
       </label>
@@ -3513,6 +3469,132 @@
   </nav>
 
   <script>
+    (function(){
+      var CP1252_ENCODE = {
+        0x20AC:0x80,0x201A:0x82,0x0192:0x83,0x201E:0x84,0x2026:0x85,0x2020:0x86,0x2021:0x87,
+        0x02C6:0x88,0x2030:0x89,0x0160:0x8A,0x2039:0x8B,0x0152:0x8C,0x017D:0x8E,0x2018:0x91,
+        0x2019:0x92,0x201C:0x93,0x201D:0x94,0x2022:0x95,0x2013:0x96,0x2014:0x97,0x02DC:0x98,
+        0x2122:0x99,0x0161:0x9A,0x203A:0x9B,0x0153:0x9C,0x017E:0x9E,0x0178:0x9F
+      };
+      var MOJIBAKE_RE = /[ÃÂâð]/;
+      function encodeCp1252(str){
+        var bytes = [];
+        for(var i = 0; i < str.length; i++){
+          var code = str.charCodeAt(i);
+          if(code <= 0xFF){
+            bytes.push(code);
+            continue;
+          }
+          var mapped = CP1252_ENCODE[code];
+          if(mapped == null) return null;
+          bytes.push(mapped);
+        }
+        return new Uint8Array(bytes);
+      }
+      function mojibakeScore(str){
+        if(!str) return 0;
+        var hits = str.match(/[ÃÂâð]/g) || [];
+        var replacements = str.match(/\uFFFD/g) || [];
+        return hits.length + (replacements.length * 3);
+      }
+      function decodeMojibakeOnce(str){
+        if(typeof str !== 'string' || !MOJIBAKE_RE.test(str)) return str;
+        var bytes = encodeCp1252(str);
+        if(!bytes) return str;
+        try{
+          return new TextDecoder('utf-8', { fatal:true }).decode(bytes);
+        }catch(_err){
+          return str;
+        }
+      }
+      function repairMojibakeString(value){
+        if(typeof value !== 'string' || !MOJIBAKE_RE.test(value)) return value;
+        var current = value;
+        for(var pass = 0; pass < 2; pass++){
+          var next = decodeMojibakeOnce(current);
+          if(!next || next === current) break;
+          if(mojibakeScore(next) > mojibakeScore(current) && next.indexOf('\uFFFD') >= 0) break;
+          current = next;
+        }
+        return current;
+      }
+      function shouldSkipNode(node){
+        var parent = node && node.parentElement;
+        if(!parent) return true;
+        if(parent.closest('script, style, textarea, code, pre, [contenteditable="true"], [data-no-mojibake-fix]')) return true;
+        return false;
+      }
+      function repairTextNode(node){
+        if(!node || node.nodeType !== 3 || shouldSkipNode(node)) return;
+        var fixed = repairMojibakeString(node.nodeValue);
+        if(fixed !== node.nodeValue) node.nodeValue = fixed;
+      }
+      function repairAttributes(el){
+        if(!el || el.nodeType !== 1) return;
+        ['title','placeholder','aria-label'].forEach(function(attr){
+          if(!el.hasAttribute(attr)) return;
+          var raw = el.getAttribute(attr);
+          var fixed = repairMojibakeString(raw);
+          if(fixed !== raw) el.setAttribute(attr, fixed);
+        });
+        if(el.tagName === 'INPUT'){
+          var type = (el.getAttribute('type') || '').toLowerCase();
+          if(type === 'button' || type === 'submit' || type === 'reset'){
+            var fixedValue = repairMojibakeString(el.value);
+            if(fixedValue !== el.value) el.value = fixedValue;
+          }
+        }
+      }
+      function repairTree(root){
+        var target = root && root.nodeType ? root : document.body;
+        if(!target) return;
+        if(target.nodeType === 3){
+          repairTextNode(target);
+          return;
+        }
+        if(target.nodeType === 1) repairAttributes(target);
+        var walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT, null);
+        while(walker.nextNode()) repairTextNode(walker.currentNode);
+        if(target.querySelectorAll){
+          target.querySelectorAll('*').forEach(repairAttributes);
+        }
+      }
+      function installRepairObserver(){
+        if(!document.body || window._homerMojibakeObserver) return;
+        repairTree(document.body);
+        var observer = new MutationObserver(function(mutations){
+          mutations.forEach(function(mutation){
+            if(mutation.type === 'characterData'){
+              repairTextNode(mutation.target);
+              return;
+            }
+            if(mutation.type === 'attributes'){
+              repairAttributes(mutation.target);
+              return;
+            }
+            Array.prototype.forEach.call(mutation.addedNodes || [], function(node){
+              repairTree(node);
+            });
+          });
+        });
+        observer.observe(document.body, {
+          childList:true,
+          subtree:true,
+          characterData:true,
+          attributes:true,
+          attributeFilter:['title','placeholder','aria-label','value']
+        });
+        window._homerMojibakeObserver = observer;
+      }
+      window._homerFixMojibakeText = repairMojibakeString;
+      window._homerRepairDomText = repairTree;
+      if(document.readyState === 'loading'){
+        document.addEventListener('DOMContentLoaded', installRepairObserver, { once:true });
+      } else {
+        installRepairObserver();
+      }
+    })();
+
     /* 1. TABS */
     const tabBtns = [...document.querySelectorAll('.tab-btn')];
     const tabs = {
@@ -5197,8 +5279,8 @@ document.addEventListener("input", e => {
   // Color palette for custom labels
   var LABEL_COLORS = ['#f97316','#14b8a6','#a855f7','#e11d48','#84cc16','#06b6d4','#f43f5e','#8b5cf6','#eab308','#6366f1'];
   var DEFAULT_PROJECTS = [
-    {id:'organize-life', key:'ORG', name:'OrganizeLife', description:'Household systems, routines, planning, errands, and personal operating tasks.', color:'#60a5fa', icon:'Ã°Å¸Â§Â­', order:0},
-    {id:'apps', key:'APP', name:'Apps', description:'Product ideas, app builds, launches, fixes, and feature delivery.', color:'#22c55e', icon:'Ã°Å¸Â§Â©', order:1}
+    {id:'organize-life', key:'ORG', name:'OrganizeLife', description:'Household systems, routines, planning, errands, and personal operating tasks.', color:'#60a5fa', icon:'OL', order:0},
+    {id:'apps', key:'APP', name:'Apps', description:'Product ideas, app builds, launches, fixes, and feature delivery.', color:'#22c55e', icon:'AP', order:1}
   ];
   function getModeProjectDefaults(mode){
     var normalizedMode = normalizeVaultMode(mode);
@@ -5838,6 +5920,12 @@ document.addEventListener("input", e => {
     vaultSyncBadge.title = state.title;
     vaultSyncBadge.style.display = 'inline-flex';
   }
+  window._homerUpdateVaultSyncBadge = function(){
+    try{ updateVaultSyncBadge(); }catch(_e){}
+  };
+  window._homerEscHtml = function(value){
+    try{ return escHtml(value); }catch(_e){ return String(value == null ? '' : value); }
+  };
   function projectDisplay(project){
     return project || null;
   }
@@ -5847,10 +5935,10 @@ document.addEventListener("input", e => {
     if(vaultModeWorkBtn) vaultModeWorkBtn.className = isWork ? 'active work' : 'work';
     if(vaultStatusLine) vaultStatusLine.textContent = 'ðŸ”“ ' + modeLabel(currentVaultMode) + ' vault unlocked';
     if(vaultModeMeta) vaultModeMeta.textContent = modeLabel(currentVaultMode) + ' profile is active. Tasks, notes, goals, and secrets stay separate from ' + (isWork ? 'Personal' : 'Work') + '.';
-    if(vdOpenKanban && vdOpenKanban.querySelector('.vd-icon')) vdOpenKanban.querySelector('.vd-icon').textContent = 'PC';
-    if(document.getElementById('vd-open-goals') && document.getElementById('vd-open-goals').querySelector('.vd-icon')) document.getElementById('vd-open-goals').querySelector('.vd-icon').textContent = isWork ? 'WG' : 'LG';
-    if(document.getElementById('vd-open-secrets') && document.getElementById('vd-open-secrets').querySelector('.vd-icon')) document.getElementById('vd-open-secrets').querySelector('.vd-icon').textContent = 'PW';
-    if(document.getElementById('vd-open-notes') && document.getElementById('vd-open-notes').querySelector('.vd-icon')) document.getElementById('vd-open-notes').querySelector('.vd-icon').textContent = 'NT';
+    if(vdOpenKanban && vdOpenKanban.querySelector('.vd-icon')) vdOpenKanban.querySelector('.vd-icon').textContent = '\u{1F4CB}';
+    if(document.getElementById('vd-open-goals') && document.getElementById('vd-open-goals').querySelector('.vd-icon')) document.getElementById('vd-open-goals').querySelector('.vd-icon').textContent = '\u{1F3AF}';
+    if(document.getElementById('vd-open-secrets') && document.getElementById('vd-open-secrets').querySelector('.vd-icon')) document.getElementById('vd-open-secrets').querySelector('.vd-icon').textContent = '\u{1F511}';
+    if(document.getElementById('vd-open-notes') && document.getElementById('vd-open-notes').querySelector('.vd-icon')) document.getElementById('vd-open-notes').querySelector('.vd-icon').textContent = '\u{1F4DD}';
     if(vdKanbanTitle) vdKanbanTitle.textContent = 'Project Command Center';
     if(vdKanbanDesc) vdKanbanDesc.textContent = isWork ? 'Open work projects, progress, and agile flow' : 'Open personal projects, progress, and agile flow';
     if(vdGoalsTitle) vdGoalsTitle.textContent = isWork ? 'Work Goals' : 'Life Goals';
@@ -6437,19 +6525,25 @@ document.addEventListener("input", e => {
     projectDashboardGrid.querySelectorAll('[data-project-archive]').forEach(function(btn){
       btn.addEventListener('click', function(ev){
         ev.stopPropagation();
-        archiveProjectById(this.getAttribute('data-project-archive'));
+        archiveProjectById(this.getAttribute('data-project-archive')).then(function(){
+          return loadVault().then(function(nextData){ renderProjectDashboard(nextData); });
+        });
       });
     });
     projectDashboardGrid.querySelectorAll('[data-project-restore]').forEach(function(btn){
       btn.addEventListener('click', function(ev){
         ev.stopPropagation();
-        restoreProjectById(this.getAttribute('data-project-restore'));
+        restoreProjectById(this.getAttribute('data-project-restore')).then(function(){
+          return loadVault().then(function(nextData){ renderProjectDashboard(nextData); });
+        });
       });
     });
     projectDashboardGrid.querySelectorAll('[data-project-delete]').forEach(function(btn){
       btn.addEventListener('click', function(ev){
         ev.stopPropagation();
-        deleteProjectById(this.getAttribute('data-project-delete'));
+        deleteProjectById(this.getAttribute('data-project-delete')).then(function(){
+          return loadVault().then(function(nextData){ renderProjectDashboard(nextData); });
+        });
       });
     });
     projectDashboardGrid.querySelectorAll('[data-project-fields]').forEach(function(btn){
@@ -10586,6 +10680,8 @@ document.addEventListener("input", e => {
       <button id="fab-backup" class="btn primary" style="flex:1;padding:10px;font-size:.9rem;">Backup Now</button>
       <button id="fab-restore" class="btn ghost" style="flex:1;padding:10px;font-size:.9rem;">Restore</button>
     </div>
+    <button id="fab-backup-all-drive" class="btn ghost" style="width:100%;padding:9px 10px;font-size:.82rem;margin:-4px 0 8px;">Full Safety Backup</button>
+    <button id="fab-backup-emergency-drive" class="btn ghost" style="width:100%;padding:9px 10px;font-size:.82rem;margin:0 0 12px;">Emergency Drive Snapshot</button>
     <label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.85rem;cursor:pointer;margin-bottom:10px;">
       <input id="fab-auto" type="checkbox" style="accent-color:var(--accent);width:16px;height:16px;">
       Auto-backup on every change (8s debounce)
@@ -11132,12 +11228,13 @@ document.addEventListener("input", e => {
   var BACKUP_DB_TS_KEY = 'homer-db-backup-ts';
   var BACKUP_JOEY_TS_KEY = 'homer-joey-sync-ts';
   var BACKUP_DRIVE_TS_KEY = 'homer-drive-backup-ts';
+  var BACKUP_EMERGENCY_DRIVE_TS_KEY = 'homer-drive-emergency-ts';
   var BACKUP_LAST_RESTORE_TS_KEY = 'homer-last-restore-ts';
   var BACKUP_LAST_RESTORE_SOURCE_KEY = 'homer-last-restore-source';
   var BACKUP_RUNTIME_KEYS = [
     'homer-backup-ts', 'homer-backup-keys', 'homer-backup-source',
     BACKUP_MANIFEST_KEY,
-    BACKUP_LOCAL_SAVE_TS_KEY, BACKUP_DB_TS_KEY, BACKUP_JOEY_TS_KEY, BACKUP_DRIVE_TS_KEY,
+    BACKUP_LOCAL_SAVE_TS_KEY, BACKUP_DB_TS_KEY, BACKUP_JOEY_TS_KEY, BACKUP_DRIVE_TS_KEY, BACKUP_EMERGENCY_DRIVE_TS_KEY,
     BACKUP_LAST_RESTORE_TS_KEY, BACKUP_LAST_RESTORE_SOURCE_KEY
   ];
   var LOCAL_ONLY_BACKUP_KEYS = ['homer-pre-restore-backup', 'homer-pre-restore-ts', 'homer-field-sync-version', 'homer-sync-device-id'];
@@ -11211,6 +11308,8 @@ document.addEventListener("input", e => {
   var restoreDbBtn = document.getElementById('fab-restore-db');
   var restoreRedisBtn = document.getElementById('fab-restore-redis');
   var restoreDriveBtn = document.getElementById('fab-restore-drive');
+  var backupAllDriveBtn = document.getElementById('fab-backup-all-drive');
+  var emergencyDriveBtn = document.getElementById('fab-backup-emergency-drive');
   var inspectLatestBtn = document.getElementById('fab-inspect-latest');
   var timer = null;
 
@@ -11240,6 +11339,14 @@ document.addEventListener("input", e => {
   modalBg.addEventListener('click', function(e){ if(e.target===modalBg) modalBg.classList.remove('open'); });
 
   function st(m){ statusEl.textContent=m; }
+  function safeEscHtml(value){
+    if(typeof window._homerEscHtml === 'function') return window._homerEscHtml(value);
+    var str = String(value == null ? '' : value);
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function safeUpdateVaultSyncBadge(){
+    if(typeof window._homerUpdateVaultSyncBadge === 'function') window._homerUpdateVaultSyncBadge();
+  }
   function safeJsonParse(raw, fallback){
     if(raw == null || raw === '') return fallback;
     try{ return JSON.parse(raw); }catch(e){ return fallback; }
@@ -11249,7 +11356,7 @@ document.addEventListener("input", e => {
       if(typeof origSetItem === 'function') origSetItem(key, String(value == null ? Date.now() : value));
       else localStorage.setItem(key, String(value == null ? Date.now() : value));
     }catch(e){}
-    updateVaultSyncBadge();
+    safeUpdateVaultSyncBadge();
     requestSyncFieldLabelUpdate();
   }
   function getJoeyBundleKey(mode){
@@ -11637,13 +11744,13 @@ document.addEventListener("input", e => {
     if(!shouldTrackPersistentField(el) || syncFieldLabelMap.has(el)) return;
     var markPending = function(){
       if(applyingRemoteFieldSync){
-        updateVaultSyncBadge();
+        safeUpdateVaultSyncBadge();
         return;
       }
       el.dataset.dbSyncEditTs = String(Date.now());
       savePersistentFieldGroupDrafts(el);
       queuePersistentFieldGroupOperations(el);
-      updateVaultSyncBadge();
+      safeUpdateVaultSyncBadge();
     };
     el.addEventListener('input', markPending);
     el.addEventListener('change', markPending);
@@ -11677,7 +11784,7 @@ document.addEventListener("input", e => {
   }
   function updatePersistentFieldLabels(){
     cleanupPersistentFieldLabels();
-    updateVaultSyncBadge();
+    safeUpdateVaultSyncBadge();
   }
   function requestSyncFieldLabelUpdate(){
     if(syncFieldLabelFrame) return;
@@ -11718,9 +11825,10 @@ document.addEventListener("input", e => {
       renderHealthCard('Cloud Snapshot', localStorage.getItem('homer-backup-ts'), backupCount + ' keys stored in cloud snapshot. Source: ' + source + '.', '#60a5fa') +
       renderHealthCard('Server Mirror', localStorage.getItem(BACKUP_DB_TS_KEY), 'Fast full-vault mirror used for quick recovery.', '#34d399') +
       renderHealthCard('Joey Memory (Redis)', localStorage.getItem(BACKUP_JOEY_TS_KEY), 'Agent chat, memory, and file index backup.', '#f59e0b') +
-      renderHealthCard('Google Drive Context', localStorage.getItem(BACKUP_DRIVE_TS_KEY), 'Long-term Joey context export to Drive.', '#a78bfa') +
+      renderHealthCard('Joey Drive Context', localStorage.getItem(BACKUP_DRIVE_TS_KEY), 'Long-term Joey context export to Drive.', '#a78bfa') +
+      renderHealthCard('Emergency Drive Snapshot', localStorage.getItem(BACKUP_EMERGENCY_DRIVE_TS_KEY), 'Standalone whole-app snapshot for emergency recovery.', '#22c55e') +
       renderHealthCard('Last Restore', localStorage.getItem(BACKUP_LAST_RESTORE_TS_KEY), 'Most recent recovery source: ' + restoreSource + '.', '#f87171');
-    updateVaultSyncBadge();
+    safeUpdateVaultSyncBadge();
   }
   function initPersistentFieldLabels(){
     scanPersistentFieldLabels(document);
@@ -11963,7 +12071,7 @@ document.addEventListener("input", e => {
     panel.style.cssText = 'width:min(1080px,96vw);max-height:88vh;overflow:auto;border-radius:18px;border:1px solid rgba(148,163,184,.24);background:#07111f;box-shadow:0 25px 70px rgba(0,0,0,.45);padding:18px;';
     var lines = [
       'Captured: ' + formatBackupStamp(meta && meta.ts),
-      'Source: ' + escHtml(String((meta && meta.source) || 'unknown')),
+      'Source: ' + safeEscHtml(String((meta && meta.source) || 'unknown')),
       'Keys: ' + keys.length,
       'Integrity: ' + (integrity.ok ? (integrity.verified ? 'verified' : 'legacy') : 'invalid'),
       'Manifest localStorage: ' + ((manifest.localStorage || []).length),
@@ -11972,22 +12080,22 @@ document.addEventListener("input", e => {
     ];
     panel.innerHTML =
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">' +
-        '<div><div style="font-size:1rem;font-weight:800;color:#f8fafc;">' + escHtml(title) + '</div><div style="font-size:.78rem;color:var(--muted);margin-top:4px;">' + lines.join(' | ') + '</div></div>' +
+        '<div><div style="font-size:1rem;font-weight:800;color:#f8fafc;">' + safeEscHtml(title) + '</div><div style="font-size:.78rem;color:var(--muted);margin-top:4px;">' + lines.join(' | ') + '</div></div>' +
         '<button type="button" style="padding:8px 12px;border-radius:10px;border:none;background:#1e293b;color:#fff;cursor:pointer;">Close</button>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
         '<div style="padding:12px;border-radius:14px;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.72);">' +
           '<div style="font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#93c5fd;margin-bottom:8px;">Manifest</div>' +
-          '<pre style="margin:0;white-space:pre-wrap;word-break:break-word;color:#dbeafe;font-size:.78rem;line-height:1.5;">' + escHtml(JSON.stringify(manifest, null, 2)) + '</pre>' +
+          '<pre style="margin:0;white-space:pre-wrap;word-break:break-word;color:#dbeafe;font-size:.78rem;line-height:1.5;">' + safeEscHtml(JSON.stringify(manifest, null, 2)) + '</pre>' +
         '</div>' +
         '<div style="padding:12px;border-radius:14px;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.72);">' +
           '<div style="font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#fbbf24;margin-bottom:8px;">Integrity</div>' +
-          '<pre style="margin:0;white-space:pre-wrap;word-break:break-word;color:#e2e8f0;font-size:.78rem;line-height:1.5;">' + escHtml(JSON.stringify(integrity, null, 2)) + '</pre>' +
+          '<pre style="margin:0;white-space:pre-wrap;word-break:break-word;color:#e2e8f0;font-size:.78rem;line-height:1.5;">' + safeEscHtml(JSON.stringify(integrity, null, 2)) + '</pre>' +
         '</div>' +
       '</div>' +
       '<div style="margin-top:12px;padding:12px;border-radius:14px;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.72);">' +
         '<div style="font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#fbbf24;margin-bottom:8px;">Snapshot Keys</div>' +
-        '<pre style="margin:0;white-space:pre-wrap;word-break:break-word;color:#e2e8f0;font-size:.78rem;line-height:1.5;">' + escHtml(keys.join('\n')) + '</pre>' +
+        '<pre style="margin:0;white-space:pre-wrap;word-break:break-word;color:#e2e8f0;font-size:.78rem;line-height:1.5;">' + safeEscHtml(keys.join('\n')) + '</pre>' +
         '</div>' +
       '';
     overlay.appendChild(panel);
@@ -12373,6 +12481,32 @@ document.addEventListener("input", e => {
       });
     });
   };
+  function backupEmergencySnapshotToDrive(passphrase){
+    return getAll().then(function(allData){
+      var snapshot = Object.assign({}, allData || {});
+      var manifest = buildBackupManifest(snapshot, IDB_KEYS.filter(function(key){ return snapshot[key] != null; }));
+      snapshot[BACKUP_MANIFEST_KEY] = JSON.stringify(manifest);
+      return fetchJson('/api/gdrive-backup', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          passphrase: passphrase,
+          kind: 'vault-snapshot',
+          snapshot: snapshot,
+          manifest: manifest,
+          meta: {
+            source: 'vault-modal',
+            schemaVersion: BACKUP_SCHEMA_VERSION,
+            localSaveTs: parseInt(localStorage.getItem(BACKUP_LOCAL_SAVE_TS_KEY) || '0', 10) || 0,
+            mode: String(localStorage.getItem('homer-vault-mode') || 'personal').trim().toLowerCase() === 'work' ? 'work' : 'personal'
+          }
+        })
+      }).then(function(result){
+        setRuntimeMarker(BACKUP_EMERGENCY_DRIVE_TS_KEY, Date.now());
+        return result;
+      });
+    });
+  }
 
   function backup(force){
     var p=pass.value.trim();
@@ -12764,7 +12898,58 @@ document.addEventListener("input", e => {
           }).catch(function(dbErr){
             st('Inspect latest failed: ' + cloudErr.message + ' | ' + dbErr.message);
           });
-        });
+      });
+    });
+  }
+  if(backupAllDriveBtn){
+    backupAllDriveBtn.addEventListener('click', function(){
+      var p = pass.value.trim();
+      var btn = this;
+      if(!p){ st('Not logged in - please sign in first'); return; }
+      localStorage.setItem(SYNC_PASS_KEY, p);
+      btn.disabled = true;
+      btn.textContent = 'Running safety backup...';
+      st('Backing up vault, server mirror, and Joey memory...');
+      Promise.all([
+        backup(true).catch(function(err){ return { ok:false, error:err && err.message ? err.message : String(err), source:'vault' }; }),
+        (typeof window._homerCommitJoeyMemory === 'function'
+          ? window._homerCommitJoeyMemory({ silent:true, skipLearn:false, reason:'full-safety' }).catch(function(err){ return { ok:false, error:err && err.message ? err.message : String(err), source:'joey' }; })
+          : Promise.resolve({ ok:false, skipped:true, reason:'joey-unavailable' }))
+      ]).then(function(results){
+        var vaultResult = results[0] || {};
+        var joeyResult = results[1] || {};
+        var parts = [];
+        if(vaultResult.ok) parts.push('vault mirrored');
+        else parts.push('vault issue: ' + (vaultResult.error || vaultResult.reason || 'backup failed'));
+        if(joeyResult.ok || joeyResult.partial) parts.push('Joey saved');
+        else if(!joeyResult.skipped) parts.push('Joey issue: ' + (joeyResult.error || joeyResult.reason || 'save failed'));
+        renderBackupHealth();
+        if(typeof refreshVaultMirrorStatus === 'function') refreshVaultMirrorStatus({ force:true, reason:'full-safety' });
+        st(parts.join(' | '));
+      }).finally(function(){
+        btn.disabled = false;
+        btn.textContent = 'Full Safety Backup';
+      });
+    });
+  }
+  if(emergencyDriveBtn){
+    emergencyDriveBtn.addEventListener('click', function(){
+      var p = pass.value.trim();
+      var btn = this;
+      if(!p){ st('Not logged in - please sign in first'); return; }
+      localStorage.setItem(SYNC_PASS_KEY, p);
+      btn.disabled = true;
+      btn.textContent = 'Saving emergency snapshot...';
+      st('Saving a standalone emergency snapshot to Google Drive...');
+      backupEmergencySnapshotToDrive(p).then(function(result){
+        st('Emergency Drive snapshot saved' + (result && result.drive && result.drive.fileName ? ': ' + result.drive.fileName : '.'));
+        renderBackupHealth();
+      }).catch(function(err){
+        st('Emergency Drive snapshot failed: ' + (err && err.message ? err.message : String(err)));
+      }).finally(function(){
+        btn.disabled = false;
+        btn.textContent = 'Emergency Drive Snapshot';
+      });
     });
   }
 
@@ -12982,7 +13167,7 @@ document.addEventListener("input", e => {
       Promise.resolve(backupTask).catch(function(err){
         console.warn('[DB Backup] Critical mirror failed:', reason || 'critical-save', err && err.message ? err.message : err);
         return flushDbBackupNow((reason || 'critical-save') + '-retry');
-      }).then(function(){ updateVaultSyncBadge(); });
+      }).then(function(){ safeUpdateVaultSyncBadge(); });
     }, Math.max(250, wait));
   }
 
@@ -14356,6 +14541,9 @@ document.addEventListener("input", e => {
       joeyManualCommitInFlight = false;
     });
   }
+  window._homerCommitJoeyMemory = function(opts){
+    return commitJoeyMemory(opts || {});
+  };
   document.getElementById('oc-save-db').addEventListener('click', function(){
     commitJoeyMemory({ silent:false, skipLearn:false, reason:'manual' }).catch(function(){});
     return;
