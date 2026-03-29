@@ -225,8 +225,8 @@
 
     /* Quotes */
     blockquote{margin:10px 0 8px;font-size:clamp(1.2rem,2.5vw + .5rem,2rem);font-weight:900}
-    blockquote::before, blockquote::after{content:"â€œ"; color:var(--accent)}
-    blockquote::after{content:"â€"}
+    blockquote::before, blockquote::after{content:"\201C"; color:var(--accent)}
+    blockquote::after{content:"\201D"}
     .author{color:var(--muted);font-style:italic}
     .row{display:flex; flex-wrap:wrap; gap:12px; margin-top:16px}
     .btn, a.btn{
@@ -3476,7 +3476,7 @@
         0x2019:0x92,0x201C:0x93,0x201D:0x94,0x2022:0x95,0x2013:0x96,0x2014:0x97,0x02DC:0x98,
         0x2122:0x99,0x0161:0x9A,0x203A:0x9B,0x0153:0x9C,0x017E:0x9E,0x0178:0x9F
       };
-      var MOJIBAKE_RE = /[ÃÂâð]/;
+      var MOJIBAKE_RE = /[\u00C3\u00C2\u00E2\u00F0]/;
       function encodeCp1252(str){
         var bytes = [];
         for(var i = 0; i < str.length; i++){
@@ -3493,7 +3493,7 @@
       }
       function mojibakeScore(str){
         if(!str) return 0;
-        var hits = str.match(/[ÃÂâð]/g) || [];
+        var hits = str.match(/[\u00C3\u00C2\u00E2\u00F0]/g) || [];
         var replacements = str.match(/\uFFFD/g) || [];
         return hits.length + (replacements.length * 3);
       }
@@ -13453,10 +13453,11 @@ document.addEventListener("input", e => {
         }
       }catch(e){}
     }
-    if(!String(localStorage.getItem('homer-sync-pass') || '').trim()){
-      return { ok:false, message:'This feature is available only for Bogdan. Log in again as Bogdan to enable Joey memory.' };
-    }
-    return { ok:true, user:rawUser };
+    return {
+      ok:true,
+      user:rawUser,
+      memoryEnabled: !!String(localStorage.getItem('homer-sync-pass') || '').trim()
+    };
   }
   function notifyJoeyAccessDenied(message){
     if(panelOpen && typeof showError === 'function'){
