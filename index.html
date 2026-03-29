@@ -737,10 +737,18 @@
     .project-name{font-size:1rem;font-weight:900;line-height:1.2;color:var(--text);}
     .project-count{margin-left:auto;font-size:.68rem;font-weight:800;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.06);color:var(--muted);white-space:nowrap;}
     .project-desc{font-size:.8rem;color:var(--muted);line-height:1.45;min-height:2.6em;}
-    .project-progress{display:flex;align-items:center;gap:10px;}
-    .project-bar{flex:1;height:8px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;}
-    .project-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--project-color,#60a5fa),#22c55e);transition:width .35s ease;}
-    .project-pct{font-size:.78rem;font-weight:900;color:var(--text);min-width:42px;text-align:right;}
+    .project-body{display:grid;grid-template-columns:84px minmax(0,1fr);gap:14px;align-items:center;}
+    .project-ring{position:relative;width:84px;height:84px;display:grid;place-items:center;}
+    .project-ring svg{width:84px;height:84px;transform:rotate(-90deg);}
+    .project-ring .ring-bg{fill:none;stroke:rgba(255,255,255,.08);stroke-width:4;}
+    .project-ring .ring-fg{fill:none;stroke-width:4;stroke-linecap:round;transition:stroke-dashoffset .6s ease;}
+    .project-ring-label{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;line-height:1;}
+    .project-ring-label strong{font-size:1rem;color:var(--text);}
+    .project-ring-label span{font-size:.58rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+    .project-highlight-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+    .project-highlight{padding:10px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.05);}
+    .project-highlight strong{display:block;font-size:.92rem;color:var(--text);}
+    .project-highlight span{display:block;margin-top:3px;font-size:.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
     .project-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
     .project-stat{padding:10px 8px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.05);text-align:center;}
     .project-stat strong{display:block;font-size:.9rem;color:var(--text);}
@@ -749,6 +757,15 @@
     .project-meta-line{font-size:.76rem;color:var(--muted);}
     .project-open-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--text);font-size:.76rem;font-weight:800;cursor:pointer;transition:all .15s ease;}
     .project-open-btn:hover{border-color:rgba(255,255,255,.22);background:rgba(255,255,255,.08);}
+    .project-card-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+    .project-action-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:7px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:var(--muted);font-size:.72rem;font-weight:800;cursor:pointer;transition:all .15s ease;}
+    .project-action-btn:hover{color:var(--text);border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.07);}
+    .project-action-btn.warn{color:#fbbf24;border-color:rgba(245,158,11,.22);background:rgba(120,53,15,.14);}
+    .project-action-btn.danger{color:#fda4af;border-color:rgba(244,63,94,.18);background:rgba(136,19,55,.16);}
+    .project-action-btn.restore{color:#93c5fd;border-color:rgba(96,165,250,.18);background:rgba(30,64,175,.14);}
+    .project-action-btn.backup{color:#c4b5fd;border-color:rgba(167,139,250,.18);background:rgba(76,29,149,.14);}
+    .project-action-btn[disabled]{opacity:.42;cursor:not-allowed;pointer-events:none;}
+    .project-card-note{font-size:.68rem;color:rgba(226,232,240,.46);line-height:1.4;}
     .project-summary-card{grid-column:1 / -1;cursor:default;background:linear-gradient(135deg,rgba(37,99,235,.22),rgba(15,23,42,.9));}
     .project-summary-card:hover{transform:none;border-color:rgba(96,165,250,.18);box-shadow:0 18px 40px rgba(0,0,0,.24);}
     .project-summary-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}
@@ -757,10 +774,19 @@
     .project-summary-card h3{margin:0;font-size:1.25rem;font-weight:900;color:var(--text);}
     .project-summary-card p{margin:8px 0 0;font-size:.82rem;line-height:1.55;color:#dbe7ff;}
     .project-summary-badge{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:999px;background:rgba(15,23,42,.55);border:1px solid rgba(255,255,255,.12);font-size:.76rem;font-weight:800;color:var(--text);}
+    .project-summary-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
     .project-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
     .project-summary-metric{padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);}
     .project-summary-metric strong{display:block;font-size:1.05rem;color:var(--text);}
     .project-summary-metric span{display:block;margin-top:4px;font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
+    .project-dashboard-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:2px;}
+    .project-archived-section{grid-column:1 / -1;display:flex;flex-direction:column;gap:14px;padding:18px;border-radius:18px;border:1px dashed rgba(148,163,184,.18);background:linear-gradient(180deg,rgba(15,23,42,.52),rgba(15,23,42,.28));}
+    .project-archived-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+    .project-archived-head h4{margin:0;font-size:.9rem;font-weight:900;color:var(--text);}
+    .project-archived-head p{margin:4px 0 0;font-size:.75rem;color:var(--muted);}
+    .project-archived-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
+    .project-card.archived-card{opacity:.84;background:linear-gradient(180deg,rgba(148,163,184,.08),rgba(15,23,42,.2));}
+    .project-card.archived-card::before{opacity:.45;}
     .kanban-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:-4px 0 14px;padding:16px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(135deg,rgba(37,99,235,.18),rgba(15,23,42,.78));}
     .kanban-kicker{display:inline-block;font-size:.66rem;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:#93c5fd;margin-bottom:6px;}
     .kanban-hero h3{margin:0;font-size:1.08rem;font-weight:900;color:var(--text);}
@@ -780,11 +806,21 @@
       .projects-hub{padding:14px;border-radius:16px;}
       .projects-hub-head{align-items:flex-start;}
       .projects-grid{grid-template-columns:1fr;}
+      .project-body{grid-template-columns:1fr;justify-items:start;}
+      .project-ring{width:78px;height:78px;}
+      .project-ring svg{width:78px;height:78px;}
       .project-stats{grid-template-columns:repeat(2,1fr);}
       .project-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+      .project-dashboard-stats{grid-template-columns:repeat(2,minmax(0,1fr));}
       .project-summary-card{padding:16px;}
       .project-summary-card h3{font-size:1.02rem;}
       .project-summary-badge{width:100%;justify-content:center;}
+      .project-summary-actions{width:100%;}
+      .project-summary-actions .project-action-btn{flex:1;}
+      .project-card-actions{width:100%;}
+      .project-card-actions .project-open-btn,
+      .project-card-actions .project-action-btn{flex:1;}
+      .project-archived-grid{grid-template-columns:1fr;}
       .kanban-hero{padding:14px;}
       .kanban-hero-metrics{width:100%;}
       .kanban-hero-metrics{grid-template-columns:1fr 1fr;}
@@ -5081,7 +5117,9 @@ document.addEventListener("input", e => {
       description: typeof raw.description === 'string' ? raw.description : (typeof raw.desc === 'string' ? raw.desc : ''),
       color: /^#[0-9a-f]{6}$/i.test(raw.color || '') ? raw.color : '#60a5fa',
       icon: typeof raw.icon === 'string' ? raw.icon.trim().slice(0, 2) : '',
-      order: typeof raw.order === 'number' ? raw.order : index
+      order: typeof raw.order === 'number' ? raw.order : index,
+      archived: !!raw.archived,
+      archivedAt: parseInt(raw.archivedAt || '0', 10) || 0
     };
     if(!normalized.icon) normalized.icon = normalized.key.slice(0, 2);
     return normalized;
@@ -5101,6 +5139,8 @@ document.addEventListener("input", e => {
       }
     });
     var list = Object.keys(map).map(function(id){ return map[id]; }).sort(function(a, b){
+      var archivedDelta = (a.archived ? 1 : 0) - (b.archived ? 1 : 0);
+      if(archivedDelta) return archivedDelta;
       return (a.order || 0) - (b.order || 0) || a.name.localeCompare(b.name);
     });
     var seenKeys = {};
@@ -5121,6 +5161,16 @@ document.addEventListener("input", e => {
   function getProjectById(projects, projectId){
     var list = ensureProjects(projects || _cachedProjects);
     return list.find(function(project){ return project.id === projectId; }) || list[0];
+  }
+  function isProtectedProject(projectId){
+    return projectId === 'organize-life';
+  }
+  function isProjectArchived(projects, projectId){
+    var project = getProjectById(projects, projectId);
+    return !!(project && project.id === projectId && project.archived);
+  }
+  function activeProjectsOnly(projects){
+    return ensureProjects(projects || _cachedProjects).filter(function(project){ return !project.archived; });
   }
   function normalizeProjectLookupKey(value){
     return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -5351,6 +5401,7 @@ document.addEventListener("input", e => {
         return idb.set(DATA_KEY, enc).then(function(result){
           if(typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-local-save-ts');
           if(typeof window._homerScheduleDbBackup === 'function') window._homerScheduleDbBackup('vault-save');
+          if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('vault-save', 1800);
           if(typeof window._homerMarkCloudDirty === 'function') window._homerMarkCloudDirty('vault-save');
           return result;
         });
@@ -5650,10 +5701,130 @@ document.addEventListener("input", e => {
     notesToggle.textContent = notesHidden ? 'Show' : 'Hide';
   });
 
+  function renderProjectRing(pct, color, label){
+    var safePct = Math.max(0, Math.min(100, parseInt(pct || '0', 10) || 0));
+    var radius = 18;
+    var circumference = 2 * Math.PI * radius;
+    var offset = circumference - (safePct / 100) * circumference;
+    return '<div class="project-ring">' +
+      '<svg viewBox="0 0 48 48">' +
+        '<circle cx="24" cy="24" r="' + radius + '" class="ring-bg"></circle>' +
+        '<circle cx="24" cy="24" r="' + radius + '" class="ring-fg" stroke="' + color + '" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + offset + '"></circle>' +
+      '</svg>' +
+      '<div class="project-ring-label"><strong>' + safePct + '%</strong><span>' + escHtml(label || 'Done') + '</span></div>' +
+    '</div>';
+  }
+  function renderProjectStatRing(pct, color){
+    var safePct = Math.max(0, Math.min(100, parseInt(pct || '0', 10) || 0));
+    var radius = 20;
+    var circumference = 2 * Math.PI * radius;
+    var offset = circumference - (safePct / 100) * circumference;
+    return '<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="' + radius + '" class="ring-bg"></circle><circle cx="24" cy="24" r="' + radius + '" class="ring-fg" stroke="' + color + '" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + offset + '"></circle></svg><span class="ring-label">' + safePct + '%</span>';
+  }
+  function persistProjectMutation(data, reason){
+    return saveVault(data).then(function(){
+      populateProjectControls(data.projects, data.goals, {selectedFilter:(goalFilterProject && goalFilterProject.value) || '', preferredTaskProject:(goalProjectSelect && goalProjectSelect.value) || 'organize-life'});
+      renderProjectDashboard(data);
+      if(document.getElementById('kanban-overlay').style.display !== 'none'){
+        renderGoals(data.goals || [], data.projects || []);
+      }
+      var backupTask = typeof window._homerBackupEverythingToDb === 'function'
+        ? window._homerBackupEverythingToDb()
+        : flushDbBackupNow(reason || 'project-mutation');
+      return Promise.resolve(backupTask).catch(function(err){
+        console.warn('[Projects] Immediate DB mirror failed:', reason || 'project-mutation', err && err.message ? err.message : err);
+        return flushDbBackupNow((reason || 'project-mutation') + '-retry');
+      }).then(function(){ return data; });
+    });
+  }
+  function backupProjectsNow(btn){
+    var original = btn ? btn.textContent : '';
+    var syncPass = String(localStorage.getItem(SYNC_PASS_KEY) || pass.value || '').trim();
+    if(!syncPass){
+      if(btn){
+        btn.disabled = true;
+        btn.textContent = 'Sync Off';
+        setTimeout(function(){
+          btn.disabled = false;
+          btn.textContent = original || 'Backup DB';
+        }, 1500);
+      }
+      return Promise.resolve({ ok:false, skipped:true, reason:'sync-off' });
+    }
+    if(btn){ btn.disabled = true; btn.textContent = 'Backing Up'; }
+    var backupTask = typeof window._homerBackupEverythingToDb === 'function'
+      ? window._homerBackupEverythingToDb()
+      : flushDbBackupNow('project-dashboard-manual');
+    return Promise.resolve(backupTask).then(function(result){
+      var ok = !!(result && result.ok);
+      if(btn) btn.textContent = ok ? 'Backed Up' : 'Backup Pending';
+      setTimeout(function(){
+        if(btn){
+          btn.disabled = false;
+          btn.textContent = original || 'Backup DB';
+        }
+      }, 1400);
+      updateVaultSyncBadge();
+      return result;
+    }).catch(function(err){
+      if(btn){
+        btn.textContent = 'Retry Backup';
+        setTimeout(function(){
+          btn.disabled = false;
+          btn.textContent = original || 'Backup DB';
+        }, 1600);
+      }
+      console.warn('[Projects] Manual DB backup failed:', err && err.message ? err.message : err);
+      return { ok:false, error: err && err.message ? err.message : String(err) };
+    });
+  }
+  function archiveProjectById(projectId){
+    loadVault().then(function(data){
+      var projects = ensureProjects(data.projects || []);
+      var project = projects.find(function(entry){ return entry.id === projectId; });
+      if(!project || isProtectedProject(projectId)) return;
+      project.archived = true;
+      project.archivedAt = Date.now();
+      data.projects = ensureProjects(projects);
+      if(goalFilterProject && goalFilterProject.value === projectId) goalFilterProject.value = '';
+      persistProjectMutation(data, 'project-archive');
+    });
+  }
+  function restoreProjectById(projectId){
+    loadVault().then(function(data){
+      var projects = ensureProjects(data.projects || []);
+      var project = projects.find(function(entry){ return entry.id === projectId; });
+      if(!project) return;
+      project.archived = false;
+      project.archivedAt = 0;
+      data.projects = ensureProjects(projects);
+      persistProjectMutation(data, 'project-restore');
+    });
+  }
+  function deleteProjectById(projectId){
+    loadVault().then(function(data){
+      var projects = ensureProjects(data.projects || []);
+      var project = projects.find(function(entry){ return entry.id === projectId; });
+      if(!project || isProtectedProject(projectId)) return;
+      var projectGoals = (data.goals || []).filter(function(goal){ return goal.projectId === projectId; });
+      if(projectGoals.length){
+        alert('This project still has ' + projectGoals.length + ' issue' + (projectGoals.length === 1 ? '' : 's') + '. Archive it or move the issues before deleting it.');
+        return;
+      }
+      if(!confirm('Delete project "' + project.name + '"? This only removes the empty project shell.')) return;
+      data.projects = projects.filter(function(entry){ return entry.id !== projectId; }).map(function(entry, idx){
+        entry.order = idx;
+        return entry;
+      });
+      if(goalFilterProject && goalFilterProject.value === projectId) goalFilterProject.value = '';
+      persistProjectMutation(data, 'project-delete');
+    });
+  }
   function populateProjectControls(projects, goals, options){
     options = options || {};
-    var list = ensureProjects(projects || _cachedProjects);
-    _cachedProjects = list;
+    var allProjects = ensureProjects(projects || _cachedProjects);
+    var list = activeProjectsOnly(allProjects);
+    _cachedProjects = allProjects;
     var currentFilter = goalFilterProject ? goalFilterProject.value : '';
     var preferredTaskProject = options.preferredTaskProject || (goalProjectSelect ? goalProjectSelect.value : '') || currentFilter || 'organize-life';
     if(goalFilterProject){
@@ -5704,19 +5875,32 @@ document.addEventListener("input", e => {
     if(!projectDashboardGrid) return;
     var projects = ensureProjects(data.projects || _cachedProjects);
     var goals = data.goals || [];
+    var activeProjects = projects.filter(function(project){ return !project.archived; });
+    var archivedProjects = projects.filter(function(project){ return project.archived; });
+    var activeProjectIds = {};
+    activeProjects.forEach(function(project){ activeProjectIds[project.id] = true; });
+    var visibleGoals = goals.filter(function(goal){ return !!activeProjectIds[goal.projectId || 'organize-life']; });
     var html = '';
-    var summary = projectMetrics(goals);
-    var activeProjectCount = projects.filter(function(project){
-      return goals.some(function(goal){ return goal.projectId === project.id; });
+    var summary = projectMetrics(visibleGoals);
+    var completedPct = summary.total ? Math.round((summary.counts.done / summary.total) * 100) : 0;
+    var backlogPct = summary.total ? Math.round((summary.counts.backlog / summary.total) * 100) : 0;
+    var healthPct = summary.total ? Math.max(0, 100 - Math.round((summary.counts.overdue / summary.total) * 100)) : 100;
+    var activeProjectCount = activeProjects.filter(function(project){
+      return goals.some(function(goal){ return goal.projectId === project.id && !goal.archived; });
     }).length;
+    function statCard(pct, color, label, value, sub){
+      return '<div class="goals-stat-card"><div class="goals-stat-ring">' +
+        renderProjectStatRing(pct, color) +
+        '</div><div class="goals-stat-info"><h3>' + escHtml(label) + '</h3><div class="stat-value">' + escHtml(value) + '</div><div class="stat-sub">' + escHtml(sub) + '</div></div></div>';
+    }
     html += '<div class="project-card project-summary-card">';
     html += '<div class="project-summary-head">';
     html += '<div class="project-summary-copy">';
     html += '<span class="project-summary-kicker">Agile Command Center</span>';
     html += '<h3>' + escHtml(modeLabel(currentVaultMode)) + ' projects at a glance</h3>';
-    html += '<p>Open a project to work its board, or stay here to scan delivery, backlog pressure, and overdue work across the whole portfolio.</p>';
+    html += '<p>Open a project to work its board, scan delivery health across the portfolio, or force a DB mirror before you leave.</p>';
     html += '</div>';
-    html += '<div class="project-summary-badge">' + projects.length + ' projects • ' + activeProjectCount + ' active</div>';
+    html += '<div class="project-summary-actions"><div class="project-summary-badge">' + activeProjects.length + ' projects / ' + activeProjectCount + ' active</div><button class="project-action-btn backup" id="project-dashboard-backup" type="button">Backup DB</button></div>';
     html += '</div>';
     html += '<div class="project-summary-grid">';
     html += '<div class="project-summary-metric"><strong>' + summary.total + '</strong><span>Total Issues</span></div>';
@@ -5724,39 +5908,85 @@ document.addEventListener("input", e => {
     html += '<div class="project-summary-metric"><strong>' + summary.counts.backlog + '</strong><span>Backlog</span></div>';
     html += '<div class="project-summary-metric"><strong>' + summary.counts.overdue + '</strong><span>Overdue</span></div>';
     html += '</div>';
+    html += '<div class="project-dashboard-stats">';
+    html += statCard(summary.progress, '#60a5fa', 'Delivery', summary.progress + '%', 'average issue progress');
+    html += statCard(completedPct, '#22c55e', 'Completion', summary.counts.done + '/' + summary.total, 'issues closed');
+    html += statCard(backlogPct, '#fbbf24', 'Backlog', String(summary.counts.backlog), 'parked for later');
+    html += statCard(healthPct, '#a78bfa', 'Due Health', String(summary.counts.overdue), 'overdue issues');
     html += '</div>';
-    projects.forEach(function(project){
+    html += '</div>';
+    activeProjects.forEach(function(project){
       var displayProject = projectDisplay(project) || project;
       var projectGoals = goals.filter(function(goal){ return goal.projectId === project.id; });
       var metrics = projectMetrics(projectGoals);
       var openCount = metrics.total - metrics.counts.done;
-      html += '<div class="project-card" data-project-id="'+project.id+'" style="--project-color:'+displayProject.color+';">';
+      var donePct = metrics.total ? Math.round((metrics.counts.done / metrics.total) * 100) : 0;
+      var deletable = !isProtectedProject(project.id) && metrics.total === 0;
+      html += '<div class="project-card" data-project-id="' + project.id + '" style="--project-color:' + displayProject.color + ';">';
       html += '<div class="project-card-top">';
-      html += '<div class="project-avatar">'+escHtml(displayProject.icon || project.key.slice(0, 2))+'</div>';
+      html += '<div class="project-avatar">' + escHtml(displayProject.icon || project.key.slice(0, 2)) + '</div>';
       html += '<div style="min-width:0;">';
-      html += '<div class="project-key">'+escHtml(project.key)+'</div>';
-      html += '<div class="project-name">'+escHtml(displayProject.name)+'</div>';
+      html += '<div class="project-key">' + escHtml(project.key) + '</div>';
+      html += '<div class="project-name">' + escHtml(displayProject.name) + '</div>';
       html += '</div>';
-      html += '<div class="project-count">'+metrics.total+' issues</div>';
+      html += '<div class="project-count">' + metrics.total + ' issues</div>';
       html += '</div>';
-      html += '<div class="project-desc">'+escHtml(displayProject.description || 'No description yet. Add scope and outcomes so the board has context.')+'</div>';
-      html += '<div class="project-progress"><div class="project-bar"><div class="project-bar-fill" style="width:'+metrics.progress+'%;"></div></div><span class="project-pct">'+metrics.progress+'%</span></div>';
+      html += '<div class="project-desc">' + escHtml(displayProject.description || 'No description yet. Add scope and outcomes so the board has context.') + '</div>';
+      html += '<div class="project-body">';
+      html += renderProjectRing(metrics.progress, displayProject.color, 'Flow');
+      html += '<div class="project-highlight-grid">';
+      html += '<div class="project-highlight"><strong>' + openCount + '</strong><span>Open</span></div>';
+      html += '<div class="project-highlight"><strong>' + donePct + '%</strong><span>Closed</span></div>';
+      html += '<div class="project-highlight"><strong>' + metrics.counts.backlog + '</strong><span>Backlog</span></div>';
+      html += '<div class="project-highlight"><strong>' + metrics.counts.overdue + '</strong><span>Overdue</span></div>';
+      html += '</div></div>';
       html += '<div class="project-stats">';
-      html += '<div class="project-stat"><strong>'+metrics.counts.todo+'</strong><span>To Do</span></div>';
-      html += '<div class="project-stat"><strong>'+metrics.counts.progress+'</strong><span>In Progress</span></div>';
-      html += '<div class="project-stat"><strong>'+metrics.counts.pending+'</strong><span>Pending</span></div>';
-      html += '<div class="project-stat"><strong>'+metrics.counts.done+'</strong><span>Done</span></div>';
+      html += '<div class="project-stat"><strong>' + metrics.counts.todo + '</strong><span>To Do</span></div>';
+      html += '<div class="project-stat"><strong>' + metrics.counts.progress + '</strong><span>In Progress</span></div>';
+      html += '<div class="project-stat"><strong>' + metrics.counts.pending + '</strong><span>Pending</span></div>';
+      html += '<div class="project-stat"><strong>' + metrics.counts.done + '</strong><span>Done</span></div>';
       html += '</div>';
       html += '<div class="project-footer">';
-      html += '<div class="project-meta-line">'+openCount+' open • '+metrics.counts.backlog+' backlog • '+metrics.counts.overdue+' overdue</div>';
-      html += '<button class="project-open-btn" type="button" data-project-id="'+project.id+'">Open Board</button>';
-      html += '</div>';
+      html += '<div class="project-meta-line">' + openCount + ' open / ' + metrics.counts.backlog + ' backlog / ' + metrics.counts.overdue + ' overdue</div>';
+      html += '<div class="project-card-actions">';
+      html += '<button class="project-open-btn" type="button" data-project-id="' + project.id + '">Open Board</button>';
+      if(!isProtectedProject(project.id)){
+        html += '<button class="project-action-btn warn" type="button" data-project-archive="' + project.id + '">Archive</button>';
+        html += '<button class="project-action-btn danger" type="button" data-project-delete="' + project.id + '"' + (deletable ? '' : ' disabled') + '>' + (deletable ? 'Delete' : 'Delete Empty') + '</button>';
+      }
+      html += '</div></div>';
+      html += '<div class="project-card-note">' + (isProtectedProject(project.id) ? 'Core project: kept active as the preserved default workspace.' : 'Archive keeps every issue. Delete unlocks only when the project is empty.') + '</div>';
       html += '</div>';
     });
+    if(archivedProjects.length){
+      html += '<div class="project-archived-section">';
+      html += '<div class="project-archived-head"><div><h4>Archived Projects</h4><p>Paused or completed work lives here without losing issue history.</p></div><div class="project-summary-badge">' + archivedProjects.length + ' archived</div></div>';
+      html += '<div class="project-archived-grid">';
+      archivedProjects.forEach(function(project){
+        var displayProject = projectDisplay(project) || project;
+        var projectGoals = goals.filter(function(goal){ return goal.projectId === project.id; });
+        var metrics = projectMetrics(projectGoals);
+        var deletable = !isProtectedProject(project.id) && metrics.total === 0;
+        html += '<div class="project-card archived-card" style="--project-color:' + displayProject.color + ';">';
+        html += '<div class="project-card-top">';
+        html += '<div class="project-avatar">' + escHtml(displayProject.icon || project.key.slice(0, 2)) + '</div>';
+        html += '<div style="min-width:0;"><div class="project-key">' + escHtml(project.key) + '</div><div class="project-name">' + escHtml(displayProject.name) + '</div></div>';
+        html += '<div class="project-count">' + metrics.total + ' issues</div>';
+        html += '</div>';
+        html += '<div class="project-desc">' + escHtml(displayProject.description || 'Archived project shell.') + '</div>';
+        html += '<div class="project-card-actions">';
+        html += '<button class="project-action-btn restore" type="button" data-project-restore="' + project.id + '">Restore</button>';
+        html += '<button class="project-action-btn danger" type="button" data-project-delete="' + project.id + '"' + (deletable ? '' : ' disabled') + '>' + (deletable ? 'Delete' : 'Delete Empty') + '</button>';
+        html += '</div>';
+        html += '<div class="project-card-note">' + (metrics.total ? 'Issues remain safely attached while the project is archived.' : 'Empty archived projects can be deleted permanently.') + '</div>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+    }
     html += '<button class="project-card add-card" id="project-dashboard-add" type="button"><span style="font-size:2rem;line-height:1;">+</span><strong style="font-size:.95rem;">Create another project</strong><span style="font-size:.78rem;">New product, team, initiative, or operating area</span></button>';
     projectDashboardGrid.innerHTML = html;
     projectDashboardGrid.querySelectorAll('.project-card[data-project-id]').forEach(function(card){
-      card.addEventListener('click', function(ev){
+      card.addEventListener('click', function(){
         openProjectBoard(this.dataset.projectId);
       });
     });
@@ -5766,6 +5996,26 @@ document.addEventListener("input", e => {
         openProjectBoard(this.dataset.projectId);
       });
     });
+    projectDashboardGrid.querySelectorAll('[data-project-archive]').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        archiveProjectById(this.getAttribute('data-project-archive'));
+      });
+    });
+    projectDashboardGrid.querySelectorAll('[data-project-restore]').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        restoreProjectById(this.getAttribute('data-project-restore'));
+      });
+    });
+    projectDashboardGrid.querySelectorAll('[data-project-delete]').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        deleteProjectById(this.getAttribute('data-project-delete'));
+      });
+    });
+    var backupBtn = document.getElementById('project-dashboard-backup');
+    if(backupBtn) backupBtn.addEventListener('click', function(){ backupProjectsNow(this); });
     var addCard = document.getElementById('project-dashboard-add');
     if(addCard) addCard.addEventListener('click', openProjectModal);
   }
@@ -5776,6 +6026,7 @@ document.addEventListener("input", e => {
     var list = ensureProjects(projects || _cachedProjects);
     var scopeGoals = (goals || []).filter(function(goal){
       if(goal.archived) return false;
+      if(isProjectArchived(list, goal.projectId || 'organize-life')) return false;
       return !projectId || goal.projectId === projectId;
     });
     var metrics = projectMetrics(scopeGoals);
@@ -6183,9 +6434,11 @@ document.addEventListener("input", e => {
     var prio = goalFilterPriority.value;
     var label = goalFilterLabel.value;
     var due = goalFilterDue.value;
+    var projects = ensureProjects(_cachedProjects);
     return goals.filter(function(g, i){
       if(g.archived && !showArchive) return false;
       if(!g.archived && showArchive) return false;
+      if(isProjectArchived(projects, g.projectId || 'organize-life')) return false;
       if(projectId && g.projectId !== projectId) return false;
       if(search){
         var haystack = ((g.summary||'')+(g.desc||'')+(g.notes||'')).toLowerCase();
@@ -6208,7 +6461,9 @@ document.addEventListener("input", e => {
   function updateLabelFilter(goals){
     var used = {};
     var projectId = goalFilterProject ? goalFilterProject.value : '';
+    var projects = ensureProjects(_cachedProjects);
     goals.forEach(function(g){
+      if(isProjectArchived(projects, g.projectId || 'organize-life')) return;
       if(projectId && g.projectId !== projectId) return;
       (g.labels||[]).forEach(function(l){ used[l]=true; });
     });
@@ -6939,6 +7194,7 @@ document.addEventListener("input", e => {
     renderKanbanHero(goals, projects);
     var activeProjectId = goalFilterProject ? goalFilterProject.value : '';
     var scopedGoals = goals.filter(function(goal){
+      if(isProjectArchived(projects, goal.projectId || 'organize-life')) return false;
       return !activeProjectId || goal.projectId === activeProjectId;
     });
     var archivedCount = scopedGoals.filter(function(g){ return g.archived; }).length;
@@ -7740,7 +7996,7 @@ document.addEventListener("input", e => {
         color: projectColorInput.value || '#60a5fa',
         order: projects.length
       }]));
-      saveVault(data).then(function(){
+      persistProjectMutation(data, 'project-create').then(function(){
         populateProjectControls(data.projects, data.goals, {selectedFilter:id, preferredTaskProject:id});
         renderProjectDashboard(data);
         if(document.getElementById('kanban-overlay').style.display !== 'none'){
@@ -11928,6 +12184,22 @@ document.addEventListener("input", e => {
 
   // Claim on load (no sync trigger — page-load section handles initial sync)
   tryLead(false);
+
+  var criticalDbBackupTimer = null;
+  function scheduleCriticalDbBackup(reason, delay){
+    var wait = typeof delay === 'number' ? delay : 1600;
+    if(criticalDbBackupTimer) clearTimeout(criticalDbBackupTimer);
+    criticalDbBackupTimer = setTimeout(function(){
+      criticalDbBackupTimer = null;
+      var backupTask = typeof window._homerBackupEverythingToDb === 'function'
+        ? window._homerBackupEverythingToDb()
+        : flushDbBackupNow(reason || 'critical-save');
+      Promise.resolve(backupTask).catch(function(err){
+        console.warn('[DB Backup] Critical mirror failed:', reason || 'critical-save', err && err.message ? err.message : err);
+        return flushDbBackupNow((reason || 'critical-save') + '-retry');
+      }).then(function(){ updateVaultSyncBadge(); });
+    }, Math.max(250, wait));
+  }
 
   function flushDbBackupNow(reason){
     var p = pass.value.trim();
