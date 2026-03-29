@@ -1,5 +1,6 @@
 // Google Drive context restore — fetches Joey context from Google Apps Script, restores to Redis
 import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
+import { computeJoeySyncMeta } from '../lib/joey-sync-meta.js';
 import {
   createRedisFetch,
   fetchWithRedirects,
@@ -23,7 +24,7 @@ export default async function handler(req, res) {
   const { passphrase } = req.body || {};
   if (!passphrase) return res.status(401).json({ error: 'Missing passphrase' });
   const mode = getJoeyMode(req);
-  const { MEMORY_KEY, PROFILE_KEY, HISTORY_KEY, FILES_KEY, FILE_LIBRARY_KEY, CUSTOM_FILES_KEY } = getJoeyContextKeys(mode);
+  const { MEMORY_KEY, PROFILE_KEY, HISTORY_KEY, FILES_KEY, FILE_LIBRARY_KEY, CUSTOM_FILES_KEY, JOURNAL_KEY, SYNC_META_KEY } = getJoeyContextKeys(mode);
 
   // --- Google Apps Script webhook ---
   const { webhook: gdriveWebhook, secret: gdriveSecret } = getGoogleDriveConfig();
@@ -76,8 +77,8 @@ export default async function handler(req, res) {
     }
 
     // Restore to Redis
-    const { profile, memories, history, files, fileLibrary, customFiles } = parsed;
-    const results = { profile: false, memories: false, history: false, files: false, fileLibrary: false, customFiles: false };
+    const { profile, memories, history, files, fileLibrary, customFiles, journal, syncMeta } = parsed;
+    const results = { profile: false, memories: false, history: false, files: false, fileLibrary: false, customFiles: false, journal: false, syncMeta: false };
 
     if (profile !== undefined) {
       await saveRedisJson(redisFetch, PROFILE_KEY, profile || {});
@@ -103,11 +104,35 @@ export default async function handler(req, res) {
       await saveRedisJson(redisFetch, CUSTOM_FILES_KEY, customFiles || {});
       results.customFiles = true;
     }
+    if (journal !== undefined) {
+      await saveRedisJson(redisFetch, JOURNAL_KEY, journal || []);
+      results.journal = true;
+    }
+    const computedSyncMeta = computeJoeySyncMeta({
+      mode,
+      profile: profile || {},
+      memories: memories || [],
+      history: history || [],
+      files: files || {},
+      fileLibrary: fileLibrary || [],
+      customFiles: customFiles || {},
+      journal: journal || []
+    }, {
+      ...(syncMeta && typeof syncMeta === 'object' ? syncMeta : {}),
+      mode,
+      updatedAt: new Date().toISOString(),
+      lastDriveReconcileAt: new Date().toISOString(),
+      driveExportedAt: parsed.exportedAt || (syncMeta && syncMeta.driveExportedAt) || null,
+      lastSource: 'gdrive-restore'
+    });
+    await saveRedisJson(redisFetch, SYNC_META_KEY, computedSyncMeta);
+    results.syncMeta = true;
 
     return res.status(200).json({
       ok: true,
       restored: results,
-      timestamp: parsed.exportedAt || null
+      timestamp: parsed.exportedAt || null,
+      syncMeta: computedSyncMeta
     });
 
   } catch (err) {

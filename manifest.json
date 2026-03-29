@@ -3,7 +3,12 @@
   "short_name": "Homer",
   "description": "Personal productivity dashboard",
   "start_url": "/",
-  "display": "standalone",
+  "display": "fullscreen",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
+  "scope": "/",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "orientation": "any",

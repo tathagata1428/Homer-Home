@@ -1,3 +1,25 @@
+const DATA_KEYS = [
+  'motivator.savedQuotes.v1', 'homer-quotes-seen', 'homer-quotes-cache',
+  'pom.settings.v1', 'pom.tasks.v1', 'pom.state.v1',
+  'homer-brain-dump', 'homer-links', 'homer-zen-goal',
+  'homer-cal-events', 'homer-cal-ics',
+  'homer-cal-events:personal', 'homer-cal-events:work',
+  'homer-cal-ics:personal', 'homer-cal-ics:work',
+];
+
+const ESSENTIAL_KEYS = ['homer-cal-events', 'homer-cal-events:personal', 'homer-cal-events:work', 'homer-brain-dump', 'homer-links', 'pom.tasks.v1'];
+
+function buildBackupMeta(data) {
+  const meta = { dataKeyCount: 0, essentialCount: 0 };
+  for (const key of DATA_KEYS) {
+    if (data && data[key]) meta.dataKeyCount++;
+  }
+  for (const key of ESSENTIAL_KEYS) {
+    if (data && data[key]) meta.essentialCount++;
+  }
+  return meta;
+}
+
 export default {
   async fetch(request, env) {
     // CORS
@@ -14,8 +36,21 @@ export default {
 
     const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Expose-Headers': 'X-Filename, X-Mimetype' };
 
-    // Auth — passphrase required
-    const passphrase = request.headers.get('X-Sync-Key');
+    // Auth — passphrase from header or JSON body (sendBeacon can't set headers)
+    let passphrase = request.headers.get('X-Sync-Key');
+    let parsedBody = null;
+
+    const url = new URL(request.url);
+    const path = url.pathname;
+
+    // For POST /sync: parse body early so we can extract auth key if needed
+    if (!passphrase && request.method === 'POST' && path === '/sync') {
+      try {
+        parsedBody = await request.clone().json();
+        passphrase = parsedBody.key || null;
+      } catch (e) {}
+    }
+
     if (!passphrase) {
       return Response.json({ error: 'Missing X-Sync-Key' }, { status: 401, headers: cors });
     }
@@ -24,12 +59,25 @@ export default {
     const userHash = [...new Uint8Array(hashBuf)].map(b => b.toString(16).padStart(2, '0')).join('');
     const prefix = userHash + '/';
 
-    const url = new URL(request.url);
-    const path = url.pathname;
-
     try {
       // === BACKUP/SYNC ENDPOINTS ===
-      
+
+      // GET /sync/ts — lightweight timestamp check (no data download)
+      if (request.method === 'GET' && path === '/sync/ts') {
+        const backupData = await env.BACKUPS.get(userHash);
+        if (!backupData) {
+          return Response.json({ ts: 0, keyCount: 0, dataKeyCount: 0, essentialCount: 0 }, { headers: cors });
+        }
+        const backup = JSON.parse(backupData);
+        const meta = backup.meta || buildBackupMeta(backup.data || {});
+        return Response.json({
+          ts: backup.ts || 0,
+          keyCount: backup.data ? Object.keys(backup.data).length : 0,
+          dataKeyCount: meta.dataKeyCount || 0,
+          essentialCount: meta.essentialCount || 0,
+        }, { headers: cors });
+      }
+
       // GET /sync or /versions — retrieve backup or list versions
       if (request.method === 'GET' && (path === '/sync' || path === '/versions')) {
         const backupData = await env.BACKUPS.get(userHash);
@@ -41,9 +89,15 @@ export default {
         // Return different format for /sync vs legacy /api/sync compatibility
         if (path === '/versions') {
           // Return version history
-          return Response.json({ 
-            versions: backup.versions || [{ts: backup.ts, size: JSON.stringify(backup.data).length}]
-          }, { headers: cors });
+          const versionList = backup.versions || [{ts: backup.ts, size: JSON.stringify(backup.data).length}];
+          // Backfill keyCount for older versions that don't have it
+          if (backup.data) {
+            const kc = Object.keys(backup.data).length;
+            for (const v of versionList) {
+              if (!v.keyCount) v.keyCount = kc;
+            }
+          }
+          return Response.json({ versions: versionList }, { headers: cors });
         }
         
         // /sync returns full data in same format as old API
@@ -71,7 +125,7 @@ export default {
       if (request.method === 'POST' && path === '/sync') {
         let body;
         try {
-          body = await request.json();
+          body = parsedBody || await request.json();
         } catch (e) {
           return Response.json({ error: 'Invalid JSON' }, { status: 400, headers: cors });
         }
@@ -94,7 +148,8 @@ export default {
         const now = Date.now();
         versions.push({
           ts: now,
-          size: JSON.stringify(body.data).length
+          size: JSON.stringify(body.data).length,
+          keyCount: Object.keys(body.data).length
         });
         
         // Keep only last 10 versions
@@ -105,7 +160,8 @@ export default {
         const backup = {
           data: body.data,
           ts: now,
-          versions: versions
+          versions: versions,
+          meta: buildBackupMeta(body.data),
         };
         
         await env.BACKUPS.put(userHash, JSON.stringify(backup));

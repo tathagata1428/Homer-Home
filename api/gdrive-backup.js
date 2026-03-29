@@ -1,5 +1,6 @@
 import { buildContextFiles } from '../lib/context-files.js';
 import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
+import { computeJoeySyncMeta } from '../lib/joey-sync-meta.js';
 import {
   createRedisFetch,
   fetchWithRedirects,
@@ -25,7 +26,7 @@ export default async function handler(req, res) {
   const { passphrase } = req.body || {};
   if (!passphrase) return res.status(401).json({ error: 'Missing passphrase' });
   const mode = getJoeyMode(req);
-  const { MEMORY_KEY, PROFILE_KEY, HISTORY_KEY, FILES_KEY, FILE_LIBRARY_KEY, CUSTOM_FILES_KEY } = getJoeyContextKeys(mode);
+  const { MEMORY_KEY, PROFILE_KEY, HISTORY_KEY, FILES_KEY, FILE_LIBRARY_KEY, CUSTOM_FILES_KEY, JOURNAL_KEY, SYNC_META_KEY } = getJoeyContextKeys(mode);
 
   // --- Google Apps Script webhook ---
   const { webhook: gdriveWebhook, secret: gdriveSecret } = getGoogleDriveConfig();
@@ -43,13 +44,15 @@ export default async function handler(req, res) {
     const isValid = await verifyJoeyPassphrase(passphrase, redisFetch);
     if (!isValid) return res.status(403).json({ error: 'Forbidden' });
 
-    const [memories, profile, fullHistory, filesResult, fileLibrary, customFiles] = await Promise.all([
+    const [memories, profile, fullHistory, filesResult, fileLibrary, customFiles, journal, syncMetaStored] = await Promise.all([
       loadRedisJson(redisFetch, MEMORY_KEY, []),
       loadRedisJson(redisFetch, PROFILE_KEY, null),
       loadRedisJson(redisFetch, HISTORY_KEY, []),
       loadRedisJson(redisFetch, FILES_KEY, {}),
       loadRedisJson(redisFetch, FILE_LIBRARY_KEY, []),
-      loadRedisJson(redisFetch, CUSTOM_FILES_KEY, {})
+      loadRedisJson(redisFetch, CUSTOM_FILES_KEY, {}),
+      loadRedisJson(redisFetch, JOURNAL_KEY, []),
+      loadRedisJson(redisFetch, SYNC_META_KEY, {})
     ]);
 
     let history = Array.isArray(fullHistory) ? fullHistory : [];
@@ -69,6 +72,22 @@ export default async function handler(req, res) {
     }
     await saveRedisJson(redisFetch, FILES_KEY, files);
 
+    const syncMeta = computeJoeySyncMeta({
+      mode,
+      profile: profile || {},
+      memories,
+      history,
+      files,
+      fileLibrary,
+      customFiles,
+      journal
+    }, {
+      ...(syncMetaStored && typeof syncMetaStored === 'object' ? syncMetaStored : {}),
+      mode,
+      updatedAt: new Date().toISOString(),
+      lastSource: 'gdrive-backup'
+    });
+
     const payload = {
       secret: gdriveSecret,
       mode,
@@ -77,7 +96,9 @@ export default async function handler(req, res) {
       history,
       files,
       fileLibrary,
-      customFiles
+      customFiles,
+      journal,
+      syncMeta
     };
 
     // --- POST to Google Apps Script with manual redirect following ---
@@ -124,7 +145,16 @@ export default async function handler(req, res) {
       });
     }
 
-    return res.status(200).json({ ok: true, drive: parsed });
+    const nextSyncMeta = {
+      ...syncMeta,
+      updatedAt: new Date().toISOString(),
+      lastDriveBackupAt: new Date().toISOString(),
+      driveExportedAt: parsed && parsed.exportedAt ? parsed.exportedAt : syncMeta.driveExportedAt || null,
+      lastSource: 'gdrive-backup'
+    };
+    await saveRedisJson(redisFetch, SYNC_META_KEY, nextSyncMeta);
+
+    return res.status(200).json({ ok: true, drive: parsed, syncMeta: nextSyncMeta });
 
   } catch (err) {
     console.error('[gdrive-backup] Exception:', err.message, err.stack);

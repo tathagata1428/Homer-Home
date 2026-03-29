@@ -1,5 +1,7 @@
 import { buildContextFiles } from '../lib/context-files.js';
+import handleJoeyCommit from '../lib/joey-commit-handler.js';
 import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
+import { computeJoeySyncMeta } from '../lib/joey-sync-meta.js';
 
 export default async function handler(req, res) {
   const origin = req.headers.origin || '*';
@@ -8,6 +10,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.query && req.query.action === 'commit') return handleJoeyCommit(req, res);
 
   // Auth — accept admin hash OR any registered user
   const getPass = () => {
@@ -46,9 +49,39 @@ export default async function handler(req, res) {
   if (!isValid) return res.status(403).json({ error: 'Forbidden' });
 
   const mode = getJoeyMode(req);
-  const { MEMORY_KEY, HISTORY_KEY, PROFILE_KEY, FILES_KEY, FILE_LIBRARY_KEY, CUSTOM_FILES_KEY } = getJoeyContextKeys(mode);
+  const { MEMORY_KEY, HISTORY_KEY, PROFILE_KEY, FILES_KEY, FILE_LIBRARY_KEY, CUSTOM_FILES_KEY, JOURNAL_KEY, SYNC_META_KEY } = getJoeyContextKeys(mode);
   const MAX_MEMORIES = 200;
   const MAX_HISTORY = 50;
+  const MAX_JOURNAL = 1000;
+
+  async function loadJournal() {
+    return loadRedisJson(redis, JOURNAL_KEY, []);
+  }
+
+  async function saveJournal(entries) {
+    const trimmed = Array.isArray(entries) ? entries.slice(-MAX_JOURNAL) : [];
+    await saveRedisJson(redis, JOURNAL_KEY, trimmed);
+    return trimmed;
+  }
+
+  async function appendJournalEntries(entries) {
+    const nextEntries = Array.isArray(entries) ? entries.filter(Boolean) : [];
+    if (!nextEntries.length) return loadJournal();
+    const current = await loadJournal();
+    return saveJournal(current.concat(nextEntries));
+  }
+
+  function buildJournalEntry(type, data) {
+    const payload = data && typeof data === 'object' ? data : {};
+    return {
+      type,
+      role: payload.role || '',
+      text: String(payload.text || '').slice(0, 2000),
+      category: payload.category || '',
+      source: payload.source || 'system',
+      ts: Number(payload.ts || Date.now()) || Date.now()
+    };
+  }
 
   function buildChatUrl(baseUrl) {
     const normalized = String(baseUrl || '').replace(/\/+$/, '');
@@ -73,11 +106,34 @@ export default async function handler(req, res) {
         if (!messages || !Array.isArray(messages)) {
           return res.status(400).json({ error: 'Missing messages array' });
         }
+        const previous = await loadRedisJson(redis, HISTORY_KEY, []);
         const cleaned = messages
           .filter(m => m.role === 'user' || m.role === 'assistant')
           .map(m => ({ role: m.role, content: (m.content || '').slice(0, 2000) }))
           .slice(-MAX_HISTORY);
         await redis(['SET', HISTORY_KEY, JSON.stringify(cleaned)]);
+        const journalEntries = [];
+        const prevNormalized = Array.isArray(previous) ? previous : [];
+        const prevLooksPrefix = prevNormalized.length <= cleaned.length && prevNormalized.every((item, index) => (
+          item && cleaned[index] &&
+          item.role === cleaned[index].role &&
+          String(item.content || '') === String(cleaned[index].content || '')
+        ));
+        if (prevLooksPrefix) {
+          cleaned.slice(prevNormalized.length).forEach((item) => {
+            journalEntries.push(buildJournalEntry('message', {
+              role: item.role,
+              text: item.content,
+              source: 'history-sync'
+            }));
+          });
+        } else {
+          journalEntries.push(buildJournalEntry('history-rewrite', {
+            text: JSON.stringify(cleaned.slice(-8)),
+            source: 'history-sync'
+          }));
+        }
+        await appendJournalEntries(journalEntries);
         return res.status(200).json({ ok: true, count: cleaned.length });
       }
       return res.status(405).json({ error: 'Method not allowed' });
@@ -106,6 +162,13 @@ export default async function handler(req, res) {
         });
         while (memories.length > MAX_MEMORIES) memories.shift();
         await redis(['SET', MEMORY_KEY, JSON.stringify(memories)]);
+        await appendJournalEntries([
+          buildJournalEntry('memory-added', {
+            text: memory,
+            category: category || 'general',
+            source: source || 'manual'
+          })
+        ]);
         return res.status(200).json({ ok: true, count: memories.length });
       }
       if (req.method === 'DELETE') {
@@ -121,6 +184,12 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'Missing memoryId or match' });
         }
         await redis(['SET', MEMORY_KEY, JSON.stringify(memories)]);
+        await appendJournalEntries([
+          buildJournalEntry('memory-removed', {
+            text: String(match || memoryId || ''),
+            source: 'manual'
+          })
+        ]);
         return res.status(200).json({ ok: true, count: memories.length });
       }
       return res.status(405).json({ error: 'Method not allowed' });
@@ -132,6 +201,120 @@ export default async function handler(req, res) {
         const result = await redis(['GET', PROFILE_KEY]);
         const profile = result.result ? JSON.parse(result.result) : {};
         return res.status(200).json({ profile });
+      }
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    if (action === 'bundle') {
+      if (req.method === 'GET') {
+        const [profileRes, memoryRes, historyRes, filesRes, libraryRes, customFilesRes, journalRes, syncMetaRes] = await Promise.all([
+          redis(['GET', PROFILE_KEY]),
+          redis(['GET', MEMORY_KEY]),
+          redis(['GET', HISTORY_KEY]),
+          redis(['GET', FILES_KEY]),
+          redis(['GET', FILE_LIBRARY_KEY]),
+          redis(['GET', CUSTOM_FILES_KEY]),
+          redis(['GET', JOURNAL_KEY]),
+          redis(['GET', SYNC_META_KEY])
+        ]);
+        const bundle = {
+          mode,
+          exportedAt: Date.now(),
+          profile: profileRes.result ? JSON.parse(profileRes.result) : {},
+          memories: memoryRes.result ? JSON.parse(memoryRes.result) : [],
+          history: historyRes.result ? JSON.parse(historyRes.result) : [],
+          files: filesRes.result ? JSON.parse(filesRes.result) : {},
+          fileLibrary: libraryRes.result ? JSON.parse(libraryRes.result) : [],
+          customFiles: customFilesRes.result ? JSON.parse(customFilesRes.result) : {},
+          journal: journalRes.result ? JSON.parse(journalRes.result) : []
+        };
+        const storedSyncMeta = syncMetaRes.result ? JSON.parse(syncMetaRes.result) : null;
+        bundle.syncMeta = storedSyncMeta && typeof storedSyncMeta === 'object'
+          ? storedSyncMeta
+          : computeJoeySyncMeta(bundle, { mode, lastSource: 'bundle-export' });
+        return res.status(200).json({
+          ok: true,
+          bundle
+        });
+      }
+      if (req.method === 'POST') {
+        const bundle = req.body && req.body.bundle;
+        if (!bundle || typeof bundle !== 'object') {
+          return res.status(400).json({ error: 'Missing bundle' });
+        }
+        const profile = bundle.profile && typeof bundle.profile === 'object' ? bundle.profile : {};
+        const memories = Array.isArray(bundle.memories) ? bundle.memories : [];
+        const history = Array.isArray(bundle.history) ? bundle.history : [];
+        const files = bundle.files && typeof bundle.files === 'object' ? bundle.files : {};
+        const fileLibrary = Array.isArray(bundle.fileLibrary) ? bundle.fileLibrary : [];
+        const customFiles = bundle.customFiles && typeof bundle.customFiles === 'object' ? bundle.customFiles : {};
+        const journal = Array.isArray(bundle.journal) ? bundle.journal : [];
+        const syncMeta = bundle.syncMeta && typeof bundle.syncMeta === 'object'
+          ? bundle.syncMeta
+          : computeJoeySyncMeta({ mode, profile, memories, history, files, fileLibrary, customFiles, journal }, { mode, lastSource: 'bundle-restore' });
+
+        await Promise.all([
+          redis(['SET', PROFILE_KEY, JSON.stringify(profile)]),
+          redis(['SET', MEMORY_KEY, JSON.stringify(memories.slice(-MAX_MEMORIES))]),
+          redis(['SET', HISTORY_KEY, JSON.stringify(history.filter(m => m && (m.role === 'user' || m.role === 'assistant')).slice(-MAX_HISTORY))]),
+          redis(['SET', FILES_KEY, JSON.stringify(files)]),
+          redis(['SET', FILE_LIBRARY_KEY, JSON.stringify(fileLibrary)]),
+          redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(customFiles)]),
+          redis(['SET', JOURNAL_KEY, JSON.stringify(journal.slice(-MAX_JOURNAL))]),
+          redis(['SET', SYNC_META_KEY, JSON.stringify(syncMeta)])
+        ]);
+        return res.status(200).json({
+          ok: true,
+          restored: {
+            mode,
+            memories: memories.length,
+            history: history.length,
+            fileLibrary: fileLibrary.length,
+            customFiles: Object.keys(customFiles).length,
+            journal: journal.length
+          }
+        });
+      }
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    if (action === 'sync-meta') {
+      if (req.method === 'GET') {
+        const [profileRes, memoryRes, historyRes, filesRes, libraryRes, customFilesRes, journalRes, syncMetaRes] = await Promise.all([
+          redis(['GET', PROFILE_KEY]),
+          redis(['GET', MEMORY_KEY]),
+          redis(['GET', HISTORY_KEY]),
+          redis(['GET', FILES_KEY]),
+          redis(['GET', FILE_LIBRARY_KEY]),
+          redis(['GET', CUSTOM_FILES_KEY]),
+          redis(['GET', JOURNAL_KEY]),
+          redis(['GET', SYNC_META_KEY])
+        ]);
+        const bundle = {
+          mode,
+          profile: profileRes.result ? JSON.parse(profileRes.result) : {},
+          memories: memoryRes.result ? JSON.parse(memoryRes.result) : [],
+          history: historyRes.result ? JSON.parse(historyRes.result) : [],
+          files: filesRes.result ? JSON.parse(filesRes.result) : {},
+          fileLibrary: libraryRes.result ? JSON.parse(libraryRes.result) : [],
+          customFiles: customFilesRes.result ? JSON.parse(customFilesRes.result) : {},
+          journal: journalRes.result ? JSON.parse(journalRes.result) : []
+        };
+        const storedSyncMeta = syncMetaRes.result ? JSON.parse(syncMetaRes.result) : {};
+        const syncMeta = computeJoeySyncMeta(bundle, {
+          ...storedSyncMeta,
+          mode,
+          updatedAt: new Date().toISOString()
+        });
+        return res.status(200).json({ ok: true, syncMeta });
+      }
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    if (action === 'journal') {
+      if (req.method === 'GET') {
+        const journal = await loadJournal();
+        return res.status(200).json({ ok: true, journal });
       }
       return res.status(405).json({ error: 'Method not allowed' });
     }
