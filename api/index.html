@@ -425,6 +425,7 @@
       font-family: inherit; font-size: 1rem; resize: vertical;
     }
     .sync-floating-label{
+      display:none!important;
       position:fixed; z-index:10020; pointer-events:none;
       padding:2px 6px; border-radius:999px;
       font-size:.56rem; font-weight:800; letter-spacing:.03em; line-height:1.2;
@@ -714,6 +715,11 @@
     .vault-mode-switch button.active.personal{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border-color:rgba(59,130,246,.55);}
     .vault-mode-switch button.active.work{background:linear-gradient(135deg,#0f766e,#0d9488);color:#fff;border-color:rgba(13,148,136,.55);}
     .vault-mode-meta{font-size:.78rem;color:var(--muted);margin:0;}
+    .vault-sync-badge{display:none;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;border:1px solid rgba(148,163,184,.14);background:rgba(15,23,42,.34);font-size:.64rem;font-weight:700;letter-spacing:.04em;color:rgba(226,232,240,.72);white-space:nowrap;backdrop-filter:blur(10px);}
+    .vault-sync-badge::before{content:"";width:6px;height:6px;border-radius:999px;background:currentColor;opacity:.9;box-shadow:0 0 0 3px rgba(255,255,255,.03);}
+    .vault-sync-badge.synced{color:#86efac;border-color:rgba(34,197,94,.18);background:rgba(6,78,59,.16);}
+    .vault-sync-badge.pending{color:#fbbf24;border-color:rgba(245,158,11,.22);background:rgba(120,53,15,.18);}
+    .vault-sync-badge.idle{color:#94a3b8;border-color:rgba(148,163,184,.12);background:rgba(15,23,42,.28);}
     .projects-hub{padding:18px;border-radius:18px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(15,23,42,.78),rgba(15,23,42,.42));box-shadow:0 18px 42px rgba(0,0,0,.24);}
     .projects-hub-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
     .projects-hub-head h3{margin:0;font-size:1rem;font-weight:900;color:var(--text);}
@@ -770,6 +776,7 @@
       .vd-card{padding:16px;gap:12px;}
       .vd-icon{font-size:1.6rem;width:44px;height:44px;border-radius:12px;}
       .vd-info h3{font-size:.88rem;}
+      .vault-sync-badge{font-size:.6rem;padding:4px 7px;}
       .projects-hub{padding:14px;border-radius:16px;}
       .projects-hub-head{align-items:flex-start;}
       .projects-grid{grid-template-columns:1fr;}
@@ -3082,7 +3089,10 @@
           <button type="button" id="vault-mode-work" class="work">Work</button>
         </div>
       </div>
-      <button id="vault-lock-btn" class="btn danger" style="padding:6px 14px;font-size:.85rem;">Lock</button>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+        <div id="vault-sync-badge" class="vault-sync-badge" aria-live="polite"></div>
+        <button id="vault-lock-btn" class="btn danger" style="padding:6px 14px;font-size:.85rem;">Lock</button>
+      </div>
     </div>
     <p id="vault-mode-meta" class="vault-mode-meta">Personal profile is active. Tasks, notes, goals, and secrets stay separate from Work.</p>
 
@@ -4932,6 +4942,7 @@ document.addEventListener("input", e => {
   var lockLabel = document.getElementById('vault-lock-label');
   var vaultStatusLine = document.getElementById('vault-status-line');
   var vaultModeMeta = document.getElementById('vault-mode-meta');
+  var vaultSyncBadge = document.getElementById('vault-sync-badge');
   var vaultModePersonalBtn = document.getElementById('vault-mode-personal');
   var vaultModeWorkBtn = document.getElementById('vault-mode-work');
   var vdOpenKanban = document.getElementById('vd-open-kanban');
@@ -5359,6 +5370,37 @@ document.addEventListener("input", e => {
   function projectModePrimaryLabel(mode){
     return normalizeVaultMode(mode) === 'work' ? 'OrganizeLife' : 'Personal Board';
   }
+  function getVaultSyncBadgeState(){
+    var syncPass = String(localStorage.getItem(SYNC_PASS_KEY) || '').trim();
+    var lastDbSync = parseInt(localStorage.getItem(BACKUP_DB_TS_KEY) || '0', 10);
+    var lastSave = parseInt(localStorage.getItem(BACKUP_LOCAL_SAVE_TS_KEY) || '0', 10);
+    if(lastSave && (!lastDbSync || lastSave > lastDbSync)){
+      return { tone:'pending', text:'save', title:'Local changes are waiting to sync.' };
+    }
+    if(!syncPass){
+      return { tone:'idle', text:'local', title:'Cloud sync is off on this device.' };
+    }
+    if(!lastDbSync){
+      return { tone:'idle', text:'new', title:'No database mirror has completed yet.' };
+    }
+    return {
+      tone:'synced',
+      text:formatBackupShortStamp(lastDbSync),
+      title:'Updated ' + formatBackupStamp(lastDbSync)
+    };
+  }
+  function updateVaultSyncBadge(){
+    if(!vaultSyncBadge) return;
+    if(!window._homerVaultUnlocked){
+      vaultSyncBadge.style.display = 'none';
+      return;
+    }
+    var state = getVaultSyncBadgeState();
+    vaultSyncBadge.className = 'vault-sync-badge ' + state.tone;
+    vaultSyncBadge.textContent = state.text;
+    vaultSyncBadge.title = state.title;
+    vaultSyncBadge.style.display = 'inline-flex';
+  }
   function projectDisplay(project){
     if(!project) return null;
     if(project.id === 'organize-life'){
@@ -5386,6 +5428,7 @@ document.addEventListener("input", e => {
     if(projectsBoardTitle) projectsBoardTitle.textContent = (isWork ? 'Work ' : 'Personal ') + 'Project Command Center';
     if(vdOpenProjects) vdOpenProjects.style.display = 'none';
     if(kanbanBoardTitle) kanbanBoardTitle.textContent = '📋 ' + modeLabel(currentVaultMode) + ' Board';
+    updateVaultSyncBadge();
   }
   function buildJoeyProjectInstruction(){
     var projects = ensureProjects(_cachedProjects || DEFAULT_PROJECTS);
@@ -5773,6 +5816,7 @@ document.addEventListener("input", e => {
       renderProjectDashboard(data);
       // Pre-load notes
       notesArea.value = data.notes || '';
+      updateVaultSyncBadge();
     });
   }
 
@@ -7857,8 +7901,9 @@ document.addEventListener("input", e => {
     pwInput.value = '';
     lockScreen.style.display = 'none';
     content.style.display = 'block';
-    renderVault();
     window._homerVaultUnlocked = true;
+    renderVault();
+    updateVaultSyncBadge();
     window.dispatchEvent(new Event('homer-vault-state'));
     // Silently restore any cloud-only attachments from R2
     restoreAttachmentsFromR2().then(function(){ renderVault(); }).catch(function(){});
@@ -7869,6 +7914,7 @@ document.addEventListener("input", e => {
     content.style.display = 'none';
     lockScreen.style.display = 'block';
     window._homerVaultUnlocked = false;
+    updateVaultSyncBadge();
     window.dispatchEvent(new Event('homer-vault-state'));
     notesArea.value = '';
     linksList.innerHTML = '';
@@ -10285,6 +10331,7 @@ document.addEventListener("input", e => {
       if(typeof origSetItem === 'function') origSetItem(key, String(value == null ? Date.now() : value));
       else localStorage.setItem(key, String(value == null ? Date.now() : value));
     }catch(e){}
+    updateVaultSyncBadge();
     requestSyncFieldLabelUpdate();
   }
   function getJoeyBundleKey(mode){
@@ -10670,23 +10717,19 @@ document.addEventListener("input", e => {
   }
   function ensurePersistentFieldLabel(el){
     if(!shouldTrackPersistentField(el) || syncFieldLabelMap.has(el)) return;
-    var label = document.createElement('div');
-    label.className = 'sync-floating-label idle';
-    label.style.display = 'none';
-    document.body.appendChild(label);
     var markPending = function(){
       if(applyingRemoteFieldSync){
-        requestSyncFieldLabelUpdate();
+        updateVaultSyncBadge();
         return;
       }
       el.dataset.dbSyncEditTs = String(Date.now());
       savePersistentFieldGroupDrafts(el);
       queuePersistentFieldGroupOperations(el);
-      requestSyncFieldLabelUpdate();
+      updateVaultSyncBadge();
     };
     el.addEventListener('input', markPending);
     el.addEventListener('change', markPending);
-    syncFieldLabelMap.set(el, { label:label });
+    syncFieldLabelMap.set(el, { label:null });
   }
   function cleanupPersistentFieldLabels(){
     syncFieldLabelMap.forEach(function(entry, el){
@@ -10716,30 +10759,7 @@ document.addEventListener("input", e => {
   }
   function updatePersistentFieldLabels(){
     cleanupPersistentFieldLabels();
-    syncFieldLabelMap.forEach(function(entry, el){
-      if(!entry || !entry.label || !el || !el.isConnected){
-        if(entry && entry.label && entry.label.parentNode) entry.label.parentNode.removeChild(entry.label);
-        syncFieldLabelMap.delete(el);
-        return;
-      }
-      var rect = el.getBoundingClientRect();
-      var style = window.getComputedStyle(el);
-      if(!rect.width || !rect.height || style.display === 'none' || style.visibility === 'hidden' || rect.bottom < -20 || rect.top > window.innerHeight + 20 || rect.right < -20 || rect.left > window.innerWidth + 20){
-        entry.label.style.display = 'none';
-        return;
-      }
-      var state = getPersistentFieldSyncState(el);
-      entry.label.className = 'sync-floating-label ' + state.tone;
-      entry.label.textContent = state.text;
-      entry.label.title = state.title;
-      entry.label.style.display = 'block';
-      var width = entry.label.offsetWidth;
-      var height = entry.label.offsetHeight;
-      var left = Math.max(6, Math.min(window.innerWidth - width - 6, rect.right - width - 6));
-      var top = Math.max(6, Math.min(window.innerHeight - height - 6, rect.top + 6));
-      entry.label.style.left = left + 'px';
-      entry.label.style.top = top + 'px';
-    });
+    updateVaultSyncBadge();
   }
   function requestSyncFieldLabelUpdate(){
     if(syncFieldLabelFrame) return;
@@ -10782,7 +10802,7 @@ document.addEventListener("input", e => {
       renderHealthCard('Redis Joey', localStorage.getItem(BACKUP_JOEY_TS_KEY), 'Latest Joey chat, memory, and files write.', '#f59e0b') +
       renderHealthCard('Drive Backup', localStorage.getItem(BACKUP_DRIVE_TS_KEY), 'Latest successful Google Drive context export.', '#a78bfa') +
       renderHealthCard('Last Restore', localStorage.getItem(BACKUP_LAST_RESTORE_TS_KEY), 'Most recent restore source: ' + restoreSource + '.', '#f87171');
-    requestSyncFieldLabelUpdate();
+    updateVaultSyncBadge();
   }
   function initPersistentFieldLabels(){
     scanPersistentFieldLabels(document);
