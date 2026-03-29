@@ -5207,12 +5207,8 @@ document.addEventListener("input", e => {
   }
   function ensureProjects(projects){
     var map = {};
-    cloneProjects(DEFAULT_PROJECTS).forEach(function(project, idx){
-      var normalized = ensureProject(project, idx);
-      map[normalized.id] = normalized;
-    });
     (projects || []).forEach(function(project, idx){
-      var normalized = ensureProject(project, idx + DEFAULT_PROJECTS.length);
+      var normalized = ensureProject(project, idx);
       if(map[normalized.id]) map[normalized.id] = Object.assign({}, map[normalized.id], normalized);
       else map[normalized.id] = normalized;
     });
@@ -5245,20 +5241,8 @@ document.addEventListener("input", e => {
   function getDefaultProjectId(projects, includeArchived){
     var list = ensureProjects(projects || _cachedProjects);
     var active = includeArchived ? list : list.filter(function(project){ return !project.archived; });
-    if(active.length){
-      var organizeLife = active.find(function(project){ return project.id === 'organize-life'; });
-      return (organizeLife || active[0]).id;
-    }
-    var fallback = list.find(function(project){ return project.id === 'organize-life'; }) || list[0];
-    return fallback ? fallback.id : 'organize-life';
-  }
-  function getProjectTombstone(projectId){
-    return {
-      id: projectId,
-      name: projectId,
-      deleted: true,
-      deletedAt: Date.now()
-    };
+    if(active.length) return active[0].id;
+    return list[0] ? list[0].id : '';
   }
   function isProjectArchived(projects, projectId){
     var project = getProjectById(projects, projectId);
@@ -5269,10 +5253,7 @@ document.addEventListener("input", e => {
   }
   function getProjectDeleteFallback(projects, projectId){
     var active = activeProjectsOnly(projects).filter(function(project){ return project.id !== projectId; });
-    if(active.length){
-      var primary = active.find(function(project){ return project.id === 'organize-life'; });
-      return primary || active[0];
-    }
+    if(active.length) return active[0];
     var anyOther = ensureProjects(projects || _cachedProjects).find(function(project){ return project.id !== projectId; });
     return anyOther || null;
   }
@@ -5529,10 +5510,19 @@ document.addEventListener("input", e => {
     if(!Array.isArray(next.creds)) next.creds = [];
     if(!Array.isArray(next.goals)) next.goals = [];
     if(!Array.isArray(next.lifeGoals)) next.lifeGoals = [];
-    next.projects = ensureProjects(next.projects);
+    var rawProjects = Array.isArray(next.projects) ? next.projects : [];
+    var visibleProjects = ensureProjects(rawProjects);
+    var visibleProjectIds = {};
+    visibleProjects.forEach(function(project){ visibleProjectIds[project.id] = true; });
+    var deletedProjects = rawProjects.map(function(project, index){
+      return ensureProject(project, index);
+    }).filter(function(project){
+      return project.deleted && !visibleProjectIds[project.id];
+    });
+    next.projects = visibleProjects.concat(deletedProjects);
     var knownProjects = {};
-    next.projects.forEach(function(project){ knownProjects[project.id] = true; });
-    var defaultProjectId = getDefaultProjectId(next.projects, true);
+    visibleProjects.forEach(function(project){ knownProjects[project.id] = true; });
+    var defaultProjectId = getDefaultProjectId(visibleProjects, true);
     next.goals = next.goals.map(function(goal){
       if(!goal || typeof goal !== 'object') return goal;
       if(!goal.projectId || !knownProjects[goal.projectId]) goal.projectId = defaultProjectId;
@@ -5664,9 +5654,6 @@ document.addEventListener("input", e => {
   function modeLabel(mode){
     return normalizeVaultMode(mode) === 'work' ? 'Work' : 'Personal';
   }
-  function projectModePrimaryLabel(mode){
-    return normalizeVaultMode(mode) === 'work' ? 'OrganizeLife' : 'Personal Board';
-  }
   function getVaultSyncBadgeState(){
     var syncPass = String(localStorage.getItem(SYNC_PASS_KEY) || '').trim();
     var lastDbSync = parseInt(localStorage.getItem(BACKUP_DB_TS_KEY) || '0', 10);
@@ -5699,17 +5686,7 @@ document.addEventListener("input", e => {
     vaultSyncBadge.style.display = 'inline-flex';
   }
   function projectDisplay(project){
-    if(!project) return null;
-    if(project.id === 'organize-life'){
-      return Object.assign({}, project, {
-        name: projectModePrimaryLabel(currentVaultMode),
-        description: normalizeVaultMode(currentVaultMode) === 'work'
-          ? 'Core operating system for work planning, delivery, and follow-ups.'
-          : 'Everything that used to live in your personal board, preserved as a project inside the command center.',
-        icon: normalizeVaultMode(currentVaultMode) === 'work' ? 'OL' : 'PB'
-      });
-    }
-    return project;
+    return project || null;
   }
   function renderVaultModeUi(){
     var isWork = normalizeVaultMode(currentVaultMode) === 'work';
@@ -5719,7 +5696,7 @@ document.addEventListener("input", e => {
     if(vaultModeMeta) vaultModeMeta.textContent = modeLabel(currentVaultMode) + ' profile is active. Tasks, notes, goals, and secrets stay separate from ' + (isWork ? 'Personal' : 'Work') + '.';
     if(vdOpenKanban && vdOpenKanban.querySelector('.vd-icon')) vdOpenKanban.querySelector('.vd-icon').textContent = 'PC';
     if(vdKanbanTitle) vdKanbanTitle.textContent = 'Project Command Center';
-    if(vdKanbanDesc) vdKanbanDesc.textContent = isWork ? 'Open work projects, progress, and agile flow' : 'Open projects, including your old Personal Board';
+    if(vdKanbanDesc) vdKanbanDesc.textContent = isWork ? 'Open work projects, progress, and agile flow' : 'Open personal projects, progress, and agile flow';
     if(vdGoalsTitle) vdGoalsTitle.textContent = isWork ? 'Work Goals' : 'Life Goals';
     if(vdGoalsDesc) vdGoalsDesc.textContent = isWork ? 'Track work outcomes and milestones' : 'Track your aspirations';
     if(projectsBoardTitle) projectsBoardTitle.textContent = (isWork ? 'Work ' : 'Personal ') + 'Project Command Center';
@@ -5748,7 +5725,7 @@ document.addEventListener("input", e => {
       '- If a project has custom fields and the user provides values, include them in TASK JSON under "customFields" as an object keyed by field name or id.\n' +
       '- Never place new tasks in archived projects. If the user names an archived project, restore it with a PROJECT action or ask them first.\n' +
       '- If the user explicitly asks to create, archive, restore, or delete a project, append a PROJECT action.\n' +
-      '- If no project is specified, default to ' + projectModePrimaryLabel(currentVaultMode) + '.';
+      '- If no project is specified, default to the currently selected project; if none is selected, use the first active project.';
   }
   function refreshVaultModeViews(){
     if(!window._homerVaultUnlocked) return;
@@ -6117,8 +6094,6 @@ document.addEventListener("input", e => {
         });
       }
       var remainingEntries = (data.projects || []).filter(function(entry){ return entry && entry.id !== projectId; });
-      var isDefaultSeed = DEFAULT_PROJECTS.some(function(entry){ return entry.id === projectId; });
-      if(isDefaultSeed) remainingEntries.push(getProjectTombstone(projectId));
       data.projects = remainingEntries.map(function(entry, idx){
         if(entry && !entry.deleted) entry.order = idx;
         return entry;
