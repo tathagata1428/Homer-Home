@@ -3307,6 +3307,13 @@
         <button id="goal-custom-label-add" type="button" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(96,165,250,.3);background:none;color:#60a5fa;cursor:pointer;font-size:.78rem;font-weight:700;">+ Add</button>
       </div>
     </div>
+    <div id="goal-custom-fields-wrap" style="display:none;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+        <div style="font-size:.8rem;color:var(--muted);">Project fields</div>
+        <span id="goal-custom-fields-hint" style="font-size:.72rem;color:rgba(148,163,184,.8);">Project-specific metadata</span>
+      </div>
+      <div id="goal-custom-fields" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
     <input id="goal-due" type="date" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
     <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px dashed var(--border);background:rgba(255,255,255,.03);cursor:pointer;margin-bottom:4px;font-size:.85rem;color:var(--muted);">📎 Attach files <span style="font-size:.7rem;opacity:.6;">(max 25MB each)</span><input id="goal-files" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;"></label>
     <div id="goal-files-preview" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
@@ -3332,7 +3339,27 @@
         <input id="project-color" type="color" value="#60a5fa" style="width:34px;height:34px;border:none;background:none;padding:0;cursor:pointer;">
       </label>
     </div>
+    <div style="padding:10px 12px;border-radius:10px;border:1px solid rgba(148,163,184,.16);background:rgba(15,23,42,.52);color:var(--muted);font-size:.8rem;line-height:1.45;margin-bottom:14px;">
+      After creation you can add Jira-style custom fields for this project.
+    </div>
     <button id="project-submit" class="btn primary" style="width:100%;padding:10px;font-size:.95rem;">Create Project</button>
+  </div>
+</div>
+
+<div id="project-fields-modal-bg" class="fab-overlay" style="z-index:9991;">
+  <div class="fab-dialog" style="width:min(620px,94vw);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;">
+      <div>
+        <h3 id="project-fields-title" style="margin:0;font-size:1.1rem;">Project Fields</h3>
+        <div id="project-fields-subtitle" style="font-size:.8rem;color:var(--muted);margin-top:4px;">Define Jira-style fields for tasks in this project.</div>
+      </div>
+      <button id="project-fields-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
+    </div>
+    <div id="project-fields-list" style="display:flex;flex-direction:column;gap:10px;max-height:46vh;overflow:auto;padding-right:4px;"></div>
+    <button id="project-fields-add-row" type="button" class="btn ghost" style="width:100%;margin-top:12px;padding:10px;font-size:.88rem;">+ Add Field</button>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button id="project-fields-save" class="btn primary" style="flex:1;padding:10px;font-size:.95rem;">Save Fields</button>
+    </div>
   </div>
 </div>
 
@@ -5058,7 +5085,11 @@ document.addEventListener("input", e => {
   var pendingGoalFiles = [];
   var pendingSubFiles = [];
   var selectedGoalLabels = [];
+  var draftGoalCustomFields = {};
   var goalProjectSelect = document.getElementById('goal-project');
+  var goalCustomFieldsWrap = document.getElementById('goal-custom-fields-wrap');
+  var goalCustomFieldsHint = document.getElementById('goal-custom-fields-hint');
+  var goalCustomFieldsEl = document.getElementById('goal-custom-fields');
   var projectModalBg = document.getElementById('project-modal-bg');
   var projectModalClose = document.getElementById('project-modal-close');
   var projectNameInput = document.getElementById('project-name');
@@ -5067,6 +5098,14 @@ document.addEventListener("input", e => {
   var projectIconInput = document.getElementById('project-icon');
   var projectColorInput = document.getElementById('project-color');
   var projectSubmitBtn = document.getElementById('project-submit');
+  var projectFieldsModalBg = document.getElementById('project-fields-modal-bg');
+  var projectFieldsModalClose = document.getElementById('project-fields-modal-close');
+  var projectFieldsTitle = document.getElementById('project-fields-title');
+  var projectFieldsSubtitle = document.getElementById('project-fields-subtitle');
+  var projectFieldsList = document.getElementById('project-fields-list');
+  var projectFieldsAddRowBtn = document.getElementById('project-fields-add-row');
+  var projectFieldsSaveBtn = document.getElementById('project-fields-save');
+  var activeProjectFieldsProjectId = '';
   var showArchive = false;
   var showBacklog = false;
   var VAULT_MODE_KEY = 'homer-vault-mode';
@@ -5107,6 +5146,45 @@ document.addEventListener("input", e => {
     var key = words.slice(0, 3).map(function(part){ return part.charAt(0); }).join('');
     return (key || cleaned || 'PRJ').slice(0, 5);
   }
+  function normalizeProjectFieldType(type){
+    var raw = String(type || '').trim().toLowerCase();
+    return ['text','number','date','select','toggle'].indexOf(raw) >= 0 ? raw : 'text';
+  }
+  function normalizeProjectField(field, index){
+    var raw = field && typeof field === 'object' ? field : {};
+    var name = String(raw.name || raw.label || raw.id || ('Field ' + (index + 1))).trim();
+    var type = normalizeProjectFieldType(raw.type);
+    var options = [];
+    if(type === 'select'){
+      if(Array.isArray(raw.options)){
+        options = raw.options.map(function(option){ return String(option || '').trim(); }).filter(Boolean);
+      } else {
+        options = String(raw.options || '').split(',').map(function(option){ return option.trim(); }).filter(Boolean);
+      }
+    }
+    return {
+      id: slugifyProjectId(raw.id || name || ('field-' + (index + 1))),
+      name: name || ('Field ' + (index + 1)),
+      type: type,
+      options: options
+    };
+  }
+  function normalizeProjectFields(fields){
+    var seen = {};
+    return (fields || []).map(function(field, index){
+      var normalized = normalizeProjectField(field, index);
+      var baseId = normalized.id || ('field-' + (index + 1));
+      var nextId = baseId;
+      var suffix = 2;
+      while(seen[nextId]){
+        nextId = baseId + '-' + suffix;
+        suffix++;
+      }
+      normalized.id = nextId;
+      seen[nextId] = true;
+      return normalized;
+    }).filter(function(field){ return !!field.name; });
+  }
   function ensureProject(project, index){
     var raw = project && typeof project === 'object' ? project : {};
     var name = String(raw.name || raw.title || raw.id || ('Project ' + (index + 1))).trim();
@@ -5121,7 +5199,8 @@ document.addEventListener("input", e => {
       archived: !!raw.archived,
       archivedAt: parseInt(raw.archivedAt || '0', 10) || 0,
       deleted: !!raw.deleted,
-      deletedAt: parseInt(raw.deletedAt || '0', 10) || 0
+      deletedAt: parseInt(raw.deletedAt || '0', 10) || 0,
+      customFields: normalizeProjectFields(raw.customFields)
     };
     if(!normalized.icon) normalized.icon = normalized.key.slice(0, 2);
     return normalized;
@@ -5188,6 +5267,15 @@ document.addEventListener("input", e => {
   function activeProjectsOnly(projects){
     return ensureProjects(projects || _cachedProjects).filter(function(project){ return !project.archived; });
   }
+  function getProjectDeleteFallback(projects, projectId){
+    var active = activeProjectsOnly(projects).filter(function(project){ return project.id !== projectId; });
+    if(active.length){
+      var primary = active.find(function(project){ return project.id === 'organize-life'; });
+      return primary || active[0];
+    }
+    var anyOther = ensureProjects(projects || _cachedProjects).find(function(project){ return project.id !== projectId; });
+    return anyOther || null;
+  }
   function normalizeProjectLookupKey(value){
     return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
   }
@@ -5249,6 +5337,93 @@ document.addEventListener("input", e => {
       progress: active.length ? Math.round(progress / active.length) : 0,
       counts: counts
     };
+  }
+  function getProjectCustomFields(projects, projectId){
+    var project = getProjectById(projects || _cachedProjects, projectId);
+    return project && Array.isArray(project.customFields) ? project.customFields : [];
+  }
+  function customFieldLabel(field){
+    return String(field && field.name || 'Field').trim() || 'Field';
+  }
+  function customFieldInputValue(field, value){
+    if(field.type === 'toggle') return !!value;
+    if(field.type === 'number') return value == null ? '' : String(value);
+    return String(value == null ? '' : value);
+  }
+  function renderCustomFieldInputsHtml(project, values, classPrefix){
+    var fields = getProjectCustomFields([project], project && project.id);
+    var fieldValues = values && typeof values === 'object' ? values : {};
+    if(!fields.length) return '';
+    var controlStyle = 'width:100%;padding:9px 10px;border-radius:10px;border:1px solid rgba(148,163,184,.14);background:rgba(15,23,42,.42);color:var(--text);font-size:.84rem;';
+    return fields.map(function(field){
+      var value = customFieldInputValue(field, fieldValues[field.id]);
+      var inputHtml = '';
+      if(field.type === 'select'){
+        inputHtml = '<select class="' + classPrefix + '-input" data-field-id="' + field.id + '" style="' + controlStyle + '">' +
+          '<option value="">Select ' + escHtml(customFieldLabel(field)) + '</option>' +
+          (field.options || []).map(function(option){
+            return '<option value="' + escAttr(option) + '"' + (value === option ? ' selected' : '') + '>' + escHtml(option) + '</option>';
+          }).join('') +
+        '</select>';
+      } else if(field.type === 'date'){
+        inputHtml = '<input type="date" class="' + classPrefix + '-input" data-field-id="' + field.id + '" value="' + escAttr(value) + '" style="' + controlStyle + '">';
+      } else if(field.type === 'number'){
+        inputHtml = '<input type="number" class="' + classPrefix + '-input" data-field-id="' + field.id + '" value="' + escAttr(value) + '" placeholder="' + escAttr(customFieldLabel(field)) + '" style="' + controlStyle + '">';
+      } else if(field.type === 'toggle'){
+        inputHtml = '<label style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;border:1px solid rgba(148,163,184,.14);background:rgba(15,23,42,.42);"><input type="checkbox" class="' + classPrefix + '-input" data-field-id="' + field.id + '"' + (value ? ' checked' : '') + '><span>' + escHtml(customFieldLabel(field)) + '</span></label>';
+      } else {
+        inputHtml = '<input type="text" class="' + classPrefix + '-input" data-field-id="' + field.id + '" value="' + escAttr(value) + '" placeholder="' + escAttr(customFieldLabel(field)) + '" style="' + controlStyle + '">';
+      }
+      return '<div class="project-custom-field" data-field-type="' + field.type + '" style="display:flex;flex-direction:column;gap:5px;">' +
+        (field.type === 'toggle' ? '' : '<label style="font-size:.72rem;font-weight:700;color:rgba(148,163,184,.88);">' + escHtml(customFieldLabel(field)) + '</label>') +
+        inputHtml +
+      '</div>';
+    }).join('');
+  }
+  function readCustomFieldInputs(container, classPrefix){
+    var next = {};
+    if(!container) return next;
+    container.querySelectorAll('.' + classPrefix + '-input[data-field-id]').forEach(function(input){
+      var fieldId = input.getAttribute('data-field-id');
+      if(!fieldId) return;
+      var value = input.type === 'checkbox' ? !!input.checked : String(input.value || '').trim();
+      if(input.type === 'checkbox'){
+        if(value) next[fieldId] = true;
+        return;
+      }
+      if(value !== '') next[fieldId] = value;
+    });
+    return next;
+  }
+  function renderGoalProjectCustomFields(projectId, values){
+    if(!goalCustomFieldsWrap || !goalCustomFieldsEl) return;
+    var project = getProjectById(_cachedProjects, projectId);
+    var fields = getProjectCustomFields(_cachedProjects, projectId);
+    if(!fields.length){
+      goalCustomFieldsWrap.style.display = 'none';
+      goalCustomFieldsEl.innerHTML = '';
+      return;
+    }
+    goalCustomFieldsWrap.style.display = 'block';
+    if(goalCustomFieldsHint) goalCustomFieldsHint.textContent = (projectDisplay(project) || project).name + ' issue metadata';
+    goalCustomFieldsEl.innerHTML = renderCustomFieldInputsHtml(project, values || {}, 'goal-cf');
+  }
+  function mapGoalCustomFieldsForProject(project, rawValues){
+    var next = {};
+    var values = rawValues && typeof rawValues === 'object' ? rawValues : {};
+    var fields = getProjectCustomFields([project], project && project.id);
+    fields.forEach(function(field){
+      var byId = values[field.id];
+      var byName = values[field.name];
+      var value = byId != null ? byId : byName;
+      if(value == null || value === '') return;
+      if(field.type === 'toggle'){
+        if(value === true || value === 'true' || value === 1 || value === '1') next[field.id] = true;
+        return;
+      }
+      next[field.id] = String(value).trim();
+    });
+    return next;
   }
   function getLabelDef(name){
     var found = DEFAULT_LABELS.find(function(l){ return l.name === name; });
@@ -5361,6 +5536,7 @@ document.addEventListener("input", e => {
     next.goals = next.goals.map(function(goal){
       if(!goal || typeof goal !== 'object') return goal;
       if(!goal.projectId || !knownProjects[goal.projectId]) goal.projectId = defaultProjectId;
+      if(!goal.customFields || typeof goal.customFields !== 'object' || Array.isArray(goal.customFields)) goal.customFields = {};
       return goal;
     });
     if(!next._nextId) next._nextId = next.goals.length + 1;
@@ -5412,7 +5588,8 @@ document.addEventListener("input", e => {
   function saveVault(data){
     return loadVaultRoot().then(function(root){
       var nextRoot = ensureVaultRoot(root);
-      nextRoot.profiles[normalizeVaultMode(currentVaultMode)] = ensureProfileData(data);
+      var normalizedMode = normalizeVaultMode(currentVaultMode);
+      nextRoot.profiles[normalizedMode] = ensureProfileData(data);
       _vaultRootCache = nextRoot;
       return encrypt(cryptoKey, JSON.stringify(nextRoot)).then(function(enc){
         return idb.set(DATA_KEY, enc).then(function(result){
@@ -5420,6 +5597,15 @@ document.addEventListener("input", e => {
           if(typeof window._homerScheduleDbBackup === 'function') window._homerScheduleDbBackup('vault-save');
           if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('vault-save', 1800);
           if(typeof window._homerMarkCloudDirty === 'function') window._homerMarkCloudDirty('vault-save');
+          try{
+            window.dispatchEvent(new CustomEvent('vault-goals-changed', {
+              detail:{
+                reason:'vault-save',
+                mode:normalizedMode,
+                data:nextRoot.profiles[normalizedMode]
+              }
+            }));
+          }catch(_e){}
           return result;
         });
       });
@@ -5431,6 +5617,49 @@ document.addEventListener("input", e => {
   window._homerSaveVault = function(data){ return saveVault(data); };
   window._homerOpenIssue = function(gi, si){ openIssueFullscreen(gi, si); };
   window._homerGetVaultMode = function(){ return currentVaultMode; };
+  function getCachedVaultData(){
+    return getActiveVaultData(_vaultRootCache || defaultVaultRoot());
+  }
+  function isVaultOverlayOpen(id){
+    var el = document.getElementById(id);
+    if(!el) return false;
+    return el.classList.contains('open') || el.style.display !== 'none';
+  }
+  function shouldDeferKanbanRefresh(){
+    var active = document.activeElement;
+    if(!active || !active.closest) return false;
+    return !!(
+      active.closest('.kanban-card.expanded') ||
+      active.closest('#issue-overlay') ||
+      active.closest('#goal-modal-bg.open') ||
+      active.closest('#subtask-modal-bg.open')
+    );
+  }
+  var liveVaultUiTimer = null;
+  function scheduleVaultUiRefresh(data){
+    if(!window._homerVaultUnlocked) return;
+    var payload = ensureProfileData(data || getCachedVaultData());
+    _cachedProjects = ensureProjects(payload.projects || _cachedProjects);
+    clearTimeout(liveVaultUiTimer);
+    liveVaultUiTimer = setTimeout(function(){
+      renderVault();
+      if(isVaultOverlayOpen('projects-overlay')) renderProjectDashboard(payload);
+      if(isVaultOverlayOpen('kanban-overlay') && !shouldDeferKanbanRefresh()){
+        populateProjectControls(payload.projects, payload.goals, {
+          preserveFilter:true,
+          selectedFilter:goalFilterProject ? goalFilterProject.value : '',
+          preferredTaskProject:(goalProjectSelect && goalProjectSelect.value) || getDefaultProjectId(payload.projects)
+        });
+        renderGoals(payload.goals || [], payload.projects || []);
+      }
+      if(isVaultOverlayOpen('goals-overlay') && typeof window._refreshLifeGoals === 'function') window._refreshLifeGoals();
+    }, 20);
+  }
+  window.addEventListener('vault-goals-changed', function(e){
+    var detail = e && e.detail || {};
+    if(detail.mode && detail.mode !== normalizeVaultMode(currentVaultMode)) return;
+    scheduleVaultUiRefresh(detail.data || null);
+  });
 
   function modeLabel(mode){
     return normalizeVaultMode(mode) === 'work' ? 'Work' : 'Personal';
@@ -5504,16 +5733,19 @@ document.addEventListener("input", e => {
     var archivedProjects = projects.filter(function(project){ return project.archived; });
     var activeLines = activeProjects.map(function(project){
       var displayProject = projectDisplay(project) || project;
-      return '- ' + displayProject.name + ' (' + project.key + ', id: ' + project.id + ')';
+      var fields = (project.customFields || []).map(function(field){ return field.name + ':' + field.type; }).join(', ');
+      return '- ' + displayProject.name + ' (' + project.key + ', id: ' + project.id + ')' + (fields ? ' | fields: ' + fields : '');
     });
     var archivedLines = archivedProjects.map(function(project){
       var displayProject = projectDisplay(project) || project;
-      return '- ' + displayProject.name + ' (' + project.key + ', id: ' + project.id + ')';
+      var fields = (project.customFields || []).map(function(field){ return field.name + ':' + field.type; }).join(', ');
+      return '- ' + displayProject.name + ' (' + project.key + ', id: ' + project.id + ')' + (fields ? ' | fields: ' + fields : '');
     });
     return '\n\n=== PROJECT STRUCTURE ===\n- Active ' + modeLabel(currentVaultMode).toLowerCase() + ' projects:\n' + (activeLines.length ? activeLines.join('\n') : '- None') + '\n' +
       (archivedLines.length ? '- Archived projects:\n' + archivedLines.join('\n') + '\n' : '- Archived projects: none\n') +
       '- When the user says "add a task in project X", output TASK JSON with "project":"X" using the exact project name, display name, or key.\n' +
       '- If the user asks for relevant subtasks, include 2-6 concrete subtasks that fit that project instead of generic placeholders.\n' +
+      '- If a project has custom fields and the user provides values, include them in TASK JSON under "customFields" as an object keyed by field name or id.\n' +
       '- Never place new tasks in archived projects. If the user names an archived project, restore it with a PROJECT action or ask them first.\n' +
       '- If the user explicitly asks to create, archive, restore, or delete a project, append a PROJECT action.\n' +
       '- If no project is specified, default to ' + projectModePrimaryLabel(currentVaultMode) + '.';
@@ -5752,12 +5984,6 @@ document.addEventListener("input", e => {
   }
   function persistProjectMutation(data, reason){
     return saveVault(data).then(function(){
-      var fallbackProjectId = getDefaultProjectId(data.projects);
-      populateProjectControls(data.projects, data.goals, {selectedFilter:(goalFilterProject && goalFilterProject.value) || '', preferredTaskProject:(goalProjectSelect && goalProjectSelect.value) || fallbackProjectId});
-      renderProjectDashboard(data);
-      if(document.getElementById('kanban-overlay').style.display !== 'none'){
-        renderGoals(data.goals || [], data.projects || []);
-      }
       var backupTask = typeof window._homerBackupEverythingToDb === 'function'
         ? window._homerBackupEverythingToDb()
         : flushDbBackupNow(reason || 'project-mutation');
@@ -5773,35 +5999,35 @@ document.addEventListener("input", e => {
     if(!syncPass){
       if(btn){
         btn.disabled = true;
-        btn.textContent = 'Sync Off';
+        btn.textContent = 'Sign In To Sync';
         setTimeout(function(){
           btn.disabled = false;
-          btn.textContent = original || 'Backup DB';
+          btn.textContent = original || 'Mirror Vault Now';
         }, 1500);
       }
       return Promise.resolve({ ok:false, skipped:true, reason:'sync-off' });
     }
-    if(btn){ btn.disabled = true; btn.textContent = 'Backing Up'; }
+    if(btn){ btn.disabled = true; btn.textContent = 'Mirroring...'; }
     var backupTask = typeof window._homerBackupEverythingToDb === 'function'
       ? window._homerBackupEverythingToDb()
       : flushDbBackupNow('project-dashboard-manual');
     return Promise.resolve(backupTask).then(function(result){
       var ok = !!(result && result.ok);
-      if(btn) btn.textContent = ok ? 'Backed Up' : 'Backup Pending';
+      if(btn) btn.textContent = ok ? 'Mirrored' : 'Retry Mirror';
       setTimeout(function(){
         if(btn){
           btn.disabled = false;
-          btn.textContent = original || 'Backup DB';
+          btn.textContent = original || 'Mirror Vault Now';
         }
       }, 1400);
       updateVaultSyncBadge();
       return result;
     }).catch(function(err){
       if(btn){
-        btn.textContent = 'Retry Backup';
+        btn.textContent = 'Retry Mirror';
         setTimeout(function(){
           btn.disabled = false;
-          btn.textContent = original || 'Backup DB';
+          btn.textContent = original || 'Mirror Vault Now';
         }, 1600);
       }
       console.warn('[Projects] Manual DB backup failed:', err && err.message ? err.message : err);
@@ -5874,16 +6100,22 @@ document.addEventListener("input", e => {
       var projects = ensureProjects(data.projects || []);
       var project = projects.find(function(entry){ return entry.id === projectId; });
       if(!project) return { ok:false, reason:'missing' };
+      var fallbackProject = getProjectDeleteFallback(projects, projectId);
       var projectGoals = (data.goals || []).filter(function(goal){ return goal.projectId === projectId; });
-      if(projectGoals.length){
-        alert('This project still has ' + projectGoals.length + ' issue' + (projectGoals.length === 1 ? '' : 's') + '. Archive it or move the issues before deleting it.');
-        return { ok:false, reason:'has-issues', count:projectGoals.length };
-      }
-      if(!project.archived && activeProjectsOnly(projects).length <= 1){
+      if(!fallbackProject){
         alert('Create or restore another project before deleting the last active one.');
         return { ok:false, reason:'last-active' };
       }
-      if(!confirm('Delete project "' + project.name + '"? This only removes the empty project shell.')) return { ok:false, reason:'cancelled' };
+      var movePrompt = projectGoals.length
+        ? '\n\n' + projectGoals.length + ' issue' + (projectGoals.length === 1 ? '' : 's') + ' will be moved to "' + (projectDisplay(fallbackProject) || fallbackProject).name + '" so no data is lost.'
+        : '';
+      if(!confirm('Delete project "' + project.name + '"?' + movePrompt)) return { ok:false, reason:'cancelled' };
+      if(projectGoals.length){
+        projectGoals.forEach(function(goal){
+          goal.projectId = fallbackProject.id;
+          addLogEntry(goal, 'Project deleted, moved to ' + (projectDisplay(fallbackProject) || fallbackProject).name);
+        });
+      }
       var remainingEntries = (data.projects || []).filter(function(entry){ return entry && entry.id !== projectId; });
       var isDefaultSeed = DEFAULT_PROJECTS.some(function(entry){ return entry.id === projectId; });
       if(isDefaultSeed) remainingEntries.push(getProjectTombstone(projectId));
@@ -5891,7 +6123,7 @@ document.addEventListener("input", e => {
         if(entry && !entry.deleted) entry.order = idx;
         return entry;
       });
-      if(goalFilterProject && goalFilterProject.value === projectId) goalFilterProject.value = '';
+      if(goalFilterProject && goalFilterProject.value === projectId) goalFilterProject.value = projectGoals.length ? fallbackProject.id : '';
       return persistProjectMutation(data, 'project-delete').then(function(){ return { ok:true, projectId:projectId }; });
     });
   }
@@ -5960,8 +6192,8 @@ document.addEventListener("input", e => {
     var completedPct = summary.total ? Math.round((summary.counts.done / summary.total) * 100) : 0;
     var backlogPct = summary.total ? Math.round((summary.counts.backlog / summary.total) * 100) : 0;
     var healthPct = summary.total ? Math.max(0, 100 - Math.round((summary.counts.overdue / summary.total) * 100)) : 100;
-    var activeProjectCount = activeProjects.filter(function(project){
-      return goals.some(function(goal){ return goal.projectId === project.id && !goal.archived; });
+    var occupiedProjectCount = activeProjects.filter(function(project){
+      return goals.some(function(goal){ return (goal.projectId || getDefaultProjectId(projects, true)) === project.id && !goal.archived; });
     }).length;
     function statCard(pct, color, label, value, sub){
       return '<div class="goals-stat-card"><div class="goals-stat-ring">' +
@@ -5975,7 +6207,7 @@ document.addEventListener("input", e => {
     html += '<h3>' + escHtml(modeLabel(currentVaultMode)) + ' projects at a glance</h3>';
     html += '<p>Open a project to work its board, scan delivery health across the portfolio, or force a DB mirror before you leave.</p>';
     html += '</div>';
-    html += '<div class="project-summary-actions"><div class="project-summary-badge">' + activeProjects.length + ' projects / ' + activeProjectCount + ' active</div><button class="project-action-btn backup" id="project-dashboard-backup" type="button">Backup DB</button></div>';
+    html += '<div class="project-summary-actions"><div class="project-summary-badge">' + activeProjects.length + ' live projects / ' + occupiedProjectCount + ' with work</div><button class="project-action-btn backup" id="project-dashboard-backup" type="button">Mirror Vault Now</button></div>';
     html += '</div>';
     html += '<div class="project-summary-grid">';
     html += '<div class="project-summary-metric"><strong>' + summary.total + '</strong><span>Total Issues</span></div>';
@@ -5992,11 +6224,11 @@ document.addEventListener("input", e => {
     html += '</div>';
     activeProjects.forEach(function(project){
       var displayProject = projectDisplay(project) || project;
-      var projectGoals = goals.filter(function(goal){ return goal.projectId === project.id; });
+      var projectGoals = goals.filter(function(goal){ return (goal.projectId || getDefaultProjectId(projects, true)) === project.id; });
       var metrics = projectMetrics(projectGoals);
       var openCount = metrics.total - metrics.counts.done;
       var donePct = metrics.total ? Math.round((metrics.counts.done / metrics.total) * 100) : 0;
-      var deletable = metrics.total === 0 && activeProjects.length > 1;
+      var canDeleteProject = projects.length > 1;
       html += '<div class="project-card" data-project-id="' + project.id + '" style="--project-color:' + displayProject.color + ';">';
       html += '<div class="project-card-top">';
       html += '<div class="project-avatar">' + escHtml(displayProject.icon || project.key.slice(0, 2)) + '</div>';
@@ -6025,10 +6257,11 @@ document.addEventListener("input", e => {
       html += '<div class="project-meta-line">' + openCount + ' open / ' + metrics.counts.backlog + ' backlog / ' + metrics.counts.overdue + ' overdue</div>';
       html += '<div class="project-card-actions">';
       html += '<button class="project-open-btn" type="button" data-project-id="' + project.id + '">Open Board</button>';
+      html += '<button class="project-action-btn" type="button" data-project-fields="' + project.id + '">Fields</button>';
       html += '<button class="project-action-btn warn" type="button" data-project-archive="' + project.id + '"' + (activeProjects.length > 1 ? '' : ' disabled') + '>Archive</button>';
-      html += '<button class="project-action-btn danger" type="button" data-project-delete="' + project.id + '"' + (deletable ? '' : ' disabled') + '>' + (metrics.total === 0 ? 'Delete' : 'Delete Empty') + '</button>';
+      html += '<button class="project-action-btn danger" type="button" data-project-delete="' + project.id + '"' + (canDeleteProject ? '' : ' disabled') + '>Delete</button>';
       html += '</div></div>';
-      html += '<div class="project-card-note">Archive keeps every issue attached to the project. Delete unlocks only when the project is empty and another active project still exists.</div>';
+      html += '<div class="project-card-note">Archive keeps work inside the project. Delete safely moves issues into another live project so no data is lost.</div>';
       html += '</div>';
     });
     if(archivedProjects.length){
@@ -6037,9 +6270,9 @@ document.addEventListener("input", e => {
       html += '<div class="project-archived-grid">';
       archivedProjects.forEach(function(project){
         var displayProject = projectDisplay(project) || project;
-        var projectGoals = goals.filter(function(goal){ return goal.projectId === project.id; });
+        var projectGoals = goals.filter(function(goal){ return (goal.projectId || getDefaultProjectId(projects, true)) === project.id; });
         var metrics = projectMetrics(projectGoals);
-        var deletable = metrics.total === 0;
+        var canDeleteArchived = projects.length > 1;
         html += '<div class="project-card archived-card" style="--project-color:' + displayProject.color + ';">';
         html += '<div class="project-card-top">';
         html += '<div class="project-avatar">' + escHtml(displayProject.icon || project.key.slice(0, 2)) + '</div>';
@@ -6048,10 +6281,11 @@ document.addEventListener("input", e => {
         html += '</div>';
         html += '<div class="project-desc">' + escHtml(displayProject.description || 'Archived project shell.') + '</div>';
         html += '<div class="project-card-actions">';
+        html += '<button class="project-action-btn" type="button" data-project-fields="' + project.id + '">Fields</button>';
         html += '<button class="project-action-btn restore" type="button" data-project-restore="' + project.id + '">Restore</button>';
-        html += '<button class="project-action-btn danger" type="button" data-project-delete="' + project.id + '"' + (deletable ? '' : ' disabled') + '>' + (metrics.total === 0 ? 'Delete' : 'Delete Empty') + '</button>';
+        html += '<button class="project-action-btn danger" type="button" data-project-delete="' + project.id + '"' + (canDeleteArchived ? '' : ' disabled') + '>Delete</button>';
         html += '</div>';
-        html += '<div class="project-card-note">' + (metrics.total ? 'Issues remain safely attached while the project is archived.' : 'Empty archived projects can be deleted permanently.') + '</div>';
+        html += '<div class="project-card-note">' + (metrics.total ? 'Deleting will move archived issues into another live project before removing this shell.' : 'Empty archived projects can be removed cleanly.') + '</div>';
         html += '</div>';
       });
       html += '</div></div>';
@@ -6087,6 +6321,12 @@ document.addEventListener("input", e => {
         deleteProjectById(this.getAttribute('data-project-delete'));
       });
     });
+    projectDashboardGrid.querySelectorAll('[data-project-fields]').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        openProjectFieldsModal(this.getAttribute('data-project-fields'));
+      });
+    });
     var backupBtn = document.getElementById('project-dashboard-backup');
     if(backupBtn) backupBtn.addEventListener('click', function(){ backupProjectsNow(this); });
     var addCard = document.getElementById('project-dashboard-add');
@@ -6098,9 +6338,10 @@ document.addEventListener("input", e => {
     var projectId = goalFilterProject ? goalFilterProject.value : '';
     var list = ensureProjects(projects || _cachedProjects);
     var scopeGoals = (goals || []).filter(function(goal){
+      var goalProjectId = goal.projectId || getDefaultProjectId(list, true);
       if(goal.archived) return false;
-      if(isProjectArchived(list, goal.projectId || getDefaultProjectId(list, true))) return false;
-      return !projectId || goal.projectId === projectId;
+      if(isProjectArchived(list, goalProjectId)) return false;
+      return !projectId || goalProjectId === projectId;
     });
     var metrics = projectMetrics(scopeGoals);
     var activeProject = projectId ? projectDisplay(getProjectById(list, projectId)) : null;
@@ -7246,8 +7487,8 @@ document.addEventListener("input", e => {
   }
 
   var _renderGoalsTimer = null;
+  var _kanbanDropZonesBound = false;
   function renderGoals(goals, projects){
-    try{window.dispatchEvent(new Event('vault-goals-changed'));}catch(_e){}
     // Debounce: batch rapid consecutive calls into one render
     clearTimeout(_renderGoalsTimer);
     _renderGoalsTimer = setTimeout(function(){ _renderGoalsNow(goals, projects); }, 16);
@@ -7256,6 +7497,14 @@ document.addEventListener("input", e => {
     projects = ensureProjects(projects || _cachedProjects);
     _cachedProjects = projects;
     _attachDataMap = {}; // clear attachment data cache for fresh render
+    var colFragments = {
+      todo: document.createDocumentFragment(),
+      progress: document.createDocumentFragment(),
+      pending: document.createDocumentFragment(),
+      done: document.createDocumentFragment(),
+      backlog: document.createDocumentFragment()
+    };
+    var archiveFragment = document.createDocumentFragment();
     ['todo','progress','pending','done','backlog'].forEach(function(col){
       document.querySelector('.kanban-items[data-col="'+col+'"]').innerHTML = '';
     });
@@ -7267,8 +7516,9 @@ document.addEventListener("input", e => {
     renderKanbanHero(goals, projects);
     var activeProjectId = goalFilterProject ? goalFilterProject.value : '';
     var scopedGoals = goals.filter(function(goal){
-      if(isProjectArchived(projects, goal.projectId || getDefaultProjectId(projects, true))) return false;
-      return !activeProjectId || goal.projectId === activeProjectId;
+      var goalProjectId = goal.projectId || getDefaultProjectId(projects, true);
+      if(isProjectArchived(projects, goalProjectId)) return false;
+      return !activeProjectId || goalProjectId === activeProjectId;
     });
     var archivedCount = scopedGoals.filter(function(g){ return g.archived; }).length;
     var backlogCount = scopedGoals.filter(function(g){ return !g.archived && g.col === 'backlog'; }).length;
@@ -7447,6 +7697,9 @@ document.addEventListener("input", e => {
             '<div style="flex:1;"><label style="font-size:.68rem;color:var(--muted);">Reporter</label><input class="k-field k-reporter" value="'+escAttr(g.reporter||'')+'" placeholder="Reporter" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.8rem;margin-top:2px;"></div>' +
             '<div style="flex:1;"><label style="font-size:.68rem;color:var(--muted);">Assignee</label><input class="k-field k-assignee" value="'+escAttr(g.assignee||'')+'" placeholder="Assignee" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.8rem;margin-top:2px;"></div>' +
           '</div>' +
+          (project && project.customFields && project.customFields.length
+            ? '<div style="margin-top:10px;"><div style="font-size:.72rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:rgba(148,163,184,.88);margin-bottom:6px;">Project Fields</div><div class="k-custom-fields" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;">' + renderCustomFieldInputsHtml(project, g.customFields || {}, 'k-cf') + '</div></div>'
+            : '') +
           '<div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-top:10px;">Attachments</div>' +
           goalAttachHtml +
           '<div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-top:10px;">Subtasks</div>' +
@@ -7458,12 +7711,11 @@ document.addEventListener("input", e => {
         '</div>';
 
       if(g.archived){
-        goalArchiveList.appendChild(card);
+        archiveFragment.appendChild(card);
       } else if(g.col === 'backlog') {
-        if(goalBacklogItems) goalBacklogItems.appendChild(card);
+        colFragments.backlog.appendChild(card);
       } else {
-        var container = document.querySelector('.kanban-items[data-col="'+g.col+'"]');
-        if(container) container.appendChild(card);
+        if(colFragments[g.col]) colFragments[g.col].appendChild(card);
       }
 
       // --- Event wiring ---
@@ -7639,6 +7891,35 @@ document.addEventListener("input", e => {
             saveVault(data);
           });
         }, 800);
+      });
+
+      card.querySelectorAll('.k-cf-input[data-field-id]').forEach(function(input){
+        var cfTimer = null;
+        var persistCustomField = function(){
+          var fieldId = input.getAttribute('data-field-id');
+          if(!fieldId) return;
+          loadVault().then(function(data){
+            if(!data.goals[i]) return;
+            if(!data.goals[i].customFields || typeof data.goals[i].customFields !== 'object') data.goals[i].customFields = {};
+            if(input.type === 'checkbox'){
+              if(input.checked) data.goals[i].customFields[fieldId] = true;
+              else delete data.goals[i].customFields[fieldId];
+            } else {
+              var value = String(input.value || '').trim();
+              if(value) data.goals[i].customFields[fieldId] = value;
+              else delete data.goals[i].customFields[fieldId];
+            }
+            saveVault(data);
+          });
+        };
+        if(input.tagName === 'SELECT' || input.type === 'date' || input.type === 'checkbox' || input.type === 'number'){
+          input.addEventListener('change', persistCustomField);
+        } else {
+          input.addEventListener('input', function(){
+            clearTimeout(cfTimer);
+            cfTimer = setTimeout(persistCustomField, 450);
+          });
+        }
       });
 
       // Add comment
@@ -7906,56 +8187,70 @@ document.addEventListener("input", e => {
       }
     });
 
-    // Drop zones
-    document.querySelectorAll('.kanban-items').forEach(function(zone){
-      zone.addEventListener('dragover', function(e){ e.preventDefault(); zone.classList.add('drag-over'); });
-      zone.addEventListener('dragleave', function(){ zone.classList.remove('drag-over'); });
-      zone.addEventListener('drop', function(e){
-        e.preventDefault();
-        zone.classList.remove('drag-over');
-        var idx = parseInt(e.dataTransfer.getData('text/plain'));
-        var newCol = zone.dataset.col;
-        loadVault().then(function(data){
-          if(data.goals[idx]){
-            var oldCol = data.goals[idx].col;
-            data.goals[idx].col = newCol;
-            if(newCol === 'done' && !data.goals[idx].completedAt) data.goals[idx].completedAt = Date.now();
-            if(newCol !== 'done') delete data.goals[idx].completedAt;
-            addLogEntry(data.goals[idx], 'Moved from ' + oldCol + ' to ' + newCol);
-          }
-          saveVault(data).then(function(){ renderGoals(data.goals, data.projects); });
+    ['todo','progress','pending','done'].forEach(function(col){
+      var container = document.querySelector('.kanban-items[data-col="'+col+'"]');
+      if(container) container.appendChild(colFragments[col]);
+    });
+    if(goalBacklogItems) goalBacklogItems.appendChild(colFragments.backlog);
+    if(goalArchiveList) goalArchiveList.appendChild(archiveFragment);
+
+    if(!_kanbanDropZonesBound){
+      _kanbanDropZonesBound = true;
+      document.querySelectorAll('.kanban-items').forEach(function(zone){
+        zone.addEventListener('dragover', function(e){ e.preventDefault(); zone.classList.add('drag-over'); });
+        zone.addEventListener('dragleave', function(){ zone.classList.remove('drag-over'); });
+        zone.addEventListener('drop', function(e){
+          e.preventDefault();
+          zone.classList.remove('drag-over');
+          var idx = parseInt(e.dataTransfer.getData('text/plain'));
+          var newCol = zone.dataset.col;
+          loadVault().then(function(data){
+            if(data.goals[idx]){
+              var oldCol = data.goals[idx].col;
+              data.goals[idx].col = newCol;
+              if(newCol === 'done' && !data.goals[idx].completedAt) data.goals[idx].completedAt = Date.now();
+              if(newCol !== 'done') delete data.goals[idx].completedAt;
+              addLogEntry(data.goals[idx], 'Moved from ' + oldCol + ' to ' + newCol);
+            }
+            saveVault(data);
+          });
         });
       });
-    });
+    }
   }
 
   // Filter event handlers
   if(goalFilterProject) goalFilterProject.addEventListener('change', function(){
-    loadVault().then(function(data){
-      populateProjectControls(data.projects, data.goals, {selectedFilter:goalFilterProject.value, preferredTaskProject:goalFilterProject.value || getDefaultProjectId(data.projects)});
-      renderGoals(data.goals, data.projects);
-    });
+    var data = getCachedVaultData();
+    populateProjectControls(data.projects, data.goals, {selectedFilter:goalFilterProject.value, preferredTaskProject:goalFilterProject.value || getDefaultProjectId(data.projects)});
+    renderGoals(data.goals, data.projects);
   });
   goalSearchInput.addEventListener('input', function(){
-    loadVault().then(function(data){ renderGoals(data.goals, data.projects); });
+    var data = getCachedVaultData();
+    renderGoals(data.goals, data.projects);
   });
   goalFilterPriority.addEventListener('change', function(){
-    loadVault().then(function(data){ renderGoals(data.goals, data.projects); });
+    var data = getCachedVaultData();
+    renderGoals(data.goals, data.projects);
   });
   goalFilterLabel.addEventListener('change', function(){
-    loadVault().then(function(data){ renderGoals(data.goals, data.projects); });
+    var data = getCachedVaultData();
+    renderGoals(data.goals, data.projects);
   });
   goalFilterDue.addEventListener('change', function(){
-    loadVault().then(function(data){ renderGoals(data.goals, data.projects); });
+    var data = getCachedVaultData();
+    renderGoals(data.goals, data.projects);
   });
   goalShowArchive.addEventListener('click', function(){
     showArchive = !showArchive;
     goalShowArchive.classList.toggle('active', showArchive);
-    loadVault().then(function(data){ renderGoals(data.goals, data.projects); });
+    var data = getCachedVaultData();
+    renderGoals(data.goals, data.projects);
   });
   if(goalBacklogToggle) goalBacklogToggle.addEventListener('click', function(){
     showBacklog = !showBacklog;
-    loadVault().then(function(data){ renderGoals(data.goals, data.projects); });
+    var data = getCachedVaultData();
+    renderGoals(data.goals, data.projects);
   });
 
   // Render label chips in goal modal (defaults + custom from all goals)
@@ -8026,11 +8321,103 @@ document.addEventListener("input", e => {
   function closeProjectModal(){
     if(projectModalBg) projectModalBg.classList.remove('open');
   }
+  function renderProjectFieldRows(fields){
+    if(!projectFieldsList) return;
+    var list = normalizeProjectFields(fields || []);
+    var compact = window.innerWidth <= 720;
+    if(!list.length){
+      projectFieldsList.innerHTML = '<div style="padding:12px;border-radius:12px;border:1px dashed rgba(148,163,184,.2);background:rgba(15,23,42,.42);color:var(--muted);font-size:.82rem;">No custom fields yet. Add status-like metadata such as squad, estimate, target release, customer, or QA signoff.</div>';
+      return;
+    }
+    projectFieldsList.innerHTML = list.map(function(field){
+      var optionsValue = (field.options || []).join(', ');
+      return '<div class="project-field-row" data-field-id="' + field.id + '" style="padding:12px;border-radius:14px;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.48);display:grid;grid-template-columns:' + (compact ? '1fr' : '1.5fr .9fr 1.4fr auto') + ';gap:8px;align-items:center;">' +
+        '<input class="project-field-name" type="text" value="' + escAttr(field.name) + '" placeholder="Field name" style="width:100%;padding:9px 10px;border-radius:10px;border:1px solid rgba(148,163,184,.14);background:rgba(2,6,23,.55);color:var(--text);">' +
+        '<select class="project-field-type" style="width:100%;padding:9px 10px;border-radius:10px;border:1px solid rgba(148,163,184,.14);background:rgba(2,6,23,.55);color:var(--text);">' +
+          '<option value="text"' + (field.type === 'text' ? ' selected' : '') + '>Text</option>' +
+          '<option value="number"' + (field.type === 'number' ? ' selected' : '') + '>Number</option>' +
+          '<option value="date"' + (field.type === 'date' ? ' selected' : '') + '>Date</option>' +
+          '<option value="select"' + (field.type === 'select' ? ' selected' : '') + '>Select</option>' +
+          '<option value="toggle"' + (field.type === 'toggle' ? ' selected' : '') + '>Toggle</option>' +
+        '</select>' +
+        '<input class="project-field-options" type="text" value="' + escAttr(optionsValue) + '" placeholder="Options, comma separated" style="width:100%;padding:9px 10px;border-radius:10px;border:1px solid rgba(148,163,184,.14);background:rgba(2,6,23,.55);color:var(--text);' + (field.type === 'select' ? '' : 'opacity:.55;') + '"' + (field.type === 'select' ? '' : ' disabled') + '>' +
+        '<button type="button" class="project-field-remove" style="padding:9px 12px;border-radius:10px;border:1px solid rgba(239,68,68,.24);background:rgba(127,29,29,.18);color:#fca5a5;cursor:pointer;">Remove</button>' +
+      '</div>';
+    }).join('');
+    projectFieldsList.querySelectorAll('.project-field-type').forEach(function(select){
+      select.addEventListener('change', function(){
+        var row = this.closest('.project-field-row');
+        var optionsInput = row ? row.querySelector('.project-field-options') : null;
+        if(!optionsInput) return;
+        var isSelect = this.value === 'select';
+        optionsInput.disabled = !isSelect;
+        optionsInput.style.opacity = isSelect ? '1' : '.55';
+      });
+    });
+    projectFieldsList.querySelectorAll('.project-field-remove').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var row = this.closest('.project-field-row');
+        if(row) row.remove();
+      });
+    });
+  }
+  function collectProjectFieldRows(){
+    var rows = [];
+    if(!projectFieldsList) return rows;
+    projectFieldsList.querySelectorAll('.project-field-row').forEach(function(row, index){
+      var name = String((row.querySelector('.project-field-name') || {}).value || '').trim();
+      if(!name) return;
+      rows.push({
+        id: row.getAttribute('data-field-id') || slugifyProjectId(name || ('field-' + (index + 1))),
+        name: name,
+        type: (row.querySelector('.project-field-type') || {}).value || 'text',
+        options: (row.querySelector('.project-field-options') || {}).value || ''
+      });
+    });
+    return normalizeProjectFields(rows);
+  }
+  function openProjectFieldsModal(projectId){
+    if(!projectFieldsModalBg) return;
+    loadVault().then(function(data){
+      var project = getProjectById(data.projects || _cachedProjects, projectId);
+      if(!project) return;
+      activeProjectFieldsProjectId = project.id;
+      var displayProject = projectDisplay(project) || project;
+      if(projectFieldsTitle) projectFieldsTitle.textContent = displayProject.name + ' Fields';
+      if(projectFieldsSubtitle) projectFieldsSubtitle.textContent = 'Define Jira-style fields for tasks in ' + displayProject.name + '.';
+      renderProjectFieldRows(project.customFields || []);
+      projectFieldsModalBg.classList.add('open');
+    });
+  }
+  function closeProjectFieldsModal(){
+    activeProjectFieldsProjectId = '';
+    if(projectFieldsModalBg) projectFieldsModalBg.classList.remove('open');
+  }
 
   if(projectAddOpenBtn) projectAddOpenBtn.addEventListener('click', openProjectModal);
   if(goalProjectAddBtn) goalProjectAddBtn.addEventListener('click', openProjectModal);
   if(projectModalClose) projectModalClose.addEventListener('click', closeProjectModal);
   if(projectModalBg) projectModalBg.addEventListener('click', function(e){ if(e.target === projectModalBg) closeProjectModal(); });
+  if(projectFieldsModalClose) projectFieldsModalClose.addEventListener('click', closeProjectFieldsModal);
+  if(projectFieldsModalBg) projectFieldsModalBg.addEventListener('click', function(e){ if(e.target === projectFieldsModalBg) closeProjectFieldsModal(); });
+  if(projectFieldsAddRowBtn) projectFieldsAddRowBtn.addEventListener('click', function(){
+    var fields = collectProjectFieldRows();
+    fields.push({ id:'field-' + Date.now(), name:'', type:'text', options:[] });
+    renderProjectFieldRows(fields);
+  });
+  if(projectFieldsSaveBtn) projectFieldsSaveBtn.addEventListener('click', function(){
+    if(!activeProjectFieldsProjectId) return;
+    loadVault().then(function(data){
+      var projects = ensureProjects(data.projects || []);
+      var project = projects.find(function(entry){ return entry && entry.id === activeProjectFieldsProjectId; });
+      if(!project) return;
+      project.customFields = collectProjectFieldRows();
+      data.projects = ensureProjects(projects);
+      persistProjectMutation(data, 'project-fields').then(function(){
+        closeProjectFieldsModal();
+      });
+    });
+  });
   if(projectNameInput) projectNameInput.addEventListener('input', function(){
     if(projectKeyInput && !projectKeyInput.dataset.manual){
       projectKeyInput.value = deriveProjectKey(projectNameInput.value);
@@ -8067,6 +8454,10 @@ document.addEventListener("input", e => {
   });
 
   // Goal modal open/close
+  if(goalProjectSelect) goalProjectSelect.addEventListener('change', function(){
+    draftGoalCustomFields = readCustomFieldInputs(goalCustomFieldsEl, 'goal-cf');
+    renderGoalProjectCustomFields(this.value || getDefaultProjectId(_cachedProjects), draftGoalCustomFields);
+  });
   goalAddBtn.addEventListener('click', function(){
     goalModalBg.classList.add('open');
     goalSummary.value = ''; goalNotesInput.value = ''; goalDue.value = ''; goalPriority.value = '';
@@ -8075,11 +8466,13 @@ document.addEventListener("input", e => {
     pendingGoalFiles = []; goalFilesPreview.innerHTML = ''; goalFilesInput.value = '';
     goalCustomLabelInput.value = '';
     selectedGoalLabels = [];
+    draftGoalCustomFields = {};
     // Refresh cached labels from vault
     loadVault().then(function(data){
       populateProjectControls(data.projects, data.goals, {preferredTaskProject:(goalFilterProject && goalFilterProject.value) || getDefaultProjectId(data.projects)});
       _cachedAllLabels = getAllLabels(data.goals);
       renderLabelChips();
+      renderGoalProjectCustomFields(goalProjectSelect ? goalProjectSelect.value || getDefaultProjectId(data.projects) : getDefaultProjectId(data.projects), draftGoalCustomFields);
     });
     setTimeout(function(){ goalSummary.focus(); }, 100);
   });
@@ -8098,6 +8491,7 @@ document.addEventListener("input", e => {
       if(!data._nextId) data._nextId = data.goals.length + 1;
       var fallbackProjectId = getDefaultProjectId(data.projects);
       var resolvedProjectId = projectId || fallbackProjectId;
+      var customFieldValues = readCustomFieldInputs(goalCustomFieldsEl, 'goal-cf');
       var goal = {
         id: data._nextId++,
         projectId: resolvedProjectId,
@@ -8113,6 +8507,7 @@ document.addEventListener("input", e => {
         subtasks: [],
         attachments: pendingGoalFiles.slice(),
         comments: [],
+        customFields: customFieldValues,
         log: [{action:'Goal created in ' + getProjectById(data.projects || _cachedProjects, resolvedProjectId).name, ts:Date.now()}]
       };
       data.goals.push(goal);
@@ -9992,9 +10387,9 @@ document.addEventListener("input", e => {
     <div id="fab-status" style="color:var(--muted);font-size:.8rem;min-height:1.2em;margin-bottom:8px;"></div>
     <div id="fab-backup-health" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-      <button id="fab-restore-db" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">Restore DB Mirror</button>
-      <button id="fab-restore-redis" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">Restore Redis</button>
-      <button id="fab-restore-drive" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">Restore Drive</button>
+      <button id="fab-restore-db" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">Recover Full Vault</button>
+      <button id="fab-restore-redis" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">Recover Joey Memory</button>
+      <button id="fab-restore-drive" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">Recover From Drive</button>
       <button id="fab-inspect-latest" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">Inspect Latest</button>
     </div>
     <div id="fab-versions" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);">
@@ -11113,12 +11508,12 @@ document.addEventListener("input", e => {
     var restoreSource = localStorage.getItem(BACKUP_LAST_RESTORE_SOURCE_KEY) || 'none';
     var backupCount = localStorage.getItem('homer-backup-keys') || '0';
     backupHealthEl.innerHTML =
-      renderHealthCard('Local Vault', localStorage.getItem(BACKUP_LOCAL_SAVE_TS_KEY), 'Last encrypted vault save on this device.', '#38bdf8') +
-      renderHealthCard('Cloud Snapshot', localStorage.getItem('homer-backup-ts'), backupCount + ' keys mirrored. Source: ' + source + '.', '#60a5fa') +
-      renderHealthCard('DB Mirror', localStorage.getItem(BACKUP_DB_TS_KEY), 'Latest successful /api/sync mirror.', '#34d399') +
-      renderHealthCard('Redis Joey', localStorage.getItem(BACKUP_JOEY_TS_KEY), 'Latest Joey chat, memory, and files write.', '#f59e0b') +
-      renderHealthCard('Drive Backup', localStorage.getItem(BACKUP_DRIVE_TS_KEY), 'Latest successful Google Drive context export.', '#a78bfa') +
-      renderHealthCard('Last Restore', localStorage.getItem(BACKUP_LAST_RESTORE_TS_KEY), 'Most recent restore source: ' + restoreSource + '.', '#f87171');
+      renderHealthCard('Local Vault Save', localStorage.getItem(BACKUP_LOCAL_SAVE_TS_KEY), 'Latest encrypted save on this device.', '#38bdf8') +
+      renderHealthCard('Cloud Snapshot', localStorage.getItem('homer-backup-ts'), backupCount + ' keys stored in cloud snapshot. Source: ' + source + '.', '#60a5fa') +
+      renderHealthCard('Server Mirror', localStorage.getItem(BACKUP_DB_TS_KEY), 'Fast full-vault mirror used for quick recovery.', '#34d399') +
+      renderHealthCard('Joey Memory (Redis)', localStorage.getItem(BACKUP_JOEY_TS_KEY), 'Agent chat, memory, and file index backup.', '#f59e0b') +
+      renderHealthCard('Google Drive Context', localStorage.getItem(BACKUP_DRIVE_TS_KEY), 'Long-term Joey context export to Drive.', '#a78bfa') +
+      renderHealthCard('Last Restore', localStorage.getItem(BACKUP_LAST_RESTORE_TS_KEY), 'Most recent recovery source: ' + restoreSource + '.', '#f87171');
     updateVaultSyncBadge();
   }
   function initPersistentFieldLabels(){
@@ -11754,7 +12149,7 @@ document.addEventListener("input", e => {
     });
   }
 
-  function restore(){
+  function restoreLegacyShadow(){
     var p=pass.value.trim();
     if(!p){ st('Not logged in — please sign in first'); return; }
     localStorage.setItem(SYNC_PASS_KEY,p);
@@ -11806,7 +12201,7 @@ document.addEventListener("input", e => {
   var versionsToggle = document.getElementById('fab-versions-toggle');
   var versionsList = document.getElementById('fab-versions-list');
 
-  function loadVersions(){
+  function loadVersionsLegacyShadow(){
     var p = pass.value.trim();
     if(!p) return;
     versionsDiv.style.display = 'block';
@@ -11988,12 +12383,12 @@ document.addEventListener("input", e => {
     restoreDbBtn.addEventListener('click', function(){
       var p = pass.value.trim();
       if(!p){ st('Not logged in - please sign in first'); return; }
-      st('Restoring from DB mirror...');
+      st('Recovering full vault from server mirror...');
       restoreDbMirror(p).then(function(result){
-        st('Restored from DB mirror (' + (result.applied + result.cleared) + ' changes). Reloading...');
+        st('Recovered full vault from server mirror (' + (result.applied + result.cleared) + ' changes). Reloading...');
         setTimeout(function(){ location.reload(); }, 1200);
       }).catch(function(err){
-        st('DB restore failed: ' + err.message);
+        st('Server mirror recovery failed: ' + err.message);
       });
     });
   }
@@ -12001,12 +12396,12 @@ document.addEventListener("input", e => {
     restoreRedisBtn.addEventListener('click', function(){
       var p = pass.value.trim();
       if(!p){ st('Not logged in - please sign in first'); return; }
-      st('Restoring Joey data from Redis...');
+      st('Recovering Joey memory from Redis...');
       restoreRedisBundles(p).then(function(result){
-        st('Redis Joey restore complete: ' + (result.summary || 'context recovered') + '. Reloading...');
+        st('Joey memory recovered from Redis: ' + (result.summary || 'context recovered') + '. Reloading...');
         setTimeout(function(){ location.reload(); }, 1200);
       }).catch(function(err){
-        st('Redis restore failed: ' + err.message);
+        st('Joey Redis recovery failed: ' + err.message);
       });
     });
   }
@@ -12014,12 +12409,12 @@ document.addEventListener("input", e => {
     restoreDriveBtn.addEventListener('click', function(){
       var p = pass.value.trim();
       if(!p){ st('Not logged in - please sign in first'); return; }
-      st('Restoring Joey data from Drive...');
+      st('Recovering Joey context from Google Drive...');
       restoreDriveBundles(p).then(function(result){
-        st('Drive restore complete for ' + (result.driveModes || []).join(', ') + '. Reloading...');
+        st('Google Drive recovery complete for ' + (result.driveModes || []).join(', ') + '. Reloading...');
         setTimeout(function(){ location.reload(); }, 1200);
       }).catch(function(err){
-        st('Drive restore failed: ' + err.message);
+        st('Google Drive recovery failed: ' + err.message);
       });
     });
   }
@@ -14469,6 +14864,7 @@ document.addEventListener("input", e => {
               var fallbackProjectId = (goalFilterProject && goalFilterProject.value) || getDefaultProjectId(projects);
               var matchedProject = matchProject(projects, requestedProject, fallbackProjectId);
               var displayProject = projectDisplay(matchedProject) || matchedProject;
+              var customFields = mapGoalCustomFieldsForProject(matchedProject, taskData.customFields || {});
               if(matchedProject && matchedProject.archived){
                 showJoeyStatusToast('Project "' + displayProject.name + '" is archived. Restore it before adding tasks there.', 'warn');
                 return;
@@ -14504,6 +14900,7 @@ document.addEventListener("input", e => {
                 subtasks: subtasks,
                 attachments: [],
                 comments: [],
+                customFields: customFields,
                 log: [{action:'Task created by Joey in ' + displayProject.name, ts:Date.now()}]
               };
               data.goals.push(task);
