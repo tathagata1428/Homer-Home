@@ -281,20 +281,6 @@ export default async function handler(req, res) {
         });
       }
 
-      if (action === 'status') {
-        var syncMetaRes = await redis(['GET', hk + ':meta']);
-        var syncMeta = syncMetaRes.result ? JSON.parse(syncMetaRes.result) : null;
-        var latestFieldVersionStatusRes = await redis(['GET', fieldKeys.seq]);
-        return res.status(200).json({
-          ok: true,
-          exists: !!syncMeta,
-          ts: syncMeta && syncMeta.lastTs ? syncMeta.lastTs : null,
-          dataHash: syncMeta && syncMeta.lastDataHash ? syncMeta.lastDataHash : null,
-          versionCount: syncMeta && Array.isArray(syncMeta.versions) ? syncMeta.versions.length : 0,
-          fieldVersion: parseInt((latestFieldVersionStatusRes && latestFieldVersionStatusRes.result) || '0', 10) || 0
-        });
-      }
-
       if (action === 'versions') {
         // Return version history metadata
         var metaResult = await redis(['GET', hk + ':meta']);

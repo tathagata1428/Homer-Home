@@ -39,65 +39,10 @@ export default async function handler(req, res) {
   if (!redisUrl || !redisToken || !redisFetch) return res.status(500).json({ error: 'Redis not configured' });
 
   try {
-    const requestKind = String((req.body || {}).kind || '').trim().toLowerCase();
     const taskSnapshot = Array.isArray((req.body || {}).tasks) ? req.body.tasks : [];
     const effectiveTasks = mode === 'work' ? [] : taskSnapshot;
     const isValid = await verifyJoeyPassphrase(passphrase, redisFetch);
     if (!isValid) return res.status(403).json({ error: 'Forbidden' });
-
-    if (requestKind === 'vault-snapshot') {
-      const snapshot = req.body && req.body.snapshot && typeof req.body.snapshot === 'object' ? req.body.snapshot : null;
-      if (!snapshot) return res.status(400).json({ error: 'Missing vault snapshot' });
-
-      const payload = {
-        secret: gdriveSecret,
-        kind: 'vault-snapshot',
-        snapshot,
-        manifest: req.body && req.body.manifest ? req.body.manifest : null,
-        meta: req.body && req.body.meta && typeof req.body.meta === 'object' ? req.body.meta : {}
-      };
-
-      const response = await fetchWithRedirects(gdriveWebhook, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const redirectChain = response.redirectChain || [];
-
-      if (!response.text) {
-        console.error('[gdrive-backup:vault] ' + (response.error || 'No response after redirects'), JSON.stringify(redirectChain));
-        return res.status(response.status || 502).json({ error: response.error || 'No response after redirects', redirectChain });
-      }
-
-      let parsed;
-      try {
-        parsed = JSON.parse(response.text);
-      } catch {
-        const isHtml = response.text.trim().startsWith('<');
-        console.error('[gdrive-backup:vault] Non-JSON response, status=' + response.status + ', isHtml=' + isHtml + ', preview=' + response.text.slice(0, 200));
-        console.error('[gdrive-backup:vault] Redirect chain:', JSON.stringify(redirectChain));
-        return res.status(502).json({
-          error: isHtml ? 'Google returned HTML instead of JSON — the Apps Script may need redeployment' : 'Non-JSON response from Google',
-          status: response.status,
-          responsePreview: response.text.slice(0, 300),
-          redirectChain
-        });
-      }
-
-      if (parsed.error) {
-        console.error('[gdrive-backup:vault] Script error:', parsed.error, JSON.stringify(redirectChain));
-        return res.status(502).json({
-          error: 'Google Script rejected the request',
-          scriptError: parsed.error,
-          hint: parsed.error === 'Unauthorized'
-            ? 'GDRIVE_SECRET env var does not match the SECRET in your Google Apps Script. Check both values match exactly.'
-            : undefined,
-          redirectChain
-        });
-      }
-
-      return res.status(200).json({ ok: true, kind: 'vault-snapshot', drive: parsed });
-    }
 
     const [memories, profile, fullHistory, filesResult, fileLibrary, customFiles, journal, syncMetaStored] = await Promise.all([
       loadRedisJson(redisFetch, MEMORY_KEY, []),

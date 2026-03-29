@@ -10,8 +10,6 @@ const UPLOADS_FOLDER_ID = '1GX4SkZsAGa7KwSdnneyMmGra6djxRaAO';
 const WORK_UPLOADS_FOLDER_ID = '';
 const BACKUP_FOLDER_ID = '';
 const WORK_BACKUP_FOLDER_ID = '';
-const VAULT_EMERGENCY_FOLDER_NAME = 'Homer-Vault-Emergency-Backup';
-const VAULT_EMERGENCY_FOLDER_ID = '';
 
 function normalizeMode(mode) {
   return String(mode || '').trim().toLowerCase() === 'work' ? 'work' : 'personal';
@@ -27,14 +25,6 @@ function getBackupFolderConfig(mode) {
   return normalizeMode(mode) === 'work'
     ? { name: WORK_BACKUP_FOLDER_NAME, id: WORK_BACKUP_FOLDER_ID }
     : { name: BACKUP_FOLDER_NAME, id: BACKUP_FOLDER_ID };
-}
-
-function getVaultEmergencyFolderConfig() {
-  return { name: VAULT_EMERGENCY_FOLDER_NAME, id: VAULT_EMERGENCY_FOLDER_ID };
-}
-
-function formatDriveStamp(date) {
-  return Utilities.formatDate(date, Session.getScriptTimeZone(), "yyyyMMdd-HHmmss");
 }
 
 function getTargetFolder(folderName, folderId) {
@@ -98,36 +88,6 @@ function doPost(e) {
         driveUrl: driveFile.getUrl(),
         webViewLink: driveFile.getUrl(),
         webContentLink: 'https://drive.google.com/uc?export=download&id=' + driveFile.getId()
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-
-    if ((data.kind || '') === 'vault-snapshot') {
-      var vaultFolderCfg = getVaultEmergencyFolderConfig();
-      var vaultFolder = getTargetFolder(vaultFolderCfg.name, vaultFolderCfg.id);
-      var exportedAt = new Date();
-      var vaultPayload = {
-        exportedAt: exportedAt.toISOString(),
-        kind: 'vault-snapshot',
-        snapshot: data.snapshot || {},
-        manifest: data.manifest || null,
-        meta: data.meta || {}
-      };
-      var vaultContent = JSON.stringify(vaultPayload, null, 2);
-      var latestName = 'homer-vault-latest.json';
-      var archiveName = 'homer-vault-' + formatDriveStamp(exportedAt) + '.json';
-      var latestFiles = vaultFolder.getFilesByName(latestName);
-      if (latestFiles.hasNext()) latestFiles.next().setContent(vaultContent);
-      else vaultFolder.createFile(latestName, vaultContent, MimeType.PLAIN_TEXT);
-      var archiveFile = vaultFolder.createFile(archiveName, vaultContent, MimeType.PLAIN_TEXT);
-      return ContentService.createTextOutput(JSON.stringify({
-        ok: true,
-        kind: 'vault-snapshot',
-        exportedAt: vaultPayload.exportedAt,
-        fileName: archiveName,
-        folderId: vaultFolder.getId(),
-        folderName: vaultFolder.getName(),
-        folderUrl: vaultFolder.getUrl(),
-        driveUrl: archiveFile.getUrl()
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
