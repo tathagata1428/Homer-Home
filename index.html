@@ -5109,7 +5109,7 @@ document.addEventListener("input", e => {
   }
   function ensureProject(project, index){
     var raw = project && typeof project === 'object' ? project : {};
-    var name = String(raw.name || raw.title || ('Project ' + (index + 1))).trim();
+    var name = String(raw.name || raw.title || raw.id || ('Project ' + (index + 1))).trim();
     var normalized = {
       id: slugifyProjectId(raw.id || name),
       key: deriveProjectKey(raw.key || name),
@@ -5119,7 +5119,9 @@ document.addEventListener("input", e => {
       icon: typeof raw.icon === 'string' ? raw.icon.trim().slice(0, 2) : '',
       order: typeof raw.order === 'number' ? raw.order : index,
       archived: !!raw.archived,
-      archivedAt: parseInt(raw.archivedAt || '0', 10) || 0
+      archivedAt: parseInt(raw.archivedAt || '0', 10) || 0,
+      deleted: !!raw.deleted,
+      deletedAt: parseInt(raw.deletedAt || '0', 10) || 0
     };
     if(!normalized.icon) normalized.icon = normalized.key.slice(0, 2);
     return normalized;
@@ -5132,13 +5134,12 @@ document.addEventListener("input", e => {
     });
     (projects || []).forEach(function(project, idx){
       var normalized = ensureProject(project, idx + DEFAULT_PROJECTS.length);
-      if(map[normalized.id]){
-        map[normalized.id] = Object.assign({}, map[normalized.id], normalized);
-      } else {
-        map[normalized.id] = normalized;
-      }
+      if(map[normalized.id]) map[normalized.id] = Object.assign({}, map[normalized.id], normalized);
+      else map[normalized.id] = normalized;
     });
-    var list = Object.keys(map).map(function(id){ return map[id]; }).sort(function(a, b){
+    var list = Object.keys(map).map(function(id){ return map[id]; }).filter(function(project){
+      return !project.deleted;
+    }).sort(function(a, b){
       var archivedDelta = (a.archived ? 1 : 0) - (b.archived ? 1 : 0);
       if(archivedDelta) return archivedDelta;
       return (a.order || 0) - (b.order || 0) || a.name.localeCompare(b.name);
@@ -5162,8 +5163,23 @@ document.addEventListener("input", e => {
     var list = ensureProjects(projects || _cachedProjects);
     return list.find(function(project){ return project.id === projectId; }) || list[0];
   }
-  function isProtectedProject(projectId){
-    return projectId === 'organize-life';
+  function getDefaultProjectId(projects, includeArchived){
+    var list = ensureProjects(projects || _cachedProjects);
+    var active = includeArchived ? list : list.filter(function(project){ return !project.archived; });
+    if(active.length){
+      var organizeLife = active.find(function(project){ return project.id === 'organize-life'; });
+      return (organizeLife || active[0]).id;
+    }
+    var fallback = list.find(function(project){ return project.id === 'organize-life'; }) || list[0];
+    return fallback ? fallback.id : 'organize-life';
+  }
+  function getProjectTombstone(projectId){
+    return {
+      id: projectId,
+      name: projectId,
+      deleted: true,
+      deletedAt: Date.now()
+    };
   }
   function isProjectArchived(projects, projectId){
     var project = getProjectById(projects, projectId);
@@ -5180,7 +5196,7 @@ document.addEventListener("input", e => {
     var requested = String(requestedProject || '').trim();
     var requestedLower = requested.toLowerCase();
     var requestedKey = normalizeProjectLookupKey(requested);
-    var fallback = getProjectById(list, fallbackProjectId || 'organize-life');
+    var fallback = getProjectById(list, fallbackProjectId || getDefaultProjectId(list));
     if(!requested) return fallback;
     var exactMatch = list.find(function(project){
       var displayProject = projectDisplay(project) || project;
@@ -5341,9 +5357,10 @@ document.addEventListener("input", e => {
     next.projects = ensureProjects(next.projects);
     var knownProjects = {};
     next.projects.forEach(function(project){ knownProjects[project.id] = true; });
+    var defaultProjectId = getDefaultProjectId(next.projects, true);
     next.goals = next.goals.map(function(goal){
       if(!goal || typeof goal !== 'object') return goal;
-      if(!goal.projectId || !knownProjects[goal.projectId]) goal.projectId = 'organize-life';
+      if(!goal.projectId || !knownProjects[goal.projectId]) goal.projectId = defaultProjectId;
       return goal;
     });
     if(!next._nextId) next._nextId = next.goals.length + 1;
@@ -5483,11 +5500,23 @@ document.addEventListener("input", e => {
   }
   function buildJoeyProjectInstruction(){
     var projects = ensureProjects(_cachedProjects || DEFAULT_PROJECTS);
-    var lines = projects.map(function(project){
+    var activeProjects = projects.filter(function(project){ return !project.archived; });
+    var archivedProjects = projects.filter(function(project){ return project.archived; });
+    var activeLines = activeProjects.map(function(project){
       var displayProject = projectDisplay(project) || project;
       return '- ' + displayProject.name + ' (' + project.key + ', id: ' + project.id + ')';
     });
-    return '\n\n=== PROJECT STRUCTURE ===\n- Current ' + modeLabel(currentVaultMode).toLowerCase() + ' projects:\n' + lines.join('\n') + '\n- When the user says "add a task in project X", output TASK JSON with "project":"X" using the exact project name or key.\n- If the user asks for relevant subtasks, include 2-6 concrete subtasks that fit that project instead of generic placeholders.\n- If no project is specified, default to ' + projectModePrimaryLabel(currentVaultMode) + '.';
+    var archivedLines = archivedProjects.map(function(project){
+      var displayProject = projectDisplay(project) || project;
+      return '- ' + displayProject.name + ' (' + project.key + ', id: ' + project.id + ')';
+    });
+    return '\n\n=== PROJECT STRUCTURE ===\n- Active ' + modeLabel(currentVaultMode).toLowerCase() + ' projects:\n' + (activeLines.length ? activeLines.join('\n') : '- None') + '\n' +
+      (archivedLines.length ? '- Archived projects:\n' + archivedLines.join('\n') + '\n' : '- Archived projects: none\n') +
+      '- When the user says "add a task in project X", output TASK JSON with "project":"X" using the exact project name, display name, or key.\n' +
+      '- If the user asks for relevant subtasks, include 2-6 concrete subtasks that fit that project instead of generic placeholders.\n' +
+      '- Never place new tasks in archived projects. If the user names an archived project, restore it with a PROJECT action or ask them first.\n' +
+      '- If the user explicitly asks to create, archive, restore, or delete a project, append a PROJECT action.\n' +
+      '- If no project is specified, default to ' + projectModePrimaryLabel(currentVaultMode) + '.';
   }
   function refreshVaultModeViews(){
     if(!window._homerVaultUnlocked) return;
@@ -5723,7 +5752,8 @@ document.addEventListener("input", e => {
   }
   function persistProjectMutation(data, reason){
     return saveVault(data).then(function(){
-      populateProjectControls(data.projects, data.goals, {selectedFilter:(goalFilterProject && goalFilterProject.value) || '', preferredTaskProject:(goalProjectSelect && goalProjectSelect.value) || 'organize-life'});
+      var fallbackProjectId = getDefaultProjectId(data.projects);
+      populateProjectControls(data.projects, data.goals, {selectedFilter:(goalFilterProject && goalFilterProject.value) || '', preferredTaskProject:(goalProjectSelect && goalProjectSelect.value) || fallbackProjectId});
       renderProjectDashboard(data);
       if(document.getElementById('kanban-overlay').style.display !== 'none'){
         renderGoals(data.goals || [], data.projects || []);
@@ -5778,46 +5808,91 @@ document.addEventListener("input", e => {
       return { ok:false, error: err && err.message ? err.message : String(err) };
     });
   }
+  function createProjectEntry(projectData){
+    return loadVault().then(function(data){
+      var projects = ensureProjects(data.projects || []);
+      var name = String(projectData && (projectData.name || projectData.title) || '').trim();
+      if(!name) return { ok:false, reason:'missing-name' };
+      var id = slugifyProjectId(projectData.id || name);
+      if(projects.some(function(project){
+        return project.id === id || String(project.name || '').toLowerCase() === name.toLowerCase();
+      })){
+        return { ok:false, reason:'exists', projectId:id };
+      }
+      var key = deriveProjectKey(projectData.key || name);
+      if(projects.some(function(project){ return project.key === key; })){
+        var suffix = 2;
+        var base = key;
+        while(projects.some(function(project){ return project.key === key; })){
+          key = (base.slice(0, Math.max(1, 5 - String(suffix).length)) + suffix).slice(0, 5);
+          suffix++;
+        }
+      }
+      data.projects = ensureProjects((data.projects || []).concat([{
+        id: id,
+        key: key,
+        name: name,
+        description: String(projectData.description || projectData.desc || '').trim(),
+        icon: String(projectData.icon || '').trim(),
+        color: /^#[0-9a-f]{6}$/i.test(projectData.color || '') ? projectData.color : '#60a5fa',
+        order: projects.length
+      }]));
+      return persistProjectMutation(data, 'project-create').then(function(){
+        return { ok:true, projectId:id, name:name, key:key };
+      });
+    });
+  }
   function archiveProjectById(projectId){
-    loadVault().then(function(data){
+    return loadVault().then(function(data){
       var projects = ensureProjects(data.projects || []);
       var project = projects.find(function(entry){ return entry.id === projectId; });
-      if(!project || isProtectedProject(projectId)) return;
+      if(!project) return { ok:false, reason:'missing' };
+      if(activeProjectsOnly(projects).length <= 1){
+        alert('Create or restore another project before archiving the last active one.');
+        return { ok:false, reason:'last-active' };
+      }
       project.archived = true;
       project.archivedAt = Date.now();
       data.projects = ensureProjects(projects);
       if(goalFilterProject && goalFilterProject.value === projectId) goalFilterProject.value = '';
-      persistProjectMutation(data, 'project-archive');
+      return persistProjectMutation(data, 'project-archive').then(function(){ return { ok:true, projectId:projectId }; });
     });
   }
   function restoreProjectById(projectId){
-    loadVault().then(function(data){
+    return loadVault().then(function(data){
       var projects = ensureProjects(data.projects || []);
       var project = projects.find(function(entry){ return entry.id === projectId; });
-      if(!project) return;
+      if(!project) return { ok:false, reason:'missing' };
       project.archived = false;
       project.archivedAt = 0;
       data.projects = ensureProjects(projects);
-      persistProjectMutation(data, 'project-restore');
+      return persistProjectMutation(data, 'project-restore').then(function(){ return { ok:true, projectId:projectId }; });
     });
   }
   function deleteProjectById(projectId){
-    loadVault().then(function(data){
+    return loadVault().then(function(data){
       var projects = ensureProjects(data.projects || []);
       var project = projects.find(function(entry){ return entry.id === projectId; });
-      if(!project || isProtectedProject(projectId)) return;
+      if(!project) return { ok:false, reason:'missing' };
       var projectGoals = (data.goals || []).filter(function(goal){ return goal.projectId === projectId; });
       if(projectGoals.length){
         alert('This project still has ' + projectGoals.length + ' issue' + (projectGoals.length === 1 ? '' : 's') + '. Archive it or move the issues before deleting it.');
-        return;
+        return { ok:false, reason:'has-issues', count:projectGoals.length };
       }
-      if(!confirm('Delete project "' + project.name + '"? This only removes the empty project shell.')) return;
-      data.projects = projects.filter(function(entry){ return entry.id !== projectId; }).map(function(entry, idx){
-        entry.order = idx;
+      if(!project.archived && activeProjectsOnly(projects).length <= 1){
+        alert('Create or restore another project before deleting the last active one.');
+        return { ok:false, reason:'last-active' };
+      }
+      if(!confirm('Delete project "' + project.name + '"? This only removes the empty project shell.')) return { ok:false, reason:'cancelled' };
+      var remainingEntries = (data.projects || []).filter(function(entry){ return entry && entry.id !== projectId; });
+      var isDefaultSeed = DEFAULT_PROJECTS.some(function(entry){ return entry.id === projectId; });
+      if(isDefaultSeed) remainingEntries.push(getProjectTombstone(projectId));
+      data.projects = remainingEntries.map(function(entry, idx){
+        if(entry && !entry.deleted) entry.order = idx;
         return entry;
       });
       if(goalFilterProject && goalFilterProject.value === projectId) goalFilterProject.value = '';
-      persistProjectMutation(data, 'project-delete');
+      return persistProjectMutation(data, 'project-delete').then(function(){ return { ok:true, projectId:projectId }; });
     });
   }
   function populateProjectControls(projects, goals, options){
@@ -5826,7 +5901,7 @@ document.addEventListener("input", e => {
     var list = activeProjectsOnly(allProjects);
     _cachedProjects = allProjects;
     var currentFilter = goalFilterProject ? goalFilterProject.value : '';
-    var preferredTaskProject = options.preferredTaskProject || (goalProjectSelect ? goalProjectSelect.value : '') || currentFilter || 'organize-life';
+    var preferredTaskProject = options.preferredTaskProject || (goalProjectSelect ? goalProjectSelect.value : '') || currentFilter || getDefaultProjectId(allProjects);
     if(goalFilterProject){
       goalFilterProject.innerHTML = '<option value="">All Projects</option>';
       list.forEach(function(project){
@@ -5865,7 +5940,7 @@ document.addEventListener("input", e => {
     if(projectsOverlay) projectsOverlay.style.display = 'none';
     openVaultOverlay('kanban-overlay', function(){
       loadVault().then(function(vaultData){
-        populateProjectControls(vaultData.projects, vaultData.goals, {selectedFilter:projectId, preferredTaskProject:projectId || 'organize-life'});
+        populateProjectControls(vaultData.projects, vaultData.goals, {selectedFilter:projectId, preferredTaskProject:projectId || getDefaultProjectId(vaultData.projects)});
         renderGoals(vaultData.goals || [], vaultData.projects || []);
       });
     });
@@ -5879,7 +5954,7 @@ document.addEventListener("input", e => {
     var archivedProjects = projects.filter(function(project){ return project.archived; });
     var activeProjectIds = {};
     activeProjects.forEach(function(project){ activeProjectIds[project.id] = true; });
-    var visibleGoals = goals.filter(function(goal){ return !!activeProjectIds[goal.projectId || 'organize-life']; });
+    var visibleGoals = goals.filter(function(goal){ return !!activeProjectIds[goal.projectId || getDefaultProjectId(projects, true)]; });
     var html = '';
     var summary = projectMetrics(visibleGoals);
     var completedPct = summary.total ? Math.round((summary.counts.done / summary.total) * 100) : 0;
@@ -5921,7 +5996,7 @@ document.addEventListener("input", e => {
       var metrics = projectMetrics(projectGoals);
       var openCount = metrics.total - metrics.counts.done;
       var donePct = metrics.total ? Math.round((metrics.counts.done / metrics.total) * 100) : 0;
-      var deletable = !isProtectedProject(project.id) && metrics.total === 0;
+      var deletable = metrics.total === 0 && activeProjects.length > 1;
       html += '<div class="project-card" data-project-id="' + project.id + '" style="--project-color:' + displayProject.color + ';">';
       html += '<div class="project-card-top">';
       html += '<div class="project-avatar">' + escHtml(displayProject.icon || project.key.slice(0, 2)) + '</div>';
@@ -5950,12 +6025,10 @@ document.addEventListener("input", e => {
       html += '<div class="project-meta-line">' + openCount + ' open / ' + metrics.counts.backlog + ' backlog / ' + metrics.counts.overdue + ' overdue</div>';
       html += '<div class="project-card-actions">';
       html += '<button class="project-open-btn" type="button" data-project-id="' + project.id + '">Open Board</button>';
-      if(!isProtectedProject(project.id)){
-        html += '<button class="project-action-btn warn" type="button" data-project-archive="' + project.id + '">Archive</button>';
-        html += '<button class="project-action-btn danger" type="button" data-project-delete="' + project.id + '"' + (deletable ? '' : ' disabled') + '>' + (deletable ? 'Delete' : 'Delete Empty') + '</button>';
-      }
+      html += '<button class="project-action-btn warn" type="button" data-project-archive="' + project.id + '"' + (activeProjects.length > 1 ? '' : ' disabled') + '>Archive</button>';
+      html += '<button class="project-action-btn danger" type="button" data-project-delete="' + project.id + '"' + (deletable ? '' : ' disabled') + '>' + (metrics.total === 0 ? 'Delete' : 'Delete Empty') + '</button>';
       html += '</div></div>';
-      html += '<div class="project-card-note">' + (isProtectedProject(project.id) ? 'Core project: kept active as the preserved default workspace.' : 'Archive keeps every issue. Delete unlocks only when the project is empty.') + '</div>';
+      html += '<div class="project-card-note">Archive keeps every issue attached to the project. Delete unlocks only when the project is empty and another active project still exists.</div>';
       html += '</div>';
     });
     if(archivedProjects.length){
@@ -5966,7 +6039,7 @@ document.addEventListener("input", e => {
         var displayProject = projectDisplay(project) || project;
         var projectGoals = goals.filter(function(goal){ return goal.projectId === project.id; });
         var metrics = projectMetrics(projectGoals);
-        var deletable = !isProtectedProject(project.id) && metrics.total === 0;
+        var deletable = metrics.total === 0;
         html += '<div class="project-card archived-card" style="--project-color:' + displayProject.color + ';">';
         html += '<div class="project-card-top">';
         html += '<div class="project-avatar">' + escHtml(displayProject.icon || project.key.slice(0, 2)) + '</div>';
@@ -5976,7 +6049,7 @@ document.addEventListener("input", e => {
         html += '<div class="project-desc">' + escHtml(displayProject.description || 'Archived project shell.') + '</div>';
         html += '<div class="project-card-actions">';
         html += '<button class="project-action-btn restore" type="button" data-project-restore="' + project.id + '">Restore</button>';
-        html += '<button class="project-action-btn danger" type="button" data-project-delete="' + project.id + '"' + (deletable ? '' : ' disabled') + '>' + (deletable ? 'Delete' : 'Delete Empty') + '</button>';
+        html += '<button class="project-action-btn danger" type="button" data-project-delete="' + project.id + '"' + (deletable ? '' : ' disabled') + '>' + (metrics.total === 0 ? 'Delete' : 'Delete Empty') + '</button>';
         html += '</div>';
         html += '<div class="project-card-note">' + (metrics.total ? 'Issues remain safely attached while the project is archived.' : 'Empty archived projects can be deleted permanently.') + '</div>';
         html += '</div>';
@@ -6026,7 +6099,7 @@ document.addEventListener("input", e => {
     var list = ensureProjects(projects || _cachedProjects);
     var scopeGoals = (goals || []).filter(function(goal){
       if(goal.archived) return false;
-      if(isProjectArchived(list, goal.projectId || 'organize-life')) return false;
+      if(isProjectArchived(list, goal.projectId || getDefaultProjectId(list, true))) return false;
       return !projectId || goal.projectId === projectId;
     });
     var metrics = projectMetrics(scopeGoals);
@@ -6438,7 +6511,7 @@ document.addEventListener("input", e => {
     return goals.filter(function(g, i){
       if(g.archived && !showArchive) return false;
       if(!g.archived && showArchive) return false;
-      if(isProjectArchived(projects, g.projectId || 'organize-life')) return false;
+      if(isProjectArchived(projects, g.projectId || getDefaultProjectId(projects, true))) return false;
       if(projectId && g.projectId !== projectId) return false;
       if(search){
         var haystack = ((g.summary||'')+(g.desc||'')+(g.notes||'')).toLowerCase();
@@ -6463,7 +6536,7 @@ document.addEventListener("input", e => {
     var projectId = goalFilterProject ? goalFilterProject.value : '';
     var projects = ensureProjects(_cachedProjects);
     goals.forEach(function(g){
-      if(isProjectArchived(projects, g.projectId || 'organize-life')) return;
+      if(isProjectArchived(projects, g.projectId || getDefaultProjectId(projects, true))) return;
       if(projectId && g.projectId !== projectId) return;
       (g.labels||[]).forEach(function(l){ used[l]=true; });
     });
@@ -6874,10 +6947,10 @@ document.addEventListener("input", e => {
         var projectSel = ov.querySelector('.issue-edit-project');
         if(projectSel){
           projectSel.addEventListener('change', function(){
-            var val = this.value || 'organize-life';
+            var val = this.value || getDefaultProjectId(_cachedProjects);
             loadVault().then(function(d){
               if(d.goals[goalIdx]){
-                var previousProject = getProjectById(d.projects || _cachedProjects, d.goals[goalIdx].projectId || 'organize-life');
+                var previousProject = getProjectById(d.projects || _cachedProjects, d.goals[goalIdx].projectId || getDefaultProjectId(d.projects || _cachedProjects, true));
                 var nextProject = getProjectById(d.projects || _cachedProjects, val);
                 d.goals[goalIdx].projectId = val;
                 addLogEntry(d.goals[goalIdx], 'Moved from project ' + previousProject.name + ' to ' + nextProject.name);
@@ -7194,7 +7267,7 @@ document.addEventListener("input", e => {
     renderKanbanHero(goals, projects);
     var activeProjectId = goalFilterProject ? goalFilterProject.value : '';
     var scopedGoals = goals.filter(function(goal){
-      if(isProjectArchived(projects, goal.projectId || 'organize-life')) return false;
+      if(isProjectArchived(projects, goal.projectId || getDefaultProjectId(projects, true))) return false;
       return !activeProjectId || goal.projectId === activeProjectId;
     });
     var archivedCount = scopedGoals.filter(function(g){ return g.archived; }).length;
@@ -7250,7 +7323,7 @@ document.addEventListener("input", e => {
       if(!g.reporter) g.reporter = '';
       if(!g.assignee) g.assignee = '';
       if(!g.id) g.id = i + 1;
-      if(!g.projectId) g.projectId = 'organize-life';
+      if(!g.projectId) g.projectId = getDefaultProjectId(projects, true);
       var project = getProjectById(projects, g.projectId);
       var gKey = issueKey(g, projects);
 
@@ -7859,7 +7932,7 @@ document.addEventListener("input", e => {
   // Filter event handlers
   if(goalFilterProject) goalFilterProject.addEventListener('change', function(){
     loadVault().then(function(data){
-      populateProjectControls(data.projects, data.goals, {selectedFilter:goalFilterProject.value, preferredTaskProject:goalFilterProject.value || 'organize-life'});
+      populateProjectControls(data.projects, data.goals, {selectedFilter:goalFilterProject.value, preferredTaskProject:goalFilterProject.value || getDefaultProjectId(data.projects)});
       renderGoals(data.goals, data.projects);
     });
   });
@@ -7971,33 +8044,19 @@ document.addEventListener("input", e => {
     var name = projectNameInput.value.trim();
     if(!name){ projectNameInput.style.borderColor = '#ef4444'; return; }
     projectNameInput.style.borderColor = '';
-    loadVault().then(function(data){
-      var projects = ensureProjects(data.projects || []);
-      var id = slugifyProjectId(name);
-      var key = deriveProjectKey(projectKeyInput.value || name);
-      if(projects.some(function(project){ return project.id === id || project.name.toLowerCase() === name.toLowerCase(); })){
+    createProjectEntry({
+      name: name,
+      key: projectKeyInput.value || name,
+      description: projectDescInput.value.trim(),
+      icon: projectIconInput.value.trim(),
+      color: projectColorInput.value || '#60a5fa'
+    }).then(function(result){
+      if(!result || !result.ok){
         projectNameInput.style.borderColor = '#ef4444';
         return;
       }
-      if(projects.some(function(project){ return project.key === key; })){
-        var suffix = 2;
-        var base = key;
-        while(projects.some(function(project){ return project.key === key; })){
-          key = (base.slice(0, Math.max(1, 5 - String(suffix).length)) + suffix).slice(0, 5);
-          suffix++;
-        }
-      }
-      data.projects = ensureProjects((data.projects || []).concat([{
-        id: id,
-        key: key,
-        name: name,
-        description: projectDescInput.value.trim(),
-        icon: projectIconInput.value.trim(),
-        color: projectColorInput.value || '#60a5fa',
-        order: projects.length
-      }]));
-      persistProjectMutation(data, 'project-create').then(function(){
-        populateProjectControls(data.projects, data.goals, {selectedFilter:id, preferredTaskProject:id});
+      loadVault().then(function(data){
+        populateProjectControls(data.projects, data.goals, {selectedFilter:result.projectId, preferredTaskProject:result.projectId});
         renderProjectDashboard(data);
         if(document.getElementById('kanban-overlay').style.display !== 'none'){
           renderGoals(data.goals || [], data.projects || []);
@@ -8018,7 +8077,7 @@ document.addEventListener("input", e => {
     selectedGoalLabels = [];
     // Refresh cached labels from vault
     loadVault().then(function(data){
-      populateProjectControls(data.projects, data.goals, {preferredTaskProject:(goalFilterProject && goalFilterProject.value) || 'organize-life'});
+      populateProjectControls(data.projects, data.goals, {preferredTaskProject:(goalFilterProject && goalFilterProject.value) || getDefaultProjectId(data.projects)});
       _cachedAllLabels = getAllLabels(data.goals);
       renderLabelChips();
     });
@@ -8037,9 +8096,11 @@ document.addEventListener("input", e => {
     if(goalProjectSelect) goalProjectSelect.style.borderColor = '';
     loadVault().then(function(data){
       if(!data._nextId) data._nextId = data.goals.length + 1;
+      var fallbackProjectId = getDefaultProjectId(data.projects);
+      var resolvedProjectId = projectId || fallbackProjectId;
       var goal = {
         id: data._nextId++,
-        projectId: projectId || 'organize-life',
+        projectId: resolvedProjectId,
         summary: s,
         desc: '',
         notes: goalNotesInput.value.trim(),
@@ -8052,12 +8113,12 @@ document.addEventListener("input", e => {
         subtasks: [],
         attachments: pendingGoalFiles.slice(),
         comments: [],
-        log: [{action:'Goal created in ' + getProjectById(data.projects || _cachedProjects, projectId || 'organize-life').name, ts:Date.now()}]
+        log: [{action:'Goal created in ' + getProjectById(data.projects || _cachedProjects, resolvedProjectId).name, ts:Date.now()}]
       };
       data.goals.push(goal);
       var goalIdx = data.goals.length - 1;
       saveVault(data).then(function(){
-        populateProjectControls(data.projects, data.goals, {selectedFilter:projectId, preferredTaskProject:projectId});
+        populateProjectControls(data.projects, data.goals, {selectedFilter:resolvedProjectId, preferredTaskProject:resolvedProjectId});
         renderGoals(data.goals, data.projects);
         goalModalBg.classList.remove('open');
         pendingGoalFiles = [];
@@ -13461,7 +13522,7 @@ document.addEventListener("input", e => {
     if(typeof window._homerLoadVault !== 'function' || !window._homerVaultUnlocked) return Promise.resolve([]);
     return window._homerLoadVault().then(function(data){
       return ((data && data.goals) || []).map(function(g){
-        var project = getProjectById((data && data.projects) || _cachedProjects, g.projectId || 'organize-life');
+        var project = getProjectById((data && data.projects) || _cachedProjects, g.projectId || getDefaultProjectId((data && data.projects) || _cachedProjects, true));
         return {
           project: project ? project.name : '',
           projectKey: project ? project.key : '',
@@ -14384,7 +14445,7 @@ document.addEventListener("input", e => {
   // --- Joey Actions: create tasks, goals, focus tasks, events ---
   function executeActions(text){
     var actions = [];
-    var regex = /\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET)\]([\s\S]*?)\[\/ACTION\]/g;
+    var regex = /\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET|PROJECT)\]([\s\S]*?)\[\/ACTION\]/g;
     var match;
     while((match = regex.exec(text)) !== null){
       actions.push({type: match[1], data: match[2].trim()});
@@ -14405,8 +14466,13 @@ document.addEventListener("input", e => {
               if(!data._nextSubId) data._nextSubId = 1;
               var projects = ensureProjects(data.projects || []);
               var requestedProject = String(taskData.projectId || taskData.project || '').trim();
-              var fallbackProjectId = (goalFilterProject && goalFilterProject.value) || 'organize-life';
+              var fallbackProjectId = (goalFilterProject && goalFilterProject.value) || getDefaultProjectId(projects);
               var matchedProject = matchProject(projects, requestedProject, fallbackProjectId);
+              var displayProject = projectDisplay(matchedProject) || matchedProject;
+              if(matchedProject && matchedProject.archived){
+                showJoeyStatusToast('Project "' + displayProject.name + '" is archived. Restore it before adding tasks there.', 'warn');
+                return;
+              }
               var subtasks = [];
               if(taskData.subtasks && Array.isArray(taskData.subtasks)){
                 taskData.subtasks.forEach(function(st){
@@ -14438,18 +14504,25 @@ document.addEventListener("input", e => {
                 subtasks: subtasks,
                 attachments: [],
                 comments: [],
-                log: [{action:'Task created by Joey in ' + matchedProject.name, ts:Date.now()}]
+                log: [{action:'Task created by Joey in ' + displayProject.name, ts:Date.now()}]
               };
               data.goals.push(task);
-              window._homerSaveVault(data);
-              try{ window.dispatchEvent(new Event('vault-goals-changed')); }catch(e){}
-              refreshCanonicalFiles().catch(function(){});
+              window._homerSaveVault(data).then(function(){
+                if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('joey-task', 900);
+                try{ window.dispatchEvent(new Event('vault-goals-changed')); }catch(e){}
+                if(goalFilterProject && (goalFilterProject.value === '' || goalFilterProject.value === matchedProject.id)){
+                  renderGoals(data.goals || [], data.projects || []);
+                }
+                refreshCanonicalFiles().catch(function(){});
+              }).catch(function(err){
+                showJoeyStatusToast('Task save failed: ' + (err && err.message ? err.message : err), 'warn');
+              });
             });
           } else {
             notifications.push('Vault is locked — unlock it first to add tasks to the Kanban board');
             return;
           }
-          notifications.push('Kanban task created: ' + (taskData.summary || taskData.title || a.data) + (taskData.subtasks ? ' (' + taskData.subtasks.length + ' subtasks)' : ''));
+          notifications.push('Kanban task queued: ' + (taskData.summary || taskData.title || a.data) + (taskData.subtasks ? ' (' + taskData.subtasks.length + ' subtasks)' : ''));
         }
         else if(a.type === 'GOAL'){
           // Life goal (vault) — aspirations with milestones
@@ -14471,7 +14544,9 @@ document.addEventListener("input", e => {
                 createdAt: Date.now(),
                 updatedAt: Date.now()
               });
-              window._homerSaveVault(data);
+              window._homerSaveVault(data).then(function(){
+                if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('joey-goal', 1000);
+              }).catch(function(){});
               if(typeof window._refreshLifeGoals === 'function') window._refreshLifeGoals();
               refreshCanonicalFiles().catch(function(){});
             });
@@ -14561,6 +14636,64 @@ document.addEventListener("input", e => {
           }
           notifications.push('Forgot: ' + a.data);
         }
+        else if(a.type === 'PROJECT'){
+          var projectAction;
+          try{ projectAction = JSON.parse(a.data); }catch(e){ projectAction = { op:'create', name:a.data }; }
+          var op = String(projectAction.op || projectAction.action || 'create').trim().toLowerCase();
+          if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
+            window._homerLoadVault().then(function(data){
+              var projects = ensureProjects(data.projects || []);
+              var requestedProject = String(projectAction.project || projectAction.name || projectAction.id || '').trim();
+              var matchedProject = requestedProject ? matchProject(projects, requestedProject, getDefaultProjectId(projects, true)) : null;
+              var matchedName = matchedProject ? (projectDisplay(matchedProject) || matchedProject).name : requestedProject;
+              if(op === 'create'){
+                createProjectEntry(projectAction).then(function(result){
+                  if(result && result.ok){
+                    loadVault().then(function(nextData){
+                      populateProjectControls(nextData.projects, nextData.goals, {selectedFilter:result.projectId, preferredTaskProject:result.projectId});
+                      renderProjectDashboard(nextData);
+                    });
+                    showJoeyStatusToast('Project created: ' + (result.name || requestedProject || 'New Project'));
+                    refreshCanonicalFiles().catch(function(){});
+                  } else if(result && result.reason === 'exists'){
+                    showJoeyStatusToast('Project already exists: ' + requestedProject, 'warn');
+                  } else {
+                    showJoeyStatusToast('Project create failed', 'warn');
+                  }
+                }).catch(function(err){
+                  showJoeyStatusToast('Project create failed: ' + (err && err.message ? err.message : err), 'warn');
+                });
+              } else if(!matchedProject){
+                showJoeyStatusToast('Project not found: ' + requestedProject, 'warn');
+              } else if(op === 'archive'){
+                archiveProjectById(matchedProject.id).then(function(result){
+                  if(result && result.ok) showJoeyStatusToast('Project archived: ' + matchedName);
+                }).catch(function(err){
+                  showJoeyStatusToast('Archive failed: ' + (err && err.message ? err.message : err), 'warn');
+                });
+              } else if(op === 'restore'){
+                restoreProjectById(matchedProject.id).then(function(result){
+                  if(result && result.ok) showJoeyStatusToast('Project restored: ' + matchedName);
+                }).catch(function(err){
+                  showJoeyStatusToast('Restore failed: ' + (err && err.message ? err.message : err), 'warn');
+                });
+              } else if(op === 'delete'){
+                deleteProjectById(matchedProject.id).then(function(result){
+                  if(result && result.ok) showJoeyStatusToast('Project deleted: ' + matchedName);
+                  else if(result && result.reason === 'has-issues') showJoeyStatusToast('Project still has issues. Move or archive them before delete.', 'warn');
+                }).catch(function(err){
+                  showJoeyStatusToast('Delete failed: ' + (err && err.message ? err.message : err), 'warn');
+                });
+              } else {
+                showJoeyStatusToast('Unsupported project action: ' + op, 'warn');
+              }
+            });
+          } else {
+            notifications.push('Vault is locked - unlock it first to manage projects');
+            return;
+          }
+          notifications.push('Project action queued: ' + op + (projectAction.name || projectAction.project ? ' ' + (projectAction.name || projectAction.project) : ''));
+        }
       }catch(e){
         notifications.push('Action failed: ' + e.message);
       }
@@ -14577,7 +14710,7 @@ document.addEventListener("input", e => {
     }
 
     // Strip action tags from displayed text
-    return text.replace(/\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET)\][\s\S]*?\[\/ACTION\]/g, '').trim();
+    return text.replace(/\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET|PROJECT)\][\s\S]*?\[\/ACTION\]/g, '').trim();
   }
 
   function showError(msg){
@@ -14883,6 +15016,7 @@ document.addEventListener("input", e => {
     var JOEY_PROMPT = 'You are Joey — a personal AI assistant with personality. You speak like Joey Tribbiani from Friends (confident, charming, fun), but you\'re genuinely smart and deeply helpful. You know this person. You have their profile, memories, and conversation history injected into your context by the server. USE THEM.\n\nTODAY: ' + new Date().toISOString().slice(0,10) + ' | TIME: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '\n\n=== PERSONALITY ===\n- Be direct, no fluff. Match the user\'s energy.\n- Use Joey catchphrases SPARINGLY and naturally — don\'t force them every message.\n- Have real opinions. Disagree when warranted. Be a friend, not a yes-man.\n- When you know something about them (from profile/memories), use it naturally — don\'t announce "I remember...".\n- Ask follow-up questions about things you know they care about (their goals, their people, recent events).\n- If they seem stressed or down, be supportive. If they\'re excited, share that energy.\n\n=== ACTIONS (append at END of your response) ===\n\nTASK (Kanban board — DEFAULT for any work item, to-do, action):\n- Create a TASK only when the user explicitly asks you to add, create, save, track, put on the board, or turn something into a task.\n- Do NOT create tasks proactively, by implication, or just because a deadline/problem/action item was mentioned.\n- If the user is only discussing plans or problems, respond normally without action tags.\n- For explicit task requests, include: summary, notes, priority when implied, due when mentioned, and 2-5 concrete subtasks.\n- Use notes for the task description. Do not use GOAL for normal actionable work items.\n- Simple fallback: [ACTION:TASK]Buy groceries[/ACTION]\n- Preferred detailed format: [ACTION:TASK]{\"summary\":\"Fix login bug\",\"notes\":\"Users cannot sign in after password reset. Investigate the reset flow, patch the regression, and verify the happy path.\",\"priority\":\"high\",\"due\":\"2026-03-25\",\"subtasks\":[{\"text\":\"Reproduce the bug locally\",\"notes\":\"Test the password reset flow with an affected account.\"},{\"text\":\"Identify the failing auth step\"},{\"text\":\"Implement and verify the fix\"}]}[/ACTION]\n\nGOAL (Life Goals — aspirations, dreams, long-term objectives):\n[ACTION:GOAL]{"title":"Buy a house","description":"Why this matters","category":"finance","milestones":["Step 1","Step 2"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\nCategories: health, finance, career, personal, education, travel, creative, relationship\n\nFOCUS (Pomodoro — ONLY when user explicitly says "focus", "pomodoro", "focus task"):\n[ACTION:FOCUS]Task name[/ACTION]\nIMPORTANT: NEVER create FOCUS unless explicitly asked. Default is always TASK.\n\nEVENT (Calendar — use category to differentiate event types):\n[ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details","category":"meeting"}[/ACTION]\nEvent categories: meeting, deadline, reminder, personal, work\n\nREMEMBER (save important facts — your auto-memory also captures things, but use this for explicit asks):\n[ACTION:REMEMBER]{"memory":"fact about the user","category":"preference"}[/ACTION]\nCategories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work\n\nFORGET:\n[ACTION:FORGET]text to forget[/ACTION]\n\n=== WEB SEARCH ===\n- You may receive LIVE WEB SEARCH RESULTS in your system prompt when the user asks about current events, facts, or anything that needs up-to-date info.\n- When you have search results, use them to give accurate answers. Cite sources naturally (e.g. "According to...", link titles).\n- If search results are present, prioritize them over your training data for current facts.\n- You can suggest the user search for something specific if you don\'t have results: just say "let me look that up" — the system will search automatically on their next related question.\n\n=== RULES ===\n- Dates: YYYY-MM-DD, Times: HH:MM (24h), Priority: high/medium/low\n- Always include action tags only when the user explicitly asked to create something.\n- When the user explicitly asks to add or create a task, append a TASK action unless they explicitly refuse.\n- For TASK actions, prefer JSON over plain text so the Kanban card is fully populated.\n- Do not offer or create a task just because a deadline, plan, or obligation was mentioned.\n- Your memory system auto-learns from conversations, but use REMEMBER for things the user explicitly asks you to save.';
     var systemPrompt = savedPromptOverride || JOEY_PROMPT;
     systemPrompt += buildJoeyProjectInstruction();
+    systemPrompt += '\n\n=== PROJECT ACTIONS ===\n- If the user explicitly asks to create, archive, restore, or delete a project, append a PROJECT action.\n- PROJECT create format: [ACTION:PROJECT]{\"op\":\"create\",\"name\":\"Project Name\",\"description\":\"Optional description\",\"color\":\"#60a5fa\"}[/ACTION]\n- PROJECT archive format: [ACTION:PROJECT]{\"op\":\"archive\",\"project\":\"Apps\"}[/ACTION]\n- PROJECT restore format: [ACTION:PROJECT]{\"op\":\"restore\",\"project\":\"Apps\"}[/ACTION]\n- PROJECT delete format: [ACTION:PROJECT]{\"op\":\"delete\",\"project\":\"Apps\"}[/ACTION]\n- Never delete a project that still has issues.\n- Never place new tasks into archived projects.';
     systemPrompt += '\n\n=== CANONICAL FILES ===\n- Shared context lives in AgentContext.md, Today.md, OpenLoops.md, Projects.md, Areas.md, Resources.md, People.md, Wins.md, Lessons.md, WeeklyReview.md, Decisions.md, PinnedContext.md, Archive.md, FilesIndex.md, and Uploads/*.md.\n- FilesIndex.md lists remembered uploaded files and their Google Drive links.\n- Uploads/*.md contains extracted text for previously processed files when relevant.\n- Prefer REMEMBER with categories win, lesson, resource, decision, pin, or archive when the user explicitly asks to save something.\n- If the user says "save this as a win", store category "win".\n- If the user says "save this as a lesson", store category "lesson".\n- If the user says "save this as a resource" or "keep this note", store category "resource".\n- If the user says "pin this" or "always remember this", store category "pin" with pinned:true.\n- If the user asks for deeper recall, tell them they can say "use full context".';
     if(currentContextMode === 'work'){
       systemPrompt += '\n\n=== WORK MODE ===\n- You are in Work mode with separate work memory, uploads, files, and Drive backups.\n- Optimize for execution and recall: tasks, deadlines, blockers, dependencies, decisions, meeting outcomes, stakeholders, and next actions.\n- Beat a human personal assistant on follow-through: be organized, specific, concise, and proactive about missing details that matter for delivery.\n- When the user asks to save something work-related, prefer REMEMBER with categories work, decision, resource, win, lesson, or pin.\n- When work is discussed, default to crisp operational framing: what is due, who owns it, what is blocked, and what should happen next.';
