@@ -15805,6 +15805,19 @@ document.addEventListener("input", e => {
         };
       }
     }
+    var remainderScopedMatch = remainder.match(/^(?:in|into|under|for)\s+["Ã¢â‚¬Å“]?([A-Za-z][A-Za-z0-9_-]{1,20})["Ã¢â‚¬Â]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
+    if(remainderScopedMatch && !/^the$/i.test(String(remainderScopedMatch[1] || '').trim())){
+      var scopedProject = String(remainderScopedMatch[1] || '').trim();
+      var scopedSummary = remainder.slice(remainderScopedMatch[0].length).trim().replace(/^[,:-]\s*/, '');
+      scopedSummary = scopedSummary.replace(/^\s*(?:for|to)\s+/i, '').trim();
+      if(scopedSummary && scopedSummary.length >= 3){
+        return {
+          project: scopedProject,
+          summary: scopedSummary,
+          notes: scopedSummary
+        };
+      }
+    }
     var project = '';
     var projectMatch = raw.match(/\b(?:in|into|under|for)\s+(?:the\s+)?project\s+["“]?([^,"\n]+?)["”]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
     if(projectMatch) project = String(projectMatch[1] || '').trim();
@@ -15980,10 +15993,11 @@ document.addEventListener("input", e => {
       };
       data.goals.push(task);
       return window._homerSaveVault(data).then(function(){
+        var createdIssueKey = typeof issueKey === 'function' ? issueKey(task, data.projects || []) : ((matchedProject.key || 'TASK') + '-' + task.id);
         rememberRecentTask({ projectId: matchedProject.id, summary: task.summary });
         if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('joey-task', 900);
         try{ window.dispatchEvent(new Event('vault-goals-changed')); }catch(e){}
-        showJoeyStatusToast('Task added to ' + displayProject.name + ': ' + task.summary, 'success');
+        showJoeyStatusToast('Created ' + createdIssueKey + ' in ' + displayProject.name + ': ' + task.summary, 'success');
         if(typeof populateProjectControls === 'function'){
           populateProjectControls(data.projects || [], data.goals || [], {
             selectedFilter: matchedProject.id,
@@ -15993,10 +16007,12 @@ document.addEventListener("input", e => {
         renderGoals(data.goals || [], data.projects || []);
         if(typeof renderProjectDashboard === 'function') renderProjectDashboard(data);
         if(typeof renderVault === 'function') renderVault();
+        if(typeof openProjectBoard === 'function' && options.openBoard !== false) openProjectBoard(matchedProject.id);
         refreshCanonicalFiles().catch(function(){});
         console.log('[Joey task] Saved', {
           ok: true,
           mode: currentVaultMode,
+          issueKey: createdIssueKey,
           taskId: task.id,
           projectId: matchedProject.id,
           projectName: displayProject.name,
@@ -16005,6 +16021,7 @@ document.addEventListener("input", e => {
         return {
           ok:true,
           mode:currentVaultMode,
+          issueKey:createdIssueKey,
           taskId:task.id,
           projectId:matchedProject.id,
           projectName:displayProject.name,
