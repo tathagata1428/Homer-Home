@@ -6111,7 +6111,9 @@ document.addEventListener("input", e => {
   }
   window._homerBuildJoeyProjectInstruction = buildJoeyProjectInstruction;
   function buildJoeyWebsiteInstruction(){
-    var mode = currentContextMode === 'work' ? 'work' : 'personal';
+    var mode = (typeof currentContextMode !== 'undefined' && currentContextMode === 'work')
+      ? 'work'
+      : (((localStorage.getItem('homer-oc-mode') || localStorage.getItem('homer-vault-mode')) === 'work') ? 'work' : 'personal');
     var vaultMode = typeof window._homerGetVaultMode === 'function' ? window._homerGetVaultMode() : mode;
     return '\n\n=== WEBSITE MAP ===\n' +
       '- Tabs: home, pomodoro, focuslab, investing, tools, links, news, vault.\n' +
