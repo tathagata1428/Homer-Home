@@ -15883,6 +15883,47 @@ document.addEventListener("input", e => {
     });
     return normalized;
   }
+  function getActionProjectHelpers(){
+    var ensureProjectsFn = window._homerEnsureProjects || (typeof ensureProjects === 'function' ? ensureProjects : function(projects){
+      return Array.isArray(projects) ? projects.slice() : [];
+    });
+    var getDefaultProjectIdFn = window._homerGetDefaultProjectId || (typeof getDefaultProjectId === 'function' ? getDefaultProjectId : function(projects){
+      var list = ensureProjectsFn(projects || []);
+      var active = list.filter(function(project){ return project && !project.archived; });
+      var source = active.length ? active : list;
+      return source[0] && source[0].id ? source[0].id : '';
+    });
+    var projectDisplayFn = window._homerProjectDisplay || (typeof projectDisplay === 'function' ? projectDisplay : function(project){
+      return project || null;
+    });
+    var matchProjectFn = window._homerMatchProject || (typeof matchProject === 'function' ? matchProject : function(projects, requestedProject, fallbackProjectId, strict){
+      var list = ensureProjectsFn(projects || []);
+      var requested = String(requestedProject || '').trim().toLowerCase();
+      var fallbackId = fallbackProjectId || getDefaultProjectIdFn(list);
+      var fallback = list.find(function(project){ return project && project.id === fallbackId; }) || list[0] || null;
+      if(!requested) return fallback;
+      var requestedKey = requested.replace(/[^a-z0-9]+/g, '');
+      var found = list.find(function(project){
+        if(!project) return false;
+        var display = projectDisplayFn(project) || project;
+        return String(project.id || '').toLowerCase() === requested ||
+          String(project.key || '').toLowerCase() === requested ||
+          String(project.name || '').toLowerCase() === requested ||
+          String(display.name || '').toLowerCase() === requested ||
+          String(project.id || '').toLowerCase().replace(/[^a-z0-9]+/g, '') === requestedKey ||
+          String(project.key || '').toLowerCase().replace(/[^a-z0-9]+/g, '') === requestedKey ||
+          String(project.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '') === requestedKey ||
+          String(display.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '') === requestedKey;
+      });
+      return found || (strict ? null : fallback);
+    });
+    return {
+      ensureProjects: ensureProjectsFn,
+      getDefaultProjectId: getDefaultProjectIdFn,
+      projectDisplay: projectDisplayFn,
+      matchProject: matchProjectFn
+    };
+  }
   function executeActions(text, userText){
     var actions = [];
     var regex = /\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET|PROJECT|NOTE|LINK|SECRET|COMMAND)\]([\s\S]*?)(?:\[\/ACTION\]|$)/g;
@@ -15908,10 +15949,11 @@ document.addEventListener("input", e => {
               if(!Array.isArray(data.goals)) data.goals = [];
               if(!data._nextId) data._nextId = 1;
               if(!data._nextSubId) data._nextSubId = 1;
-              var projects = ensureProjects(data.projects || []);
+              var projectHelpers = getActionProjectHelpers();
+              var projects = projectHelpers.ensureProjects(data.projects || []);
               var requestedProject = String(taskData.projectId || taskData.project || taskData.projectName || taskData.projectKey || '').trim();
-              var fallbackProjectId = (goalFilterProject && goalFilterProject.value) || getDefaultProjectId(projects);
-              var matchedProject = matchProject(projects, requestedProject, fallbackProjectId, !!requestedProject);
+              var fallbackProjectId = (goalFilterProject && goalFilterProject.value) || projectHelpers.getDefaultProjectId(projects);
+              var matchedProject = projectHelpers.matchProject(projects, requestedProject, fallbackProjectId, !!requestedProject);
               if(requestedProject && !matchedProject){
                 showJoeyStatusToast('Project not found for task: ' + requestedProject, 'warn');
                 return;
@@ -15920,7 +15962,7 @@ document.addEventListener("input", e => {
                 showJoeyStatusToast('No active project available for task creation.', 'warn');
                 return;
               }
-              var displayProject = projectDisplay(matchedProject) || matchedProject;
+              var displayProject = projectHelpers.projectDisplay(matchedProject) || matchedProject;
               var customFields = mapGoalCustomFieldsForProject(matchedProject, taskData.customFields || {});
               if(matchedProject && matchedProject.archived){
                 showJoeyStatusToast('Project "' + displayProject.name + '" is archived. Restore it before adding tasks there.', 'warn');
@@ -16098,13 +16140,14 @@ document.addEventListener("input", e => {
           if(op === 'edit' || op === 'rename') op = 'update';
           if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
             window._homerLoadVault().then(function(data){
-              var projects = ensureProjects(data.projects || []);
+              var projectHelpers = getActionProjectHelpers();
+              var projects = projectHelpers.ensureProjects(data.projects || []);
               var requestedProject = String(projectAction.project || projectAction.projectId || projectAction.id || projectAction.key || '').trim();
               if(!requestedProject && op !== 'update'){
                 requestedProject = String(projectAction.name || '').trim();
               }
-              var matchedProject = requestedProject ? matchProject(projects, requestedProject, getDefaultProjectId(projects, true), true) : null;
-              var matchedName = matchedProject ? (projectDisplay(matchedProject) || matchedProject).name : requestedProject;
+              var matchedProject = requestedProject ? projectHelpers.matchProject(projects, requestedProject, projectHelpers.getDefaultProjectId(projects, true), true) : null;
+              var matchedName = matchedProject ? (projectHelpers.projectDisplay(matchedProject) || matchedProject).name : requestedProject;
               if(op === 'create'){
                 createProjectEntry(projectAction).then(function(result){
                   if(result && result.ok){
