@@ -15846,18 +15846,24 @@ document.addEventListener("input", e => {
   }
   function parseTaskActionData(raw, userText){
     var taskData = null;
-    var rawText = String(raw || '').trim();
-    try{ taskData = JSON.parse(rawText); }catch(e){
-      var objectStart = rawText.indexOf('{');
-      if(objectStart >= 0){
-        var jsonCandidate = rawText.slice(objectStart);
-        var objectEnd = jsonCandidate.lastIndexOf('}');
-        if(objectEnd >= 0){
-          try{ taskData = JSON.parse(jsonCandidate.slice(0, objectEnd + 1)); }catch(_){}
+    var rawText = '';
+    if(raw && typeof raw === 'object' && !Array.isArray(raw)){
+      taskData = raw;
+      try{ rawText = JSON.stringify(raw); }catch(_e){ rawText = String(raw); }
+    } else {
+      rawText = String(raw || '').trim();
+      try{ taskData = JSON.parse(rawText); }catch(e){
+        var objectStart = rawText.indexOf('{');
+        if(objectStart >= 0){
+          var jsonCandidate = rawText.slice(objectStart);
+          var objectEnd = jsonCandidate.lastIndexOf('}');
+          if(objectEnd >= 0){
+            try{ taskData = JSON.parse(jsonCandidate.slice(0, objectEnd + 1)); }catch(_){}
+          }
         }
-      }
-      if(!taskData){
-        taskData = inferTaskActionFromUserText(userText) || inferTaskActionFromUserText(rawText) || { summary: rawText };
+        if(!taskData){
+          taskData = inferTaskActionFromUserText(userText) || inferTaskActionFromUserText(rawText) || { summary: rawText };
+        }
       }
     }
     if(!taskData || typeof taskData !== 'object') taskData = { summary: rawText };
@@ -16024,7 +16030,7 @@ document.addEventListener("input", e => {
             preferredTaskProject: matchedProject.id
           });
         }
-        renderGoals(data.goals || [], data.projects || []);
+        if(typeof renderGoals === 'function') renderGoals(data.goals || [], data.projects || []);
         if(typeof renderProjectDashboard === 'function') renderProjectDashboard(data);
         if(typeof renderVault === 'function') renderVault();
         if(typeof openProjectBoard === 'function' && options.openBoard !== false) openProjectBoard(matchedProject.id);
