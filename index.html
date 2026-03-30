@@ -15900,6 +15900,124 @@ document.addEventListener("input", e => {
     lastJoeyTaskFingerprint = fingerprint;
     lastJoeyTaskTs = Date.now();
   }
+  function createAgentTaskInVault(taskData, options){
+    options = options || {};
+    var normalizedTask = parseTaskActionData(taskData, options.userText || '');
+    if(shouldSkipRecentTask(normalizedTask)){
+      console.log('[Joey task] Skipped duplicate task request', normalizedTask);
+      return Promise.resolve({ ok:false, reason:'duplicate', task:normalizedTask });
+    }
+    if(typeof window._homerLoadVault !== 'function' || !window._homerVaultUnlocked){
+      showJoeyStatusToast('Unlock the ' + modeLabel(currentVaultMode) + ' vault first to add tasks.', 'warn');
+      return Promise.resolve({ ok:false, reason:'locked', mode:currentVaultMode, task:normalizedTask });
+    }
+    return window._homerLoadVault().then(function(data){
+      if(!data) throw new Error('Vault data unavailable');
+      if(!Array.isArray(data.goals)) data.goals = [];
+      if(!data._nextId) data._nextId = 1;
+      if(!data._nextSubId) data._nextSubId = 1;
+      var goalFilterProjectEl = (typeof goalFilterProject !== 'undefined' && goalFilterProject) || document.getElementById('goal-filter-project');
+      var projectHelpers = getActionProjectHelpers();
+      var projects = projectHelpers.ensureProjects(data.projects || []);
+      var requestedProject = String(normalizedTask.projectId || normalizedTask.project || normalizedTask.projectName || normalizedTask.projectKey || '').trim();
+      var fallbackProjectId = (goalFilterProjectEl && goalFilterProjectEl.value) || projectHelpers.getDefaultProjectId(projects);
+      var matchedProject = projectHelpers.matchProject(projects, requestedProject, fallbackProjectId, !!requestedProject);
+      console.log('[Joey task] Parsed request', {
+        mode: currentVaultMode,
+        requestedProject: requestedProject,
+        fallbackProjectId: fallbackProjectId,
+        matchedProjectId: matchedProject && matchedProject.id,
+        matchedProjectKey: matchedProject && matchedProject.key,
+        summary: normalizedTask.summary
+      });
+      if(requestedProject && !matchedProject){
+        showJoeyStatusToast('Project not found for task: ' + requestedProject, 'warn');
+        return { ok:false, reason:'project-not-found', requestedProject:requestedProject, task:normalizedTask };
+      }
+      if(!matchedProject){
+        showJoeyStatusToast('No active project available for task creation.', 'warn');
+        return { ok:false, reason:'no-project', task:normalizedTask };
+      }
+      var displayProject = projectHelpers.projectDisplay(matchedProject) || matchedProject;
+      if(matchedProject && matchedProject.archived){
+        showJoeyStatusToast('Project "' + displayProject.name + '" is archived. Restore it before adding tasks there.', 'warn');
+        return { ok:false, reason:'archived-project', projectId:matchedProject.id, task:normalizedTask };
+      }
+      var customFields = mapGoalCustomFieldsForProject(matchedProject, normalizedTask.customFields || {});
+      var subtasks = [];
+      if(normalizedTask.subtasks && Array.isArray(normalizedTask.subtasks)){
+        normalizedTask.subtasks.forEach(function(st){
+          var stObj = typeof st === 'string' ? { text: st } : (st || {});
+          subtasks.push({
+            id: data._nextSubId++,
+            text: stObj.text || stObj.summary || stObj.title || 'Subtask',
+            done: false,
+            effort: stObj.effort || '',
+            due: stObj.due || '',
+            notes: stObj.notes || stObj.description || stObj.desc || '',
+            attachments: []
+          });
+        });
+      }
+      var taskNotes = normalizedTask.notes || normalizedTask.description || normalizedTask.desc || '';
+      var task = {
+        id: data._nextId++,
+        projectId: matchedProject.id,
+        summary: normalizedTask.summary || normalizedTask.title || 'New Task',
+        desc: taskNotes,
+        notes: taskNotes,
+        due: normalizedTask.due || '',
+        priority: normalizedTask.priority || '',
+        reporter: '',
+        assignee: '',
+        labels: normalizedTask.labels || [],
+        col: 'todo',
+        subtasks: subtasks,
+        attachments: [],
+        comments: [],
+        customFields: customFields,
+        log: [{action:'Task created by Joey in ' + displayProject.name, ts:Date.now()}]
+      };
+      data.goals.push(task);
+      return window._homerSaveVault(data).then(function(){
+        rememberRecentTask({ projectId: matchedProject.id, summary: task.summary });
+        if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('joey-task', 900);
+        try{ window.dispatchEvent(new Event('vault-goals-changed')); }catch(e){}
+        showJoeyStatusToast('Task added to ' + displayProject.name + ': ' + task.summary, 'success');
+        if(typeof populateProjectControls === 'function'){
+          populateProjectControls(data.projects || [], data.goals || [], {
+            selectedFilter: matchedProject.id,
+            preferredTaskProject: matchedProject.id
+          });
+        }
+        renderGoals(data.goals || [], data.projects || []);
+        if(typeof renderProjectDashboard === 'function') renderProjectDashboard(data);
+        if(typeof renderVault === 'function') renderVault();
+        refreshCanonicalFiles().catch(function(){});
+        console.log('[Joey task] Saved', {
+          ok: true,
+          mode: currentVaultMode,
+          taskId: task.id,
+          projectId: matchedProject.id,
+          projectName: displayProject.name,
+          summary: task.summary
+        });
+        return {
+          ok:true,
+          mode:currentVaultMode,
+          taskId:task.id,
+          projectId:matchedProject.id,
+          projectName:displayProject.name,
+          summary:task.summary
+        };
+      });
+    }).catch(function(err){
+      console.error('[Joey task] Create failed', err);
+      showJoeyStatusToast('Task create failed: ' + (err && err.message ? err.message : err), 'warn');
+      return { ok:false, reason:'error', error:(err && err.message ? err.message : String(err || 'Unknown error')), task:normalizedTask };
+    });
+  }
+  window._homerCreateAgentTask = createAgentTaskInVault;
   function getActionProjectHelpers(){
     var ensureProjectsFn = window._homerEnsureProjects || (typeof ensureProjects === 'function' ? ensureProjects : function(projects){
       return Array.isArray(projects) ? projects.slice() : [];
@@ -15960,6 +16078,9 @@ document.addEventListener("input", e => {
         if(a.type === 'TASK'){
           // Kanban board task (vault) â€” accepts JSON or plain string
           var taskData = parseTaskActionData(a.data, userText);
+          createAgentTaskInVault(taskData, { userText:userText, source:'action' });
+          notifications.push((a.inferred ? 'Kanban task inferred: ' : 'Kanban task queued: ') + (taskData.summary || taskData.title || a.data) + ((taskData.subtasks && taskData.subtasks.length) ? ' (' + taskData.subtasks.length + ' subtasks)' : '') + ((taskData.project || taskData.projectId) ? ' -> ' + (taskData.project || taskData.projectId) : ''));
+          return;
           if(shouldSkipRecentTask(taskData)) return;
           if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
             window._homerLoadVault().then(function(data){
@@ -16749,7 +16870,7 @@ document.addEventListener("input", e => {
     inputEl.style.height = 'auto';
     scrollMessagesToBottom(true);
     if(directTaskRequest && currentProvider === 'joey'){
-      executeActions('[ACTION:TASK]' + JSON.stringify(directTaskRequest) + '[/ACTION]', displayText);
+      createAgentTaskInVault(directTaskRequest, { userText:displayText, source:'direct-user' });
     }
 
     if(currentProvider === 'joey'){
