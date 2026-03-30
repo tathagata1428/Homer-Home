@@ -15142,7 +15142,9 @@ window._homerAmbientAudio = {
   if(modeWorkBtn) modeWorkBtn.addEventListener('click', function(){ applyContextMode('work'); });
 
   function joeyActionUrl(action, passphrase, modeOverride){
-    var activeMode = modeOverride === 'work' ? 'work' : 'personal';
+    var activeMode = modeOverride === 'work'
+      ? 'work'
+      : ((modeOverride === 'personal' ? 'personal' : currentContextMode) === 'work' ? 'work' : 'personal');
     var url = '/api/joey?action=' + encodeURIComponent(action) + '&mode=' + encodeURIComponent(activeMode);
     if(passphrase) url += '&passphrase=' + encodeURIComponent(passphrase);
     return url;
