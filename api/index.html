@@ -6316,6 +6316,173 @@ window._homerAmbientAudio = {
       '- If no project is specified, default to the currently selected project; if none is selected, use the first active project.';
   }
   window._homerBuildJoeyProjectInstruction = buildJoeyProjectInstruction;
+  function normalizeAgentUiSearch(value){
+    return String(value == null ? '' : value).toLowerCase().replace(/[^a-z0-9]+/g, '');
+  }
+  function getAgentUiSurface(el){
+    var node = el && el.closest ? el.closest('section[id], .vault-ov[id], .goals-overlay[id], .issue-overlay[id], .focus-overlay[id], [id]') : null;
+    if(!node) return 'global';
+    return String(node.id || node.getAttribute('data-tab') || node.tagName || 'global')
+      .replace(/^tab-/, '')
+      .replace(/-overlay$/, '')
+      .replace(/-/g, ' ');
+  }
+  function getAgentUiAssociatedLabel(el){
+    if(!el || !el.id) return '';
+    try{
+      var label = document.querySelector('label[for="' + CSS.escape(el.id) + '"]');
+      if(label) return String(label.textContent || '').replace(/\s+/g, ' ').trim();
+    }catch(_e){}
+    return '';
+  }
+  function getAgentUiControlLabel(el){
+    if(!el) return '';
+    var text = '';
+    var associatedLabel = getAgentUiAssociatedLabel(el);
+    if(el.tagName === 'SELECT'){
+      text = (associatedLabel || el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('placeholder') || el.id || el.name || '');
+    } else if(el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'){
+      text = associatedLabel || el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('placeholder') || el.id || el.name || '';
+    } else {
+      text = el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || el.id || '';
+    }
+    return String(text || '').replace(/\s+/g, ' ').trim();
+  }
+  function isAgentUiElementVisible(el){
+    if(!el || !el.getBoundingClientRect) return false;
+    var style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+    if(style && (style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none')) return false;
+    if(el.hidden) return false;
+    var rect = el.getBoundingClientRect();
+    return !!(rect.width || rect.height || el.getClientRects().length);
+  }
+  function shouldExposeAgentField(el){
+    if(!el || !el.matches) return false;
+    if(el.matches('input[type="hidden"], input[type="password"], input[type="file"], input[type="button"], input[type="submit"], input[type="reset"]')) return false;
+    if(el.disabled) return false;
+    return !!getAgentUiControlLabel(el);
+  }
+  function shouldExposeAgentButton(el){
+    if(!el || !el.matches) return false;
+    if(el.disabled) return false;
+    return !!getAgentUiControlLabel(el);
+  }
+  function collectAgentUiInventory(){
+    var seen = {};
+    var lines = [];
+    function pushLine(kind, el){
+      var label = getAgentUiControlLabel(el);
+      if(!label) return;
+      var surface = getAgentUiSurface(el);
+      var id = String(el.id || '').trim();
+      var key = kind + '|' + normalizeAgentUiSearch(label) + '|' + surface + '|' + id;
+      if(seen[key]) return;
+      seen[key] = true;
+      var type = '';
+      if(kind === 'field'){
+        if(el.tagName === 'SELECT') type = 'select';
+        else if(el.tagName === 'TEXTAREA') type = 'textarea';
+        else if(el.isContentEditable) type = 'contenteditable';
+        else type = String(el.type || 'input').toLowerCase();
+      }
+      lines.push('- [' + surface + '] ' + kind + ' "' + label + '"' + (id ? ' (#' + id + ')' : '') + (type ? ' {' + type + '}' : ''));
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('button, [role="button"], a.btn, .tab-btn, .sb-item, .mnav-btn'), function(el){
+      if(shouldExposeAgentButton(el)) pushLine('button', el);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('input, textarea, select, [contenteditable=""], [contenteditable="true"]'), function(el){
+      if(shouldExposeAgentField(el)) pushLine('field', el);
+    });
+    return lines.slice(0, 160);
+  }
+  function buildAgentElementTokens(el){
+    var tokens = [];
+    var label = getAgentUiControlLabel(el);
+    var attrs = [
+      label,
+      getAgentUiAssociatedLabel(el),
+      getAgentUiSurface(el),
+      el && el.id,
+      el && el.getAttribute && el.getAttribute('aria-label'),
+      el && el.getAttribute && el.getAttribute('title'),
+      el && el.getAttribute && el.getAttribute('placeholder'),
+      el && el.getAttribute && el.getAttribute('name'),
+      el && el.getAttribute && el.getAttribute('data-tab'),
+      el && el.value
+    ];
+    attrs.forEach(function(value){
+      var normalized = normalizeAgentUiSearch(value);
+      if(normalized && tokens.indexOf(normalized) < 0) tokens.push(normalized);
+    });
+    return tokens;
+  }
+  function scoreAgentElementMatch(el, rawTarget){
+    var target = normalizeAgentUiSearch(rawTarget);
+    if(!target) return 0;
+    var score = 0;
+    buildAgentElementTokens(el).forEach(function(token){
+      if(token === target) score = Math.max(score, 120);
+      else if(token.indexOf(target) >= 0) score = Math.max(score, 90);
+      else if(target.indexOf(token) >= 0) score = Math.max(score, 70);
+    });
+    if(score && isAgentUiElementVisible(el)) score += 5;
+    return score;
+  }
+  function findAgentUiElement(target, kind){
+    var selector = kind === 'field'
+      ? 'input, textarea, select, [contenteditable=""], [contenteditable="true"]'
+      : 'button, [role="button"], a.btn, .tab-btn, .sb-item, .mnav-btn';
+    var filter = kind === 'field' ? shouldExposeAgentField : shouldExposeAgentButton;
+    var bestVisible = null;
+    var bestVisibleScore = 0;
+    var bestHidden = null;
+    var bestHiddenScore = 0;
+    Array.prototype.forEach.call(document.querySelectorAll(selector), function(el){
+      if(!filter(el)) return;
+      var score = scoreAgentElementMatch(el, target);
+      if(!score) return;
+      if(isAgentUiElementVisible(el)){
+        if(score > bestVisibleScore){
+          bestVisible = el;
+          bestVisibleScore = score;
+        }
+      } else if(score > bestHiddenScore){
+        bestHidden = el;
+        bestHiddenScore = score;
+      }
+    });
+    return bestVisibleScore >= 70 ? bestVisible : (bestHiddenScore >= 70 ? bestHidden : null);
+  }
+  function setAgentFieldValue(el, value){
+    if(!el) return false;
+    var nextValue = String(value == null ? '' : value);
+    if(el.tagName === 'SELECT'){
+      var wanted = normalizeAgentUiSearch(nextValue);
+      var matched = false;
+      Array.prototype.forEach.call(el.options || [], function(option){
+        if(matched) return;
+        var optionValue = normalizeAgentUiSearch(option.value);
+        var optionText = normalizeAgentUiSearch(option.textContent);
+        if(optionValue === wanted || optionText === wanted || optionValue.indexOf(wanted) >= 0 || optionText.indexOf(wanted) >= 0){
+          el.value = option.value;
+          matched = true;
+        }
+      });
+      if(!matched) return false;
+    } else if(el.type === 'checkbox'){
+      el.checked = /^(1|true|yes|on|checked)$/i.test(nextValue);
+    } else if(el.type === 'radio'){
+      el.checked = /^(1|true|yes|on|checked)$/i.test(nextValue) || normalizeAgentUiSearch(el.value) === normalizeAgentUiSearch(nextValue);
+    } else if(el.isContentEditable || el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === ''){
+      el.textContent = nextValue;
+    } else if(typeof writePersistentFieldValue === 'function'){
+      writePersistentFieldValue(el, nextValue);
+    } else {
+      el.value = nextValue;
+    }
+    if(typeof dispatchPersistentFieldSyncEvents === 'function') dispatchPersistentFieldSyncEvents(el);
+    return true;
+  }
   function buildJoeyWebsiteInstruction(){
     var mode = (typeof currentContextMode !== 'undefined' && currentContextMode === 'work')
       ? 'work'
@@ -6339,6 +6506,7 @@ window._homerAmbientAudio = {
     var focusLine = focusState
       ? ('- Focus Lab live state: breathing ' + (focusState.breathingRunning ? ('running (' + focusState.breathingPhase + ')') : 'stopped') + ' | zen ' + (focusState.zenActive ? ('active with goal "' + focusState.zenGoal + '"') : 'inactive') + ' | brain dump chars: ' + focusState.brainDumpLength + '.\n')
       : '';
+    var uiInventory = collectAgentUiInventory();
     return '\n\n=== WEBSITE MAP ===\n' +
       '- Tabs: home, pomodoro, focuslab, investing, tools, links, news, vault.\n' +
       '- Focus Lab includes box breathing, zen mode, and brain dump.\n' +
@@ -6389,9 +6557,15 @@ window._homerAmbientAudio = {
       '  [ACTION:COMMAND]{"op":"zen-stop"}[/ACTION]\n' +
       '  [ACTION:COMMAND]{"op":"breathing-start"}[/ACTION]\n' +
       '  [ACTION:COMMAND]{"op":"breathing-stop"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"click","target":"Play Jazz"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"set-field","target":"brain-dump","value":"Raw notes"}[/ACTION]\n' +
       '- COMMAND target values for open: notes, secrets, projects, kanban, goals.\n' +
       '- COMMAND target values for sound-play: ocean, fire, rain, jazz, cafe, lofi, wind, synthwave.\n' +
       '- COMMAND target values for sound-mix: sleep, rainy, reading, cozy.\n' +
+      '- Generic COMMAND click can target a button by visible text, aria-label, or id.\n' +
+      '- Generic COMMAND set-field can target an input, textarea, select, or contenteditable by placeholder, label text, name, or id.\n' +
+      '\n=== UI INVENTORY ===\n' +
+      (uiInventory.length ? uiInventory.join('\n') + '\n' : '- No UI inventory available.\n') +
       '- If a command requires the vault to be unlocked and it is locked, explain that instead of pretending it succeeded.\n';
   }
   window._homerBuildJoeyWebsiteInstruction = buildJoeyWebsiteInstruction;
@@ -16333,6 +16507,18 @@ window._homerAmbientAudio = {
         return { op:'sound-stop', target: stopTarget };
       }
     }
+    var genericSet = body.match(/^(?:set|fill|write|type|enter|update|change)\s+(.+?)\s+(?:to|with|as)\s+(.+)$/i);
+    if(genericSet){
+      return {
+        op:'set-field',
+        target: clampAgentText(genericSet[1] || '', 120),
+        value: clampAgentText(genericSet[2] || '', 4000)
+      };
+    }
+    var genericClick = body.match(/^(?:click|press|tap)\s+(.+)$/i);
+    if(genericClick){
+      return { op:'click', target: clampAgentText(genericClick[1] || '', 120) };
+    }
     return null;
   }
   function inferDirectNoteRequest(text){
@@ -16399,6 +16585,7 @@ window._homerAmbientAudio = {
     options = options || {};
     var cmd = String(commandData && (commandData.op || commandData.command) || '').trim().toLowerCase();
     var cmdTarget = String(commandData && (commandData.target || commandData.surface || commandData.tab || commandData.goal) || '').trim().toLowerCase();
+    var rawTarget = String(commandData && (commandData.target || commandData.surface || commandData.tab || commandData.goal || commandData.label || commandData.id) || '').trim();
     if(cmd === 'tab'){
       if(typeof window._homerShowTab === 'function'){
         window._homerShowTab(cmdTarget || 'home');
@@ -16538,6 +16725,37 @@ window._homerAmbientAudio = {
         return { ok:true, message:'Breathing stopped' };
       }
       return { ok:false, message:'Breathing command unavailable' };
+    }
+    if(cmd === 'click'){
+      var clickable = findAgentUiElement(rawTarget, 'button');
+      if(!clickable) return { ok:false, message:'Control not found: ' + (rawTarget || 'unknown') };
+      try{
+        if(typeof clickable.scrollIntoView === 'function') clickable.scrollIntoView({ block:'center', inline:'center' });
+      }catch(_e){}
+      try{
+        if(typeof clickable.focus === 'function') clickable.focus();
+      }catch(_e){}
+      try{
+        clickable.click();
+        return { ok:true, message:'Clicked ' + (getAgentUiControlLabel(clickable) || rawTarget || 'control') };
+      }catch(err){
+        return { ok:false, message:'Click failed: ' + (err && err.message ? err.message : err) };
+      }
+    }
+    if(cmd === 'set-field' || cmd === 'fill' || cmd === 'write'){
+      var field = findAgentUiElement(rawTarget, 'field');
+      var nextValue = String(commandData && (commandData.value || commandData.text || commandData.content) || '');
+      if(!field) return { ok:false, message:'Field not found: ' + (rawTarget || 'unknown') };
+      try{
+        if(typeof field.scrollIntoView === 'function') field.scrollIntoView({ block:'center', inline:'center' });
+      }catch(_e){}
+      try{
+        if(typeof field.focus === 'function') field.focus();
+      }catch(_e){}
+      if(!setAgentFieldValue(field, nextValue)){
+        return { ok:false, message:'Field update failed: ' + (getAgentUiControlLabel(field) || rawTarget || 'unknown') };
+      }
+      return { ok:true, message:'Updated ' + (getAgentUiControlLabel(field) || rawTarget || 'field') };
     }
     return { ok:false, message:'Unsupported command: ' + (cmd || 'unknown') };
   }
