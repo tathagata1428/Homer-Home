@@ -4291,7 +4291,12 @@ function renderQuote(q) {
                 updateBrainDump: function(text){
                     var nextText = String(text == null ? '' : text);
                     localStorage.setItem('homer-brain-dump', nextText);
-                    if(txtDump) txtDump.value = nextText;
+                    if(txtDump){
+                        if(typeof writePersistentFieldValue === 'function') writePersistentFieldValue(txtDump, nextText);
+                        else txtDump.value = nextText;
+                        if(typeof savePersistentFieldDraft === 'function') savePersistentFieldDraft(txtDump);
+                        if(typeof dispatchPersistentFieldSyncEvents === 'function') dispatchPersistentFieldSyncEvents(txtDump);
+                    }
                     if(dumpStatus) dumpStatus.textContent = "Saved";
                     return true;
                 },
