@@ -16110,9 +16110,6 @@ document.addEventListener("input", e => {
       actions.push({type: match[1], data: match[2].trim()});
     }
     var inferredTask = inferTaskActionFromUserText(userText);
-    if(inferredTask && !actions.some(function(action){ return action.type === 'TASK'; })){
-      actions.push({type:'TASK', data:JSON.stringify(inferredTask), inferred:true});
-    }
     if(!actions.length) return text;
 
     var notifications = [];
@@ -16120,6 +16117,7 @@ document.addEventListener("input", e => {
       try{
         if(a.type === 'TASK'){
           // Kanban board task (vault) â€” accepts JSON or plain string
+          if(inferredTask && !a.inferred) return;
           var taskData = parseTaskActionData(a.data, userText);
           createAgentTaskInVault(taskData, { userText:userText, source:'action' });
           notifications.push((a.inferred ? 'Kanban task inferred: ' : 'Kanban task queued: ') + (taskData.summary || taskData.title || a.data) + ((taskData.subtasks && taskData.subtasks.length) ? ' (' + taskData.subtasks.length + ' subtasks)' : '') + ((taskData.project || taskData.projectId) ? ' -> ' + (taskData.project || taskData.projectId) : ''));
