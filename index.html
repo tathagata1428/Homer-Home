@@ -11697,6 +11697,20 @@ document.addEventListener("input", e => {
     safeUpdateVaultSyncBadge();
     requestSyncFieldLabelUpdate();
   }
+  function tryStoreSyncValue(key, value){
+    try{
+      origSetItem(key, value);
+      return true;
+    }catch(e){
+      var isQuota = e && (e.name === 'QuotaExceededError' || /quota/i.test(e.message || ''));
+      if(isQuota && String(key || '').indexOf(JOEY_BUNDLE_PREFIX) === 0){
+        try{ origRemoveItem(key); }catch(_){}
+        console.warn('[CloudSync] Skipped oversized Joey bundle cache for', key);
+        return false;
+      }
+      throw e;
+    }
+  }
   function getJoeyBundleKey(mode){
     return JOEY_BUNDLE_PREFIX + (mode === 'work' ? 'work' : 'personal');
   }
@@ -12743,8 +12757,7 @@ document.addEventListener("input", e => {
       if(IDB_KEYS.indexOf(key) >= 0){
         idbTasks.push(syncIdbSet(key, snapshot[key]));
         applied++;
-      } else {
-        origSetItem(key, snapshot[key]);
+      } else if(tryStoreSyncValue(key, snapshot[key])){
         applied++;
       }
     });
@@ -13670,7 +13683,7 @@ document.addEventListener("input", e => {
             if(IDB_KEYS.indexOf(k) >= 0){
               idbWrites.push(syncIdbSet(k, d.data[k]));
             } else {
-              localStorage.setItem(k, d.data[k]);
+              tryStoreSyncValue(k, d.data[k]);
             }
           });
           return Promise.all(idbWrites).then(function(){
@@ -15778,6 +15791,20 @@ document.addEventListener("input", e => {
     if(!raw) return null;
     if(!/\b(?:create|add|save|track|put|make|turn)\b/i.test(raw)) return null;
     if(!/\b(?:task|todo|to-?do|card|issue)\b/i.test(raw)) return null;
+    var remainder = raw.replace(/^\s*(?:please\s+)?(?:create|add|save|track|put|make)\s+(?:me\s+|this\s+|a\s+|an\s+)?(?:new\s+)?(?:task|todo|to-?do|card|issue)\b/i, '').trim();
+    var remainderProjectMatch = remainder.match(/^(?:in|into|under|for)\s+(?:the\s+)?project\s+["â€œ]?([^,"\n]+?)["â€]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
+    if(remainderProjectMatch){
+      var inferredProject = String(remainderProjectMatch[1] || '').trim();
+      var inferredSummary = remainder.slice(remainderProjectMatch[0].length).trim().replace(/^[,:-]\s*/, '');
+      inferredSummary = inferredSummary.replace(/^\s*(?:for|to)\s+/i, '').trim();
+      if(inferredSummary && inferredSummary.length >= 3){
+        return {
+          project: inferredProject,
+          summary: inferredSummary,
+          notes: inferredSummary
+        };
+      }
+    }
     var project = '';
     var projectMatch = raw.match(/\b(?:in|into|under|for)\s+(?:the\s+)?project\s+["“]?([^,"\n]+?)["”]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
     if(projectMatch) project = String(projectMatch[1] || '').trim();
@@ -15879,6 +15906,7 @@ document.addEventListener("input", e => {
               window._homerSaveVault(data).then(function(){
                 if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('joey-task', 900);
                 try{ window.dispatchEvent(new Event('vault-goals-changed')); }catch(e){}
+                showJoeyStatusToast('Task added to ' + displayProject.name + ': ' + task.summary, 'success');
                 if(goalFilterProject && (goalFilterProject.value === '' || goalFilterProject.value === matchedProject.id)){
                   renderGoals(data.goals || [], data.projects || []);
                 }
