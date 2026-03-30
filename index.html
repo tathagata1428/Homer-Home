@@ -4134,36 +4134,32 @@ function renderQuote(q) {
         zenInput.addEventListener('input', function(){ localStorage.setItem('homer-zen-goal', zenInput.value); });
     }
 
+    function startZenMode(goalText){
+        if(!zenOverlay) return false;
+        const goal = String(goalText || (zenInput && zenInput.value) || '').trim() || "FOCUS";
+        if(zenText) zenText.textContent = goal;
+        localStorage.setItem('homer-zen-goal', goal);
+        if(zenInput) zenInput.value = goal;
+        document.body.classList.add("zen-active");
+        zenOverlay.style.display = "flex";
+        if(document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(function(e){ console.log(e); });
+        }
+        return true;
+    }
+    function stopZenMode(){
+        if(!zenOverlay) return false;
+        document.body.classList.remove("zen-active");
+        zenOverlay.style.display = "none";
+        if(document.exitFullscreen) {
+            document.exitFullscreen().catch(function(e){ console.log(e); });
+        }
+        return true;
+    }
+
     if(zenBtn && zenOverlay) {
-        zenBtn.addEventListener("click", () => {
-            const goal = zenInput.value.trim() || "FOCUS";
-            zenText.textContent = goal;
-            localStorage.setItem('homer-zen-goal', zenInput.value);
-
-            // Add class to body to hide everything else via CSS
-            document.body.classList.add("zen-active");
-
-            // Show overlay
-            zenOverlay.style.display = "flex";
-
-            // Fullscreen
-            if(document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen().catch(e => console.log(e));
-            }
-        });
-
-        zenExit.addEventListener("click", () => {
-            // Remove class to restore everything
-            document.body.classList.remove("zen-active");
-
-            // Hide overlay
-            zenOverlay.style.display = "none";
-
-            // Exit fullscreen
-            if(document.exitFullscreen) {
-                document.exitFullscreen().catch(e => console.log(e));
-            }
-        });
+        zenBtn.addEventListener("click", function(){ startZenMode(); });
+        zenExit.addEventListener("click", function(){ stopZenMode(); });
     }
 
     // Brain Dump
@@ -4192,7 +4188,9 @@ function renderQuote(q) {
         function renderBreathingContent(label, glyph){
             boxCircle.innerHTML = '<div class="breath-inner"><span class="breath-label">' + label + '</span><span class="breath-glyph">' + glyph + '</span></div>';
         }
-        function applyBreathingPhase(phase){
+        let bCurrentPhase = -1;
+        function applyBreathingPhase(phase, phaseIndex){
+            bCurrentPhase = typeof phaseIndex === 'number' ? phaseIndex : bCurrentPhase;
             boxCircle.className = "breathing-circle";
             renderBreathingContent(phase.label, phase.glyph || '');
             boxCircle.style.setProperty('--breath-duration', BREATH_PHASE_MS + 'ms');
@@ -4217,6 +4215,90 @@ function renderQuote(q) {
             }
         });
         renderBreathingContent("Ready", "•");
+    }
+    if(btnBox && boxCircle) {
+        const AGENT_BREATH_PHASES = [
+            { label:"Inhale", className:"b-inhale", glyph:"â†‘" },
+            { label:"Hold", className:"b-hold", glyph:"â¸" },
+            { label:"Exhale", className:"b-exhale", glyph:"â†“" },
+            { label:"Hold", className:"b-hold", glyph:"â¸" }
+        ];
+        let agentBreathPhase = -1;
+        var liveBtn = document.getElementById("b-toggle");
+        if(liveBtn && liveBtn.parentNode) {
+            var cleanBtn = liveBtn.cloneNode(true);
+            liveBtn.parentNode.replaceChild(cleanBtn, liveBtn);
+            function renderAgentBreathingContent(label, glyph){
+                boxCircle.innerHTML = '<div class="breath-inner"><span class="breath-label">' + label + '</span><span class="breath-glyph">' + glyph + '</span></div>';
+            }
+            function applyAgentBreathingPhase(phase, phaseIndex){
+                agentBreathPhase = typeof phaseIndex === 'number' ? phaseIndex : agentBreathPhase;
+                boxCircle.className = "breathing-circle";
+                renderAgentBreathingContent(phase.label, phase.glyph || '');
+                boxCircle.style.setProperty('--breath-duration', '4000ms');
+                void boxCircle.offsetWidth;
+                boxCircle.classList.add(phase.className);
+            }
+            function stopBreathing(){
+                if(bInterval) {
+                    clearInterval(bInterval);
+                    bInterval = null;
+                }
+                agentBreathPhase = -1;
+                cleanBtn.textContent = "Start Breathing";
+                boxCircle.className = "breathing-circle";
+                renderAgentBreathingContent("Ready", "â€¢");
+                return true;
+            }
+            function startBreathing(){
+                if(bInterval) return true;
+                cleanBtn.textContent = "Stop";
+                bStep = 0;
+                const cycle = function() {
+                    applyAgentBreathingPhase(AGENT_BREATH_PHASES[bStep], bStep);
+                    bStep = (bStep + 1) % AGENT_BREATH_PHASES.length;
+                };
+                cycle();
+                bInterval = setInterval(cycle, 4000);
+                return true;
+            }
+            cleanBtn.addEventListener("click", function() {
+                if(bInterval) stopBreathing();
+                else startBreathing();
+            });
+            window._homerFocusLabAgent = {
+                getState: function(){
+                    var savedGoal = localStorage.getItem('homer-zen-goal') || '';
+                    var brainDump = localStorage.getItem('homer-brain-dump') || '';
+                    var phase = agentBreathPhase >= 0 ? AGENT_BREATH_PHASES[agentBreathPhase] : null;
+                    return {
+                        zenActive: !!(zenOverlay && zenOverlay.style.display === 'flex' && document.body.classList.contains('zen-active')),
+                        zenGoal: savedGoal,
+                        breathingRunning: !!bInterval,
+                        breathingPhase: phase ? phase.label : 'Ready',
+                        brainDumpLength: brainDump.trim().length
+                    };
+                },
+                startZen: startZenMode,
+                stopZen: stopZenMode,
+                setZenGoal: function(text){
+                    var goal = String(text || '').trim();
+                    localStorage.setItem('homer-zen-goal', goal);
+                    if(zenInput) zenInput.value = goal;
+                    if(zenText && document.body.classList.contains('zen-active')) zenText.textContent = goal || 'FOCUS';
+                    return true;
+                },
+                updateBrainDump: function(text){
+                    var nextText = String(text == null ? '' : text);
+                    localStorage.setItem('homer-brain-dump', nextText);
+                    if(txtDump) txtDump.value = nextText;
+                    if(dumpStatus) dumpStatus.textContent = "Saved";
+                    return true;
+                },
+                startBreathing: startBreathing,
+                stopBreathing: stopBreathing
+            };
+        }
     }
   </script>
 
@@ -4476,6 +4558,41 @@ function renderQuote(q) {
         updateTime(); updateRing(); updateMeta();
       });
 
+      window._homerPomodoroAgent = {
+        getState: function(){
+          var total = durFor(state.mode);
+          var remaining = state.remaining;
+          if(state.running && state.endTime){
+            remaining = Math.max(0, Math.floor((state.endTime - Date.now()) / 1000));
+          }
+          var openTasks = loadTasks().filter(function(task){ return !task.done; });
+          return {
+            mode: state.mode,
+            running: !!state.running,
+            remaining: remaining,
+            remainingLabel: Math.floor(remaining / 60).toString().padStart(2, '0') + ':' + Math.floor(remaining % 60).toString().padStart(2, '0'),
+            totalSeconds: total,
+            pomodoros: state.pomodoros,
+            cycle: (state.pomodoros % settings.longEvery) + 1,
+            openTasks: openTasks.length,
+            activeTask: openTasks[0] ? openTasks[0].text : ''
+          };
+        },
+        start: start,
+        pause: pause,
+        reset: reset,
+        skip: skip,
+        addTask: function(text){
+          var taskText = String(text || '').trim();
+          if(!taskText) return false;
+          var list = loadTasks();
+          list.unshift({ text: taskText, done: false, ts: Date.now() });
+          saveTasks(list);
+          renderTasks();
+          return true;
+        }
+      };
+
       renderTasks()
     });
   </script>
@@ -4732,6 +4849,94 @@ document.addEventListener("input", e => {
     if (e.target.id === tracks[k].vol) setVolume(k, +e.target.value);
   });
 });
+
+const trackAliases = {
+  ocean: 'ocean',
+  fire: 'fire',
+  fireplace: 'fire',
+  rain: 'rain',
+  jazz: 'rainywindow',
+  rainywindow: 'rainywindow',
+  cafe: 'cafe',
+  caf: 'cafe',
+  lofi: 'lofi',
+  'lo-fi': 'lofi',
+  wind: 'wind',
+  synthwave: 'synthwave',
+  weightless: 'weightless'
+};
+const ambientMixes = {
+  sleep: [{k:'fire',vol:40}, {k:'rain',vol:60}],
+  rainy: [{k:'rain',vol:70}, {k:'ocean',vol:40}],
+  reading: [{k:'lofi',vol:50}, {k:'fire',vol:10}, {k:'wind',vol:10}, {k:'rain',vol:10}],
+  cozy: [{k:'fire',vol:40}, {k:'rain',vol:40}, {k:'rainywindow',vol:30}]
+};
+function resolveTrackKey(name) {
+  var normalized = String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  return trackAliases[normalized] || '';
+}
+function ensureTrackPlaying(key, volume) {
+  var t = tracks[key];
+  if(!t) return false;
+  t.isPlaying = true;
+  if(t.btn){
+    var btnEl = document.getElementById(t.btn);
+    if(btnEl) btnEl.textContent = t.labelPause;
+  }
+  if(t.vol && volume != null){
+    var volEl = document.getElementById(t.vol);
+    if(volEl) volEl.value = volume;
+  }
+  if(!t.player){
+    createPlayer(key);
+    return true;
+  }
+  if(typeof t.player.setVolume === 'function' && volume != null) t.player.setVolume(volume);
+  if(typeof t.player.playVideo === 'function') t.player.playVideo();
+  return true;
+}
+function stopTrackByKey(key) {
+  var t = tracks[key];
+  if(!t) return false;
+  t.isPlaying = false;
+  if(t.player && typeof t.player.pauseVideo === 'function') t.player.pauseVideo();
+  if(t.btn){
+    var btnEl = document.getElementById(t.btn);
+    if(btnEl) btnEl.textContent = t.labelPlay;
+  }
+  return true;
+}
+window._homerAmbientAudio = {
+  getState: function(){
+    var activeTracks = Object.keys(tracks).filter(function(key){ return tracks[key].isPlaying; }).map(function(key){
+      var track = tracks[key];
+      var volume = track.vol ? Number((document.getElementById(track.vol) || {}).value || 0) : 0;
+      return { key:key, volume:volume };
+    });
+    return {
+      activeTracks: activeTracks,
+      availableTracks: Object.keys(trackAliases).filter(function(key, index, list){ return list.indexOf(key) === index; }),
+      availableMixes: Object.keys(ambientMixes)
+    };
+  },
+  playTrack: function(name, volume){
+    var key = resolveTrackKey(name);
+    if(!key) return false;
+    return ensureTrackPlaying(key, volume == null ? null : Number(volume));
+  },
+  stopTrack: function(name){
+    var key = resolveTrackKey(name);
+    if(!key) return false;
+    return stopTrackByKey(key);
+  },
+  stopAll: stopAll,
+  playMix: function(name){
+    var key = String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    if(!ambientMixes[key]) return false;
+    playMix(ambientMixes[key]);
+    return true;
+  }
+};
 </script>
 <script src="https://www.youtube.com/iframe_api"></script>
 
@@ -6116,10 +6321,31 @@ document.addEventListener("input", e => {
       ? 'work'
       : (((localStorage.getItem('homer-oc-mode') || localStorage.getItem('homer-vault-mode')) === 'work') ? 'work' : 'personal');
     var vaultMode = typeof window._homerGetVaultMode === 'function' ? window._homerGetVaultMode() : mode;
+    var pomodoroState = typeof window._homerPomodoroAgent === 'object' && window._homerPomodoroAgent && typeof window._homerPomodoroAgent.getState === 'function'
+      ? window._homerPomodoroAgent.getState()
+      : null;
+    var soundState = typeof window._homerAmbientAudio === 'object' && window._homerAmbientAudio && typeof window._homerAmbientAudio.getState === 'function'
+      ? window._homerAmbientAudio.getState()
+      : null;
+    var focusState = typeof window._homerFocusLabAgent === 'object' && window._homerFocusLabAgent && typeof window._homerFocusLabAgent.getState === 'function'
+      ? window._homerFocusLabAgent.getState()
+      : null;
+    var pomodoroLine = pomodoroState
+      ? ('- Pomodoro live state: ' + (pomodoroState.running ? 'running ' : 'idle ') + pomodoroState.mode + ' | remaining ' + pomodoroState.remainingLabel + ' | active focus task: ' + (pomodoroState.activeTask || 'none') + ' | open quick tasks: ' + pomodoroState.openTasks + '.\n')
+      : '';
+    var soundLine = soundState
+      ? ('- Ambient sound live state: ' + (soundState.activeTracks.length ? soundState.activeTracks.map(function(track){ return track.key + ' ' + track.volume + '%'; }).join(', ') : 'nothing playing') + '.\n')
+      : '';
+    var focusLine = focusState
+      ? ('- Focus Lab live state: breathing ' + (focusState.breathingRunning ? ('running (' + focusState.breathingPhase + ')') : 'stopped') + ' | zen ' + (focusState.zenActive ? ('active with goal "' + focusState.zenGoal + '"') : 'inactive') + ' | brain dump chars: ' + focusState.brainDumpLength + '.\n')
+      : '';
     return '\n\n=== WEBSITE MAP ===\n' +
       '- Tabs: home, pomodoro, focuslab, investing, tools, links, news, vault.\n' +
       '- Focus Lab includes box breathing, zen mode, and brain dump.\n' +
       '- Pomodoro stores quick focus tasks.\n' +
+      pomodoroLine +
+      soundLine +
+      focusLine +
       '- Links tab stores non-secret saved links.\n' +
       '- Vault contains projects/kanban, life goals, encrypted notes, private links, credentials, and sync/recovery.\n' +
       '- Joey also controls memory commit, Drive backup, Drive compare/sync, and vault mirror status.\n' +
@@ -6128,6 +6354,8 @@ document.addEventListener("input", e => {
       '- Supported action tags are TASK, GOAL, FOCUS, EVENT, REMEMBER, FORGET, PROJECT, NOTE, LINK, SECRET, and COMMAND.\n' +
       '- Only output these exact action tags. Never invent unsupported tags.\n' +
       '- If the user asks for something informational or conversational, answer normally without action tags.\n' +
+      '- If the user provides an existing issue key like APP-13, update that issue with TASK JSON using "key":"APP-13" instead of creating a new task.\n' +
+      '- Issue update format: [ACTION:TASK]{"op":"update","key":"APP-13","summary":"Updated title","notes":"Updated notes","status":"progress","priority":"high"}[/ACTION]\n' +
       '\nNOTE:\n' +
       '- Vault note format: [ACTION:NOTE]{"target":"vault","text":"Encrypted note text"}[/ACTION]\n' +
       '- Brain dump format: [ACTION:NOTE]{"target":"brain-dump","text":"Raw thoughts"}[/ACTION]\n' +
@@ -6149,7 +6377,21 @@ document.addEventListener("input", e => {
       '  [ACTION:COMMAND]{"op":"drive-backup"}[/ACTION]\n' +
       '  [ACTION:COMMAND]{"op":"memory-commit"}[/ACTION]\n' +
       '  [ACTION:COMMAND]{"op":"vault-mirror"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"issue-open","key":"APP-13"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"pomodoro-start"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"pomodoro-pause"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"pomodoro-reset"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"pomodoro-skip"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"sound-play","target":"rain"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"sound-stop","target":"rain"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"sound-mix","target":"reading"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"zen-start","target":"Deep work"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"zen-stop"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"breathing-start"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"breathing-stop"}[/ACTION]\n' +
       '- COMMAND target values for open: notes, secrets, projects, kanban, goals.\n' +
+      '- COMMAND target values for sound-play: ocean, fire, rain, jazz, cafe, lofi, wind, synthwave.\n' +
+      '- COMMAND target values for sound-mix: sleep, rainy, reading, cozy.\n' +
       '- If a command requires the vault to be unlocked and it is locked, explain that instead of pretending it succeeded.\n';
   }
   window._homerBuildJoeyWebsiteInstruction = buildJoeyWebsiteInstruction;
@@ -15868,6 +16110,63 @@ document.addEventListener("input", e => {
       notes: summary
     };
   }
+  function normalizeIssueKeyLookup(value){
+    return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9-]+/g, '');
+  }
+  function normalizeIssueColumn(value){
+    var raw = String(value || '').trim().toLowerCase();
+    if(!raw) return '';
+    raw = raw.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if(raw === 'todo' || raw === 'to do' || raw === 'open') return 'todo';
+    if(raw === 'progress' || raw === 'in progress' || raw === 'doing' || raw === 'active') return 'progress';
+    if(raw === 'pending' || raw === 'blocked' || raw === 'waiting') return 'pending';
+    if(raw === 'backlog' || raw === 'later' || raw === 'icebox') return 'backlog';
+    if(raw === 'done' || raw === 'complete' || raw === 'completed' || raw === 'closed') return 'done';
+    return '';
+  }
+  function inferDirectIssueUpdateRequest(text){
+    var raw = String(text || '').replace(/\s+/g, ' ').trim();
+    if(!raw) return null;
+    if(!/\b(?:update|edit|change|modify|move|set|rename|retitle|add)\b/i.test(raw)) return null;
+    var keyMatch = raw.match(/\b([A-Z][A-Z0-9]{1,9}-\d{1,8})\b/i);
+    if(!keyMatch) return null;
+    var result = { op:'update', key: normalizeIssueKeyLookup(keyMatch[1]) };
+    var changed = false;
+    var statusMatch = raw.match(/\b(?:move|set|change|update|edit)\s+[A-Z][A-Z0-9]{1,9}-\d{1,8}\s+(?:to|into)?\s*(?:status|column|state)?\s*(?:to|as|=)?\s*(to do|todo|open|in progress|progress|doing|pending|blocked|waiting|backlog|later|done|complete|completed|closed)\b/i)
+      || raw.match(/\b(?:status|column|state)\s+(?:to|as|=)?\s*(to do|todo|open|in progress|progress|doing|pending|blocked|waiting|backlog|later|done|complete|completed|closed)\b/i);
+    var status = normalizeIssueColumn(statusMatch && statusMatch[1]);
+    if(status){
+      result.status = status;
+      changed = true;
+    }
+    var priorityMatch = raw.match(/\bpriority\s+(?:to|as|=)?\s*(high|medium|low)\b/i);
+    if(priorityMatch){
+      result.priority = priorityMatch[1].toLowerCase();
+      changed = true;
+    }
+    var dueMatch = raw.match(/\bdue\s+(?:to|on|as|=)?\s*(\d{4}-\d{2}-\d{2})\b/i);
+    if(dueMatch){
+      result.due = dueMatch[1];
+      changed = true;
+    }
+    var renameMatch = raw.match(/\b(?:rename|retitle)\s+[A-Z][A-Z0-9]{1,9}-\d{1,8}\s+(?:to|as)?\s*(.+)$/i)
+      || raw.match(/\bsummary\s+(?:to|as|=)\s*(.+)$/i);
+    if(renameMatch){
+      result.summary = renameMatch[1].trim();
+      changed = true;
+    }
+    var notesMatch = raw.match(/\b(?:notes?|description)\s+(?:to|as|=)\s*(.+)$/i);
+    if(notesMatch){
+      result.notes = notesMatch[1].trim();
+      changed = true;
+    }
+    var subtaskMatch = raw.match(/\badd\s+(?:a\s+)?subtask\s+(?:to|for)\s+[A-Z][A-Z0-9]{1,9}-\d{1,8}\s*[:,]?\s*(.+)$/i);
+    if(subtaskMatch){
+      result.subtasks = [{ text: subtaskMatch[1].trim() }];
+      changed = true;
+    }
+    return changed ? result : null;
+  }
   function clampAgentText(value, maxLen){
     var text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
     text = text.replace(/([A-Za-z0-9@._-]{2,})(?:\/\1){3,}/g, '$1');
@@ -15892,30 +16191,36 @@ document.addEventListener("input", e => {
           }
         }
         if(!taskData){
-          taskData = inferTaskActionFromUserText(userText) || inferTaskActionFromUserText(rawText) || { summary: rawText };
+          taskData = inferDirectIssueUpdateRequest(userText) || inferDirectIssueUpdateRequest(rawText) || inferTaskActionFromUserText(userText) || inferTaskActionFromUserText(rawText) || { summary: rawText };
         }
       }
     }
     if(!taskData || typeof taskData !== 'object') taskData = { summary: rawText };
     var normalized = {
+      op: clampAgentText(taskData.op || taskData.action || (taskData.key || taskData.issueKey ? 'update' : 'create'), 24).toLowerCase(),
+      key: normalizeIssueKeyLookup(taskData.key || taskData.issueKey || taskData.issue || ''),
       project: clampAgentText(taskData.project || taskData.projectId || taskData.projectName || taskData.projectKey || '', 80),
       projectId: clampAgentText(taskData.projectId || '', 80),
       summary: clampAgentText(taskData.summary || taskData.title || '', 180),
       notes: clampAgentText(taskData.notes || taskData.description || taskData.desc || '', 700),
       due: clampAgentText(taskData.due || '', 40),
       priority: /^(high|medium|low)$/i.test(String(taskData.priority || '')) ? String(taskData.priority).toLowerCase() : '',
+      status: normalizeIssueColumn(taskData.status || taskData.col || taskData.column || taskData.state || ''),
       labels: Array.isArray(taskData.labels)
         ? taskData.labels.map(function(label){ return clampAgentText(label, 32); }).filter(Boolean).slice(0, 8)
-        : [],
+        : (typeof taskData.labels === 'string'
+          ? String(taskData.labels).split(',').map(function(label){ return clampAgentText(label, 32); }).filter(Boolean).slice(0, 8)
+          : []),
       customFields: (taskData.customFields && typeof taskData.customFields === 'object') ? taskData.customFields : {},
       subtasks: []
     };
-    var inferred = inferTaskActionFromUserText(userText) || inferTaskActionFromUserText(rawText);
+    var inferred = inferDirectIssueUpdateRequest(userText) || inferDirectIssueUpdateRequest(rawText) || inferTaskActionFromUserText(userText) || inferTaskActionFromUserText(rawText);
+    if(!normalized.key && inferred && inferred.key) normalized.key = normalizeIssueKeyLookup(inferred.key);
+    if(!normalized.status && inferred && inferred.status) normalized.status = normalizeIssueColumn(inferred.status);
     if(!normalized.project && inferred && inferred.project) normalized.project = clampAgentText(inferred.project, 80);
     if(!normalized.summary && inferred && inferred.summary) normalized.summary = clampAgentText(inferred.summary, 180);
     if(!normalized.notes && inferred && inferred.notes) normalized.notes = clampAgentText(inferred.notes, 700);
-    if(!normalized.summary) normalized.summary = 'New Task';
-    if(!normalized.notes) normalized.notes = normalized.summary;
+    if(!normalized.op) normalized.op = normalized.key ? 'update' : 'create';
     var seenSubtasks = {};
     (Array.isArray(taskData.subtasks) ? taskData.subtasks : []).slice(0, 6).forEach(function(st){
       var stObj = typeof st === 'string' ? { text: st } : (st || {});
@@ -15968,9 +16273,174 @@ document.addEventListener("input", e => {
     if(typeof mapper === 'function') return mapper(project, rawValues);
     return rawValues && typeof rawValues === 'object' ? Object.assign({}, rawValues) : {};
   }
+  function findIssueRecordByKey(data, rawKey){
+    var lookup = normalizeIssueKeyLookup(rawKey);
+    if(!lookup || !data || !Array.isArray(data.goals)) return null;
+    var projects = data.projects || [];
+    for(var i = 0; i < data.goals.length; i++){
+      var goal = data.goals[i];
+      if(normalizeIssueKeyLookup(issueKey(goal, projects)) === lookup){
+        return { goal: goal, goalIndex: i };
+      }
+    }
+    return null;
+  }
+  function updateAgentTaskInVault(taskData, options){
+    options = options || {};
+    var normalizedTask = parseTaskActionData(taskData, options.userText || '');
+    var activeVaultMode = resolveAgentVaultMode();
+    if(!normalizedTask.key){
+      showJoeyStatusToast('Issue update needs a key like APP-13.', 'warn');
+      return Promise.resolve({ ok:false, reason:'missing-key', task:normalizedTask });
+    }
+    if(typeof window._homerLoadVault !== 'function' || !window._homerVaultUnlocked){
+      showJoeyStatusToast('Unlock the ' + resolveAgentVaultModeLabel() + ' vault first to update issues.', 'warn');
+      return Promise.resolve({ ok:false, reason:'locked', mode:activeVaultMode, task:normalizedTask });
+    }
+    return window._homerLoadVault().then(function(data){
+      if(!data) throw new Error('Vault data unavailable');
+      if(!Array.isArray(data.goals)) data.goals = [];
+      if(!data._nextSubId) data._nextSubId = 1;
+      var projectHelpers = getActionProjectHelpers();
+      var projects = projectHelpers.ensureProjects(data.projects || []);
+      var match = findIssueRecordByKey(data, normalizedTask.key);
+      if(!match){
+        showJoeyStatusToast('Issue not found: ' + normalizedTask.key, 'warn');
+        return { ok:false, reason:'issue-not-found', key:normalizedTask.key, task:normalizedTask };
+      }
+      var task = match.goal;
+      var currentProject = getProjectById(projects, task.projectId);
+      var requestedProject = String(normalizedTask.projectId || normalizedTask.project || '').trim();
+      var targetProject = currentProject;
+      if(requestedProject){
+        targetProject = projectHelpers.matchProject(projects, requestedProject, task.projectId, true);
+        if(!targetProject){
+          showJoeyStatusToast('Project not found for issue update: ' + requestedProject, 'warn');
+          return { ok:false, reason:'project-not-found', requestedProject:requestedProject, task:normalizedTask };
+        }
+        if(targetProject.archived){
+          showJoeyStatusToast('Project "' + (projectHelpers.projectDisplay(targetProject) || targetProject).name + '" is archived.', 'warn');
+          return { ok:false, reason:'archived-project', requestedProject:requestedProject, task:normalizedTask };
+        }
+      }
+      var changes = [];
+      if(normalizedTask.summary){
+        task.summary = normalizedTask.summary;
+        changes.push('summary');
+      }
+      if(normalizedTask.notes){
+        task.notes = normalizedTask.notes;
+        task.desc = normalizedTask.notes;
+        changes.push('notes');
+      }
+      if(normalizedTask.due){
+        task.due = normalizedTask.due;
+        changes.push('due');
+      }
+      if(normalizedTask.priority){
+        task.priority = normalizedTask.priority;
+        changes.push('priority');
+      }
+      if(normalizedTask.status){
+        task.col = normalizedTask.status;
+        changes.push('status');
+      }
+      if(normalizedTask.labels && normalizedTask.labels.length){
+        task.labels = normalizedTask.labels.slice();
+        changes.push('labels');
+      }
+      if(targetProject && targetProject.id && task.projectId !== targetProject.id){
+        task.projectId = targetProject.id;
+        changes.push('project');
+      }
+      if(normalizedTask.customFields && Object.keys(normalizedTask.customFields).length){
+        task.customFields = Object.assign({}, task.customFields || {}, resolveAgentProjectCustomFields(targetProject || currentProject, normalizedTask.customFields));
+        changes.push('custom fields');
+      }
+      if(normalizedTask.subtasks && normalizedTask.subtasks.length){
+        if(!Array.isArray(task.subtasks)) task.subtasks = [];
+        var seenSubtasks = {};
+        task.subtasks.forEach(function(subtask){
+          seenSubtasks[String(subtask && subtask.text || '').trim().toLowerCase()] = true;
+        });
+        var addedCount = 0;
+        normalizedTask.subtasks.forEach(function(st){
+          var text = clampAgentText(st && st.text || '', 120);
+          if(!text) return;
+          var dedupeKey = text.toLowerCase();
+          if(seenSubtasks[dedupeKey]) return;
+          seenSubtasks[dedupeKey] = true;
+          addedCount++;
+          task.subtasks.push({
+            id: data._nextSubId++,
+            text: text,
+            done: false,
+            effort: clampAgentText(st.effort || '', 24),
+            due: clampAgentText(st.due || '', 40),
+            notes: clampAgentText(st.notes || '', 220),
+            attachments: []
+          });
+        });
+        if(addedCount) changes.push(addedCount + ' subtask' + (addedCount === 1 ? '' : 's'));
+      }
+      if(!changes.length){
+        showJoeyStatusToast('No changes applied to ' + normalizedTask.key, 'warn');
+        return { ok:false, reason:'no-changes', key:normalizedTask.key, task:normalizedTask };
+      }
+      if(!Array.isArray(task.log)) task.log = [];
+      task.log.push({ action:'Task updated by Joey: ' + changes.join(', '), ts:Date.now() });
+      return window._homerSaveVault(data).then(function(){
+        var updatedIssueKey = typeof issueKey === 'function' ? issueKey(task, data.projects || []) : normalizedTask.key;
+        if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('joey-task-update', 900);
+        try{ window.dispatchEvent(new Event('vault-goals-changed')); }catch(e){}
+        showJoeyStatusToast('Updated ' + updatedIssueKey + ': ' + task.summary, 'success');
+        if(typeof populateProjectControls === 'function'){
+          populateProjectControls(data.projects || [], data.goals || [], {
+            selectedFilter: task.projectId,
+            preferredTaskProject: task.projectId
+          });
+        }
+        if(typeof renderGoals === 'function') renderGoals(data.goals || [], data.projects || []);
+        if(typeof renderProjectDashboard === 'function') renderProjectDashboard(data);
+        if(typeof renderVault === 'function') renderVault();
+        if(typeof openProjectBoard === 'function' && options.openBoard !== false) openProjectBoard(task.projectId);
+        refreshCanonicalFiles().catch(function(){});
+        console.log('[Joey task] Updated', {
+          ok: true,
+          mode: activeVaultMode,
+          issueKey: updatedIssueKey,
+          taskId: task.id,
+          projectId: task.projectId,
+          summary: task.summary,
+          changes: changes
+        });
+        return {
+          ok:true,
+          mode:activeVaultMode,
+          issueKey:updatedIssueKey,
+          taskId:task.id,
+          projectId:task.projectId,
+          summary:task.summary,
+          changes:changes
+        };
+      });
+    }).catch(function(err){
+      console.error('[Joey task] Update failed', err);
+      showJoeyStatusToast('Issue update failed: ' + (err && err.message ? err.message : err), 'warn');
+      return { ok:false, reason:'error', error:(err && err.message ? err.message : String(err || 'Unknown error')), task:normalizedTask };
+    });
+  }
+  function applyAgentTaskMutation(taskData, options){
+    var normalizedTask = parseTaskActionData(taskData, options && options.userText || '');
+    if(normalizedTask.key || normalizedTask.op === 'update') return updateAgentTaskInVault(normalizedTask, options);
+    return createAgentTaskInVault(normalizedTask, options);
+  }
   function createAgentTaskInVault(taskData, options){
     options = options || {};
     var normalizedTask = parseTaskActionData(taskData, options.userText || '');
+    if(normalizedTask.key || normalizedTask.op === 'update') return updateAgentTaskInVault(normalizedTask, options);
+    if(!normalizedTask.summary) normalizedTask.summary = 'New Task';
+    if(!normalizedTask.notes) normalizedTask.notes = normalizedTask.summary;
     var activeVaultMode = resolveAgentVaultMode();
     if(shouldSkipRecentTask(normalizedTask)){
       console.log('[Joey task] Skipped duplicate task request', normalizedTask);
@@ -16091,6 +16561,8 @@ document.addEventListener("input", e => {
     });
   }
   window._homerCreateAgentTask = createAgentTaskInVault;
+  window._homerUpdateIssueByKey = updateAgentTaskInVault;
+  window._homerApplyAgentTask = applyAgentTaskMutation;
   function getActionProjectHelpers(){
     var ensureProjectsFn = window._homerEnsureProjects || (typeof ensureProjects === 'function' ? ensureProjects : function(projects){
       return Array.isArray(projects) ? projects.slice() : [];
@@ -16140,6 +16612,7 @@ document.addEventListener("input", e => {
       actions.push({type: match[1], data: match[2].trim()});
     }
     var inferredTask = inferDirectTaskRequest(userText);
+    var inferredIssueUpdate = inferDirectIssueUpdateRequest(userText);
     if(!actions.length) return text;
 
     var notifications = [];
@@ -16147,10 +16620,12 @@ document.addEventListener("input", e => {
       try{
         if(a.type === 'TASK'){
           // Kanban board task (vault) â€” accepts JSON or plain string
-          if(inferredTask && !a.inferred) return;
+          if((inferredTask || inferredIssueUpdate) && !a.inferred) return;
           var taskData = parseTaskActionData(a.data, userText);
-          createAgentTaskInVault(taskData, { userText:userText, source:'action' });
-          notifications.push((a.inferred ? 'Kanban task inferred: ' : 'Kanban task queued: ') + (taskData.summary || taskData.title || a.data) + ((taskData.subtasks && taskData.subtasks.length) ? ' (' + taskData.subtasks.length + ' subtasks)' : '') + ((taskData.project || taskData.projectId) ? ' -> ' + (taskData.project || taskData.projectId) : ''));
+          applyAgentTaskMutation(taskData, { userText:userText, source:'action' });
+          notifications.push(taskData.key
+            ? 'Issue update queued: ' + taskData.key
+            : ((a.inferred ? 'Kanban task inferred: ' : 'Kanban task queued: ') + (taskData.summary || taskData.title || a.data) + ((taskData.subtasks && taskData.subtasks.length) ? ' (' + taskData.subtasks.length + ' subtasks)' : '') + ((taskData.project || taskData.projectId) ? ' -> ' + (taskData.project || taskData.projectId) : '')));
           return;
           if(shouldSkipRecentTask(taskData)) return;
           if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
@@ -16567,6 +17042,80 @@ document.addEventListener("input", e => {
             } else {
               notifications.push('Vault mirror unavailable');
             }
+          } else if(cmd === 'issue-open'){
+            if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
+              window._homerLoadVault().then(function(data){
+                var foundIssue = findIssueRecordByKey(data, commandData.key || cmdTarget);
+                if(!foundIssue){
+                  showJoeyStatusToast('Issue not found: ' + (commandData.key || cmdTarget || 'unknown'), 'warn');
+                  return;
+                }
+                if(typeof window._homerShowTab === 'function') window._homerShowTab('vault');
+                if(typeof openProjectBoard === 'function') openProjectBoard(foundIssue.goal.projectId);
+                if(typeof window._homerOpenIssue === 'function') window._homerOpenIssue(foundIssue.goalIndex);
+              }).catch(function(err){
+                showJoeyStatusToast('Issue open failed: ' + (err && err.message ? err.message : err), 'warn');
+              });
+              notifications.push('Issue open queued: ' + (commandData.key || cmdTarget || ''));
+            } else {
+              notifications.push('Unlock the vault first to open issues');
+            }
+          } else if(cmd === 'pomodoro-start' || cmd === 'pomodoro-pause' || cmd === 'pomodoro-reset' || cmd === 'pomodoro-skip'){
+            if(window._homerPomodoroAgent && typeof window._homerPomodoroAgent[cmd.split('-')[1]] === 'function'){
+              window._homerPomodoroAgent[cmd.split('-')[1]]();
+              notifications.push('Pomodoro ' + cmd.split('-')[1] + ' triggered');
+            } else {
+              notifications.push('Pomodoro command unavailable');
+            }
+          } else if(cmd === 'sound-play'){
+            if(window._homerAmbientAudio && typeof window._homerAmbientAudio.playTrack === 'function' && window._homerAmbientAudio.playTrack(cmdTarget, commandData.volume)){
+              notifications.push('Sound playing: ' + cmdTarget);
+            } else {
+              notifications.push('Sound play failed: ' + (cmdTarget || 'missing target'));
+            }
+          } else if(cmd === 'sound-stop'){
+            if(window._homerAmbientAudio){
+              var stopped = cmdTarget
+                ? (typeof window._homerAmbientAudio.stopTrack === 'function' && window._homerAmbientAudio.stopTrack(cmdTarget))
+                : (typeof window._homerAmbientAudio.stopAll === 'function' && (window._homerAmbientAudio.stopAll(), true));
+              notifications.push(stopped ? ('Sound stopped: ' + (cmdTarget || 'all')) : 'Sound stop failed');
+            } else {
+              notifications.push('Sound command unavailable');
+            }
+          } else if(cmd === 'sound-mix'){
+            if(window._homerAmbientAudio && typeof window._homerAmbientAudio.playMix === 'function' && window._homerAmbientAudio.playMix(cmdTarget)){
+              notifications.push('Sound mix playing: ' + cmdTarget);
+            } else {
+              notifications.push('Sound mix failed: ' + (cmdTarget || 'missing target'));
+            }
+          } else if(cmd === 'zen-start'){
+            if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.startZen === 'function'){
+              window._homerFocusLabAgent.startZen(commandData.target || commandData.goal || '');
+              notifications.push('Zen mode started');
+            } else {
+              notifications.push('Zen mode unavailable');
+            }
+          } else if(cmd === 'zen-stop'){
+            if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.stopZen === 'function'){
+              window._homerFocusLabAgent.stopZen();
+              notifications.push('Zen mode stopped');
+            } else {
+              notifications.push('Zen mode unavailable');
+            }
+          } else if(cmd === 'breathing-start'){
+            if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.startBreathing === 'function'){
+              window._homerFocusLabAgent.startBreathing();
+              notifications.push('Breathing started');
+            } else {
+              notifications.push('Breathing command unavailable');
+            }
+          } else if(cmd === 'breathing-stop'){
+            if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.stopBreathing === 'function'){
+              window._homerFocusLabAgent.stopBreathing();
+              notifications.push('Breathing stopped');
+            } else {
+              notifications.push('Breathing command unavailable');
+            }
           } else {
             notifications.push('Unsupported command: ' + (cmd || 'unknown'));
           }
@@ -16913,6 +17462,7 @@ document.addEventListener("input", e => {
     var displayText = cleanText || text;
     var fullContent = cleanText || text;
     var directTaskRequest = inferDirectTaskRequest(displayText);
+    var directIssueUpdate = inferDirectIssueUpdateRequest(displayText);
     if(forceWebSearch) fullContent = '[FORCE_WEB_SEARCH] ' + fullContent;
     if(forceFullContext) fullContent = '[USE_FULL_CONTEXT] ' + fullContent;
     var fileNames = [];
@@ -16940,8 +17490,10 @@ document.addEventListener("input", e => {
     inputEl.value = '';
     inputEl.style.height = 'auto';
     scrollMessagesToBottom(true);
-    if(directTaskRequest && currentProvider === 'joey'){
-      createAgentTaskInVault(directTaskRequest, { userText:displayText, source:'direct-user' });
+    if(currentProvider === 'joey' && directIssueUpdate){
+      applyAgentTaskMutation(directIssueUpdate, { userText:displayText, source:'direct-user' });
+    } else if(directTaskRequest && currentProvider === 'joey'){
+      applyAgentTaskMutation(directTaskRequest, { userText:displayText, source:'direct-user' });
     }
 
     if(currentProvider === 'joey'){
