@@ -232,6 +232,7 @@
       max-width:60ch;
       color:var(--muted);
       font-size:.88rem;
+      line-height:1.35;
     }
     .focus-grid-wrapper{
       gap:20px;
@@ -292,6 +293,15 @@
       .focus-breath-card,
       .focus-neuro-card{
         grid-column:span 12;
+      }
+      .focus-card-copy,
+      .focus-button-meta,
+      .focus-surface-copy,
+      .brain-dump-copy,
+      .breathing-rhythm{
+        white-space:normal;
+        overflow:visible;
+        text-overflow:clip;
       }
     }
 
@@ -536,9 +546,13 @@
     }
     .focus-card-copy{
       margin:0;
-      max-width:34ch;
+      max-width:none;
       color:var(--muted);
-      font-size:.9rem;
+      font-size:.85rem;
+      line-height:1.3;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
     .breathing-shell{
       flex:1;
@@ -581,9 +595,12 @@
       text-align:center;
       letter-spacing:.02em;
       opacity:.78;
-      font-size:.8rem;
+      font-size:.77rem;
       margin-top:12px;
       padding-top:2px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
     .breathing-action-row{
       width:100%;
@@ -627,10 +644,13 @@
     }
     .focus-button-meta{
       display:block;
-      font-size:.8rem;
+      font-size:.77rem;
       opacity:.84;
       font-weight:500;
-      line-height:1.45;
+      line-height:1.3;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
     .zen-panel{
       margin-top:auto;
@@ -651,7 +671,11 @@
     .focus-surface-copy{
       margin:0 0 12px;
       color:var(--muted);
-      font-size:.84rem;
+      font-size:.8rem;
+      line-height:1.28;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
     .focus-input{
       width:100%;
@@ -830,8 +854,12 @@
     .brain-dump-copy{
       margin:4px 0 0;
       color:var(--muted);
-      font-size:.9rem;
-      max-width:56ch;
+      font-size:.84rem;
+      line-height:1.3;
+      max-width:none;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
     .brain-dump-status{
       padding:7px 10px;
@@ -3283,7 +3311,7 @@
            <div class="focuslab-hero-copy">
              <div class="focuslab-kicker">Focus Lab</div>
              <h2 class="focuslab-title">Calm the noise. Pick one target. Stay on it.</h2>
-             <p class="focuslab-subtitle">Use breath to reset, neuro tools to sharpen attention, and brain dump to clear distractions before they steal your session.</p>
+             <p class="focuslab-subtitle">Reset fast, lock attention, and clear noise before work.</p>
            </div>
          </div>
 
@@ -3292,11 +3320,11 @@
              <div class="breathing-header">
                <div class="focus-card-kicker">Reset</div>
                <h3 class="breathing-title focus-card-title">Box Breathing</h3>
-               <p class="muted small breathing-copy focus-card-copy">A steady four-part cadence to settle the nervous system before deep work.</p>
+               <p class="muted small breathing-copy focus-card-copy">A 4x4 breath to settle before deep work.</p>
              </div>
              <div class="breathing-shell">
                <div class="breathing-stage"><div id="b-circle" class="breathing-circle">Ready</div></div>
-               <div class="muted small breathing-rhythm">Expand. Hold. Release. Hold.</div>
+               <div class="muted small breathing-rhythm">Inhale. Hold. Exhale. Hold.</div>
              </div>
              <div class="breathing-action-row">
                <button id="b-toggle" class="btn primary">Start Breathing</button>
@@ -3307,17 +3335,17 @@
               <div class="neuro-header">
                 <div class="focus-card-kicker">Sharpen</div>
                 <h3 class="focus-card-title" style="margin-top:0">Neuro Tools</h3>
-                <p class="focus-card-copy">Fast interventions for attention, visual lock-in, and one-goal tunnel vision.</p>
+                <p class="focus-card-copy">Fast resets for focus, lock-in, and single-task mode.</p>
               </div>
 
               <button id="btn-focus-dot" class="btn primary focus-button-panel">
-                <span class="focus-button-title">Huberman Focus (Trataka)</span>
-                <span class="focus-button-meta">Stare at the dot for 30 seconds to spike focus and narrow visual attention.</span>
+                <span class="focus-button-title">Focus Dot (Trataka)</span>
+                <span class="focus-button-meta">30-second visual lock-in.</span>
               </button>
 
               <div class="zen-panel">
                  <h4 class="focus-surface-title">Zen Mode</h4>
-                 <p class="focus-surface-copy">Pick one goal and strip the rest of the interface away.</p>
+                 <p class="focus-surface-copy">Pick one goal and hide the noise.</p>
                  <input type="text" id="zen-input" class="focus-input" placeholder="What is your ONE goal?">
                  <button id="zen-btn" class="btn secondary" style="width:100%">Enter Zen Mode</button>
               </div>
@@ -3328,7 +3356,7 @@
                <div>
                  <div class="focus-card-kicker">Capture</div>
                  <h3 class="focus-card-title" style="margin-top:4px">Brain Dump</h3>
-                 <p class="brain-dump-copy">Park every distracting thought here so your working memory can stay on the task that matters.</p>
+                 <p class="brain-dump-copy">Park distractions here and keep your head clear.</p>
                </div>
                <div id="dump-status" class="brain-dump-status muted">Saved</div>
              </div>
@@ -4406,8 +4434,65 @@ function renderQuote(q) {
     });
 
     const SAVED_KEY="motivator.savedQuotes.v1";
+    const SAVED_QUOTES_FILE_NAME = 'Quotes.md';
+    let savedQuotesSyncTimer = null;
     function loadSaved(){ try{ return JSON.parse(localStorage.getItem(SAVED_KEY)||"[]"); }catch{return [];} }
-    function saveSaved(list){ localStorage.setItem(SAVED_KEY,JSON.stringify(list)); }
+    function buildSavedQuotesMarkdown(list){
+      var items = Array.isArray(list) ? list : [];
+      if(!items.length) return '';
+      var lines = [
+        '# Quotes',
+        '',
+        'Saved quotes from Homer Motivator. Joey can use these for recall, tone, advice, and preference shaping.',
+        ''
+      ];
+      items.forEach(function(it, idx){
+        var quote = String(it && it.q || '').trim();
+        if(!quote) return;
+        var author = String(it && it.a || 'Unknown').trim() || 'Unknown';
+        var savedAt = it && it.ts ? new Date(it.ts).toISOString() : '';
+        lines.push('## Quote ' + (idx + 1));
+        lines.push('> ' + quote.replace(/\r?\n+/g, '\n> '));
+        lines.push('');
+        lines.push('- Author: ' + author);
+        if(savedAt) lines.push('- Saved: ' + savedAt);
+        lines.push('');
+      });
+      return lines.join('\n').trim() + '\n';
+    }
+    function syncSavedQuotesToJoeyFile(reason){
+      var pass = localStorage.getItem('homer-sync-pass') || '';
+      if(!pass) return Promise.resolve(false);
+      var content = buildSavedQuotesMarkdown(loadSaved());
+      return fetch(joeyActionUrl('custom-files', pass), {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(withContextMode({
+          passphrase: pass,
+          name: SAVED_QUOTES_FILE_NAME,
+          content: content
+        }))
+      }).then(function(r){ return r.json(); })
+        .then(function(data){
+          if(!data || data.error) throw new Error((data && data.error) || 'Quote file sync failed');
+          return true;
+        })
+        .catch(function(err){
+          console.warn('[Quotes] Quotes.md sync skipped (' + (reason || 'update') + '):', err && err.message ? err.message : err);
+          return false;
+        });
+    }
+    function queueSavedQuotesFileSync(reason){
+      if(savedQuotesSyncTimer) clearTimeout(savedQuotesSyncTimer);
+      savedQuotesSyncTimer = setTimeout(function(){
+        savedQuotesSyncTimer = null;
+        syncSavedQuotesToJoeyFile(reason);
+      }, 300);
+    }
+    function saveSaved(list){
+      localStorage.setItem(SAVED_KEY,JSON.stringify(list));
+      queueSavedQuotesFileSync('saved-quotes');
+    }
     function addCurrentToSaved(){
       const q=els.quote.textContent.trim(), a=els.author.textContent.trim(); if(!q) return;
       const list=loadSaved();
@@ -4492,7 +4577,7 @@ function renderQuote(q) {
       const a=document.createElement('a'); a.href=url; a.download='saved-quotes.txt'; a.click(); URL.revokeObjectURL(url);
     });
     els.clearSaved?.addEventListener('click',clearAllSaved); els.save.addEventListener("click",addCurrentToSaved);
-    els.refresh.click(); renderSaved();
+    els.refresh.click(); renderSaved(); queueSavedQuotesFileSync('quotes-init');
 
     /* Saved Quotes collapsible toggle */
     const savedToggle=document.getElementById('saved-toggle');
@@ -18656,7 +18741,7 @@ window._homerAmbientAudio = {
     }
     systemPrompt += '\n\n=== PROJECT ACTIONS ===\n- If the user explicitly asks to create, rename, edit, archive, restore, or delete a project, append a PROJECT action.\n- PROJECT create format: [ACTION:PROJECT]{\"op\":\"create\",\"name\":\"Project Name\",\"description\":\"Optional description\",\"icon\":\"rocket\",\"color\":\"#60a5fa\"}[/ACTION]\n- PROJECT update format: [ACTION:PROJECT]{\"op\":\"update\",\"project\":\"Apps\",\"name\":\"Apps Platform\",\"description\":\"Shared product work\",\"icon\":\"AP\",\"color\":\"#34d399\"}[/ACTION]\n- PROJECT archive format: [ACTION:PROJECT]{\"op\":\"archive\",\"project\":\"Apps\"}[/ACTION]\n- PROJECT restore format: [ACTION:PROJECT]{\"op\":\"restore\",\"project\":\"Apps\"}[/ACTION]\n- PROJECT delete format: [ACTION:PROJECT]{\"op\":\"delete\",\"project\":\"Apps\"}[/ACTION]\n- Use \"project\" to identify the existing project for any non-create action.\n- Never delete a project that still has issues.\n- Never place new tasks into archived projects.';
     systemPrompt += '\n\n=== MODE ISOLATION ===\n- Personal and Work are separate memory domains.\n- Never reveal, summarize, hint at, or rely on information from the other mode.\n- If the user asks for something that belongs to the other mode, tell them to switch modes.\n- "Use full context" means full context for the current mode only.';
-    systemPrompt += '\n\n=== CANONICAL FILES ===\n- Mode-specific context lives in AgentContext.md, Today.md, OpenLoops.md, Projects.md, Areas.md, Resources.md, People.md, Wins.md, Lessons.md, WeeklyReview.md, Decisions.md, PinnedContext.md, Archive.md, FilesIndex.md, and Uploads/*.md for the current mode only.\n- FilesIndex.md lists remembered uploaded files and their Google Drive links for this mode.\n- Uploads/*.md contains extracted text for previously processed files when relevant to this mode.\n- Prefer REMEMBER with categories win, lesson, resource, decision, pin, or archive when the user explicitly asks to save something.\n- If the user says "save this as a win", store category "win".\n- If the user says "save this as a lesson", store category "lesson".\n- If the user says "save this as a resource" or "keep this note", store category "resource".\n- If the user says "pin this" or "always remember this", store category "pin" with pinned:true.\n- If the user asks for deeper recall, tell them they can say "use full context".';
+    systemPrompt += '\n\n=== CANONICAL FILES ===\n- Mode-specific context lives in AgentContext.md, Today.md, OpenLoops.md, Projects.md, Areas.md, Resources.md, People.md, Wins.md, Lessons.md, WeeklyReview.md, Decisions.md, PinnedContext.md, Archive.md, FilesIndex.md, Quotes.md when saved quotes exist, and Uploads/*.md for the current mode only.\n- FilesIndex.md lists remembered uploaded files and their Google Drive links for this mode.\n- Quotes.md contains quotes the user explicitly saved and can be used for recall, advice framing, and preference shaping when relevant.\n- Uploads/*.md contains extracted text for previously processed files when relevant to this mode.\n- Prefer REMEMBER with categories win, lesson, resource, decision, pin, or archive when the user explicitly asks to save something.\n- If the user says "save this as a win", store category "win".\n- If the user says "save this as a lesson", store category "lesson".\n- If the user says "save this as a resource" or "keep this note", store category "resource".\n- If the user says "pin this" or "always remember this", store category "pin" with pinned:true.\n- If the user asks for deeper recall, tell them they can say "use full context".';
     if(currentContextMode === 'work'){
       systemPrompt += '\n\n=== WORK MODE ===\n- You are in Work mode with separate work memory, uploads, files, and Drive backups.\n- Optimize for execution and recall: tasks, deadlines, blockers, dependencies, decisions, meeting outcomes, stakeholders, and next actions.\n- Beat a human personal assistant on follow-through: be organized, specific, concise, and proactive about missing details that matter for delivery.\n- When the user asks to save something work-related, prefer REMEMBER with categories work, decision, resource, win, lesson, or pin.\n- When work is discussed, default to crisp operational framing: what is due, who owns it, what is blocked, and what should happen next.\n- Never answer with personal-only memories unless they are present in current work context.';
     } else {
