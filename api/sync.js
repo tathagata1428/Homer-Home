@@ -3,6 +3,9 @@ import crypto from 'crypto';
 const BACKUP_MANIFEST_KEY = 'homer-backup-manifest';
 const FIELD_OP_BATCH_LIMIT = 100;
 const FIELD_OP_FETCH_LIMIT_MAX = 200;
+const FIELD_OP_RETAIN_MAX = 1000;
+const FIELD_OP_PRUNE_BATCH = 200;
+const FIELD_OP_PRUNE_INTERVAL = 25;
 
 function sortValue(value) {
   if (Array.isArray(value)) return value.map(sortValue);
@@ -25,6 +28,7 @@ function dataHash(data) {
 function getFieldSyncKeys(hk) {
   return {
     seq: hk + ':field_ops:seq',
+    min: hk + ':field_ops:min',
     state: hk + ':field_ops:state',
     opPrefix: hk + ':field_op:'
   };
@@ -108,12 +112,64 @@ async function persistFieldOp(redis, hk, op, deviceId) {
   return record;
 }
 
+async function pruneFieldOps(redis, hk, latestVersion) {
+  var keys = getFieldSyncKeys(hk);
+  if (!latestVersion || latestVersion <= FIELD_OP_RETAIN_MAX) {
+    if (latestVersion === 1) {
+      await redis(['SET', keys.min, '1']);
+    }
+    return { deleted: 0, minRetainedVersion: 1 };
+  }
+  if ((latestVersion % FIELD_OP_PRUNE_INTERVAL) !== 0) {
+    var existingMinRes = await redis(['GET', keys.min]);
+    var existingMin = Math.max(1, parseInt((existingMinRes && existingMinRes.result) || '1', 10) || 1);
+    return { deleted: 0, minRetainedVersion: existingMin };
+  }
+  var minResponse = await redis(['GET', keys.min]);
+  var currentMin = Math.max(1, parseInt((minResponse && minResponse.result) || '1', 10) || 1);
+  var pruneBefore = Math.max(0, latestVersion - FIELD_OP_RETAIN_MAX);
+  if (pruneBefore < currentMin) {
+    return { deleted: 0, minRetainedVersion: currentMin };
+  }
+  var deleted = 0;
+  for (var start = currentMin; start <= pruneBefore; start += FIELD_OP_PRUNE_BATCH) {
+    var end = Math.min(pruneBefore, start + FIELD_OP_PRUNE_BATCH - 1);
+    var deleteKeys = ['DEL'];
+    for (var version = start; version <= end; version += 1) {
+      deleteKeys.push(keys.opPrefix + version);
+    }
+    if (deleteKeys.length > 1) {
+      await redis(deleteKeys);
+      deleted += deleteKeys.length - 1;
+    }
+  }
+  var nextMin = pruneBefore + 1;
+  await redis(['SET', keys.min, String(nextMin)]);
+  return { deleted: deleted, minRetainedVersion: nextMin };
+}
+
 async function fetchFieldOps(redis, hk, since, limit) {
   var keys = getFieldSyncKeys(hk);
-  var latestResponse = await redis(['GET', keys.seq]);
+  var responses = await Promise.all([
+    redis(['GET', keys.seq]),
+    redis(['GET', keys.min])
+  ]);
+  var latestResponse = responses[0];
+  var minResponse = responses[1];
   var latestVersion = parseInt((latestResponse && latestResponse.result) || '0', 10) || 0;
+  var minRetainedVersion = Math.max(1, parseInt((minResponse && minResponse.result) || '1', 10) || 1);
   if (!latestVersion || latestVersion <= since) {
-    return { latestVersion: latestVersion, ops: [], hasMore: false };
+    return { latestVersion: latestVersion, minRetainedVersion: minRetainedVersion, ops: [], hasMore: false, resetToState: false };
+  }
+  if (since && since < (minRetainedVersion - 1)) {
+    return {
+      latestVersion: latestVersion,
+      minRetainedVersion: minRetainedVersion,
+      ops: [],
+      hasMore: false,
+      resetToState: true,
+      hasGap: true
+    };
   }
   var upper = Math.min(latestVersion, since + limit);
   var redisKeys = [];
@@ -123,15 +179,24 @@ async function fetchFieldOps(redis, hk, since, limit) {
   var response = await redis(['MGET'].concat(redisKeys));
   var rawOps = Array.isArray(response && response.result) ? response.result : [];
   var ops = [];
+  var hasGap = false;
   rawOps.forEach(function (raw) {
+    if (raw == null) {
+      hasGap = true;
+      return;
+    }
     var parsed = safeJsonParse(raw, null);
     if (parsed && parsed.fieldId) ops.push(parsed);
+    else hasGap = true;
   });
   ops.sort(function (a, b) { return (a.version || 0) - (b.version || 0); });
   return {
     latestVersion: latestVersion,
+    minRetainedVersion: minRetainedVersion,
     ops: ops,
-    hasMore: latestVersion > upper
+    hasMore: latestVersion > upper,
+    hasGap: hasGap,
+    resetToState: hasGap
   };
 }
 
@@ -266,7 +331,10 @@ export default async function handler(req, res) {
           ok: true,
           since: since,
           latestVersion: fieldOps.latestVersion,
+          minRetainedVersion: fieldOps.minRetainedVersion,
           hasMore: fieldOps.hasMore,
+          hasGap: !!fieldOps.hasGap,
+          resetToState: !!fieldOps.resetToState,
           ops: fieldOps.ops
         });
       }
@@ -384,10 +452,13 @@ export default async function handler(req, res) {
           if (record) applied.push(record);
         }
         var latestFieldVersion = applied.length ? applied[applied.length - 1].version : 0;
+        var pruneResult = await pruneFieldOps(redis, hk, latestFieldVersion);
         return res.status(200).json({
           ok: true,
           applied: applied,
-          latestVersion: latestFieldVersion
+          latestVersion: latestFieldVersion,
+          minRetainedVersion: pruneResult.minRetainedVersion,
+          prunedOps: pruneResult.deleted
         });
       }
 

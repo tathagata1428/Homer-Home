@@ -12453,6 +12453,16 @@ window._homerAmbientAudio = {
       .then(function(r){ return r.json(); })
       .then(function(d){
         if(!d || !d.ok) throw new Error((d && d.error) || 'Field sync pull failed');
+        if(action === 'field-ops' && (d.resetToState || d.hasGap)){
+          setFieldSyncCursor(0);
+          setTimeout(function(){ hydrateFieldSyncState(true); }, 0);
+          return {
+            ok:true,
+            resetToState:true,
+            latestVersion: parseInt(d.latestVersion || '0', 10) || 0,
+            minRetainedVersion: parseInt(d.minRetainedVersion || '0', 10) || 0
+          };
+        }
         if(action === 'field-state'){
           Object.keys(d.state || {}).map(function(fieldId){
             return d.state[fieldId];
