@@ -16255,6 +16255,218 @@ window._homerAmbientAudio = {
     lastJoeyTaskFingerprint = fingerprint;
     lastJoeyTaskTs = Date.now();
   }
+  function inferDirectCommandRequest(text){
+    var raw = String(text || '').replace(/\s+/g, ' ').trim();
+    if(!raw) return null;
+    var body = raw
+      .replace(/^(?:please\s+)?(?:can you|could you|would you|will you)\s+/i, '')
+      .replace(/^(?:please\s+)?/i, '')
+      .trim();
+    var lower = body.toLowerCase();
+    var tabMap = {
+      home: 'home',
+      pomodoro: 'pomodoro',
+      focuslab: 'focuslab',
+      'focus lab': 'focuslab',
+      investing: 'investing',
+      tools: 'tools',
+      links: 'links',
+      news: 'news',
+      vault: 'vault'
+    };
+    var openMap = { notes:'notes', secrets:'secrets', projects:'projects', kanban:'kanban', goals:'goals' };
+    var tabMatch = lower.match(/^(?:open|show|go to)\s+(?:the\s+)?(home|pomodoro|focus lab|focuslab|investing|tools|links|news|vault)$/i);
+    if(tabMatch) return { op:'tab', target:tabMap[tabMatch[1].toLowerCase()] };
+    var openMatch = lower.match(/^(?:open|show)\s+(?:the\s+)?(notes|secrets|projects|kanban|goals)$/i);
+    if(openMatch) return { op:'open', target:openMap[openMatch[1].toLowerCase()] };
+    var modeMatch = lower.match(/^(?:switch|change|set)\s+(?:to\s+)?(work|personal)(?:\s+mode)?$/i);
+    if(modeMatch) return { op:'mode', target:modeMatch[1].toLowerCase() };
+    var issueMatch = body.match(/^(?:open|show)\s+([A-Z][A-Z0-9]{1,9}-\d{1,8})$/i);
+    if(issueMatch) return { op:'issue-open', key: normalizeIssueKeyLookup(issueMatch[1]), target: normalizeIssueKeyLookup(issueMatch[1]) };
+    if(/^(?:start|resume)\s+(?:the\s+)?(?:pomodoro|timer|focus timer|focus)$/i.test(lower)) return { op:'pomodoro-start' };
+    if(/^(?:pause|stop)\s+(?:the\s+)?(?:pomodoro|timer|focus timer|focus)$/i.test(lower)) return { op:'pomodoro-pause' };
+    if(/^(?:reset)\s+(?:the\s+)?(?:pomodoro|timer|focus timer|focus)$/i.test(lower)) return { op:'pomodoro-reset' };
+    if(/^(?:skip)\s+(?:the\s+)?(?:pomodoro|timer|phase|break|session)$/i.test(lower)) return { op:'pomodoro-skip' };
+    var zenStart = body.match(/^(?:start|enter|open)\s+zen(?:\s+mode)?(?:\s+(?:for|with)\s+(.+))?$/i);
+    if(zenStart) return { op:'zen-start', target: clampAgentText(zenStart[1] || '', 140) };
+    if(/^(?:stop|exit|close)\s+zen(?:\s+mode)?$/i.test(lower)) return { op:'zen-stop' };
+    if(/^(?:start|play|begin)\s+(?:box\s+)?breathing$/i.test(lower)) return { op:'breathing-start' };
+    if(/^(?:stop|pause)\s+(?:box\s+)?breathing$/i.test(lower)) return { op:'breathing-stop' };
+    if(/^(?:sync\s+drive|sync\s+from\s+drive|reconcile\s+drive)$/i.test(lower)) return { op:'drive-sync' };
+    if(/^(?:backup\s+drive|backup\s+to\s+drive)$/i.test(lower)) return { op:'drive-backup' };
+    if(/^(?:commit\s+memory|save\s+memory|memory\s+commit)$/i.test(lower)) return { op:'memory-commit' };
+    if(/^(?:mirror\s+vault|vault\s+mirror|backup\s+vault)$/i.test(lower)) return { op:'vault-mirror' };
+    var mixMatch = lower.match(/^(?:play|start)\s+(?:the\s+)?(sleep|rainy|reading|cozy)\s+mix$/i);
+    if(mixMatch) return { op:'sound-mix', target: mixMatch[1].toLowerCase() };
+    if(/^(?:stop|pause)\s+(?:all\s+)?(?:sounds?|music|audio|ambience|ambient)$/i.test(lower)) return { op:'sound-stop', target:'' };
+    var soundPlay = body.match(/^(?:play|start)\s+(.+)$/i);
+    if(soundPlay){
+      var soundTarget = String(soundPlay[1] || '').toLowerCase()
+        .replace(/\b(?:sound|music|audio|track|ambience|ambient|noise)\b/g, '')
+        .replace(/\b(?:the|some)\b/g, '')
+        .trim();
+      if(/^(ocean|fire|fireplace|rain|jazz|rainywindow|cafe|caf|lofi|lo-fi|wind|synthwave|weightless)$/.test(soundTarget)){
+        return { op:'sound-play', target: soundTarget };
+      }
+    }
+    var soundStop = body.match(/^(?:stop|pause)\s+(.+)$/i);
+    if(soundStop){
+      var stopTarget = String(soundStop[1] || '').toLowerCase()
+        .replace(/\b(?:sound|music|audio|track|ambience|ambient|noise)\b/g, '')
+        .replace(/\b(?:the|some)\b/g, '')
+        .trim();
+      if(/^(ocean|fire|fireplace|rain|jazz|rainywindow|cafe|caf|lofi|lo-fi|wind|synthwave|weightless)$/.test(stopTarget)){
+        return { op:'sound-stop', target: stopTarget };
+      }
+    }
+    return null;
+  }
+  function runAgentCommand(commandData, options){
+    options = options || {};
+    var cmd = String(commandData && (commandData.op || commandData.command) || '').trim().toLowerCase();
+    var cmdTarget = String(commandData && (commandData.target || commandData.surface || commandData.tab || commandData.goal) || '').trim().toLowerCase();
+    if(cmd === 'tab'){
+      if(typeof window._homerShowTab === 'function'){
+        window._homerShowTab(cmdTarget || 'home');
+        return { ok:true, message:'Opened tab: ' + (cmdTarget || 'home') };
+      }
+      return { ok:false, message:'Tab command unavailable' };
+    }
+    if(cmd === 'mode'){
+      if(typeof window._homerApplyContextMode === 'function'){
+        var nextMode = cmdTarget === 'work' ? 'work' : 'personal';
+        window._homerApplyContextMode(nextMode, { source:'joey-command' });
+        return { ok:true, message:'Mode switched to ' + nextMode };
+      }
+      return { ok:false, message:'Mode switch unavailable' };
+    }
+    if(cmd === 'open'){
+      if(typeof window._homerShowTab === 'function') window._homerShowTab('vault');
+      if(typeof window._homerOpenVaultSurface === 'function'){
+        var openResult = window._homerOpenVaultSurface(cmdTarget);
+        return openResult && openResult.ok
+          ? { ok:true, message:'Opened ' + cmdTarget }
+          : { ok:false, message:'Open failed: ' + ((openResult && openResult.error) || 'unknown target') };
+      }
+      return { ok:false, message:'Vault open command unavailable' };
+    }
+    if(cmd === 'drive-sync'){
+      if(typeof window._homerSyncContextFromDrive === 'function'){
+        window._homerSyncContextFromDrive(false, true).catch(function(err){
+          showJoeyStatusToast('Drive sync failed: ' + (err && err.message ? err.message : err), 'warn');
+        });
+        return { ok:true, message:'Drive sync queued' };
+      }
+      return { ok:false, message:'Drive sync unavailable' };
+    }
+    if(cmd === 'drive-backup'){
+      if(typeof window._homerBackupJoeyToDrive === 'function'){
+        window._homerBackupJoeyToDrive('command-action').catch(function(err){
+          showJoeyStatusToast('Drive backup failed: ' + (err && err.message ? err.message : err), 'warn');
+        });
+        return { ok:true, message:'Drive backup queued' };
+      }
+      return { ok:false, message:'Drive backup unavailable' };
+    }
+    if(cmd === 'memory-commit'){
+      if(typeof window._homerCommitJoeyMemory === 'function'){
+        window._homerCommitJoeyMemory({ silent:true, skipLearn:false, reason:'command-action' }).catch(function(err){
+          showJoeyStatusToast('Memory commit failed: ' + (err && err.message ? err.message : err), 'warn');
+        });
+        return { ok:true, message:'Memory commit queued' };
+      }
+      return { ok:false, message:'Memory commit unavailable' };
+    }
+    if(cmd === 'vault-mirror'){
+      if(typeof window._homerBackupEverythingToDb === 'function'){
+        window._homerBackupEverythingToDb().then(function(){
+          if(typeof refreshVaultMirrorStatus === 'function') refreshVaultMirrorStatus({ force:true, reason:'command-vault-mirror' });
+        }).catch(function(err){
+          showJoeyStatusToast('Vault mirror failed: ' + (err && err.message ? err.message : err), 'warn');
+        });
+        return { ok:true, message:'Vault mirror queued' };
+      }
+      return { ok:false, message:'Vault mirror unavailable' };
+    }
+    if(cmd === 'issue-open'){
+      if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
+        window._homerLoadVault().then(function(data){
+          var foundIssue = findIssueRecordByKey(data, commandData.key || cmdTarget);
+          if(!foundIssue){
+            showJoeyStatusToast('Issue not found: ' + (commandData.key || cmdTarget || 'unknown'), 'warn');
+            return;
+          }
+          if(typeof window._homerShowTab === 'function') window._homerShowTab('vault');
+          if(typeof openProjectBoard === 'function') openProjectBoard(foundIssue.goal.projectId);
+          if(typeof window._homerOpenIssue === 'function') window._homerOpenIssue(foundIssue.goalIndex);
+        }).catch(function(err){
+          showJoeyStatusToast('Issue open failed: ' + (err && err.message ? err.message : err), 'warn');
+        });
+        return { ok:true, message:'Opening issue: ' + (commandData.key || cmdTarget || '') };
+      }
+      return { ok:false, message:'Unlock the vault first to open issues' };
+    }
+    if(cmd === 'pomodoro-start' || cmd === 'pomodoro-pause' || cmd === 'pomodoro-reset' || cmd === 'pomodoro-skip'){
+      var method = cmd.split('-')[1];
+      if(window._homerPomodoroAgent && typeof window._homerPomodoroAgent[method] === 'function'){
+        window._homerPomodoroAgent[method]();
+        return { ok:true, message:'Pomodoro ' + method + ' triggered' };
+      }
+      return { ok:false, message:'Pomodoro command unavailable' };
+    }
+    if(cmd === 'sound-play'){
+      if(window._homerAmbientAudio && typeof window._homerAmbientAudio.playTrack === 'function' && window._homerAmbientAudio.playTrack(cmdTarget, commandData.volume)){
+        return { ok:true, message:'Playing ' + cmdTarget };
+      }
+      return { ok:false, message:'Sound play failed: ' + (cmdTarget || 'missing target') };
+    }
+    if(cmd === 'sound-stop'){
+      if(window._homerAmbientAudio){
+        var stopped = cmdTarget
+          ? (typeof window._homerAmbientAudio.stopTrack === 'function' && window._homerAmbientAudio.stopTrack(cmdTarget))
+          : (typeof window._homerAmbientAudio.stopAll === 'function' && (window._homerAmbientAudio.stopAll(), true));
+        return stopped
+          ? { ok:true, message:'Stopped ' + (cmdTarget || 'all sounds') }
+          : { ok:false, message:'Sound stop failed' };
+      }
+      return { ok:false, message:'Sound command unavailable' };
+    }
+    if(cmd === 'sound-mix'){
+      if(window._homerAmbientAudio && typeof window._homerAmbientAudio.playMix === 'function' && window._homerAmbientAudio.playMix(cmdTarget)){
+        return { ok:true, message:'Playing ' + cmdTarget + ' mix' };
+      }
+      return { ok:false, message:'Sound mix failed: ' + (cmdTarget || 'missing target') };
+    }
+    if(cmd === 'zen-start'){
+      if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.startZen === 'function'){
+        window._homerFocusLabAgent.startZen(commandData.target || commandData.goal || '');
+        return { ok:true, message:'Zen mode started' };
+      }
+      return { ok:false, message:'Zen mode unavailable' };
+    }
+    if(cmd === 'zen-stop'){
+      if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.stopZen === 'function'){
+        window._homerFocusLabAgent.stopZen();
+        return { ok:true, message:'Zen mode stopped' };
+      }
+      return { ok:false, message:'Zen mode unavailable' };
+    }
+    if(cmd === 'breathing-start'){
+      if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.startBreathing === 'function'){
+        window._homerFocusLabAgent.startBreathing();
+        return { ok:true, message:'Breathing started' };
+      }
+      return { ok:false, message:'Breathing command unavailable' };
+    }
+    if(cmd === 'breathing-stop'){
+      if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.stopBreathing === 'function'){
+        window._homerFocusLabAgent.stopBreathing();
+        return { ok:true, message:'Breathing stopped' };
+      }
+      return { ok:false, message:'Breathing command unavailable' };
+    }
+    return { ok:false, message:'Unsupported command: ' + (cmd || 'unknown') };
+  }
   function resolveAgentVaultMode(){
     try{
       if(typeof window._homerGetVaultMode === 'function'){
@@ -16613,6 +16825,7 @@ window._homerAmbientAudio = {
     }
     var inferredTask = inferDirectTaskRequest(userText);
     var inferredIssueUpdate = inferDirectIssueUpdateRequest(userText);
+    var inferredCommand = inferDirectCommandRequest(userText);
     if(!actions.length) return text;
 
     var notifications = [];
@@ -16980,6 +17193,10 @@ window._homerAmbientAudio = {
           try{ commandData = JSON.parse(a.data); }catch(e){ commandData = { op:a.data }; }
           var cmd = String(commandData.op || commandData.command || '').trim().toLowerCase();
           var cmdTarget = String(commandData.target || commandData.surface || commandData.tab || '').trim().toLowerCase();
+          if(inferredCommand && !a.inferred) return;
+          var commandResult = runAgentCommand(commandData, { source:'action' });
+          notifications.push(commandResult && commandResult.message ? commandResult.message : ('Unsupported command: ' + (cmd || 'unknown')));
+          return;
           if(cmd === 'tab'){
             if(typeof window._homerShowTab === 'function'){
               window._homerShowTab(cmdTarget || 'home');
@@ -17463,6 +17680,7 @@ window._homerAmbientAudio = {
     var fullContent = cleanText || text;
     var directTaskRequest = inferDirectTaskRequest(displayText);
     var directIssueUpdate = inferDirectIssueUpdateRequest(displayText);
+    var directCommandRequest = inferDirectCommandRequest(displayText);
     if(forceWebSearch) fullContent = '[FORCE_WEB_SEARCH] ' + fullContent;
     if(forceFullContext) fullContent = '[USE_FULL_CONTEXT] ' + fullContent;
     var fileNames = [];
@@ -17494,6 +17712,22 @@ window._homerAmbientAudio = {
       applyAgentTaskMutation(directIssueUpdate, { userText:displayText, source:'direct-user' });
     } else if(directTaskRequest && currentProvider === 'joey'){
       applyAgentTaskMutation(directTaskRequest, { userText:displayText, source:'direct-user' });
+    } else if(directCommandRequest && currentProvider === 'joey'){
+      var directCommandResult = runAgentCommand(directCommandRequest, { source:'direct-user' });
+      var directReply = {
+        role:'assistant',
+        content:(directCommandResult && directCommandResult.message) || 'Done.',
+        provider:currentProvider,
+        model:getStoredModelLabel(currentProvider, currentContextMode),
+        mode:currentContextMode
+      };
+      chatHistory.push(directReply);
+      messagesEl.insertAdjacentHTML('beforeend', renderChatMessage(directReply, chatHistory.length - 1));
+      injectCodeCopyButtons(messagesEl);
+      scrollMessagesToBottom(true);
+      saveChatToVault();
+      saveHistoryToRedis();
+      return;
     }
 
     if(currentProvider === 'joey'){
