@@ -11290,6 +11290,7 @@ window._homerAmbientAudio = {
           <button type="button" id="oc-save-db" class="oc-settings-btn danger" title="Save context (history, memories, profile) to database">&#x1f4be; Commit Memory Now</button>
           <button type="button" id="oc-gdrive-restore" class="oc-settings-btn warn" title="Restore agent context from Google Drive and overwrite current mode context">&#x21bb; Restore from Drive</button>
           <button type="button" id="oc-rebuild-files" class="oc-settings-btn teal" title="Rebuild canonical context files from current data">&#x21bb; Rebuild Context</button>
+          <button type="button" id="oc-rebuild-library" class="oc-settings-btn teal" title="Refresh remembered uploads and rebuild file-backed context docs">&#x1f4ce; Rebuild Files</button>
           <button type="button" id="oc-view-files" class="oc-settings-btn blue" title="Inspect the shared canonical context files">&#x1f4c2; View Context</button>
           <button type="button" id="oc-export-files" class="oc-settings-btn indigo" title="Export the canonical context files bundle">&#x2b07; Export Context</button>
         </div>
@@ -12195,8 +12196,9 @@ window._homerAmbientAudio = {
   var FIELD_DRAFT_PREFIX = 'homer-field-draft:';
   var FIELD_SYNC_CURSOR_KEY = 'homer-field-sync-version';
   var FIELD_SYNC_DEVICE_KEY = 'homer-sync-device-id';
-  var FIELD_SYNC_PUSH_DELAY = 900;
-  var FIELD_SYNC_PULL_INTERVAL = 4000;
+  var FIELD_SYNC_CLIENT_SEQ_KEY = 'homer-field-sync-client-seq';
+  var FIELD_SYNC_PUSH_DELAY = 350;
+  var FIELD_SYNC_PULL_INTERVAL = 2000;
   var fieldSyncPendingMap = new Map();
   var fieldSyncPushTimer = null;
   var fieldSyncPushInFlight = null;
@@ -12224,6 +12226,21 @@ window._homerAmbientAudio = {
       origSetItem(FIELD_SYNC_DEVICE_KEY, next);
     }catch(e){}
     return next;
+  }
+  function nextFieldSyncClientSeq(){
+    var current = Math.max(0, parseInt(localStorage.getItem(FIELD_SYNC_CLIENT_SEQ_KEY) || '0', 10) || 0) + 1;
+    try{
+      origSetItem(FIELD_SYNC_CLIENT_SEQ_KEY, String(current));
+    }catch(e){
+      try{ localStorage.setItem(FIELD_SYNC_CLIENT_SEQ_KEY, String(current)); }catch(_e){}
+    }
+    return current;
+  }
+  function isSameFieldSyncAttempt(left, right){
+    return !!left && !!right &&
+      String(left.fieldId || '') === String(right.fieldId || '') &&
+      (Number(left.clientTs || 0) || 0) === (Number(right.clientTs || 0) || 0) &&
+      (Number(left.clientSeq || 0) || 0) === (Number(right.clientSeq || 0) || 0);
   }
   function isFieldSyncReady(){
     return !!String(localStorage.getItem(SYNC_PASS_KEY) || pass.value || '').trim();
@@ -12348,6 +12365,7 @@ window._homerAmbientAudio = {
       source: 'autosave-input',
       scope: getDbBackupMode(),
       clientTs: Date.now(),
+      clientSeq: nextFieldSyncClientSeq(),
       deviceId: getFieldSyncDeviceId()
     });
   }
@@ -12364,6 +12382,7 @@ window._homerAmbientAudio = {
       source: reason || 'focus-lab',
       scope: getDbBackupMode(),
       clientTs: Date.now(),
+      clientSeq: nextFieldSyncClientSeq(),
       deviceId: getFieldSyncDeviceId()
     });
     if(fieldSyncPushTimer) clearTimeout(fieldSyncPushTimer);
@@ -12418,15 +12437,32 @@ window._homerAmbientAudio = {
       .then(function(r){ return r.json(); })
       .then(function(d){
         if(!d || !d.ok) throw new Error((d && d.error) || 'Field sync failed');
+        var settled = [].concat(d.applied || [], d.rejected || [], d.duplicates || []);
         batchIds.forEach(function(fieldId){
           var current = fieldSyncPendingMap.get(fieldId);
-          if(current && batch.some(function(op){ return op.fieldId === fieldId && op.clientTs === current.clientTs; })){
+          if(current && batch.some(function(op){ return isSameFieldSyncAttempt(op, current); })){
             fieldSyncPendingMap.delete(fieldId);
           }
+        });
+        if(Array.isArray(d.rejected) && d.rejected.length){
+          d.rejected.forEach(function(entry){
+            if(entry && entry.current && entry.current.fieldId){
+              applySyncedFieldValue(entry.current.fieldId, entry.current.deleted ? '' : entry.current.value, { force:false, silent:false });
+            }
+          });
+        }
+        settled.forEach(function(entry){
+          var incoming = entry && entry.incoming;
+          if(!incoming || !incoming.fieldId) return;
+          var current = fieldSyncPendingMap.get(incoming.fieldId);
+          if(current && isSameFieldSyncAttempt(current, incoming)) fieldSyncPendingMap.delete(incoming.fieldId);
         });
         if(d.latestVersion) setFieldSyncCursor(d.latestVersion);
         scheduleDbBackup('field-op-' + (reason || 'sync'));
         requestSyncFieldLabelUpdate();
+        if(Array.isArray(d.rejected) && d.rejected.length){
+          setTimeout(function(){ hydrateFieldSyncState(false); }, 60);
+        }
         if(fieldSyncPendingMap.size){
           setTimeout(function(){ flushFieldSyncOps('follow-up'); }, 120);
         }
@@ -15639,6 +15675,8 @@ window._homerAmbientAudio = {
         btn.textContent = 'âœ… Restored!';
         // Reload chat history if restored
         if(d.restored && d.restored.history) loadHistoryFromRedis(true);
+        refreshCanonicalFiles().catch(function(){});
+        if(libraryPanel && libraryPanel.classList.contains('open')) fetchFileLibrary({ silent:true });
         scheduleJoeySyncStatusRefresh(250);
         setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore from Drive'; btn.disabled = false; }, 3000);
       } else {
@@ -15760,6 +15798,18 @@ window._homerAmbientAudio = {
       }).then(function(r){ return r.json(); }).catch(function(){});
     });
   }
+  function rebuildRememberedFilesContext(){
+    return refreshCanonicalFiles().then(function(data){
+      if(!data || !data.ok) throw new Error((data && (data.error || data.reason)) || 'Rebuild failed');
+      return fetchFileLibrary({ silent:true }).then(function(){
+        scheduleJoeySyncStatusRefresh(250);
+        if(typeof setUploadStatus === 'function'){
+          setUploadStatus('Remembered uploads and file-backed context rebuilt.', 'success');
+        }
+        return data;
+      });
+    });
+  }
 
   function fetchContextFiles(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
@@ -15826,6 +15876,23 @@ window._homerAmbientAudio = {
       alert('Rebuild failed: ' + err.message);
     }).finally(function(){
       setTimeout(function(){ btn.innerHTML = '&#x21bb; Rebuild Context'; btn.disabled = false; }, 2200);
+    });
+  });
+
+  document.getElementById('oc-rebuild-library').addEventListener('click', function(){
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = 'Ã¢ÂÂ³ Rebuilding...';
+    rebuildRememberedFilesContext().then(function(){
+      btn.textContent = 'Ã¢Å“â€¦ Rebuilt!';
+    }).catch(function(err){
+      btn.textContent = 'Ã¢ÂÅ’ Failed';
+      if(typeof setUploadStatus === 'function'){
+        setUploadStatus('File rebuild failed: ' + (err && err.message ? err.message : String(err)), 'warn', true);
+      }
+      alert('File rebuild failed: ' + (err && err.message ? err.message : String(err)));
+    }).finally(function(){
+      setTimeout(function(){ btn.innerHTML = '&#x1f4ce; Rebuild Files'; btn.disabled = false; }, 2200);
     });
   });
 
@@ -16026,6 +16093,10 @@ window._homerAmbientAudio = {
         if(d.ok){
           console.log('[Joey] Drive reconcile complete:', d.reconciled);
           if(d.reconciled && d.reconciled.history) loadHistoryFromRedis(true);
+          if(d.changed){
+            refreshCanonicalFiles().catch(function(){});
+            if(libraryPanel && libraryPanel.classList.contains('open')) fetchFileLibrary({ silent:true });
+          }
           scheduleJoeySyncStatusRefresh(250);
           if(userFacingSyncConfirmation){
             addAgentMessage(d.changed
@@ -18162,6 +18233,7 @@ window._homerAmbientAudio = {
     var savedPromptOverride = getSavedSystemPrompt(currentContextMode);
     var JOEY_PROMPT = 'You are Joey â€” a personal AI assistant with personality. You speak like Joey Tribbiani from Friends (confident, charming, fun), but you\'re genuinely smart and deeply helpful. You know this person. You have their profile, memories, and conversation history injected into your context by the server. USE THEM.\n\nTODAY: ' + new Date().toISOString().slice(0,10) + ' | TIME: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '\n\n=== PERSONALITY ===\n- Be direct, no fluff. Match the user\'s energy.\n- Use Joey catchphrases SPARINGLY and naturally â€” don\'t force them every message.\n- Have real opinions. Disagree when warranted. Be a friend, not a yes-man.\n- When you know something about them (from profile/memories), use it naturally â€” don\'t announce "I remember...".\n- Ask follow-up questions about things you know they care about (their goals, their people, recent events).\n- If they seem stressed or down, be supportive. If they\'re excited, share that energy.\n\n=== ACTIONS (append at END of your response) ===\n\nTASK (Kanban board â€” DEFAULT for any work item, to-do, action):\n- Create a TASK only when the user explicitly asks you to add, create, save, track, put on the board, or turn something into a task.\n- Do NOT create tasks proactively, by implication, or just because a deadline/problem/action item was mentioned.\n- If the user is only discussing plans or problems, respond normally without action tags.\n- For explicit task requests, include: summary, notes, priority when implied, due when mentioned, and 2-5 concrete subtasks.\n- If the user names a project, include \"project\" or \"projectId\" in the TASK JSON. Never leave it out.\n- Use notes for the task description. Do not use GOAL for normal actionable work items.\n- Simple fallback: [ACTION:TASK]Buy groceries[/ACTION]\n- Preferred detailed format: [ACTION:TASK]{\"project\":\"Apps\",\"summary\":\"Fix login bug\",\"notes\":\"Users cannot sign in after password reset. Investigate the reset flow, patch the regression, and verify the happy path.\",\"priority\":\"high\",\"due\":\"2026-03-25\",\"subtasks\":[{\"text\":\"Reproduce the bug locally\",\"notes\":\"Test the password reset flow with an affected account.\"},{\"text\":\"Identify the failing auth step\"},{\"text\":\"Implement and verify the fix\"}]}[/ACTION]\n\nGOAL (Life Goals â€” aspirations, dreams, long-term objectives):\n[ACTION:GOAL]{"title":"Buy a house","description":"Why this matters","category":"finance","milestones":["Step 1","Step 2"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\nCategories: health, finance, career, personal, education, travel, creative, relationship\n\nFOCUS (Pomodoro â€” ONLY when user explicitly says "focus", "pomodoro", "focus task"):\n[ACTION:FOCUS]Task name[/ACTION]\nIMPORTANT: NEVER create FOCUS unless explicitly asked. Default is always TASK.\n\nEVENT (Calendar â€” use category to differentiate event types):\n[ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details","category":"meeting"}[/ACTION]\nEvent categories: meeting, deadline, reminder, personal, work\n\nREMEMBER (save important facts â€” your auto-memory also captures things, but use this for explicit asks):\n[ACTION:REMEMBER]{"memory":"fact about the user","category":"preference"}[/ACTION]\nCategories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work\n\nFORGET:\n[ACTION:FORGET]text to forget[/ACTION]\n\n=== WEB SEARCH ===\n- You may receive LIVE WEB SEARCH RESULTS in your system prompt when the user asks about current events, facts, or anything that needs up-to-date info.\n- When you have search results, use them to give accurate answers. Cite sources naturally (e.g. "According to...", link titles).\n- If search results are present, prioritize them over your training data for current facts.\n- You can suggest the user search for something specific if you don\'t have results: just say "let me look that up" â€” the system will search automatically on their next related question.\n\n=== RULES ===\n- Dates: YYYY-MM-DD, Times: HH:MM (24h), Priority: high/medium/low\n- Always include action tags only when the user explicitly asked to create something.\n- When the user explicitly asks to add or create a task, append a TASK action unless they explicitly refuse.\n- For TASK actions, prefer JSON over plain text so the Kanban card is fully populated.\n- When the user names a project, the TASK must target that project explicitly instead of guessing.\n- Natural-language confirmation alone is not enough for task creation; you must append the TASK action tag.\n- Do not offer or create a task just because a deadline, plan, or obligation was mentioned.\n- Conversation memory is saved automatically from chat when sync is unlocked; use REMEMBER only when the user explicitly wants something pinned or deliberately saved.';
     var systemPrompt = savedPromptOverride || JOEY_PROMPT;
+    systemPrompt += '\n\n=== PERSONAL OPERATOR MODE ===\n- Your job is to become distinctive to this user, not generic.\n- Learn their standards, tastes, projects, recurring frustrations, and preferred way of working.\n- Use remembered context to make your suggestions feel specifically tuned to them.\n- When context is thin, ask a short sharp follow-up that improves future personalization.';
     if(typeof window._homerBuildJoeyProjectInstruction === 'function'){
       systemPrompt += window._homerBuildJoeyProjectInstruction();
     }

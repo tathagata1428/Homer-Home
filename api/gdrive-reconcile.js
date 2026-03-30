@@ -1,6 +1,7 @@
 import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
 import handleGdriveFile from '../lib/gdrive-file-handler.js';
-import { buildJoeySyncDrift, computeJoeySyncMeta } from '../lib/joey-sync-meta.js';
+import { mergeDerivedFileContext } from '../lib/context-files.js';
+import { buildJoeySyncDrift, computeJoeySyncMeta, validateJoeySyncBundleMeta } from '../lib/joey-sync-meta.js';
 import {
   createRedisFetch,
   fetchWithRedirects,
@@ -11,9 +12,9 @@ import {
   verifyJoeyPassphrase
 } from '../lib/joey-server.js';
 
-const MAX_HISTORY = 80;
-const MAX_MEMORIES = 300;
-const MAX_JOURNAL = 1000;
+const MAX_HISTORY = 100;
+const MAX_MEMORIES = 320;
+const MAX_JOURNAL = 1800;
 const SYSTEM_FILE_NAMES = new Set([
   'AgentContext.md',
   'Projects.md',
@@ -285,7 +286,27 @@ async function fetchDriveBundle(mode, gdriveWebhook, gdriveSecret) {
     if (parsed && parsed.error) {
       return { ok: false, error: parsed.error, status: response.status || 502, redirectChain };
     }
-    return { ok: true, data: parsed, status: response.status || 200, redirectChain };
+    const data = asObject(parsed);
+    const validation = validateJoeySyncBundleMeta({
+      mode,
+      profile: data.profile,
+      memories: data.memories,
+      history: data.history,
+      files: data.files,
+      fileLibrary: data.fileLibrary,
+      customFiles: data.customFiles,
+      journal: data.journal
+    }, data.syncMeta);
+    if (data.syncMeta && !validation.ok && validation.reason !== 'missing-hashes') {
+      return {
+        ok: false,
+        error: 'Drive bundle failed integrity validation',
+        status: 409,
+        redirectChain,
+        validation
+      };
+    }
+    return { ok: true, data: parsed, status: response.status || 200, redirectChain, validation };
   } catch (error) {
     const isHtml = response.text.trim().startsWith('<');
     return {
@@ -333,11 +354,14 @@ export default async function handler(req, res) {
     if (!drive.ok) {
       return res.status(drive.status || 502).json({
         error: drive.error || 'Drive reconciliation failed',
-        redirectChain: drive.redirectChain || []
+        redirectChain: drive.redirectChain || [],
+        validation: drive.validation || null
       });
     }
 
     const driveData = asObject(drive.data);
+    const driveCustomFiles = driveData.customFiles || deriveCustomFiles(driveData.files);
+    const driveFiles = mergeDerivedFileContext(driveData.files, driveData.fileLibrary, driveCustomFiles, nowIso);
     const [currentProfile, currentMemories, currentHistory, currentFiles, currentFileLibrary, currentCustomFiles, currentJournal, storedSyncMeta] = await Promise.all([
       loadRedisJson(redisFetch, PROFILE_KEY, {}),
       loadRedisJson(redisFetch, MEMORY_KEY, []),
@@ -371,9 +395,9 @@ export default async function handler(req, res) {
       profile: driveData.profile,
       memories: driveData.memories,
       history: driveData.history,
-      files: driveData.files,
+      files: driveFiles,
       fileLibrary: driveData.fileLibrary,
-      customFiles: driveData.customFiles || deriveCustomFiles(driveData.files),
+      customFiles: driveCustomFiles,
       journal: driveData.journal || []
     }, {
       ...(driveData.syncMeta && typeof driveData.syncMeta === 'object' ? driveData.syncMeta : {}),
@@ -387,8 +411,13 @@ export default async function handler(req, res) {
     const mergedMemories = mergeMemories(currentMemories, driveData.memories);
     const mergedHistory = mergeHistory(currentHistory, driveData.history);
     const mergedFileLibrary = mergeFileLibrary(currentFileLibrary, driveData.fileLibrary);
-    const mergedCustomFiles = mergeCustomFiles(currentCustomFiles, driveData.customFiles, driveData.files);
-    const mergedFiles = mergeFiles(currentFiles, driveData.files, mergedCustomFiles);
+    const mergedCustomFiles = mergeCustomFiles(currentCustomFiles, driveData.customFiles, driveFiles);
+    const mergedFiles = mergeDerivedFileContext(
+      mergeFiles(currentFiles, driveFiles, mergedCustomFiles),
+      mergedFileLibrary,
+      mergedCustomFiles,
+      nowIso
+    );
     const mergedJournal = mergeJournal(currentJournal, driveData.journal);
 
     const added = {

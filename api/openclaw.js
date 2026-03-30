@@ -27,14 +27,14 @@ function buildOpenClawSystemParts(context) {
 
   systemParts.push(buildActiveSystemPromptPart(systemPromptOverride, forceFullContext));
   if (joeyContext) {
-    systemParts.push(clampText(joeyContext, forceFullContext ? (largeContext ? 12000 : 6000) : (largeContext ? 8000 : 3000)));
+    systemParts.push(clampText(joeyContext, forceFullContext ? (largeContext ? 22000 : 11000) : (largeContext ? 16000 : 6000)));
   }
-  if (profileText && (largeContext || !filesText)) systemParts.push(clampText(profileText, largeContext ? 2400 : 1200));
+  if (profileText && (largeContext || !filesText)) systemParts.push(clampText(profileText, largeContext ? 4200 : 2200));
   if (memoriesText && (largeContext || !filesText)) {
-    systemParts.push(clampText(memoriesText, forceFullContext ? (largeContext ? 8000 : 3200) : (largeContext ? 4000 : 1800)));
+    systemParts.push(clampText(memoriesText, forceFullContext ? (largeContext ? 16000 : 6400) : (largeContext ? 9000 : 3200)));
   }
-  if (filesText) systemParts.push(clampText(filesText, forceFullContext ? (largeContext ? 44000 : 18000) : (largeContext ? 22000 : 8000)));
-  if (searchContext) systemParts.push(clampText(searchContext, largeContext ? 3600 : 2000));
+  if (filesText) systemParts.push(clampText(filesText, forceFullContext ? (largeContext ? 72000 : 28000) : (largeContext ? 40000 : 14000)));
+  if (searchContext) systemParts.push(clampText(searchContext, largeContext ? 6000 : 2800));
 
   systemParts.push(`
 === PERSONALIZATION INSTRUCTIONS ===
@@ -49,7 +49,8 @@ function buildOpenClawSystemParts(context) {
 - Build on previous conversations - reference what you discussed before when relevant.
 - Be concrete, not generic: tie suggestions to their current projects, open loops, wins, lessons, decisions, and relationships when relevant.
 - Prefer using one or two highly relevant personal details well instead of dumping broad memory.
-- If context points to an ongoing thread, continue it proactively instead of restarting from zero.`);
+- If context points to an ongoing thread, continue it proactively instead of restarting from zero.
+- Act like this person's long-term operator: learn their defaults, standards, people, and recurring patterns so your help feels specific to them rather than generic.`);
 
   systemParts.push(`
 === MODE ISOLATION ===
@@ -103,7 +104,7 @@ export default async function handler(req, res) {
     },
     buildSystemParts: buildOpenClawSystemParts,
     getBackfillLimit({ forceFullContext, largeContext }) {
-      return forceFullContext ? (largeContext ? 40 : 16) : (largeContext ? 24 : 8);
+      return forceFullContext ? (largeContext ? 72 : 24) : (largeContext ? 48 : 12);
     },
     buildUpstreamBody({ modelName, finalMessages }) {
       const isMimo = /mimo-v2-pro/i.test(modelName);
@@ -111,7 +112,7 @@ export default async function handler(req, res) {
         model: modelName,
         messages: finalMessages,
         stream: true,
-        max_tokens: isMimo ? 3200 : 1400,
+        max_tokens: isMimo ? 4600 : 1800,
         temperature: isMimo ? 0.2 : 0.15
       };
     },

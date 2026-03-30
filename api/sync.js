@@ -73,10 +73,44 @@ function normalizeFieldOp(input, fallbackDeviceId) {
     value: value.slice(0, 50000),
     deleted: deleted,
     clientTs: Number(source.clientTs || 0) || 0,
+    clientSeq: Math.max(0, Number(source.clientSeq || 0) || 0),
     source: String(source.source || 'field-input').slice(0, 80),
     scope: String(source.scope || 'local').slice(0, 40),
     deviceId: String(source.deviceId || fallbackDeviceId || '').slice(0, 120)
   };
+}
+
+async function loadFieldStateRecord(redis, key, fieldId) {
+  if (!fieldId) return null;
+  var response = await redis(['HGET', key, fieldId]);
+  return safeJsonParse(response && response.result, null);
+}
+
+function compareFieldPriority(existing, incoming) {
+  if (!incoming || !incoming.fieldId) return -1;
+  if (!existing || !existing.fieldId) return 1;
+  var incomingClientTs = Number(incoming.clientTs || 0) || 0;
+  var existingClientTs = Number(existing.clientTs || 0) || 0;
+  if (incomingClientTs !== existingClientTs) return incomingClientTs > existingClientTs ? 1 : -1;
+  var incomingClientSeq = Math.max(0, Number(incoming.clientSeq || 0) || 0);
+  var existingClientSeq = Math.max(0, Number(existing.clientSeq || 0) || 0);
+  if (incoming.deviceId && existing.deviceId && incoming.deviceId === existing.deviceId && incomingClientSeq !== existingClientSeq) {
+    return incomingClientSeq > existingClientSeq ? 1 : -1;
+  }
+  var samePayload =
+    String(incoming.value || '') === String(existing.value || '') &&
+    String(incoming.kind || '') === String(existing.kind || '') &&
+    !!incoming.deleted === !!existing.deleted &&
+    String(incoming.deviceId || '') === String(existing.deviceId || '') &&
+    incomingClientSeq === existingClientSeq;
+  if (samePayload) return 0;
+  if (incomingClientSeq !== existingClientSeq) return incomingClientSeq > existingClientSeq ? 1 : -1;
+  var incomingDeviceId = String(incoming.deviceId || '');
+  var existingDeviceId = String(existing.deviceId || '');
+  if (incomingDeviceId && existingDeviceId && incomingDeviceId !== existingDeviceId) {
+    return incomingDeviceId > existingDeviceId ? 1 : -1;
+  }
+  return 0;
 }
 
 async function loadFieldState(redis, key) {
@@ -94,6 +128,25 @@ async function persistFieldOp(redis, hk, op, deviceId) {
   var keys = getFieldSyncKeys(hk);
   var normalized = normalizeFieldOp(op, deviceId);
   if (!normalized) return null;
+  var current = await loadFieldStateRecord(redis, keys.state, normalized.fieldId);
+  var freshness = compareFieldPriority(current, normalized);
+  if (freshness < 0) {
+    return {
+      rejected: true,
+      stale: true,
+      fieldId: normalized.fieldId,
+      current: current || null,
+      incoming: normalized
+    };
+  }
+  if (freshness === 0 && current) {
+    return {
+      duplicate: true,
+      fieldId: normalized.fieldId,
+      current: current,
+      incoming: normalized
+    };
+  }
   var versionResponse = await redis(['INCR', keys.seq]);
   var version = Number(versionResponse && versionResponse.result) || 0;
   if (!version) throw new Error('Could not allocate field op version');
@@ -213,7 +266,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Redis not configured' });
   }
 
-  var MAX_VERSIONS = 6;
+  var MAX_VERSIONS = 4;
 
   function parseManifest(snapshot) {
     if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return null;
@@ -447,15 +500,26 @@ export default async function handler(req, res) {
         if (!ops.length) return res.status(400).json({ error: 'Missing ops' });
         if (ops.length > FIELD_OP_BATCH_LIMIT) return res.status(400).json({ error: 'Too many ops in one request' });
         var applied = [];
+        var rejected = [];
+        var duplicates = [];
         for (var opIndex = 0; opIndex < ops.length; opIndex += 1) {
           var record = await persistFieldOp(redis, hk, ops[opIndex], body.deviceId);
-          if (record) applied.push(record);
+          if (!record) continue;
+          if (record.rejected) rejected.push(record);
+          else if (record.duplicate) duplicates.push(record);
+          else applied.push(record);
         }
         var latestFieldVersion = applied.length ? applied[applied.length - 1].version : 0;
+        if (!latestFieldVersion) {
+          var latestFieldVersionRes = await redis(['GET', getFieldSyncKeys(hk).seq]);
+          latestFieldVersion = parseInt((latestFieldVersionRes && latestFieldVersionRes.result) || '0', 10) || 0;
+        }
         var pruneResult = await pruneFieldOps(redis, hk, latestFieldVersion);
         return res.status(200).json({
           ok: true,
           applied: applied,
+          rejected: rejected,
+          duplicates: duplicates,
           latestVersion: latestFieldVersion,
           minRetainedVersion: pruneResult.minRetainedVersion,
           prunedOps: pruneResult.deleted

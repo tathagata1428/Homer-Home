@@ -1,4 +1,4 @@
-import { buildContextFiles } from '../lib/context-files.js';
+import { buildContextFiles, mergeDerivedFileContext, preserveGeneratedContextFiles } from '../lib/context-files.js';
 import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
 import { computeJoeySyncMeta } from '../lib/joey-sync-meta.js';
 import {
@@ -114,7 +114,7 @@ export default async function handler(req, res) {
 
     let files = filesResult && typeof filesResult === 'object' ? filesResult : {};
     if (!files || !files['AgentContext.md'] || effectiveTasks.length) {
-      files = buildContextFiles({
+      const generatedFiles = buildContextFiles({
         profile: profile || {},
         memories,
         history,
@@ -123,7 +123,9 @@ export default async function handler(req, res) {
         customFiles,
         scope: mode
       });
+      files = preserveGeneratedContextFiles(files, generatedFiles, customFiles, new Date().toISOString()).files;
     }
+    files = mergeDerivedFileContext(files, fileLibrary, customFiles, new Date().toISOString());
     await saveRedisJson(redisFetch, FILES_KEY, files);
 
     const syncMeta = computeJoeySyncMeta({

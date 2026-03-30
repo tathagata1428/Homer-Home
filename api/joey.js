@@ -1,4 +1,4 @@
-import { buildContextFiles } from '../lib/context-files.js';
+import { buildContextFiles, preserveGeneratedContextFiles } from '../lib/context-files.js';
 import handleJoeyCommit, { runLearnStep } from '../lib/joey-commit-handler.js';
 import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
 import { loadRedisJson, saveRedisJson, safeJsonParse } from '../lib/joey-server.js';
@@ -47,9 +47,9 @@ export default async function handler(req, res) {
 
   const mode = getJoeyMode(req);
   const { MEMORY_KEY, HISTORY_KEY, PROFILE_KEY, FILES_KEY, FILE_LIBRARY_KEY, CUSTOM_FILES_KEY, JOURNAL_KEY, SYNC_META_KEY } = getJoeyContextKeys(mode);
-  const MAX_MEMORIES = 200;
-  const MAX_HISTORY = 50;
-  const MAX_JOURNAL = 700;
+  const MAX_MEMORIES = 320;
+  const MAX_HISTORY = 100;
+  const MAX_JOURNAL = 1800;
 
   async function loadJournal() {
     return loadRedisJson(redis, JOURNAL_KEY, []);
@@ -328,24 +328,31 @@ export default async function handler(req, res) {
       if (req.method === 'POST') {
         const { tasks } = req.body || {};
         const effectiveTasks = mode === 'work' ? [] : (Array.isArray(tasks) ? tasks : []);
-        const [memRes, profileRes, histRes, libraryRes, customFilesRes] = await Promise.all([
+        const [memRes, profileRes, histRes, filesRes, libraryRes, customFilesRes] = await Promise.all([
           redis(['GET', MEMORY_KEY]),
           redis(['GET', PROFILE_KEY]),
           redis(['GET', HISTORY_KEY]),
+          redis(['GET', FILES_KEY]),
           redis(['GET', FILE_LIBRARY_KEY]),
           redis(['GET', CUSTOM_FILES_KEY])
         ]);
-        const files = buildContextFiles({
+        const existingFiles = filesRes.result ? JSON.parse(filesRes.result) : {};
+        const existingCustomFiles = customFilesRes.result ? JSON.parse(customFilesRes.result) : {};
+        const generatedFiles = buildContextFiles({
           profile: profileRes.result ? JSON.parse(profileRes.result) : {},
           memories: memRes.result ? JSON.parse(memRes.result) : [],
           history: histRes.result ? JSON.parse(histRes.result) : [],
           tasks: effectiveTasks,
           fileLibrary: libraryRes.result ? JSON.parse(libraryRes.result) : [],
-          customFiles: customFilesRes.result ? JSON.parse(customFilesRes.result) : {},
+          customFiles: existingCustomFiles,
           scope: mode
         });
-        await redis(['SET', FILES_KEY, JSON.stringify(files)]);
-        return res.status(200).json({ ok: true, files });
+        const preserved = preserveGeneratedContextFiles(existingFiles, generatedFiles, existingCustomFiles, new Date().toISOString());
+        await Promise.all([
+          redis(['SET', FILES_KEY, JSON.stringify(preserved.files)]),
+          redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(preserved.customFiles)])
+        ]);
+        return res.status(200).json({ ok: true, files: preserved.files, preserved: Object.keys(preserved.customFiles).length - Object.keys(existingCustomFiles || {}).length });
       }
       return res.status(405).json({ error: 'Method not allowed' });
     }
@@ -371,23 +378,40 @@ export default async function handler(req, res) {
         if (!name || typeof content !== 'string') return res.status(400).json({ error: 'Missing name or content' });
         const safeName = String(name).trim().replace(/\.\./g, '').replace(/^\/+/, '').slice(0, 200);
         if (!safeName) return res.status(400).json({ error: 'Invalid file name' });
-        const result = await redis(['GET', CUSTOM_FILES_KEY]);
+        const [result, filesResult] = await Promise.all([
+          redis(['GET', CUSTOM_FILES_KEY]),
+          redis(['GET', FILES_KEY])
+        ]);
         const customFiles = result.result ? JSON.parse(result.result) : {};
+        const files = filesResult.result ? JSON.parse(filesResult.result) : {};
         if (!content.trim()) {
           delete customFiles[safeName];
+          delete files[safeName];
         } else {
           customFiles[safeName] = content.trim().slice(0, 50000);
+          files[safeName] = customFiles[safeName];
         }
-        await redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(customFiles)]);
+        await Promise.all([
+          redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(customFiles)]),
+          redis(['SET', FILES_KEY, JSON.stringify(files)])
+        ]);
         return res.status(200).json({ ok: true, name: safeName, count: Object.keys(customFiles).length });
       }
       if (req.method === 'DELETE') {
         const { name } = req.body || {};
         if (!name) return res.status(400).json({ error: 'Missing name' });
-        const result = await redis(['GET', CUSTOM_FILES_KEY]);
+        const [result, filesResult] = await Promise.all([
+          redis(['GET', CUSTOM_FILES_KEY]),
+          redis(['GET', FILES_KEY])
+        ]);
         const customFiles = result.result ? JSON.parse(result.result) : {};
+        const files = filesResult.result ? JSON.parse(filesResult.result) : {};
         delete customFiles[String(name).trim()];
-        await redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(customFiles)]);
+        delete files[String(name).trim()];
+        await Promise.all([
+          redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(customFiles)]),
+          redis(['SET', FILES_KEY, JSON.stringify(files)])
+        ]);
         return res.status(200).json({ ok: true, count: Object.keys(customFiles).length });
       }
       return res.status(405).json({ error: 'Method not allowed' });

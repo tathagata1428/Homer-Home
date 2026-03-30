@@ -1,6 +1,7 @@
 // Google Drive context restore — fetches Joey context from Google Apps Script, restores to Redis
+import { mergeDerivedFileContext } from '../lib/context-files.js';
 import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
-import { computeJoeySyncMeta } from '../lib/joey-sync-meta.js';
+import { computeJoeySyncMeta, validateJoeySyncBundleMeta } from '../lib/joey-sync-meta.js';
 import {
   createRedisFetch,
   fetchWithRedirects,
@@ -76,8 +77,28 @@ export default async function handler(req, res) {
       });
     }
 
+    const validation = validateJoeySyncBundleMeta({
+      mode,
+      profile: parsed.profile,
+      memories: parsed.memories,
+      history: parsed.history,
+      files: parsed.files,
+      fileLibrary: parsed.fileLibrary,
+      customFiles: parsed.customFiles,
+      journal: parsed.journal
+    }, parsed.syncMeta);
+    if (parsed.syncMeta && !validation.ok && validation.reason !== 'missing-hashes') {
+      return res.status(409).json({
+        error: 'Drive bundle failed integrity validation',
+        validation
+      });
+    }
+
     // Restore to Redis
     const { profile, memories, history, files, fileLibrary, customFiles, journal, syncMeta } = parsed;
+    const restoredFileLibrary = fileLibrary || [];
+    const restoredCustomFiles = customFiles || {};
+    const restoredFiles = mergeDerivedFileContext(files || {}, restoredFileLibrary, restoredCustomFiles, new Date().toISOString());
     const results = { profile: false, memories: false, history: false, files: false, fileLibrary: false, customFiles: false, journal: false, syncMeta: false };
 
     if (profile !== undefined) {
@@ -93,15 +114,15 @@ export default async function handler(req, res) {
       results.history = true;
     }
     if (files !== undefined) {
-      await saveRedisJson(redisFetch, FILES_KEY, files || {});
+      await saveRedisJson(redisFetch, FILES_KEY, restoredFiles);
       results.files = true;
     }
     if (fileLibrary !== undefined) {
-      await saveRedisJson(redisFetch, FILE_LIBRARY_KEY, fileLibrary || []);
+      await saveRedisJson(redisFetch, FILE_LIBRARY_KEY, restoredFileLibrary);
       results.fileLibrary = true;
     }
     if (customFiles !== undefined) {
-      await saveRedisJson(redisFetch, CUSTOM_FILES_KEY, customFiles || {});
+      await saveRedisJson(redisFetch, CUSTOM_FILES_KEY, restoredCustomFiles);
       results.customFiles = true;
     }
     if (journal !== undefined) {
@@ -113,9 +134,9 @@ export default async function handler(req, res) {
       profile: profile || {},
       memories: memories || [],
       history: history || [],
-      files: files || {},
-      fileLibrary: fileLibrary || [],
-      customFiles: customFiles || {},
+      files: restoredFiles,
+      fileLibrary: restoredFileLibrary,
+      customFiles: restoredCustomFiles,
       journal: journal || []
     }, {
       ...(syncMeta && typeof syncMeta === 'object' ? syncMeta : {}),
