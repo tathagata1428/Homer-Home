@@ -18293,6 +18293,42 @@ window._homerAmbientAudio = {
     return shouldLock;
   }
   window._homerSyncPageScrollLock = syncPageScrollLock;
+  function hasScrollableRoom(el, deltaY){
+    if(!el || el === document.body || el === document.documentElement) return false;
+    if(el.scrollHeight <= el.clientHeight + 1) return false;
+    var style = window.getComputedStyle(el);
+    var overflowY = style ? style.overflowY : '';
+    if(overflowY !== 'auto' && overflowY !== 'scroll' && overflowY !== 'overlay') return false;
+    if(deltaY < 0) return el.scrollTop > 0;
+    if(deltaY > 0) return (el.scrollTop + el.clientHeight) < (el.scrollHeight - 1);
+    return false;
+  }
+  function nearestScrollableAncestor(start, deltaY){
+    var node = start;
+    while(node && node !== document.body && node !== document.documentElement){
+      if(hasScrollableRoom(node, deltaY)) return node;
+      node = node.parentElement;
+    }
+    return null;
+  }
+  function installDesktopWheelFallback(){
+    if(typeof window === 'undefined') return;
+    window.addEventListener('wheel', function(e){
+      if(!e || !e.deltaY || e.defaultPrevented) return;
+      if(window.innerWidth <= 900) return;
+      if(document.body && document.body.dataset.pageScrollLocked === '1') return;
+      if(nearestScrollableAncestor(e.target, e.deltaY)) return;
+      var scroller = document.scrollingElement || document.documentElement || document.body;
+      if(!scroller) return;
+      var maxScroll = Math.max(0, scroller.scrollHeight - window.innerHeight);
+      if(maxScroll <= 0) return;
+      var top = scroller.scrollTop;
+      var nextTop = Math.max(0, Math.min(maxScroll, top + e.deltaY));
+      if(nextTop === top) return;
+      e.preventDefault();
+      scroller.scrollTop = nextTop;
+    }, { passive:false, capture:true });
+  }
   function initPageScrollLockObserver(){
     if(scrollLockObserverStarted || !document.body || typeof MutationObserver === 'undefined') return;
     scrollLockObserverStarted = true;
@@ -18310,6 +18346,7 @@ window._homerAmbientAudio = {
   } else {
     initPageScrollLockObserver();
   }
+  installDesktopWheelFallback();
 
   function initMobileOverlayDock(){
     if(window.innerWidth > 480) return;
