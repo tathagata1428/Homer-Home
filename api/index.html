@@ -17196,10 +17196,18 @@ window._homerAmbientAudio = {
           var noteTarget = String(noteData.target || 'vault').trim().toLowerCase();
           var noteText = String(noteData.text || noteData.value || noteData.note || '').trim();
           if(noteTarget === 'brain-dump'){
-            localStorage.setItem('homer-brain-dump', noteText);
+            if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.updateBrainDump === 'function'){
+              window._homerFocusLabAgent.updateBrainDump(noteText);
+            } else {
+              localStorage.setItem('homer-brain-dump', noteText);
+            }
             notifications.push('Brain dump updated');
           } else if(noteTarget === 'zen-goal'){
-            localStorage.setItem('homer-zen-goal', noteText);
+            if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.setZenGoal === 'function'){
+              window._homerFocusLabAgent.setZenGoal(noteText);
+            } else {
+              localStorage.setItem('homer-zen-goal', noteText);
+            }
             notifications.push('Zen goal updated');
           } else if(typeof window._homerUpdateVaultNote === 'function'){
             window._homerUpdateVaultNote(noteText).catch(function(err){
