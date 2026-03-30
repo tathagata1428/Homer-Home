@@ -12500,6 +12500,29 @@ window._homerAmbientAudio = {
       .replace(/[|><[\]#:"']/g, '_')
       .slice(0, 80);
   }
+  function isTransientUserField(el){
+    if(!el || !el.matches) return true;
+    if(el.closest('.goal-filters, .kanban-hero, .vault-mode-switch')) return true;
+    if(el.closest('#acct-modal-bg, #admin-login, #admin-panel, #fab-sync, #vault-login-fields')) return true;
+    if(el.closest('#admin-backups-view')) return true;
+    var id = String(el.id || '').toLowerCase();
+    var name = String(el.name || '').toLowerCase();
+    if(/^(acct-|admin-|fab-|news-|yt-)/.test(id)) return true;
+    if(/^goal-filter-/.test(id)) return true;
+    if(id === 'goal-search' || id === 'oc-chat-input' || id === 'vault-pw-user' || id === 'vault-pw' || id === 'vault-cred-pass') return true;
+    if(/\b(search|filter)\b/.test(id) || /\b(search|filter)\b/.test(name)) return true;
+    return false;
+  }
+  function isDedicatedSyncedUserField(el){
+    var id = String(el && el.id || '').toLowerCase();
+    return id === 'brain-dump' || id === 'zen-input';
+  }
+  function shouldBackupUserField(el){
+    if(!el || !el.matches) return false;
+    if(el.matches('input[type="hidden"], input[type="password"], input[type="file"], input[type="button"], input[type="submit"], input[type="reset"]')) return false;
+    if(el.classList && el.classList.contains('acct-field')) return false;
+    return !isTransientUserField(el);
+  }
   function buildPersistentFieldPathKey(el){
     var parts = [];
     var node = el;
@@ -12550,17 +12573,7 @@ window._homerAmbientAudio = {
     return sanitizePersistentFieldKeyPart(parts.join('>'));
   }
   function shouldTrackPersistentField(el){
-    if(!el || !el.matches) return false;
-    if(el.matches('input[type="hidden"], input[type="password"], input[type="file"], input[type="button"], input[type="submit"], input[type="reset"]')) return false;
-    if(el.closest('#acct-modal-bg, #admin-login, #admin-panel, #fab-sync, #vault-login-fields')) return false;
-    if(el.closest('.goal-filters, .kanban-hero, .vault-mode-switch')) return false;
-    if(el.classList && el.classList.contains('acct-field')) return false;
-    if(el.closest('#admin-backups-view')) return false;
-    var id = String(el.id || '').toLowerCase();
-    if(/^(acct-|admin-|fab-|news-|yt-)/.test(id)) return false;
-    if(id === 'brain-dump' || id === 'zen-input') return false;
-    if(id === 'vault-pw-user' || id === 'vault-pw' || id === 'vault-cred-pass') return false;
-    return true;
+    return shouldBackupUserField(el) && !isDedicatedSyncedUserField(el);
   }
   function getPersistentFieldDraftKey(el){
     if(!shouldTrackPersistentField(el)) return '';
