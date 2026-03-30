@@ -16543,6 +16543,30 @@ window._homerAmbientAudio = {
     }
     return null;
   }
+  function inferDeferredNoteRequest(text){
+    var raw = String(text || '').trim();
+    if(!raw) return null;
+    var normalized = raw.replace(/\s+/g, ' ').trim();
+    var target = '';
+    if(/\bbrain\s*dump\b/i.test(normalized)) target = 'brain-dump';
+    else if(/\bzen\s+goal\b/i.test(normalized)) target = 'zen-goal';
+    else if(/\bvault\s+note\b/i.test(normalized)) target = 'vault';
+    if(!target) return null;
+    if(!/(?:generate|create|come up with|write|draft|compose|make)\b/i.test(normalized)) return null;
+    if(!/(?:save|put|add|append|store|keep|place|set|update)\b/i.test(normalized)) return null;
+    return {
+      target: target,
+      mode: /\b(?:append|add|put|save|store|keep|place)\b/i.test(normalized) ? 'append' : 'replace'
+    };
+  }
+  function extractGeneratedNoteText(text){
+    var clean = String(text || '').trim();
+    if(!clean) return '';
+    clean = clean.replace(/^here(?:'s| is)\s+(?:a|the|one|your)\s+[^:\n]{0,80}:\s*/i, '');
+    clean = clean.replace(/^(?:stoic|brain dump|zen goal|vault note)\s*[:\-]\s*/i, '');
+    clean = clean.replace(/^["']+|["']+$/g, '').trim();
+    return clampAgentText(clean, 4000);
+  }
   function applyAgentNoteMutation(noteData){
     var target = String(noteData && noteData.target || 'vault').trim().toLowerCase();
     var text = String(noteData && noteData.text || '').trim();
@@ -17983,6 +18007,7 @@ window._homerAmbientAudio = {
     var directTaskNeedsPlanning = taskNeedsAgentSubtasks(displayText);
     var directIssueUpdate = inferDirectIssueUpdateRequest(displayText);
     var directNoteRequest = inferDirectNoteRequest(displayText);
+    var deferredNoteRequest = directNoteRequest ? null : inferDeferredNoteRequest(displayText);
     var directCommandRequest = inferDirectCommandRequest(displayText);
     if(forceWebSearch) fullContent = '[FORCE_WEB_SEARCH] ' + fullContent;
     if(forceFullContext) fullContent = '[USE_FULL_CONTEXT] ' + fullContent;
@@ -18123,6 +18148,25 @@ window._homerAmbientAudio = {
       if(fullResponse){
         // Execute any actions (tasks, goals, events) and strip tags from display
       var cleanResponse = executeActions(fullResponse, displayText);
+        if(currentProvider === 'joey' && deferredNoteRequest && !/\[ACTION:NOTE\]/i.test(fullResponse)){
+          var generatedNoteText = extractGeneratedNoteText(cleanResponse);
+          if(generatedNoteText){
+            try{
+              var deferredSave = await applyAgentNoteMutation({
+                target: deferredNoteRequest.target,
+                mode: deferredNoteRequest.mode,
+                text: generatedNoteText
+              });
+              if(deferredSave && deferredSave.ok){
+                cleanResponse += '\n\nSaved to ' + (deferredNoteRequest.target === 'brain-dump' ? 'brain dump.' : (deferredNoteRequest.target === 'zen-goal' ? 'zen goal.' : 'vault note.'));
+              } else if(deferredSave && deferredSave.message){
+                cleanResponse += '\n\n' + deferredSave.message;
+              }
+            }catch(err){
+              cleanResponse += '\n\nSave failed: ' + (err && err.message ? err.message : err);
+            }
+          }
+        }
         chatHistory.push({role:'assistant', content:cleanResponse, provider:currentProvider, model:modelLabel || primaryModelLabel || getStoredModelLabel(currentProvider, currentContextMode), mode:currentContextMode});
         incrementUnread();
         // Re-render the last bot message without action tags
