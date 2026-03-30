@@ -15949,10 +15949,11 @@ document.addEventListener("input", e => {
               if(!Array.isArray(data.goals)) data.goals = [];
               if(!data._nextId) data._nextId = 1;
               if(!data._nextSubId) data._nextSubId = 1;
+              var goalFilterProjectEl = (typeof goalFilterProject !== 'undefined' && goalFilterProject) || document.getElementById('goal-filter-project');
               var projectHelpers = getActionProjectHelpers();
               var projects = projectHelpers.ensureProjects(data.projects || []);
               var requestedProject = String(taskData.projectId || taskData.project || taskData.projectName || taskData.projectKey || '').trim();
-              var fallbackProjectId = (goalFilterProject && goalFilterProject.value) || projectHelpers.getDefaultProjectId(projects);
+              var fallbackProjectId = (goalFilterProjectEl && goalFilterProjectEl.value) || projectHelpers.getDefaultProjectId(projects);
               var matchedProject = projectHelpers.matchProject(projects, requestedProject, fallbackProjectId, !!requestedProject);
               if(requestedProject && !matchedProject){
                 showJoeyStatusToast('Project not found for task: ' + requestedProject, 'warn');
@@ -16007,7 +16008,7 @@ document.addEventListener("input", e => {
                 if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('joey-task', 900);
                 try{ window.dispatchEvent(new Event('vault-goals-changed')); }catch(e){}
                 showJoeyStatusToast('Task added to ' + displayProject.name + ': ' + task.summary, 'success');
-                if(goalFilterProject && (goalFilterProject.value === '' || goalFilterProject.value === matchedProject.id)){
+                if(goalFilterProjectEl && (goalFilterProjectEl.value === '' || goalFilterProjectEl.value === matchedProject.id)){
                   renderGoals(data.goals || [], data.projects || []);
                 }
                 refreshCanonicalFiles().catch(function(){});
