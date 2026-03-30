@@ -404,19 +404,92 @@
 
     /* 2. Box Breathing */
     .breathing-circle {
+      --breath-duration: 4000ms;
       width: 140px; height: 140px; border-radius: 50%;
       background: radial-gradient(circle, var(--accent-2) 0%, rgba(96,165,250,0.1) 70%);
       margin: 20px auto;
       display: grid; place-items: center;
       font-weight: 900; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.5);
-      transition: all 4s ease-in-out;
+      position: relative;
+      overflow: visible;
+      transform: scale(1);
       border: 4px solid var(--accent-2);
       box-shadow: 0 0 20px var(--accent-2);
     }
+    .breathing-circle .breath-inner{
+      display:grid;
+      justify-items:center;
+      gap:6px;
+      line-height:1;
+      text-align:center;
+    }
+    .breathing-circle .breath-label{
+      font-size:1rem;
+      font-weight:900;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+    }
+    .breathing-circle .breath-glyph{
+      font-size:1.45rem;
+      opacity:.92;
+    }
+    .breathing-circle::after{
+      content:"";
+      position:absolute; inset:-12px;
+      border-radius:50%;
+      border:2px solid transparent;
+      opacity:0;
+      pointer-events:none;
+    }
     .breathing-container { text-align: center; padding: 20px; }
-    .b-inhale { transform: scale(1.5); background-color: var(--accent); border-color: var(--accent); box-shadow: 0 0 40px var(--accent); }
-    .b-hold { transform: scale(1.5); border-style: dashed; }
-    .b-exhale { transform: scale(1); background-color: var(--accent-2); }
+    .b-inhale{
+      border-color: var(--accent);
+      background: radial-gradient(circle, rgba(34,197,94,.95) 0%, rgba(34,197,94,.18) 72%);
+      animation: breatheIn var(--breath-duration) linear forwards;
+    }
+    .b-inhale::after{
+      border-color: rgba(34,197,94,.45);
+      animation: breatheHaloIn var(--breath-duration) linear forwards;
+      opacity:1;
+    }
+    .b-hold{
+      transform: scale(1.5);
+      border-color: #fbbf24;
+      border-style: dashed;
+      background: radial-gradient(circle, rgba(251,191,36,.88) 0%, rgba(251,191,36,.16) 74%);
+      box-shadow:0 0 34px rgba(251,191,36,.4);
+    }
+    .b-hold::after{
+      border-color: rgba(251,191,36,.5);
+      opacity:1;
+      transform:scale(1.16);
+    }
+    .b-exhale{
+      border-color: var(--accent-2);
+      background: radial-gradient(circle, rgba(96,165,250,.95) 0%, rgba(96,165,250,.12) 72%);
+      animation: breatheOut var(--breath-duration) linear forwards;
+    }
+    .b-exhale::after{
+      border-color: rgba(96,165,250,.45);
+      animation: breatheHaloOut var(--breath-duration) linear forwards;
+      opacity:1;
+    }
+    @keyframes breatheIn {
+      from { transform:scale(1); box-shadow:0 0 20px rgba(96,165,250,.45); }
+      to { transform:scale(1.5); box-shadow:0 0 44px rgba(34,197,94,.55); }
+    }
+    @keyframes breatheOut {
+      from { transform:scale(1.5); box-shadow:0 0 40px rgba(96,165,250,.55); }
+      to { transform:scale(1); box-shadow:0 0 18px rgba(96,165,250,.28); }
+    }
+    @keyframes breatheHaloIn {
+      from { transform:scale(.98); opacity:.2; }
+      to { transform:scale(1.16); opacity:.55; }
+    }
+    @keyframes breatheHaloOut {
+      from { transform:scale(1.16); opacity:.45; }
+      to { transform:scale(1.02); opacity:.14; }
+    }
 
     /* 3. Brain Dump */
     .brain-dump-area {
@@ -3350,7 +3423,7 @@
 <div id="project-modal-bg" class="fab-overlay" style="z-index:9990;">
   <div class="fab-dialog" style="width:min(460px,92vw);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-      <h3 style="margin:0;font-size:1.1rem;">New Project</h3>
+      <h3 id="project-modal-title" style="margin:0;font-size:1.1rem;">New Project</h3>
       <button id="project-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:10px;">
@@ -3636,6 +3709,7 @@
       window.dispatchEvent(new CustomEvent('homer-tab-change', { detail:{ tab:name } }));
     }
     tabBtns.forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+    window._homerShowTab = showTab;
 
     /* DESKTOP SIDEBAR */
     (function(){
@@ -4108,27 +4182,41 @@ function renderQuote(q) {
     const boxCircle = document.getElementById("b-circle");
     let bInterval = null, bStep = 0;
     if(btnBox && boxCircle) {
+        const BREATH_PHASE_MS = 4000;
+        const BREATH_PHASES = [
+            { label:"Inhale", className:"b-inhale", glyph:"↑" },
+            { label:"Hold", className:"b-hold", glyph:"⏸" },
+            { label:"Exhale", className:"b-exhale", glyph:"↓" },
+            { label:"Hold", className:"b-hold", glyph:"⏸" }
+        ];
+        function renderBreathingContent(label, glyph){
+            boxCircle.innerHTML = '<div class="breath-inner"><span class="breath-label">' + label + '</span><span class="breath-glyph">' + glyph + '</span></div>';
+        }
+        function applyBreathingPhase(phase){
+            boxCircle.className = "breathing-circle";
+            renderBreathingContent(phase.label, phase.glyph || '');
+            boxCircle.style.setProperty('--breath-duration', BREATH_PHASE_MS + 'ms');
+            void boxCircle.offsetWidth;
+            boxCircle.classList.add(phase.className);
+        }
         btnBox.addEventListener("click", () => {
             if(bInterval) {
                 clearInterval(bInterval); bInterval = null;
                 btnBox.textContent = "Start Breathing";
                 boxCircle.className = "breathing-circle";
-                boxCircle.textContent = "Ready";
+                renderBreathingContent("Ready", "•");
             } else {
                 btnBox.textContent = "Stop";
                 bStep = 0;
                 const cycle = () => {
-                    boxCircle.className = "breathing-circle";
-                    if(bStep===0) { boxCircle.classList.add('b-inhale'); boxCircle.textContent="Inhale"; }
-                    if(bStep===1) { boxCircle.classList.add('b-hold'); boxCircle.textContent="Hold"; }
-                    if(bStep===2) { boxCircle.classList.add('b-exhale'); boxCircle.textContent="Exhale"; }
-                    if(bStep===3) { boxCircle.classList.add('b-hold'); boxCircle.textContent="Hold"; }
+                    applyBreathingPhase(BREATH_PHASES[bStep]);
                     bStep = (bStep + 1) % 4;
                 };
                 cycle();
-                bInterval = setInterval(cycle, 4000);
+                bInterval = setInterval(cycle, BREATH_PHASE_MS);
             }
         });
+        renderBreathingContent("Ready", "•");
     }
   </script>
 
@@ -4941,6 +5029,25 @@ document.addEventListener("input", e => {
 
   function load(){ return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
   function save(links){ localStorage.setItem(STORAGE_KEY, JSON.stringify(links)); }
+  function addSavedLink(entry){
+    var next = entry && typeof entry === 'object' ? entry : {};
+    var name = String(next.name || next.title || '').trim();
+    var url = String(next.url || '').trim();
+    if(!name || !url) return { ok:false, error:'Missing name or url' };
+    if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    var links = load();
+    links.push({
+      emoji: String(next.emoji || '').trim() || '🔗',
+      name: name,
+      url: url,
+      cat: String(next.category || next.cat || 'Uncategorized').trim() || 'Uncategorized',
+      useFavicon: next.useFavicon !== false
+    });
+    save(links);
+    render();
+    return { ok:true, name:name, url:url };
+  }
+  window._homerAddSavedLink = addSavedLink;
 
   function getFavicon(url){
     try {
@@ -5251,6 +5358,7 @@ document.addEventListener("input", e => {
   var goalCustomFieldsEl = document.getElementById('goal-custom-fields');
   var projectModalBg = document.getElementById('project-modal-bg');
   var projectModalClose = document.getElementById('project-modal-close');
+  var projectModalTitle = document.getElementById('project-modal-title');
   var projectNameInput = document.getElementById('project-name');
   var projectKeyInput = document.getElementById('project-key');
   var projectDescInput = document.getElementById('project-desc');
@@ -5265,6 +5373,7 @@ document.addEventListener("input", e => {
   var projectFieldsAddRowBtn = document.getElementById('project-fields-add-row');
   var projectFieldsSaveBtn = document.getElementById('project-fields-save');
   var activeProjectFieldsProjectId = '';
+  var activeProjectModalId = '';
   var showArchive = false;
   var showBacklog = false;
   var VAULT_MODE_KEY = 'homer-vault-mode';
@@ -5457,7 +5566,7 @@ document.addEventListener("input", e => {
   function normalizeProjectLookupKey(value){
     return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
   }
-  function matchProject(projects, requestedProject, fallbackProjectId){
+  function matchProject(projects, requestedProject, fallbackProjectId, strict){
     var list = ensureProjects(projects || _cachedProjects);
     var requested = String(requestedProject || '').trim();
     var requestedLower = requested.toLowerCase();
@@ -5476,11 +5585,13 @@ document.addEventListener("input", e => {
         normalizeProjectLookupKey(displayProject.name) === requestedKey;
     });
     if(exactMatch) return exactMatch;
-    return list.find(function(project){
+    var partialMatch = list.find(function(project){
       var displayProject = projectDisplay(project) || project;
       return normalizeProjectLookupKey(project.name).indexOf(requestedKey) >= 0 ||
         normalizeProjectLookupKey(displayProject.name).indexOf(requestedKey) >= 0;
-    }) || fallback;
+    });
+    if(partialMatch) return partialMatch;
+    return strict ? null : fallback;
   }
   function issueKey(goal, projects){
     var project = getProjectById(projects, goal && goal.projectId);
@@ -5989,14 +6100,56 @@ document.addEventListener("input", e => {
     });
     return '\n\n=== PROJECT STRUCTURE ===\n- Active ' + modeLabel(currentVaultMode).toLowerCase() + ' projects:\n' + (activeLines.length ? activeLines.join('\n') : '- None') + '\n' +
       (archivedLines.length ? '- Archived projects:\n' + archivedLines.join('\n') + '\n' : '- Archived projects: none\n') +
-      '- When the user says "add a task in project X", output TASK JSON with "project":"X" using the exact project name, display name, or key.\n' +
+      '- When the user says "add a task in project X", output TASK JSON with "project":"X" or "projectId":"..." using the exact project name, display name, key, or id.\n' +
+      '- If the user names a project, never omit the project field and never silently fall back to another project.\n' +
       '- If the user asks for relevant subtasks, include 2-6 concrete subtasks that fit that project instead of generic placeholders.\n' +
       '- If a project has custom fields and the user provides values, include them in TASK JSON under "customFields" as an object keyed by field name or id.\n' +
       '- Never place new tasks in archived projects. If the user names an archived project, restore it with a PROJECT action or ask them first.\n' +
-      '- If the user explicitly asks to create, archive, restore, or delete a project, append a PROJECT action.\n' +
+      '- If the user explicitly asks to create, rename, edit, archive, restore, or delete a project, append a PROJECT action.\n' +
+      '- For PROJECT update actions, use "project":"Current Project" to target the existing project, then send changed fields like "name", "description", "icon", "color", or "key".\n' +
       '- If no project is specified, default to the currently selected project; if none is selected, use the first active project.';
   }
   window._homerBuildJoeyProjectInstruction = buildJoeyProjectInstruction;
+  function buildJoeyWebsiteInstruction(){
+    var mode = currentContextMode === 'work' ? 'work' : 'personal';
+    var vaultMode = typeof window._homerGetVaultMode === 'function' ? window._homerGetVaultMode() : mode;
+    return '\n\n=== WEBSITE MAP ===\n' +
+      '- Tabs: home, pomodoro, focuslab, investing, tools, links, news, vault.\n' +
+      '- Focus Lab includes box breathing, zen mode, and brain dump.\n' +
+      '- Pomodoro stores quick focus tasks.\n' +
+      '- Links tab stores non-secret saved links.\n' +
+      '- Vault contains projects/kanban, life goals, encrypted notes, private links, credentials, and sync/recovery.\n' +
+      '- Joey also controls memory commit, Drive backup, Drive compare/sync, and vault mirror status.\n' +
+      '- Current Joey mode: ' + mode + '. Current vault mode: ' + vaultMode + '.\n' +
+      '\n=== EXECUTABLE ACTIONS ===\n' +
+      '- Supported action tags are TASK, GOAL, FOCUS, EVENT, REMEMBER, FORGET, PROJECT, NOTE, LINK, SECRET, and COMMAND.\n' +
+      '- Only output these exact action tags. Never invent unsupported tags.\n' +
+      '- If the user asks for something informational or conversational, answer normally without action tags.\n' +
+      '\nNOTE:\n' +
+      '- Vault note format: [ACTION:NOTE]{"target":"vault","text":"Encrypted note text"}[/ACTION]\n' +
+      '- Brain dump format: [ACTION:NOTE]{"target":"brain-dump","text":"Raw thoughts"}[/ACTION]\n' +
+      '- Zen goal format: [ACTION:NOTE]{"target":"zen-goal","text":"One clear goal"}[/ACTION]\n' +
+      '\nLINK:\n' +
+      '- Saves a non-secret link to the Links tab.\n' +
+      '- Format: [ACTION:LINK]{"name":"Docs","url":"https://example.com","category":"Work","emoji":"🔗"}[/ACTION]\n' +
+      '\nSECRET:\n' +
+      '- Use type "link" for private links and type "credential" for passwords.\n' +
+      '- Secret link format: [ACTION:SECRET]{"type":"link","name":"Admin","url":"https://admin.example.com","description":"Internal panel"}[/ACTION]\n' +
+      '- Credential format: [ACTION:SECRET]{"type":"credential","label":"GitHub","site":"github.com","username":"user","password":"secret","details":"2FA enabled"}[/ACTION]\n' +
+      '\nCOMMAND:\n' +
+      '- Use COMMAND only when the user explicitly asks the app to do something operational.\n' +
+      '- Supported COMMAND ops:\n' +
+      '  [ACTION:COMMAND]{"op":"tab","target":"vault"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"mode","target":"work"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"open","target":"notes"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"drive-sync"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"drive-backup"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"memory-commit"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"vault-mirror"}[/ACTION]\n' +
+      '- COMMAND target values for open: notes, secrets, projects, kanban, goals.\n' +
+      '- If a command requires the vault to be unlocked and it is locked, explain that instead of pretending it succeeded.\n';
+  }
+  window._homerBuildJoeyWebsiteInstruction = buildJoeyWebsiteInstruction;
   function refreshVaultModeViews(){
     if(!window._homerVaultUnlocked) return;
     renderVault();
@@ -6315,6 +6468,33 @@ document.addEventListener("input", e => {
       });
     });
   }
+  function updateProjectEntry(projectId, projectData){
+    return loadVault().then(function(data){
+      var projects = ensureProjects(data.projects || []);
+      var project = projects.find(function(entry){ return entry && entry.id === projectId; });
+      if(!project) return { ok:false, reason:'missing' };
+      var nextName = String(projectData && (projectData.name || projectData.title) || project.name || '').trim();
+      if(!nextName) return { ok:false, reason:'missing-name' };
+      var nextKey = deriveProjectKey(projectData && (projectData.key || project.key || nextName) || nextName);
+      if(projects.some(function(entry){
+        return entry && entry.id !== projectId && (
+          String(entry.name || '').toLowerCase() === nextName.toLowerCase() ||
+          String(entry.key || '').toUpperCase() === nextKey
+        );
+      })){
+        return { ok:false, reason:'exists', projectId:projectId };
+      }
+      project.name = nextName;
+      project.key = nextKey;
+      project.description = String(projectData && (projectData.description || projectData.desc) || '').trim();
+      project.icon = String(projectData && projectData.icon || '').trim();
+      project.color = /^#[0-9a-f]{6}$/i.test(projectData && projectData.color || '') ? projectData.color : (project.color || '#60a5fa');
+      data.projects = ensureProjects(projects);
+      return persistProjectMutation(data, 'project-update').then(function(){
+        return { ok:true, projectId:projectId, name:nextName, key:nextKey };
+      });
+    });
+  }
   function archiveProjectById(projectId){
     return loadVault().then(function(data){
       var projects = ensureProjects(data.projects || []);
@@ -6502,6 +6682,7 @@ document.addEventListener("input", e => {
       html += '<div class="project-meta-line">' + openCount + ' open / ' + metrics.counts.backlog + ' backlog / ' + metrics.counts.overdue + ' overdue</div>';
       html += '<div class="project-card-actions">';
       html += '<button class="project-open-btn" type="button" data-project-id="' + project.id + '">Open Board</button>';
+      html += '<button class="project-action-btn" type="button" data-project-edit="' + project.id + '">Edit</button>';
       html += '<button class="project-action-btn" type="button" data-project-fields="' + project.id + '">Fields</button>';
       html += '<button class="project-action-btn warn" type="button" data-project-archive="' + project.id + '"' + (activeProjects.length > 1 ? '' : ' disabled') + '>Archive</button>';
       html += '<button class="project-action-btn danger" type="button" data-project-delete="' + project.id + '"' + (canDeleteProject ? '' : ' disabled') + '>Delete</button>';
@@ -6526,6 +6707,7 @@ document.addEventListener("input", e => {
         html += '</div>';
         html += '<div class="project-desc">' + escHtml(displayProject.description || 'Archived project shell.') + '</div>';
         html += '<div class="project-card-actions">';
+        html += '<button class="project-action-btn" type="button" data-project-edit="' + project.id + '">Edit</button>';
         html += '<button class="project-action-btn" type="button" data-project-fields="' + project.id + '">Fields</button>';
         html += '<button class="project-action-btn restore" type="button" data-project-restore="' + project.id + '">Restore</button>';
         html += '<button class="project-action-btn danger" type="button" data-project-delete="' + project.id + '"' + (canDeleteArchived ? '' : ' disabled') + '>Delete</button>';
@@ -6546,6 +6728,12 @@ document.addEventListener("input", e => {
       btn.addEventListener('click', function(ev){
         ev.stopPropagation();
         openProjectBoard(this.dataset.projectId);
+      });
+    });
+    projectDashboardGrid.querySelectorAll('[data-project-edit]').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        openProjectModal(this.getAttribute('data-project-edit'));
       });
     });
     projectDashboardGrid.querySelectorAll('[data-project-archive]').forEach(function(btn){
@@ -8609,10 +8797,34 @@ document.addEventListener("input", e => {
     if(e.key === 'Enter'){ e.preventDefault(); goalCustomLabelAdd.click(); }
   });
 
-  function openProjectModal(){
+  function setProjectModalState(mode){
+    if(projectModalTitle) projectModalTitle.textContent = mode === 'edit' ? 'Edit Project' : 'New Project';
+    if(projectSubmitBtn) projectSubmitBtn.textContent = mode === 'edit' ? 'Save Project' : 'Create Project';
+    if(projectNameInput) projectNameInput.style.borderColor = '';
+    if(mode !== 'edit') activeProjectModalId = '';
+  }
+  function openProjectModal(projectId){
     if(!projectModalBg) return;
+    if(projectId){
+      loadVault().then(function(data){
+        var project = getProjectById(data.projects || _cachedProjects, projectId);
+        if(!project) return;
+        var displayProject = projectDisplay(project) || project;
+        activeProjectModalId = project.id;
+        setProjectModalState('edit');
+        projectNameInput.value = displayProject.name || project.name || '';
+        projectKeyInput.value = project.key || '';
+        projectKeyInput.dataset.manual = '1';
+        projectDescInput.value = displayProject.description || project.description || '';
+        projectIconInput.value = displayProject.icon || project.icon || '';
+        projectColorInput.value = displayProject.color || project.color || '#60a5fa';
+        projectModalBg.classList.add('open');
+        setTimeout(function(){ projectNameInput.focus(); }, 80);
+      });
+      return;
+    }
+    setProjectModalState('create');
     projectNameInput.value = '';
-    projectNameInput.style.borderColor = '';
     projectKeyInput.value = '';
     projectKeyInput.dataset.manual = '';
     projectDescInput.value = '';
@@ -8622,6 +8834,8 @@ document.addEventListener("input", e => {
     setTimeout(function(){ projectNameInput.focus(); }, 80);
   }
   function closeProjectModal(){
+    activeProjectModalId = '';
+    setProjectModalState('create');
     if(projectModalBg) projectModalBg.classList.remove('open');
   }
   function renderProjectFieldRows(fields){
@@ -8734,13 +8948,17 @@ document.addEventListener("input", e => {
     var name = projectNameInput.value.trim();
     if(!name){ projectNameInput.style.borderColor = '#ef4444'; return; }
     projectNameInput.style.borderColor = '';
-    createProjectEntry({
+    var projectPayload = {
       name: name,
       key: projectKeyInput.value || name,
       description: projectDescInput.value.trim(),
       icon: projectIconInput.value.trim(),
       color: projectColorInput.value || '#60a5fa'
-    }).then(function(result){
+    };
+    var submitPromise = activeProjectModalId
+      ? updateProjectEntry(activeProjectModalId, projectPayload)
+      : createProjectEntry(projectPayload);
+    submitPromise.then(function(result){
       if(!result || !result.ok){
         projectNameInput.style.borderColor = '#ef4444';
         return;
@@ -8968,6 +9186,88 @@ document.addEventListener("input", e => {
     if(typeof window._homerSyncMobileOverlayState === 'function') window._homerSyncMobileOverlayState();
     renderVault(); // refresh badges
   }
+  window._homerOpenVaultSurface = function(surface){
+    var target = String(surface || '').trim().toLowerCase();
+    if(!window._homerVaultUnlocked) return { ok:false, error:'Vault is locked' };
+    if(target === 'goals'){
+      if(typeof window._homerOpenGoalsOverlay === 'function') window._homerOpenGoalsOverlay();
+      return { ok:true, target:'goals' };
+    }
+    if(target === 'notes'){
+      openVaultOverlay('notes-overlay', function(){ if(notesArea) notesArea.focus(); });
+      return { ok:true, target:'notes' };
+    }
+    if(target === 'secrets'){
+      openVaultOverlay('secrets-overlay', function(){
+        loadVault().then(function(data){ renderLinks(data.links || []); renderCreds(data.creds || []); });
+      });
+      return { ok:true, target:'secrets' };
+    }
+    if(target === 'projects'){
+      openVaultOverlay('projects-overlay', function(){
+        loadVault().then(function(data){ renderProjectDashboard(data); });
+      });
+      return { ok:true, target:'projects' };
+    }
+    if(target === 'kanban'){
+      openVaultOverlay('kanban-overlay', function(){
+        loadVault().then(function(data){ renderGoals(data.goals || [], data.projects || []); });
+      });
+      return { ok:true, target:'kanban' };
+    }
+    return { ok:false, error:'Unknown vault surface: ' + surface };
+  };
+  window._homerUpdateVaultNote = function(text){
+    if(!window._homerVaultUnlocked) return Promise.resolve({ ok:false, error:'Vault is locked' });
+    return loadVault().then(function(data){
+      data.notes = String(text || '');
+      return saveVault(data).then(function(){
+        if(notesArea) notesArea.value = data.notes;
+        if(notesStatus) notesStatus.textContent = 'saved';
+        refreshCanonicalFiles().catch(function(){});
+        return { ok:true, words: countNoteWords(data.notes) };
+      });
+    });
+  };
+  window._homerAddVaultSecretLink = function(payload){
+    if(!window._homerVaultUnlocked) return Promise.resolve({ ok:false, error:'Vault is locked' });
+    var entry = payload && typeof payload === 'object' ? payload : {};
+    var name = String(entry.name || entry.title || '').trim();
+    var url = String(entry.url || '').trim();
+    if(!name || !url) return Promise.resolve({ ok:false, error:'Missing name or url' });
+    if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    return loadVault().then(function(data){
+      if(!Array.isArray(data.links)) data.links = [];
+      data.links.push({ name:name, url:url, desc:String(entry.description || entry.desc || '').trim() });
+      return saveVault(data).then(function(){
+        renderLinks(data.links || []);
+        refreshCanonicalFiles().catch(function(){});
+        return { ok:true, name:name, url:url };
+      });
+    });
+  };
+  window._homerAddVaultCredential = function(payload){
+    if(!window._homerVaultUnlocked) return Promise.resolve({ ok:false, error:'Vault is locked' });
+    var entry = payload && typeof payload === 'object' ? payload : {};
+    var label = String(entry.label || entry.name || '').trim();
+    var passValue = String(entry.password || entry.pass || '').trim();
+    if(!label || !passValue) return Promise.resolve({ ok:false, error:'Missing label or password' });
+    return loadVault().then(function(data){
+      if(!Array.isArray(data.creds)) data.creds = [];
+      data.creds.push({
+        label: label,
+        site: String(entry.site || entry.url || '').trim(),
+        user: String(entry.username || entry.user || '').trim(),
+        pass: passValue,
+        details: String(entry.details || entry.notes || '').trim()
+      });
+      return saveVault(data).then(function(){
+        renderCreds(data.creds || []);
+        refreshCanonicalFiles().catch(function(){});
+        return { ok:true, label:label };
+      });
+    });
+  };
   window._homerCloseVaultOverlay = closeVaultOverlay;
   document.querySelectorAll('.vault-ov-close').forEach(function(btn){
     btn.addEventListener('click', function(){ closeVaultOverlay(this.dataset.close); });
@@ -12232,6 +12532,15 @@ document.addEventListener("input", e => {
     }
     return 'h' + Math.abs(hash).toString(36);
   }
+  function sortValueForSyncHash(value){
+    if(Array.isArray(value)) return value.map(sortValueForSyncHash);
+    if(!value || typeof value !== 'object') return value;
+    var output = {};
+    Object.keys(value).sort().forEach(function(key){
+      output[key] = sortValueForSyncHash(value[key]);
+    });
+    return output;
+  }
   function computeComparableDataHash(data){
     var normalized = {};
     Object.keys(data || {}).sort().forEach(function(key){
@@ -12239,6 +12548,22 @@ document.addEventListener("input", e => {
       normalized[key] = data[key];
     });
     return computeDataHash(normalized);
+  }
+  function computeComparableSyncHash(data){
+    var normalized = {};
+    Object.keys(data || {}).sort().forEach(function(key){
+      if(BACKUP_RUNTIME_KEYS.indexOf(key) >= 0) return;
+      normalized[key] = data[key];
+    });
+    if(!(window.crypto && window.crypto.subtle && window.TextEncoder)) return Promise.resolve('');
+    var encoded = new TextEncoder().encode(JSON.stringify(sortValueForSyncHash(normalized)));
+    return window.crypto.subtle.digest('SHA-256', encoded).then(function(buffer){
+      return Array.from(new Uint8Array(buffer)).map(function(byte){
+        return byte.toString(16).padStart(2, '0');
+      }).join('');
+    }).catch(function(){
+      return '';
+    });
   }
   function refreshVaultMirrorStatus(options){
     options = options || {};
@@ -12277,8 +12602,8 @@ document.addEventListener("input", e => {
     }
     vaultMirrorRefreshAt = Date.now();
     vaultMirrorRefreshInFlight = getAll().then(function(allData){
-      var localHash = computeComparableDataHash(allData);
       var localFieldVersion = getFieldSyncCursor();
+      return computeComparableSyncHash(allData).then(function(localHash){
       return fetchJson(DB_BACKUP_URL + '?action=status&key=' + encodeURIComponent(passphrase), { cache:'no-store' })
         .then(function(server){
           var serverHash = String(server && server.dataHash || '');
@@ -12348,6 +12673,7 @@ document.addEventListener("input", e => {
           });
           return { ok:false, error: err && err.message ? err.message : 'status-check-failed' };
         });
+      });
     }).finally(function(){
       vaultMirrorRefreshInFlight = null;
     });
@@ -13469,6 +13795,7 @@ document.addEventListener("input", e => {
   var joeyDriveBackupTimer = null;
   var joeyDriveBackupInFlight = false;
   var joeyAutoCommitTimer = null;
+  var joeyAutoLearnRetryTimer = null;
   var joeyManualCommitInFlight = false;
   var joeySyncStatusTimer = null;
   var joeySyncStatusInFlight = null;
@@ -13628,6 +13955,7 @@ document.addEventListener("input", e => {
     localStorage.setItem('homer-oc-mode', currentContextMode);
     localStorage.setItem('homer-vault-mode', currentContextMode);
     rememberModelLabel(currentProvider, currentContextMode, getProviderDefaultModel(currentProvider, currentContextMode));
+    syncSystemPromptEditor();
     syncProviderUi();
     renderMessages();
     if(!options.silent){
@@ -13753,7 +14081,8 @@ document.addEventListener("input", e => {
         history: 'History',
         files: 'Files',
         fileLibrary: 'Uploads',
-        customFiles: 'Custom Files'
+        customFiles: 'Custom Files',
+        journal: 'Journal'
       };
       var chips = Object.keys(bucketLabels).map(function(key){
         var bucket = drift.buckets && drift.buckets[key] ? drift.buckets[key] : null;
@@ -13773,12 +14102,29 @@ document.addEventListener("input", e => {
     return joeySyncStatusInFlight;
   }
 
-  function getConfig(){
-    try{ return JSON.parse(localStorage.getItem(OC_CONFIG_KEY)) || {}; }catch(e){ return {}; }
+  function getConfigStorageKey(mode){
+    return OC_CONFIG_KEY + '-' + (mode === 'work' ? 'work' : 'personal');
   }
-  function setConfig(c){ localStorage.setItem(OC_CONFIG_KEY, JSON.stringify(c)); }
-  function getSavedSystemPrompt(){
-    return String((getConfig().system || '')).trim();
+  function getConfig(mode){
+    var activeMode = mode === 'work' ? 'work' : 'personal';
+    try{
+      var raw = localStorage.getItem(getConfigStorageKey(activeMode));
+      if(raw) return JSON.parse(raw) || {};
+      if(activeMode === 'personal'){
+        return JSON.parse(localStorage.getItem(OC_CONFIG_KEY)) || {};
+      }
+    }catch(e){}
+    return {};
+  }
+  function setConfig(c, mode){
+    var activeMode = mode === 'work' ? 'work' : 'personal';
+    localStorage.setItem(getConfigStorageKey(activeMode), JSON.stringify(c || {}));
+  }
+  function getSavedSystemPrompt(mode){
+    return String((getConfig(mode).system || '')).trim();
+  }
+  function syncSystemPromptEditor(){
+    if(systemPromptInput) systemPromptInput.value = getSavedSystemPrompt(currentContextMode);
   }
   function loadDesktopWindowState(){
     try{
@@ -14289,7 +14635,7 @@ document.addEventListener("input", e => {
   })();
 
   // --- Settings ---
-  var cfg = getConfig();
+  var cfg = getConfig(currentContextMode);
   systemPromptInput.value = cfg.system || '';
   settingsBtn.addEventListener('click', function(){
     if(isMobileShell()){
@@ -14332,15 +14678,15 @@ document.addEventListener("input", e => {
   }
   if(mobileEditPromptBtn){
     mobileEditPromptBtn.addEventListener('click', function(){
-      var current = getSavedSystemPrompt();
+      var current = getSavedSystemPrompt(currentContextMode);
       var next = window.prompt('Set Joey system prompt / persona. Leave empty to use default Joey.', current);
       if(next === null) return;
       systemPromptInput.value = next;
-      var nextConfig = getConfig();
+      var nextConfig = getConfig(currentContextMode);
       var trimmed = String(next || '').trim();
       if(trimmed) nextConfig.system = trimmed;
       else delete nextConfig.system;
-      setConfig(nextConfig);
+      setConfig(nextConfig, currentContextMode);
       renderMessages();
       closeMobileMenu();
     });
@@ -14348,9 +14694,9 @@ document.addEventListener("input", e => {
   if(mobileClearPromptBtn){
     mobileClearPromptBtn.addEventListener('click', function(){
       systemPromptInput.value = '';
-      var nextConfig = getConfig();
+      var nextConfig = getConfig(currentContextMode);
       delete nextConfig.system;
-      setConfig(nextConfig);
+      setConfig(nextConfig, currentContextMode);
       renderMessages();
       closeMobileMenu();
     });
@@ -14394,11 +14740,11 @@ document.addEventListener("input", e => {
     });
   }
   settingsSave.addEventListener('click', function(){
-    var nextConfig = getConfig();
+    var nextConfig = getConfig(currentContextMode);
     var nextPrompt = systemPromptInput.value.trim();
     if(nextPrompt) nextConfig.system = nextPrompt;
     else delete nextConfig.system;
-    setConfig(nextConfig);
+    setConfig(nextConfig, currentContextMode);
     settingsRow.classList.remove('open');
     desktopWindowState.settingsOpen = false;
     saveDesktopWindowState();
@@ -14407,9 +14753,9 @@ document.addEventListener("input", e => {
   if(settingsClear){
     settingsClear.addEventListener('click', function(){
       systemPromptInput.value = '';
-      var nextConfig = getConfig();
+      var nextConfig = getConfig(currentContextMode);
       delete nextConfig.system;
-      setConfig(nextConfig);
+      setConfig(nextConfig, currentContextMode);
       renderMessages();
     });
   }
@@ -14522,6 +14868,14 @@ document.addEventListener("input", e => {
       joeyAutoCommitTimer = null;
       commitJoeyMemory({ silent:true, skipLearn:true, reason:reason || 'auto' }).catch(function(){});
     }, typeof delayMs === 'number' ? delayMs : 45000);
+  }
+  function scheduleJoeyLearnRetry(reason, delayMs){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass || joeyAutoLearnRetryTimer) return;
+    joeyAutoLearnRetryTimer = setTimeout(function(){
+      joeyAutoLearnRetryTimer = null;
+      commitJoeyMemory({ silent:true, skipLearn:false, reason:reason || 'auto-learn-retry' }).catch(function(){});
+    }, typeof delayMs === 'number' ? delayMs : 15000);
   }
   function commitJoeyMemory(opts){
     opts = opts || {};
@@ -14771,6 +15125,12 @@ document.addEventListener("input", e => {
       runJoeyDriveBackup(reason || 'auto');
     }, typeof delayMs === 'number' ? delayMs : 90000);
   }
+  window._homerBackupJoeyToDrive = function(reason){
+    return runJoeyDriveBackup(reason || 'agent-action');
+  };
+  window._homerSyncContextFromDrive = function(showConfirmation, silent){
+    return syncContextFromDrive(!!showConfirmation, !!silent);
+  };
   function clearChatWindow(){
     chatHistory = [];
     renderMessages();
@@ -14961,8 +15321,14 @@ document.addEventListener("input", e => {
     }).then(parseJoeyJsonResponse)
       .then(function(data){
         if(data && data.error) throw new Error(data.error);
+        var shouldRetry = !!(data && data.reason && /unparseable response/i.test(String(data.reason)));
         autoLearnLastCommittedKey = key;
         autoLearnLastErrorKey = '';
+        if(joeyAutoLearnRetryTimer){
+          clearTimeout(joeyAutoLearnRetryTimer);
+          joeyAutoLearnRetryTimer = null;
+        }
+        if(shouldRetry) scheduleJoeyLearnRetry('auto-learn-retry', 15000);
         if(data && data.learned > 0) console.log('[Joey] Auto-learned ' + data.learned + ' new fact(s):', data.facts);
         else if(data && data.reason) console.warn('[Joey] Auto-learn skipped (' + (reason || 'auto') + '): ' + data.reason);
         if(data && data.profileUpdated) console.log('[Joey] Profile updated');
@@ -14975,6 +15341,7 @@ document.addEventListener("input", e => {
         return data;
       }).catch(function(err){
         reportAutoLearnFailure(key, err && err.message ? err.message : String(err));
+        scheduleJoeyLearnRetry('auto-learn-retry', 15000);
         throw err;
       });
   }
@@ -15312,7 +15679,7 @@ document.addEventListener("input", e => {
     return '<div class="oc-welcome"><span class="oc-welcome-icon">\u{1F355}</span><strong>' + escHtml(getProviderDisplayName(currentProvider, currentContextMode)) + '</strong> doesn\'t share food, but shares answers.<br>How you doin\'? Ask me anything.</div>';
   }
   function getActivePromptHtml(){
-    var prompt = getSavedSystemPrompt();
+    var prompt = getSavedSystemPrompt(currentContextMode);
     if(!prompt) return '';
     return '<div class="oc-active-prompt"><span class="oc-active-prompt-label">Active System Prompt</span>' + escHtml(prompt) + '</div>';
   }
@@ -15404,12 +15771,40 @@ document.addEventListener("input", e => {
   }
 
   // --- Joey Actions: create tasks, goals, focus tasks, events ---
-  function executeActions(text){
+  function inferTaskActionFromUserText(text){
+    var raw = String(text || '').trim();
+    if(!raw) return null;
+    if(!/\b(?:create|add|save|track|put|make|turn)\b/i.test(raw)) return null;
+    if(!/\b(?:task|todo|to-?do|card|issue)\b/i.test(raw)) return null;
+    var project = '';
+    var projectMatch = raw.match(/\b(?:in|into|under|for)\s+(?:the\s+)?project\s+["“]?([^,"\n]+?)["”]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
+    if(projectMatch) project = String(projectMatch[1] || '').trim();
+    var summary = raw
+      .replace(/^\s*(?:please\s+)?(?:create|add|save|track|put|make)\s+(?:me\s+|this\s+|a\s+|an\s+)?(?:new\s+)?(?:task|todo|to-?do|card|issue)\b/i, '')
+      .replace(/^\s*(?:in|into|under|for)\s+(?:the\s+)?project\s+["“]?([^,"\n]+?)["”]?(?:\s*,|\s*:\s*|\s+-\s+)?/i, '')
+      .replace(/^\s*(?:for|to)\s+/i, '')
+      .trim();
+    if(!summary){
+      var parts = raw.split(/[:,]/);
+      if(parts.length > 1) summary = parts.slice(1).join(':').trim();
+    }
+    if(!summary || summary.length < 3) return null;
+    return {
+      project: project,
+      summary: summary,
+      notes: summary
+    };
+  }
+  function executeActions(text, userText){
     var actions = [];
-    var regex = /\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET|PROJECT)\]([\s\S]*?)\[\/ACTION\]/g;
+    var regex = /\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET|PROJECT|NOTE|LINK|SECRET|COMMAND)\]([\s\S]*?)\[\/ACTION\]/g;
     var match;
     while((match = regex.exec(text)) !== null){
       actions.push({type: match[1], data: match[2].trim()});
+    }
+    var inferredTask = inferTaskActionFromUserText(userText);
+    if(inferredTask && !actions.some(function(action){ return action.type === 'TASK'; })){
+      actions.push({type:'TASK', data:JSON.stringify(inferredTask), inferred:true});
     }
     if(!actions.length) return text;
 
@@ -15423,12 +15818,21 @@ document.addEventListener("input", e => {
           if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
             window._homerLoadVault().then(function(data){
               if(!data) return;
+              if(!Array.isArray(data.goals)) data.goals = [];
               if(!data._nextId) data._nextId = 1;
               if(!data._nextSubId) data._nextSubId = 1;
               var projects = ensureProjects(data.projects || []);
-              var requestedProject = String(taskData.projectId || taskData.project || '').trim();
+              var requestedProject = String(taskData.projectId || taskData.project || taskData.projectName || taskData.projectKey || '').trim();
               var fallbackProjectId = (goalFilterProject && goalFilterProject.value) || getDefaultProjectId(projects);
-              var matchedProject = matchProject(projects, requestedProject, fallbackProjectId);
+              var matchedProject = matchProject(projects, requestedProject, fallbackProjectId, !!requestedProject);
+              if(requestedProject && !matchedProject){
+                showJoeyStatusToast('Project not found for task: ' + requestedProject, 'warn');
+                return;
+              }
+              if(!matchedProject){
+                showJoeyStatusToast('No active project available for task creation.', 'warn');
+                return;
+              }
               var displayProject = projectDisplay(matchedProject) || matchedProject;
               var customFields = mapGoalCustomFieldsForProject(matchedProject, taskData.customFields || {});
               if(matchedProject && matchedProject.archived){
@@ -15485,7 +15889,7 @@ document.addEventListener("input", e => {
             notifications.push('Vault is locked â€” unlock it first to add tasks to the Kanban board');
             return;
           }
-          notifications.push('Kanban task queued: ' + (taskData.summary || taskData.title || a.data) + (taskData.subtasks ? ' (' + taskData.subtasks.length + ' subtasks)' : ''));
+          notifications.push((a.inferred ? 'Kanban task inferred: ' : 'Kanban task queued: ') + (taskData.summary || taskData.title || a.data) + ((taskData.subtasks && taskData.subtasks.length) ? ' (' + taskData.subtasks.length + ' subtasks)' : '') + ((taskData.project || taskData.projectId) ? ' -> ' + (taskData.project || taskData.projectId) : ''));
         }
         else if(a.type === 'GOAL'){
           // Life goal (vault) â€” aspirations with milestones
@@ -15603,11 +16007,15 @@ document.addEventListener("input", e => {
           var projectAction;
           try{ projectAction = JSON.parse(a.data); }catch(e){ projectAction = { op:'create', name:a.data }; }
           var op = String(projectAction.op || projectAction.action || 'create').trim().toLowerCase();
+          if(op === 'edit' || op === 'rename') op = 'update';
           if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
             window._homerLoadVault().then(function(data){
               var projects = ensureProjects(data.projects || []);
-              var requestedProject = String(projectAction.project || projectAction.name || projectAction.id || '').trim();
-              var matchedProject = requestedProject ? matchProject(projects, requestedProject, getDefaultProjectId(projects, true)) : null;
+              var requestedProject = String(projectAction.project || projectAction.projectId || projectAction.id || projectAction.key || '').trim();
+              if(!requestedProject && op !== 'update'){
+                requestedProject = String(projectAction.name || '').trim();
+              }
+              var matchedProject = requestedProject ? matchProject(projects, requestedProject, getDefaultProjectId(projects, true), true) : null;
               var matchedName = matchedProject ? (projectDisplay(matchedProject) || matchedProject).name : requestedProject;
               if(op === 'create'){
                 createProjectEntry(projectAction).then(function(result){
@@ -15625,6 +16033,34 @@ document.addEventListener("input", e => {
                   }
                 }).catch(function(err){
                   showJoeyStatusToast('Project create failed: ' + (err && err.message ? err.message : err), 'warn');
+                });
+              } else if(op === 'update'){
+                if(!requestedProject){
+                  showJoeyStatusToast('Project update needs a "project" target.', 'warn');
+                  return;
+                }
+                if(!matchedProject){
+                  showJoeyStatusToast('Project not found: ' + requestedProject, 'warn');
+                  return;
+                }
+                updateProjectEntry(matchedProject.id, projectAction).then(function(result){
+                  if(result && result.ok){
+                    loadVault().then(function(nextData){
+                      populateProjectControls(nextData.projects, nextData.goals, {selectedFilter:matchedProject.id, preferredTaskProject:matchedProject.id});
+                      renderProjectDashboard(nextData);
+                      renderGoals(nextData.goals || [], nextData.projects || []);
+                    });
+                    showJoeyStatusToast('Project updated: ' + (result.name || matchedName));
+                    refreshCanonicalFiles().catch(function(){});
+                  } else if(result && result.reason === 'exists'){
+                    showJoeyStatusToast('Project name or key already exists.', 'warn');
+                  } else if(result && result.reason === 'missing-name'){
+                    showJoeyStatusToast('Project update needs a name.', 'warn');
+                  } else {
+                    showJoeyStatusToast('Project update failed', 'warn');
+                  }
+                }).catch(function(err){
+                  showJoeyStatusToast('Project update failed: ' + (err && err.message ? err.message : err), 'warn');
                 });
               } else if(!matchedProject){
                 showJoeyStatusToast('Project not found: ' + requestedProject, 'warn');
@@ -15655,7 +16091,136 @@ document.addEventListener("input", e => {
             notifications.push('Vault is locked - unlock it first to manage projects');
             return;
           }
-          notifications.push('Project action queued: ' + op + (projectAction.name || projectAction.project ? ' ' + (projectAction.name || projectAction.project) : ''));
+          notifications.push('Project action queued: ' + op + ((projectAction.project || projectAction.projectId || projectAction.name) ? ' ' + (projectAction.project || projectAction.projectId || projectAction.name) : ''));
+        }
+        else if(a.type === 'NOTE'){
+          var noteData;
+          try{ noteData = JSON.parse(a.data); }catch(e){ noteData = { target:'vault', text:a.data }; }
+          var noteTarget = String(noteData.target || 'vault').trim().toLowerCase();
+          var noteText = String(noteData.text || noteData.value || noteData.note || '').trim();
+          if(noteTarget === 'brain-dump'){
+            localStorage.setItem('homer-brain-dump', noteText);
+            notifications.push('Brain dump updated');
+          } else if(noteTarget === 'zen-goal'){
+            localStorage.setItem('homer-zen-goal', noteText);
+            notifications.push('Zen goal updated');
+          } else if(typeof window._homerUpdateVaultNote === 'function'){
+            window._homerUpdateVaultNote(noteText).catch(function(err){
+              showJoeyStatusToast('Vault note save failed: ' + (err && err.message ? err.message : err), 'warn');
+            });
+            notifications.push('Vault note updated');
+          } else {
+            notifications.push('Vault notes are unavailable right now');
+          }
+        }
+        else if(a.type === 'LINK'){
+          var linkData;
+          try{ linkData = JSON.parse(a.data); }catch(e){ linkData = { name:a.data, url:a.data }; }
+          if(typeof window._homerAddSavedLink === 'function'){
+            var addedLink = window._homerAddSavedLink(linkData);
+            notifications.push(addedLink && addedLink.ok
+              ? 'Saved link added: ' + (addedLink.name || linkData.name || 'Link')
+              : 'Saved link failed: ' + ((addedLink && addedLink.error) || 'invalid data'));
+          } else {
+            notifications.push('Links tab is unavailable right now');
+          }
+        }
+        else if(a.type === 'SECRET'){
+          var secretData;
+          try{ secretData = JSON.parse(a.data); }catch(e){ secretData = { type:'credential', label:a.data, password:'' }; }
+          var secretType = String(secretData.type || 'credential').trim().toLowerCase();
+          if(secretType === 'link'){
+            if(typeof window._homerAddVaultSecretLink === 'function'){
+              window._homerAddVaultSecretLink(secretData).then(function(result){
+                if(!result || !result.ok) showJoeyStatusToast('Secret link failed: ' + ((result && result.error) || 'invalid data'), 'warn');
+              }).catch(function(err){
+                showJoeyStatusToast('Secret link failed: ' + (err && err.message ? err.message : err), 'warn');
+              });
+              notifications.push('Secret link queued: ' + (secretData.name || secretData.title || 'Link'));
+            } else {
+              notifications.push('Vault secret links are unavailable right now');
+            }
+          } else if(typeof window._homerAddVaultCredential === 'function'){
+            window._homerAddVaultCredential(secretData).then(function(result){
+              if(!result || !result.ok) showJoeyStatusToast('Credential save failed: ' + ((result && result.error) || 'invalid data'), 'warn');
+            }).catch(function(err){
+              showJoeyStatusToast('Credential save failed: ' + (err && err.message ? err.message : err), 'warn');
+            });
+            notifications.push('Credential queued: ' + (secretData.label || secretData.name || 'Credential'));
+          } else {
+            notifications.push('Vault credentials are unavailable right now');
+          }
+        }
+        else if(a.type === 'COMMAND'){
+          var commandData;
+          try{ commandData = JSON.parse(a.data); }catch(e){ commandData = { op:a.data }; }
+          var cmd = String(commandData.op || commandData.command || '').trim().toLowerCase();
+          var cmdTarget = String(commandData.target || commandData.surface || commandData.tab || '').trim().toLowerCase();
+          if(cmd === 'tab'){
+            if(typeof window._homerShowTab === 'function'){
+              window._homerShowTab(cmdTarget || 'home');
+              notifications.push('Opened tab: ' + (cmdTarget || 'home'));
+            } else {
+              notifications.push('Tab command unavailable');
+            }
+          } else if(cmd === 'mode'){
+            if(typeof window._homerApplyContextMode === 'function'){
+              window._homerApplyContextMode(cmdTarget === 'work' ? 'work' : 'personal', { source:'joey-command' });
+              notifications.push('Mode switched to ' + (cmdTarget === 'work' ? 'work' : 'personal'));
+            } else {
+              notifications.push('Mode switch unavailable');
+            }
+          } else if(cmd === 'open'){
+            if(typeof window._homerShowTab === 'function') window._homerShowTab('vault');
+            if(typeof window._homerOpenVaultSurface === 'function'){
+              var openResult = window._homerOpenVaultSurface(cmdTarget);
+              notifications.push(openResult && openResult.ok
+                ? 'Opened ' + cmdTarget
+                : 'Open failed: ' + ((openResult && openResult.error) || 'unknown target'));
+            } else {
+              notifications.push('Vault open command unavailable');
+            }
+          } else if(cmd === 'drive-sync'){
+            if(typeof window._homerSyncContextFromDrive === 'function'){
+              window._homerSyncContextFromDrive(false, true).catch(function(err){
+                showJoeyStatusToast('Drive sync failed: ' + (err && err.message ? err.message : err), 'warn');
+              });
+              notifications.push('Drive sync queued');
+            } else {
+              notifications.push('Drive sync unavailable');
+            }
+          } else if(cmd === 'drive-backup'){
+            if(typeof window._homerBackupJoeyToDrive === 'function'){
+              window._homerBackupJoeyToDrive('command-action').catch(function(err){
+                showJoeyStatusToast('Drive backup failed: ' + (err && err.message ? err.message : err), 'warn');
+              });
+              notifications.push('Drive backup queued');
+            } else {
+              notifications.push('Drive backup unavailable');
+            }
+          } else if(cmd === 'memory-commit'){
+            if(typeof window._homerCommitJoeyMemory === 'function'){
+              window._homerCommitJoeyMemory({ silent:true, skipLearn:false, reason:'command-action' }).catch(function(err){
+                showJoeyStatusToast('Memory commit failed: ' + (err && err.message ? err.message : err), 'warn');
+              });
+              notifications.push('Memory commit queued');
+            } else {
+              notifications.push('Memory commit unavailable');
+            }
+          } else if(cmd === 'vault-mirror'){
+            if(typeof window._homerBackupEverythingToDb === 'function'){
+              window._homerBackupEverythingToDb().then(function(){
+                if(typeof refreshVaultMirrorStatus === 'function') refreshVaultMirrorStatus({ force:true, reason:'command-vault-mirror' });
+              }).catch(function(err){
+                showJoeyStatusToast('Vault mirror failed: ' + (err && err.message ? err.message : err), 'warn');
+              });
+              notifications.push('Vault mirror queued');
+            } else {
+              notifications.push('Vault mirror unavailable');
+            }
+          } else {
+            notifications.push('Unsupported command: ' + (cmd || 'unknown'));
+          }
         }
       }catch(e){
         notifications.push('Action failed: ' + e.message);
@@ -15673,7 +16238,7 @@ document.addEventListener("input", e => {
     }
 
     // Strip action tags from displayed text
-    return text.replace(/\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET|PROJECT)\][\s\S]*?\[\/ACTION\]/g, '').trim();
+    return text.replace(/\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET|PROJECT|NOTE|LINK|SECRET|COMMAND)\][\s\S]*?\[\/ACTION\]/g, '').trim();
   }
 
   function showError(msg){
@@ -15975,16 +16540,22 @@ document.addEventListener("input", e => {
     var text = inputEl.value.trim();
     if(!text && !pendingFiles.length) return;
     if(streaming) return;
-    var savedPromptOverride = getSavedSystemPrompt();
-    var JOEY_PROMPT = 'You are Joey â€” a personal AI assistant with personality. You speak like Joey Tribbiani from Friends (confident, charming, fun), but you\'re genuinely smart and deeply helpful. You know this person. You have their profile, memories, and conversation history injected into your context by the server. USE THEM.\n\nTODAY: ' + new Date().toISOString().slice(0,10) + ' | TIME: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '\n\n=== PERSONALITY ===\n- Be direct, no fluff. Match the user\'s energy.\n- Use Joey catchphrases SPARINGLY and naturally â€” don\'t force them every message.\n- Have real opinions. Disagree when warranted. Be a friend, not a yes-man.\n- When you know something about them (from profile/memories), use it naturally â€” don\'t announce "I remember...".\n- Ask follow-up questions about things you know they care about (their goals, their people, recent events).\n- If they seem stressed or down, be supportive. If they\'re excited, share that energy.\n\n=== ACTIONS (append at END of your response) ===\n\nTASK (Kanban board â€” DEFAULT for any work item, to-do, action):\n- Create a TASK only when the user explicitly asks you to add, create, save, track, put on the board, or turn something into a task.\n- Do NOT create tasks proactively, by implication, or just because a deadline/problem/action item was mentioned.\n- If the user is only discussing plans or problems, respond normally without action tags.\n- For explicit task requests, include: summary, notes, priority when implied, due when mentioned, and 2-5 concrete subtasks.\n- Use notes for the task description. Do not use GOAL for normal actionable work items.\n- Simple fallback: [ACTION:TASK]Buy groceries[/ACTION]\n- Preferred detailed format: [ACTION:TASK]{\"summary\":\"Fix login bug\",\"notes\":\"Users cannot sign in after password reset. Investigate the reset flow, patch the regression, and verify the happy path.\",\"priority\":\"high\",\"due\":\"2026-03-25\",\"subtasks\":[{\"text\":\"Reproduce the bug locally\",\"notes\":\"Test the password reset flow with an affected account.\"},{\"text\":\"Identify the failing auth step\"},{\"text\":\"Implement and verify the fix\"}]}[/ACTION]\n\nGOAL (Life Goals â€” aspirations, dreams, long-term objectives):\n[ACTION:GOAL]{"title":"Buy a house","description":"Why this matters","category":"finance","milestones":["Step 1","Step 2"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\nCategories: health, finance, career, personal, education, travel, creative, relationship\n\nFOCUS (Pomodoro â€” ONLY when user explicitly says "focus", "pomodoro", "focus task"):\n[ACTION:FOCUS]Task name[/ACTION]\nIMPORTANT: NEVER create FOCUS unless explicitly asked. Default is always TASK.\n\nEVENT (Calendar â€” use category to differentiate event types):\n[ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details","category":"meeting"}[/ACTION]\nEvent categories: meeting, deadline, reminder, personal, work\n\nREMEMBER (save important facts â€” your auto-memory also captures things, but use this for explicit asks):\n[ACTION:REMEMBER]{"memory":"fact about the user","category":"preference"}[/ACTION]\nCategories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work\n\nFORGET:\n[ACTION:FORGET]text to forget[/ACTION]\n\n=== WEB SEARCH ===\n- You may receive LIVE WEB SEARCH RESULTS in your system prompt when the user asks about current events, facts, or anything that needs up-to-date info.\n- When you have search results, use them to give accurate answers. Cite sources naturally (e.g. "According to...", link titles).\n- If search results are present, prioritize them over your training data for current facts.\n- You can suggest the user search for something specific if you don\'t have results: just say "let me look that up" â€” the system will search automatically on their next related question.\n\n=== RULES ===\n- Dates: YYYY-MM-DD, Times: HH:MM (24h), Priority: high/medium/low\n- Always include action tags only when the user explicitly asked to create something.\n- When the user explicitly asks to add or create a task, append a TASK action unless they explicitly refuse.\n- For TASK actions, prefer JSON over plain text so the Kanban card is fully populated.\n- Do not offer or create a task just because a deadline, plan, or obligation was mentioned.\n- Your memory system auto-learns from conversations, but use REMEMBER for things the user explicitly asks you to save.';
+    var savedPromptOverride = getSavedSystemPrompt(currentContextMode);
+    var JOEY_PROMPT = 'You are Joey â€” a personal AI assistant with personality. You speak like Joey Tribbiani from Friends (confident, charming, fun), but you\'re genuinely smart and deeply helpful. You know this person. You have their profile, memories, and conversation history injected into your context by the server. USE THEM.\n\nTODAY: ' + new Date().toISOString().slice(0,10) + ' | TIME: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '\n\n=== PERSONALITY ===\n- Be direct, no fluff. Match the user\'s energy.\n- Use Joey catchphrases SPARINGLY and naturally â€” don\'t force them every message.\n- Have real opinions. Disagree when warranted. Be a friend, not a yes-man.\n- When you know something about them (from profile/memories), use it naturally â€” don\'t announce "I remember...".\n- Ask follow-up questions about things you know they care about (their goals, their people, recent events).\n- If they seem stressed or down, be supportive. If they\'re excited, share that energy.\n\n=== ACTIONS (append at END of your response) ===\n\nTASK (Kanban board â€” DEFAULT for any work item, to-do, action):\n- Create a TASK only when the user explicitly asks you to add, create, save, track, put on the board, or turn something into a task.\n- Do NOT create tasks proactively, by implication, or just because a deadline/problem/action item was mentioned.\n- If the user is only discussing plans or problems, respond normally without action tags.\n- For explicit task requests, include: summary, notes, priority when implied, due when mentioned, and 2-5 concrete subtasks.\n- If the user names a project, include \"project\" or \"projectId\" in the TASK JSON. Never leave it out.\n- Use notes for the task description. Do not use GOAL for normal actionable work items.\n- Simple fallback: [ACTION:TASK]Buy groceries[/ACTION]\n- Preferred detailed format: [ACTION:TASK]{\"project\":\"Apps\",\"summary\":\"Fix login bug\",\"notes\":\"Users cannot sign in after password reset. Investigate the reset flow, patch the regression, and verify the happy path.\",\"priority\":\"high\",\"due\":\"2026-03-25\",\"subtasks\":[{\"text\":\"Reproduce the bug locally\",\"notes\":\"Test the password reset flow with an affected account.\"},{\"text\":\"Identify the failing auth step\"},{\"text\":\"Implement and verify the fix\"}]}[/ACTION]\n\nGOAL (Life Goals â€” aspirations, dreams, long-term objectives):\n[ACTION:GOAL]{"title":"Buy a house","description":"Why this matters","category":"finance","milestones":["Step 1","Step 2"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\nCategories: health, finance, career, personal, education, travel, creative, relationship\n\nFOCUS (Pomodoro â€” ONLY when user explicitly says "focus", "pomodoro", "focus task"):\n[ACTION:FOCUS]Task name[/ACTION]\nIMPORTANT: NEVER create FOCUS unless explicitly asked. Default is always TASK.\n\nEVENT (Calendar â€” use category to differentiate event types):\n[ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details","category":"meeting"}[/ACTION]\nEvent categories: meeting, deadline, reminder, personal, work\n\nREMEMBER (save important facts â€” your auto-memory also captures things, but use this for explicit asks):\n[ACTION:REMEMBER]{"memory":"fact about the user","category":"preference"}[/ACTION]\nCategories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work\n\nFORGET:\n[ACTION:FORGET]text to forget[/ACTION]\n\n=== WEB SEARCH ===\n- You may receive LIVE WEB SEARCH RESULTS in your system prompt when the user asks about current events, facts, or anything that needs up-to-date info.\n- When you have search results, use them to give accurate answers. Cite sources naturally (e.g. "According to...", link titles).\n- If search results are present, prioritize them over your training data for current facts.\n- You can suggest the user search for something specific if you don\'t have results: just say "let me look that up" â€” the system will search automatically on their next related question.\n\n=== RULES ===\n- Dates: YYYY-MM-DD, Times: HH:MM (24h), Priority: high/medium/low\n- Always include action tags only when the user explicitly asked to create something.\n- When the user explicitly asks to add or create a task, append a TASK action unless they explicitly refuse.\n- For TASK actions, prefer JSON over plain text so the Kanban card is fully populated.\n- When the user names a project, the TASK must target that project explicitly instead of guessing.\n- Natural-language confirmation alone is not enough for task creation; you must append the TASK action tag.\n- Do not offer or create a task just because a deadline, plan, or obligation was mentioned.\n- Conversation memory is saved automatically from chat when sync is unlocked; use REMEMBER only when the user explicitly wants something pinned or deliberately saved.';
     var systemPrompt = savedPromptOverride || JOEY_PROMPT;
     if(typeof window._homerBuildJoeyProjectInstruction === 'function'){
       systemPrompt += window._homerBuildJoeyProjectInstruction();
     }
-    systemPrompt += '\n\n=== PROJECT ACTIONS ===\n- If the user explicitly asks to create, archive, restore, or delete a project, append a PROJECT action.\n- PROJECT create format: [ACTION:PROJECT]{\"op\":\"create\",\"name\":\"Project Name\",\"description\":\"Optional description\",\"color\":\"#60a5fa\"}[/ACTION]\n- PROJECT archive format: [ACTION:PROJECT]{\"op\":\"archive\",\"project\":\"Apps\"}[/ACTION]\n- PROJECT restore format: [ACTION:PROJECT]{\"op\":\"restore\",\"project\":\"Apps\"}[/ACTION]\n- PROJECT delete format: [ACTION:PROJECT]{\"op\":\"delete\",\"project\":\"Apps\"}[/ACTION]\n- Never delete a project that still has issues.\n- Never place new tasks into archived projects.';
-    systemPrompt += '\n\n=== CANONICAL FILES ===\n- Shared context lives in AgentContext.md, Today.md, OpenLoops.md, Projects.md, Areas.md, Resources.md, People.md, Wins.md, Lessons.md, WeeklyReview.md, Decisions.md, PinnedContext.md, Archive.md, FilesIndex.md, and Uploads/*.md.\n- FilesIndex.md lists remembered uploaded files and their Google Drive links.\n- Uploads/*.md contains extracted text for previously processed files when relevant.\n- Prefer REMEMBER with categories win, lesson, resource, decision, pin, or archive when the user explicitly asks to save something.\n- If the user says "save this as a win", store category "win".\n- If the user says "save this as a lesson", store category "lesson".\n- If the user says "save this as a resource" or "keep this note", store category "resource".\n- If the user says "pin this" or "always remember this", store category "pin" with pinned:true.\n- If the user asks for deeper recall, tell them they can say "use full context".';
+    if(typeof window._homerBuildJoeyWebsiteInstruction === 'function'){
+      systemPrompt += window._homerBuildJoeyWebsiteInstruction();
+    }
+    systemPrompt += '\n\n=== PROJECT ACTIONS ===\n- If the user explicitly asks to create, rename, edit, archive, restore, or delete a project, append a PROJECT action.\n- PROJECT create format: [ACTION:PROJECT]{\"op\":\"create\",\"name\":\"Project Name\",\"description\":\"Optional description\",\"icon\":\"rocket\",\"color\":\"#60a5fa\"}[/ACTION]\n- PROJECT update format: [ACTION:PROJECT]{\"op\":\"update\",\"project\":\"Apps\",\"name\":\"Apps Platform\",\"description\":\"Shared product work\",\"icon\":\"AP\",\"color\":\"#34d399\"}[/ACTION]\n- PROJECT archive format: [ACTION:PROJECT]{\"op\":\"archive\",\"project\":\"Apps\"}[/ACTION]\n- PROJECT restore format: [ACTION:PROJECT]{\"op\":\"restore\",\"project\":\"Apps\"}[/ACTION]\n- PROJECT delete format: [ACTION:PROJECT]{\"op\":\"delete\",\"project\":\"Apps\"}[/ACTION]\n- Use \"project\" to identify the existing project for any non-create action.\n- Never delete a project that still has issues.\n- Never place new tasks into archived projects.';
+    systemPrompt += '\n\n=== MODE ISOLATION ===\n- Personal and Work are separate memory domains.\n- Never reveal, summarize, hint at, or rely on information from the other mode.\n- If the user asks for something that belongs to the other mode, tell them to switch modes.\n- "Use full context" means full context for the current mode only.';
+    systemPrompt += '\n\n=== CANONICAL FILES ===\n- Mode-specific context lives in AgentContext.md, Today.md, OpenLoops.md, Projects.md, Areas.md, Resources.md, People.md, Wins.md, Lessons.md, WeeklyReview.md, Decisions.md, PinnedContext.md, Archive.md, FilesIndex.md, and Uploads/*.md for the current mode only.\n- FilesIndex.md lists remembered uploaded files and their Google Drive links for this mode.\n- Uploads/*.md contains extracted text for previously processed files when relevant to this mode.\n- Prefer REMEMBER with categories win, lesson, resource, decision, pin, or archive when the user explicitly asks to save something.\n- If the user says "save this as a win", store category "win".\n- If the user says "save this as a lesson", store category "lesson".\n- If the user says "save this as a resource" or "keep this note", store category "resource".\n- If the user says "pin this" or "always remember this", store category "pin" with pinned:true.\n- If the user asks for deeper recall, tell them they can say "use full context".';
     if(currentContextMode === 'work'){
-      systemPrompt += '\n\n=== WORK MODE ===\n- You are in Work mode with separate work memory, uploads, files, and Drive backups.\n- Optimize for execution and recall: tasks, deadlines, blockers, dependencies, decisions, meeting outcomes, stakeholders, and next actions.\n- Beat a human personal assistant on follow-through: be organized, specific, concise, and proactive about missing details that matter for delivery.\n- When the user asks to save something work-related, prefer REMEMBER with categories work, decision, resource, win, lesson, or pin.\n- When work is discussed, default to crisp operational framing: what is due, who owns it, what is blocked, and what should happen next.';
+      systemPrompt += '\n\n=== WORK MODE ===\n- You are in Work mode with separate work memory, uploads, files, and Drive backups.\n- Optimize for execution and recall: tasks, deadlines, blockers, dependencies, decisions, meeting outcomes, stakeholders, and next actions.\n- Beat a human personal assistant on follow-through: be organized, specific, concise, and proactive about missing details that matter for delivery.\n- When the user asks to save something work-related, prefer REMEMBER with categories work, decision, resource, win, lesson, or pin.\n- When work is discussed, default to crisp operational framing: what is due, who owns it, what is blocked, and what should happen next.\n- Never answer with personal-only memories unless they are present in current work context.';
+    } else {
+      systemPrompt += '\n\n=== PERSONAL MODE ===\n- You are in Personal mode with separate personal memory, uploads, files, and Drive backups.\n- Never answer with work-only memories, stakeholders, deadlines, or private work details unless they are present in current personal context.';
     }
 
     var forceWebSearch = /^\[FORCE_WEB_SEARCH\]\s*/i.test(text);
@@ -16093,7 +16664,7 @@ document.addEventListener("input", e => {
       var fullResponse = finalizeBotMessage();
       if(fullResponse){
         // Execute any actions (tasks, goals, events) and strip tags from display
-        var cleanResponse = executeActions(fullResponse);
+      var cleanResponse = executeActions(fullResponse, displayText);
         chatHistory.push({role:'assistant', content:cleanResponse, provider:currentProvider, model:modelLabel || primaryModelLabel || getStoredModelLabel(currentProvider, currentContextMode), mode:currentContextMode});
         incrementUnread();
         // Re-render the last bot message without action tags
@@ -16476,6 +17047,16 @@ document.addEventListener("input", e => {
 
 <script>
 (function(){
+  var scrollLockObserverStarted = false;
+  var scrollLockSyncQueued = false;
+  function scheduleSyncPageScrollLock(){
+    if(scrollLockSyncQueued) return;
+    scrollLockSyncQueued = true;
+    requestAnimationFrame(function(){
+      scrollLockSyncQueued = false;
+      syncPageScrollLock();
+    });
+  }
   function syncPageScrollLock(){
     var body = document.body;
     if(!body) return false;
@@ -16492,9 +17073,27 @@ document.addEventListener("input", e => {
     var mobileSheetOpen = !!(mobileSheet && mobileSheet.classList.contains('open'));
     var shouldLock = hasOverlay || hasModal || mobileJoeyOpen || mobileSheetOpen;
     body.style.overflow = shouldLock ? 'hidden' : '';
+    body.dataset.pageScrollLocked = shouldLock ? '1' : '0';
     return shouldLock;
   }
   window._homerSyncPageScrollLock = syncPageScrollLock;
+  function initPageScrollLockObserver(){
+    if(scrollLockObserverStarted || !document.body || typeof MutationObserver === 'undefined') return;
+    scrollLockObserverStarted = true;
+    var observer = new MutationObserver(function(){ scheduleSyncPageScrollLock(); });
+    observer.observe(document.body, {
+      subtree:true,
+      attributes:true,
+      attributeFilter:['class','style']
+    });
+    window.addEventListener('resize', scheduleSyncPageScrollLock, { passive:true });
+    scheduleSyncPageScrollLock();
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', initPageScrollLockObserver, { once:true });
+  } else {
+    initPageScrollLockObserver();
+  }
 
   function initMobileOverlayDock(){
     if(window.innerWidth > 480) return;

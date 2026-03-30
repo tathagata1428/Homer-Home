@@ -1,5 +1,5 @@
 import { buildContextFiles } from '../lib/context-files.js';
-import handleJoeyCommit from '../lib/joey-commit-handler.js';
+import handleJoeyCommit, { runLearnStep } from '../lib/joey-commit-handler.js';
 import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
 import { loadRedisJson, saveRedisJson, safeJsonParse } from '../lib/joey-server.js';
 import { computeJoeySyncMeta } from '../lib/joey-sync-meta.js';
@@ -239,6 +239,9 @@ export default async function handler(req, res) {
         if (!bundle || typeof bundle !== 'object') {
           return res.status(400).json({ error: 'Missing bundle' });
         }
+        if (bundle.mode && String(bundle.mode).trim() && String(bundle.mode).trim() !== mode) {
+          return res.status(409).json({ error: 'Bundle mode mismatch', expectedMode: mode, bundleMode: String(bundle.mode).trim() });
+        }
         const profile = bundle.profile && typeof bundle.profile === 'object' ? bundle.profile : {};
         const memories = Array.isArray(bundle.memories) ? bundle.memories : [];
         const history = Array.isArray(bundle.history) ? bundle.history : [];
@@ -396,6 +399,64 @@ export default async function handler(req, res) {
       if (!messages || !Array.isArray(messages) || messages.length < 2) {
         return res.status(400).json({ error: 'Need at least 2 messages' });
       }
+
+      const cleanedMessages = messages
+        .filter((item) => item && (item.role === 'user' || item.role === 'assistant'))
+        .map((item) => ({ role: item.role, content: String(item.content || '').slice(0, 2000) }))
+        .slice(-MAX_HISTORY);
+
+      const learnOutcome = await runLearnStep({
+        mode,
+        messages: cleanedMessages,
+        redisFetch: redis,
+        keys: { MEMORY_KEY, PROFILE_KEY }
+      });
+
+      if (learnOutcome && learnOutcome.ok && Array.isArray(learnOutcome.facts) && learnOutcome.facts.length) {
+        await appendJournalEntries(learnOutcome.facts.map((fact) => (
+          buildJournalEntry('memory-learned', {
+            text: fact,
+            source: 'auto-learn'
+          })
+        )));
+      }
+
+      const [currentProfile, currentMemories, currentHistory, currentFiles, currentFileLibrary, currentCustomFiles, currentJournal, currentSyncMeta] = await Promise.all([
+        loadRedisJson(redis, PROFILE_KEY, {}),
+        loadRedisJson(redis, MEMORY_KEY, []),
+        loadRedisJson(redis, HISTORY_KEY, []),
+        loadRedisJson(redis, FILES_KEY, {}),
+        loadRedisJson(redis, FILE_LIBRARY_KEY, []),
+        loadRedisJson(redis, CUSTOM_FILES_KEY, {}),
+        loadRedisJson(redis, JOURNAL_KEY, []),
+        loadRedisJson(redis, SYNC_META_KEY, {})
+      ]);
+
+      const nextSyncMeta = computeJoeySyncMeta({
+        mode,
+        profile: currentProfile,
+        memories: currentMemories,
+        history: currentHistory,
+        files: currentFiles,
+        fileLibrary: currentFileLibrary,
+        customFiles: currentCustomFiles,
+        journal: currentJournal
+      }, {
+        mode,
+        updatedAt: new Date().toISOString(),
+        lastCommittedAt: currentSyncMeta && currentSyncMeta.lastCommittedAt ? currentSyncMeta.lastCommittedAt : null,
+        lastDriveBackupAt: currentSyncMeta && currentSyncMeta.lastDriveBackupAt ? currentSyncMeta.lastDriveBackupAt : null,
+        lastDriveReconcileAt: currentSyncMeta && currentSyncMeta.lastDriveReconcileAt ? currentSyncMeta.lastDriveReconcileAt : null,
+        driveExportedAt: currentSyncMeta && currentSyncMeta.driveExportedAt ? currentSyncMeta.driveExportedAt : null,
+        lastSource: 'learn'
+      });
+      await saveRedisJson(redis, SYNC_META_KEY, nextSyncMeta);
+
+      return res.status(200).json({
+        ...learnOutcome,
+        syncMetaUpdated: true,
+        totalJournalEntries: Array.isArray(currentJournal) ? currentJournal.length : 0
+      });
 
       const GATEWAY_URL = String(process.env.OC_GATEWAY_URL || 'https://api.kilo.ai/api/gateway').trim().replace(/\/+$/, '');
       const GATEWAY_TOKEN = String(process.env.OC_GATEWAY_TOKEN || '').trim();

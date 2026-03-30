@@ -110,8 +110,7 @@ export default async function handler(req, res) {
       loadRedisJson(redisFetch, SYNC_META_KEY, {})
     ]);
 
-    let history = Array.isArray(fullHistory) ? fullHistory : [];
-    if (history.length > 30) history = history.slice(-30);
+    const history = Array.isArray(fullHistory) ? fullHistory : [];
 
     let files = filesResult && typeof filesResult === 'object' ? filesResult : {};
     if (!files || !files['AgentContext.md'] || effectiveTasks.length) {
