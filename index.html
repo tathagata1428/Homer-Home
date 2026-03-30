@@ -15883,6 +15883,23 @@ document.addEventListener("input", e => {
     });
     return normalized;
   }
+  var lastJoeyTaskFingerprint = '';
+  var lastJoeyTaskTs = 0;
+  function buildTaskFingerprint(taskData){
+    var project = clampAgentText(taskData && (taskData.projectId || taskData.project || taskData.projectName || taskData.projectKey) || '', 80).toLowerCase();
+    var summary = clampAgentText(taskData && (taskData.summary || taskData.title) || '', 180).toLowerCase();
+    return project + '|' + summary;
+  }
+  function shouldSkipRecentTask(taskData){
+    var fingerprint = buildTaskFingerprint(taskData);
+    return !!(fingerprint && fingerprint === lastJoeyTaskFingerprint && (Date.now() - lastJoeyTaskTs) < 120000);
+  }
+  function rememberRecentTask(taskData){
+    var fingerprint = buildTaskFingerprint(taskData);
+    if(!fingerprint) return;
+    lastJoeyTaskFingerprint = fingerprint;
+    lastJoeyTaskTs = Date.now();
+  }
   function getActionProjectHelpers(){
     var ensureProjectsFn = window._homerEnsureProjects || (typeof ensureProjects === 'function' ? ensureProjects : function(projects){
       return Array.isArray(projects) ? projects.slice() : [];
@@ -15943,6 +15960,7 @@ document.addEventListener("input", e => {
         if(a.type === 'TASK'){
           // Kanban board task (vault) â€” accepts JSON or plain string
           var taskData = parseTaskActionData(a.data, userText);
+          if(shouldSkipRecentTask(taskData)) return;
           if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
             window._homerLoadVault().then(function(data){
               if(!data) return;
@@ -16005,6 +16023,7 @@ document.addEventListener("input", e => {
               };
               data.goals.push(task);
               window._homerSaveVault(data).then(function(){
+                rememberRecentTask({ projectId: matchedProject.id, summary: task.summary });
                 if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('joey-task', 900);
                 try{ window.dispatchEvent(new Event('vault-goals-changed')); }catch(e){}
                 showJoeyStatusToast('Task added to ' + displayProject.name + ': ' + task.summary, 'success');
@@ -16695,6 +16714,7 @@ document.addEventListener("input", e => {
     var cleanText = text.replace(/^\[FORCE_WEB_SEARCH\]\s*/i, '').replace(/^\[(USE_FULL_CONTEXT|DEEP_CONTEXT)\]\s*/i, '').trim();
     var displayText = cleanText || text;
     var fullContent = cleanText || text;
+    var directTaskRequest = inferTaskActionFromUserText(displayText);
     if(forceWebSearch) fullContent = '[FORCE_WEB_SEARCH] ' + fullContent;
     if(forceFullContext) fullContent = '[USE_FULL_CONTEXT] ' + fullContent;
     var fileNames = [];
@@ -16722,6 +16742,9 @@ document.addEventListener("input", e => {
     inputEl.value = '';
     inputEl.style.height = 'auto';
     scrollMessagesToBottom(true);
+    if(directTaskRequest && currentProvider === 'joey'){
+      executeActions('[ACTION:TASK]' + JSON.stringify(directTaskRequest) + '[/ACTION]', displayText);
+    }
 
     if(currentProvider === 'joey'){
       try { await refreshCanonicalFiles(); } catch(e){}
