@@ -16329,6 +16329,33 @@ window._homerAmbientAudio = {
         }
         return data;
       });
+      });
+  }
+
+  function mergeContextCustomFiles(files, customFiles){
+    var merged = Object.assign({}, (files && typeof files === 'object') ? files : {});
+    var custom = (customFiles && typeof customFiles === 'object') ? customFiles : {};
+    Object.keys(custom).forEach(function(name){
+      var safeName = String(name || '').trim();
+      var content = custom[safeName];
+      if(!safeName || typeof content !== 'string' || !content.trim()) return;
+      if(/^Uploads\//i.test(safeName) || /^Preserved\//i.test(safeName)) return;
+      merged[safeName] = content.trim();
+    });
+    return merged;
+  }
+
+  function fetchJoeyJson(url, opts){
+    return fetch(url, opts || {}).then(function(r){
+      return r.text().then(function(text){
+        var data = {};
+        try { data = text ? JSON.parse(text) : {}; }
+        catch(_err){
+          throw new Error(r.ok ? 'Non-JSON response from Joey API.' : ('Joey API returned ' + r.status + '.'));
+        }
+        if(!r.ok) throw new Error((data && data.error) || ('Joey API returned ' + r.status + '.'));
+        return data;
+      });
     });
   }
 
@@ -16336,13 +16363,29 @@ window._homerAmbientAudio = {
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass) return Promise.reject(new Error('Log in first (unlock vault) to access context files.'));
     return ensureSavedQuotesContext('context-view').catch(function(){ return false; }).then(function(){
-      return fetch(joeyActionUrl('files', pass));
-    })
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        if(data && data.files) return data.files;
-        throw new Error((data && data.error) || 'No files returned');
+      return Promise.all([
+        fetchJoeyJson(joeyActionUrl('files', pass), { cache:'no-store' }),
+        fetchJoeyJson(joeyActionUrl('custom-files', pass), { cache:'no-store' }).catch(function(){ return { customFiles:{} }; })
+      ]);
+    }).then(function(results){
+      var data = results[0] || {};
+      var custom = results[1] && results[1].customFiles ? results[1].customFiles : {};
+      var files = mergeContextCustomFiles(data.files, custom);
+      if(Object.keys(files).length) return files;
+      return refreshCanonicalFiles({ skipQuoteSync:true }).then(function(rebuild){
+        if(!rebuild || rebuild.error) throw new Error((rebuild && (rebuild.error || rebuild.reason)) || 'No files returned');
+        return Promise.all([
+          fetchJoeyJson(joeyActionUrl('files', pass), { cache:'no-store' }),
+          fetchJoeyJson(joeyActionUrl('custom-files', pass), { cache:'no-store' }).catch(function(){ return { customFiles:{} }; })
+        ]);
+      }).then(function(retryResults){
+        var retryData = retryResults[0] || {};
+        var retryCustom = retryResults[1] && retryResults[1].customFiles ? retryResults[1].customFiles : {};
+        var retryFiles = mergeContextCustomFiles(retryData.files, retryCustom);
+        if(Object.keys(retryFiles).length) return retryFiles;
+        throw new Error('No context files returned.');
       });
+    });
   }
 
   function showContextFilesModal(files){
