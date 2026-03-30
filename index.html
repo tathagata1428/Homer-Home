@@ -4460,7 +4460,8 @@ function renderQuote(q) {
       });
       return lines.join('\n').trim() + '\n';
     }
-    function syncSavedQuotesToJoeyFile(reason){
+    function syncSavedQuotesToJoeyFile(reason, opts){
+      opts = opts || {};
       var pass = localStorage.getItem('homer-sync-pass') || '';
       if(!pass) return Promise.resolve(false);
       var content = buildSavedQuotesMarkdown(loadSaved());
@@ -4475,15 +4476,19 @@ function renderQuote(q) {
       }).then(function(r){ return r.json(); })
         .then(function(data){
           if(!data || data.error) throw new Error((data && data.error) || 'Quote file sync failed');
-          refreshCanonicalFiles().catch(function(){});
-          if(typeof scheduleJoeyDriveBackup === 'function') scheduleJoeyDriveBackup('quotes-md-update');
-          if(typeof scheduleJoeyMemoryCommit === 'function') scheduleJoeyMemoryCommit('quotes-md-update', 12000);
+          if(!opts.skipRefresh) refreshCanonicalFiles({ skipQuoteSync:true }).catch(function(){});
+          if(!opts.skipBackups && typeof scheduleJoeyMemoryCommit === 'function') scheduleJoeyMemoryCommit('quotes-md-update', 60000);
           return true;
         })
         .catch(function(err){
           console.warn('[Quotes] Quotes.md sync skipped (' + (reason || 'update') + '):', err && err.message ? err.message : err);
           return false;
         });
+    }
+    function ensureSavedQuotesContext(reason){
+      var list = loadSaved();
+      if(!Array.isArray(list) || !list.length) return Promise.resolve(false);
+      return syncSavedQuotesToJoeyFile(reason || 'quotes-ensure', { skipRefresh:true, skipBackups:true });
     }
     function queueSavedQuotesFileSync(reason){
       if(savedQuotesSyncTimer) clearTimeout(savedQuotesSyncTimer);
@@ -16008,7 +16013,7 @@ window._homerAmbientAudio = {
     if(joeyAutoCommitTimer) clearTimeout(joeyAutoCommitTimer);
     joeyAutoCommitTimer = setTimeout(function(){
       joeyAutoCommitTimer = null;
-      commitJoeyMemory({ silent:true, skipLearn:true, reason:reason || 'auto' }).catch(function(){});
+      commitJoeyMemory({ silent:true, skipLearn:true, skipDrive:true, reason:reason || 'auto' }).catch(function(){});
     }, typeof delayMs === 'number' ? delayMs : 45000);
   }
   function scheduleJoeyLearnRetry(reason, delayMs){
@@ -16036,7 +16041,7 @@ window._homerAmbientAudio = {
       return fetch('/api/joey?action=commit', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(withContextMode({ passphrase:pass, messages:chatHistory, tasks:tasks, skipLearn:!!opts.skipLearn }))
+        body: JSON.stringify(withContextMode({ passphrase:pass, messages:chatHistory, tasks:tasks, skipLearn:!!opts.skipLearn, skipDrive:!!opts.skipDrive }))
       }).then(parseJoeyJsonResponse);
     }).then(function(data){
       if(data && data.steps && data.steps.history && data.steps.history.ok && typeof window._homerRecordBackupMarker === 'function'){
@@ -16231,8 +16236,6 @@ window._homerAmbientAudio = {
     }).then(function(r){ return r.json(); }).then(function(d){
       if(d && d.ok && typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-joey-sync-ts');
     }).catch(function(){});
-    scheduleJoeyDriveBackup('history-change');
-    scheduleJoeyMemoryCommit('history-change');
   }
   function runJoeyDriveBackup(reason){
     var pass = localStorage.getItem('homer-sync-pass') || '';
@@ -16289,10 +16292,14 @@ window._homerAmbientAudio = {
     }
   }
 
-  function refreshCanonicalFiles(){
+  function refreshCanonicalFiles(opts){
+    opts = opts || {};
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass) return Promise.resolve();
-    return collectTaskSnapshot().then(function(tasks){
+    var preflight = opts.skipQuoteSync ? Promise.resolve(false) : ensureSavedQuotesContext('context-refresh');
+    return Promise.resolve(preflight).then(function(){
+      return collectTaskSnapshot();
+    }).then(function(tasks){
       return fetch(joeyActionUrl('files'), {
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -16316,7 +16323,9 @@ window._homerAmbientAudio = {
   function fetchContextFiles(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass) return Promise.reject(new Error('Log in first (unlock vault) to access context files.'));
-    return fetch(joeyActionUrl('files', pass))
+    return ensureSavedQuotesContext('context-view').catch(function(){ return false; }).then(function(){
+      return fetch(joeyActionUrl('files', pass));
+    })
       .then(function(r){ return r.json(); })
       .then(function(data){
         if(data && data.files) return data.files;
@@ -16508,8 +16517,7 @@ window._homerAmbientAudio = {
         if(data && data.consolidated) console.log('[Joey] Memories consolidated');
         refreshCanonicalFiles().catch(function(){});
         if((data && data.learned > 0) || (data && data.profileUpdated)){
-          scheduleJoeyDriveBackup('memory-update');
-          scheduleJoeyMemoryCommit('memory-update', 20000);
+          scheduleJoeyMemoryCommit('memory-update', 60000);
         }
         return data;
       }).catch(function(err){
@@ -16675,18 +16683,17 @@ window._homerAmbientAudio = {
     if(!pass || !chatHistory.length) return;
     console.log('[Joey] Periodic DB save...');
     saveHistoryToRedis();
-    refreshCanonicalFiles().catch(function(){});
     // Also trigger learn to keep memories/profile fresh
     if(chatHistory.length >= 2) triggerAutoLearn();
   }, 5 * 60 * 1000); // 5 minutes
 
-  // --- Periodic auto-backup to Google Drive every 10 minutes ---
+  // --- Periodic auto-backup to Google Drive twice per day ---
   setInterval(function(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass || !chatHistory.length) return;
     console.log('[Joey] Auto-backup to Google Drive...');
     runJoeyDriveBackup('interval');
-  }, 10 * 60 * 1000); // 10 minutes
+  }, 12 * 60 * 60 * 1000); // 12 hours
   setInterval(function(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass || streaming) return;
@@ -18082,8 +18089,7 @@ window._homerAmbientAudio = {
               if(d.ok){
                 console.log('Memory saved, total:', d.count);
                 refreshCanonicalFiles().catch(function(){});
-                scheduleJoeyDriveBackup('remember-action');
-                scheduleJoeyMemoryCommit('remember-action', 12000);
+                scheduleJoeyMemoryCommit('remember-action', 60000);
               }
             }).catch(function(){});
           }
@@ -18101,8 +18107,7 @@ window._homerAmbientAudio = {
               if(d.ok){
                 console.log('Memory removed, remaining:', d.count);
                 refreshCanonicalFiles().catch(function(){});
-                scheduleJoeyDriveBackup('forget-action');
-                scheduleJoeyMemoryCommit('forget-action', 12000);
+                scheduleJoeyMemoryCommit('forget-action', 60000);
               }
             }).catch(function(){});
           }
