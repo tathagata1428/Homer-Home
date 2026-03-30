@@ -4437,6 +4437,20 @@ function renderQuote(q) {
     const SAVED_QUOTES_FILE_NAME = 'Quotes.md';
     let savedQuotesSyncTimer = null;
     function loadSaved(){ try{ return JSON.parse(localStorage.getItem(SAVED_KEY)||"[]"); }catch{return [];} }
+    function getSavedQuotesMode(){
+      var storedMode = localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode');
+      return storedMode === 'work' ? 'work' : 'personal';
+    }
+    function savedQuotesActionUrl(action, passphrase){
+      var url = '/api/joey?action=' + encodeURIComponent(action) + '&mode=' + encodeURIComponent(getSavedQuotesMode());
+      if(passphrase) url += '&passphrase=' + encodeURIComponent(passphrase);
+      return url;
+    }
+    function withSavedQuotesMode(payload){
+      var body = payload && typeof payload === 'object' ? payload : {};
+      body.mode = getSavedQuotesMode();
+      return body;
+    }
     function buildSavedQuotesMarkdown(list){
       var items = Array.isArray(list) ? list : [];
       if(!items.length) return '';
@@ -4465,10 +4479,10 @@ function renderQuote(q) {
       var pass = localStorage.getItem('homer-sync-pass') || '';
       if(!pass) return Promise.resolve(false);
       var content = buildSavedQuotesMarkdown(loadSaved());
-      return fetch(joeyActionUrl('custom-files', pass), {
+      return fetch(savedQuotesActionUrl('custom-files', pass), {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(withContextMode({
+        body: JSON.stringify(withSavedQuotesMode({
           passphrase: pass,
           name: SAVED_QUOTES_FILE_NAME,
           content: content
@@ -4476,7 +4490,7 @@ function renderQuote(q) {
       }).then(function(r){ return r.json(); })
         .then(function(data){
           if(!data || data.error) throw new Error((data && data.error) || 'Quote file sync failed');
-          if(!opts.skipRefresh) refreshCanonicalFiles({ skipQuoteSync:true }).catch(function(){});
+          if(!opts.skipRefresh && typeof refreshCanonicalFiles === 'function') refreshCanonicalFiles({ skipQuoteSync:true }).catch(function(){});
           if(!opts.skipBackups){
             if(typeof scheduleJoeyLearningCommit === 'function') scheduleJoeyLearningCommit('quotes-md-update', 60000);
             else if(typeof scheduleJoeyMemoryCommit === 'function') scheduleJoeyMemoryCommit('quotes-md-update', 60000);
