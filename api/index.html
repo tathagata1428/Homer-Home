@@ -15824,9 +15824,68 @@ document.addEventListener("input", e => {
       notes: summary
     };
   }
+  function clampAgentText(value, maxLen){
+    var text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+    text = text.replace(/([A-Za-z0-9@._-]{2,})(?:\/\1){3,}/g, '$1');
+    if(maxLen && text.length > maxLen) text = text.slice(0, maxLen).trim();
+    return text;
+  }
+  function parseTaskActionData(raw, userText){
+    var taskData = null;
+    var rawText = String(raw || '').trim();
+    try{ taskData = JSON.parse(rawText); }catch(e){
+      var objectStart = rawText.indexOf('{');
+      if(objectStart >= 0){
+        var jsonCandidate = rawText.slice(objectStart);
+        var objectEnd = jsonCandidate.lastIndexOf('}');
+        if(objectEnd >= 0){
+          try{ taskData = JSON.parse(jsonCandidate.slice(0, objectEnd + 1)); }catch(_){}
+        }
+      }
+      if(!taskData){
+        taskData = inferTaskActionFromUserText(userText) || inferTaskActionFromUserText(rawText) || { summary: rawText };
+      }
+    }
+    if(!taskData || typeof taskData !== 'object') taskData = { summary: rawText };
+    var normalized = {
+      project: clampAgentText(taskData.project || taskData.projectId || taskData.projectName || taskData.projectKey || '', 80),
+      projectId: clampAgentText(taskData.projectId || '', 80),
+      summary: clampAgentText(taskData.summary || taskData.title || '', 180),
+      notes: clampAgentText(taskData.notes || taskData.description || taskData.desc || '', 700),
+      due: clampAgentText(taskData.due || '', 40),
+      priority: /^(high|medium|low)$/i.test(String(taskData.priority || '')) ? String(taskData.priority).toLowerCase() : '',
+      labels: Array.isArray(taskData.labels)
+        ? taskData.labels.map(function(label){ return clampAgentText(label, 32); }).filter(Boolean).slice(0, 8)
+        : [],
+      customFields: (taskData.customFields && typeof taskData.customFields === 'object') ? taskData.customFields : {},
+      subtasks: []
+    };
+    var inferred = inferTaskActionFromUserText(userText) || inferTaskActionFromUserText(rawText);
+    if(!normalized.project && inferred && inferred.project) normalized.project = clampAgentText(inferred.project, 80);
+    if(!normalized.summary && inferred && inferred.summary) normalized.summary = clampAgentText(inferred.summary, 180);
+    if(!normalized.notes && inferred && inferred.notes) normalized.notes = clampAgentText(inferred.notes, 700);
+    if(!normalized.summary) normalized.summary = 'New Task';
+    if(!normalized.notes) normalized.notes = normalized.summary;
+    var seenSubtasks = {};
+    (Array.isArray(taskData.subtasks) ? taskData.subtasks : []).slice(0, 6).forEach(function(st){
+      var stObj = typeof st === 'string' ? { text: st } : (st || {});
+      var text = clampAgentText(stObj.text || stObj.summary || stObj.title || '', 120);
+      if(!text) return;
+      var dedupeKey = text.toLowerCase();
+      if(seenSubtasks[dedupeKey]) return;
+      seenSubtasks[dedupeKey] = true;
+      normalized.subtasks.push({
+        text: text,
+        effort: clampAgentText(stObj.effort || '', 24),
+        due: clampAgentText(stObj.due || '', 40),
+        notes: clampAgentText(stObj.notes || stObj.description || stObj.desc || '', 220)
+      });
+    });
+    return normalized;
+  }
   function executeActions(text, userText){
     var actions = [];
-    var regex = /\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET|PROJECT|NOTE|LINK|SECRET|COMMAND)\]([\s\S]*?)\[\/ACTION\]/g;
+    var regex = /\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET|PROJECT|NOTE|LINK|SECRET|COMMAND)\]([\s\S]*?)(?:\[\/ACTION\]|$)/g;
     var match;
     while((match = regex.exec(text)) !== null){
       actions.push({type: match[1], data: match[2].trim()});
@@ -15842,8 +15901,7 @@ document.addEventListener("input", e => {
       try{
         if(a.type === 'TASK'){
           // Kanban board task (vault) â€” accepts JSON or plain string
-          var taskData;
-          try{ taskData = JSON.parse(a.data); }catch(e){ taskData = {summary: a.data}; }
+          var taskData = parseTaskActionData(a.data, userText);
           if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
             window._homerLoadVault().then(function(data){
               if(!data) return;
@@ -16268,7 +16326,7 @@ document.addEventListener("input", e => {
     }
 
     // Strip action tags from displayed text
-    return text.replace(/\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET|PROJECT|NOTE|LINK|SECRET|COMMAND)\][\s\S]*?\[\/ACTION\]/g, '').trim();
+    return text.replace(/\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET|PROJECT|NOTE|LINK|SECRET|COMMAND)\][\s\S]*?(?:\[\/ACTION\]|$)/g, '').trim();
   }
 
   function showError(msg){
