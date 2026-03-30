@@ -4126,7 +4126,19 @@ function renderQuote(q) {
     const zenOverlay = document.getElementById("zen-overlay");
     const zenInput = document.getElementById("zen-input");
     const zenText = document.getElementById("zen-text");
+    const FOCUS_LAB_BRAIN_EDIT_TS_KEY = 'homer-focuslab-brain-edit-ts';
+    const FOCUS_LAB_ZEN_EDIT_TS_KEY = 'homer-focuslab-zen-edit-ts';
+    function markFocusLabLocalEdit(markerKey){
+        try{ sessionStorage.setItem(markerKey, String(Date.now())); }catch(_e){}
+    }
     function queueFocusLabDbSync(reason){
+        if(typeof window._homerQueueFocusLabFieldSync === 'function'){
+            if(reason === 'focus-lab-brain-dump' || reason === 'agent-brain-dump'){
+                window._homerQueueFocusLabFieldSync('brain-dump', localStorage.getItem('homer-brain-dump') || '', reason);
+            } else if(reason === 'focus-lab-zen-goal' || reason === 'agent-zen-goal'){
+                window._homerQueueFocusLabFieldSync('zen-goal', localStorage.getItem('homer-zen-goal') || '', reason);
+            }
+        }
         if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup(reason || 'focus-lab', 300);
         if(typeof window._homerMarkCloudDirty === 'function') window._homerMarkCloudDirty();
     }
@@ -4137,6 +4149,7 @@ function renderQuote(q) {
         if(savedZen) zenInput.value = savedZen;
         zenInput.addEventListener('input', function(){
             localStorage.setItem('homer-zen-goal', zenInput.value);
+            markFocusLabLocalEdit(FOCUS_LAB_ZEN_EDIT_TS_KEY);
             try{ localStorage.removeItem('homer-field-draft:zen-input'); }catch(_e){}
             queueFocusLabDbSync('focus-lab-zen-goal');
         });
@@ -4147,6 +4160,7 @@ function renderQuote(q) {
         const goal = String(goalText || (zenInput && zenInput.value) || '').trim() || "FOCUS";
         if(zenText) zenText.textContent = goal;
         localStorage.setItem('homer-zen-goal', goal);
+        markFocusLabLocalEdit(FOCUS_LAB_ZEN_EDIT_TS_KEY);
         if(zenInput) zenInput.value = goal;
         queueFocusLabDbSync('focus-lab-zen-goal');
         document.body.classList.add("zen-active");
@@ -4178,6 +4192,7 @@ function renderQuote(q) {
         txtDump.value = localStorage.getItem("homer-brain-dump") || "";
         txtDump.addEventListener("input", () => {
             localStorage.setItem("homer-brain-dump", txtDump.value);
+            markFocusLabLocalEdit(FOCUS_LAB_BRAIN_EDIT_TS_KEY);
             try{ localStorage.removeItem('homer-field-draft:brain-dump'); }catch(_e){}
             dumpStatus.textContent = "Saving...";
             queueFocusLabDbSync('focus-lab-brain-dump');
@@ -4295,6 +4310,7 @@ function renderQuote(q) {
                 setZenGoal: function(text){
                     var goal = String(text || '').trim();
                     localStorage.setItem('homer-zen-goal', goal);
+                    markFocusLabLocalEdit(FOCUS_LAB_ZEN_EDIT_TS_KEY);
                     try{ localStorage.removeItem('homer-field-draft:zen-input'); }catch(_e){}
                     if(zenInput) zenInput.value = goal;
                     if(zenText && document.body.classList.contains('zen-active')) zenText.textContent = goal || 'FOCUS';
@@ -4304,6 +4320,7 @@ function renderQuote(q) {
                 updateBrainDump: function(text){
                     var nextText = String(text == null ? '' : text);
                     localStorage.setItem('homer-brain-dump', nextText);
+                    markFocusLabLocalEdit(FOCUS_LAB_BRAIN_EDIT_TS_KEY);
                     try{ localStorage.removeItem('homer-field-draft:brain-dump'); }catch(_e){}
                     if(txtDump){
                         if(txtDump.dataset) txtDump.dataset.dbSyncEditTs = String(Date.now());
@@ -12232,6 +12249,62 @@ window._homerAmbientAudio = {
     });
     return matches;
   }
+  var FOCUS_LAB_SYNC_FIELDS = {
+    'focus-lab:brain-dump': {
+      storageKey: 'homer-brain-dump',
+      elementId: 'brain-dump',
+      statusId: 'dump-status',
+      recentEditKey: 'homer-focuslab-brain-edit-ts'
+    },
+    'focus-lab:zen-goal': {
+      storageKey: 'homer-zen-goal',
+      elementId: 'zen-input',
+      recentEditKey: 'homer-focuslab-zen-edit-ts'
+    }
+  };
+  function getFocusLabSyncConfig(fieldId){
+    return fieldId ? (FOCUS_LAB_SYNC_FIELDS[fieldId] || null) : null;
+  }
+  function getFocusLabRecentEditTs(config){
+    if(!config || !config.recentEditKey) return 0;
+    try{
+      return Math.max(0, parseInt(sessionStorage.getItem(config.recentEditKey) || '0', 10) || 0);
+    }catch(_e){
+      return 0;
+    }
+  }
+  function markFocusLabRecentEdit(config){
+    if(!config || !config.recentEditKey) return;
+    try{ sessionStorage.setItem(config.recentEditKey, String(Date.now())); }catch(_e){}
+  }
+  function clearFocusLabRecentEdit(config){
+    if(!config || !config.recentEditKey) return;
+    try{ sessionStorage.removeItem(config.recentEditKey); }catch(_e){}
+  }
+  function applyFocusLabSyncedValue(config, value, opts){
+    opts = opts || {};
+    if(!config) return;
+    var nextValue = String(value == null ? '' : value);
+    var el = document.getElementById(config.elementId);
+    var localValue = String(localStorage.getItem(config.storageKey) || '');
+    var localEditTs = getFocusLabRecentEditTs(config);
+    var recentlyEdited = localEditTs && (Date.now() - localEditTs) < 30000;
+    if(!opts.force && recentlyEdited && localValue !== nextValue) return;
+    try{
+      origSetItem(config.storageKey, nextValue);
+    }catch(e){
+      try{ localStorage.setItem(config.storageKey, nextValue); }catch(_e){}
+    }
+    if(el && document.activeElement !== el){
+      if(typeof writePersistentFieldValue === 'function') writePersistentFieldValue(el, nextValue);
+      else el.value = nextValue;
+    }
+    if(config.statusId){
+      var statusEl = document.getElementById(config.statusId);
+      if(statusEl) statusEl.textContent = 'Saved';
+    }
+    if(!recentlyEdited || localValue === nextValue) clearFocusLabRecentEdit(config);
+  }
   function dispatchPersistentFieldSyncEvents(el){
     try{ el.dispatchEvent(new Event('input', { bubbles:true })); }catch(_e){}
     try{ el.dispatchEvent(new Event('change', { bubbles:true })); }catch(_e){}
@@ -12239,6 +12312,11 @@ window._homerAmbientAudio = {
   function applySyncedFieldValue(fieldId, value, opts){
     opts = opts || {};
     var nextValue = String(value == null ? '' : value);
+    var focusLabConfig = getFocusLabSyncConfig(fieldId);
+    if(focusLabConfig){
+      applyFocusLabSyncedValue(focusLabConfig, nextValue, opts);
+      return;
+    }
     try{
       origSetItem(fieldId, nextValue);
     }catch(e){}
@@ -12273,6 +12351,36 @@ window._homerAmbientAudio = {
       deviceId: getFieldSyncDeviceId()
     });
   }
+  function queueFocusLabFieldSync(fieldName, value, reason){
+    if(!isFieldSyncReady()) return false;
+    var fieldId = fieldName === 'zen-goal' ? 'focus-lab:zen-goal' : 'focus-lab:brain-dump';
+    var config = getFocusLabSyncConfig(fieldId);
+    if(config) markFocusLabRecentEdit(config);
+    fieldSyncPendingMap.set(fieldId, {
+      fieldId: fieldId,
+      kind: 'text',
+      value: String(value == null ? '' : value),
+      deleted: String(value == null ? '' : value) === '',
+      source: reason || 'focus-lab',
+      scope: getDbBackupMode(),
+      clientTs: Date.now(),
+      deviceId: getFieldSyncDeviceId()
+    });
+    if(fieldSyncPushTimer) clearTimeout(fieldSyncPushTimer);
+    if(/^agent-/.test(String(reason || ''))){
+      fieldSyncPushTimer = setTimeout(function(){
+        fieldSyncPushTimer = null;
+        flushFieldSyncOps(reason || 'focus-lab');
+      }, 80);
+    } else {
+      fieldSyncPushTimer = setTimeout(function(){
+        fieldSyncPushTimer = null;
+        flushFieldSyncOps(reason || 'focus-lab');
+      }, FIELD_SYNC_PUSH_DELAY);
+    }
+    return true;
+  }
+  window._homerQueueFocusLabFieldSync = queueFocusLabFieldSync;
   function queuePersistentFieldGroupOperations(el){
     var type = String(el && el.type || '').toLowerCase();
     if(type === 'radio' && el.name){
@@ -13181,6 +13289,12 @@ window._homerAmbientAudio = {
         if(!key) continue;
         if(isLocalOnlyBackupKey(key) || syncMetaKeys.indexOf(key) >= 0) continue;
         if(BACKUP_RUNTIME_KEYS.indexOf(key) >= 0) continue;
+        if((key === 'homer-brain-dump' || key === 'homer-zen-goal') && !opts.force){
+          var protectedFieldId = key === 'homer-brain-dump' ? 'focus-lab:brain-dump' : 'focus-lab:zen-goal';
+          var protectedConfig = getFocusLabSyncConfig(protectedFieldId);
+          var protectedRecentEditTs = getFocusLabRecentEditTs(protectedConfig);
+          if(protectedRecentEditTs && (Date.now() - protectedRecentEditTs) < 30000) continue;
+        }
         if(!incomingLs[key]) clearLocalKeys.push(key);
       }
     }
@@ -13197,6 +13311,17 @@ window._homerAmbientAudio = {
       if(isLocalOnlyBackupKey(key) || syncMetaKeys.indexOf(key) >= 0) return;
       if(IDB_KEYS.indexOf(key) >= 0){
         idbTasks.push(syncIdbSet(key, snapshot[key]));
+        applied++;
+      } else if((key === 'homer-brain-dump' || key === 'homer-zen-goal') && !opts.force){
+        var focusFieldId = key === 'homer-brain-dump' ? 'focus-lab:brain-dump' : 'focus-lab:zen-goal';
+        var focusConfig = getFocusLabSyncConfig(focusFieldId);
+        var focusRecentEditTs = getFocusLabRecentEditTs(focusConfig);
+        var currentLocalValue = String(localStorage.getItem(key) || '');
+        var incomingValue = String(snapshot[key] == null ? '' : snapshot[key]);
+        if(focusRecentEditTs && (Date.now() - focusRecentEditTs) < 30000 && currentLocalValue !== incomingValue){
+          return;
+        }
+        applyFocusLabSyncedValue(focusConfig, incomingValue, { force:false, silent:true });
         applied++;
       } else if(tryStoreSyncValue(key, snapshot[key])){
         applied++;
