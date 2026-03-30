@@ -223,7 +223,7 @@ function deriveCustomFiles(filesValue) {
   const derived = {};
   Object.entries(files).forEach(([name, content]) => {
     const safeName = String(name || '').trim();
-    if (!safeName || SYSTEM_FILE_NAMES.has(safeName) || /^Uploads\//i.test(safeName)) return;
+    if (!safeName || SYSTEM_FILE_NAMES.has(safeName) || /^Uploads\//i.test(safeName) || /^Preserved\//i.test(safeName)) return;
     if (typeof content !== 'string' || !content.trim()) return;
     derived[safeName] = content.trim();
   });
@@ -237,6 +237,10 @@ function mergeCustomFiles(currentValue, incomingValue, fallbackFiles) {
   const merged = { ...incoming, ...derived, ...current };
 
   Object.keys(merged).forEach((name) => {
+    if (/^Preserved\//i.test(String(name || '').trim())) {
+      delete merged[name];
+      return;
+    }
     if (typeof merged[name] !== 'string' || !merged[name].trim()) delete merged[name];
   });
 

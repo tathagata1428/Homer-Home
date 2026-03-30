@@ -1,8 +1,31 @@
-import { buildContextFiles, preserveGeneratedContextFiles } from '../lib/context-files.js';
+import { buildContextFiles, mergeDerivedFileContext, preserveGeneratedContextFiles } from '../lib/context-files.js';
 import handleJoeyCommit, { runLearnStep } from '../lib/joey-commit-handler.js';
 import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
 import { loadRedisJson, saveRedisJson, safeJsonParse } from '../lib/joey-server.js';
 import { computeJoeySyncMeta } from '../lib/joey-sync-meta.js';
+
+function sanitizeManagedCustomFiles(value) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const out = {};
+  Object.entries(source).forEach(([name, content]) => {
+    const safeName = String(name || '').trim();
+    if (!safeName || /^Preserved\//i.test(safeName)) return;
+    if (typeof content !== 'string' || !content.trim()) return;
+    out[safeName] = content.trim();
+  });
+  return out;
+}
+
+function sanitizeManagedFiles(value, fileLibrary, customFiles, generatedAt) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const cleaned = {};
+  Object.entries(source).forEach(([name, content]) => {
+    const safeName = String(name || '').trim();
+    if (!safeName || /^Preserved\//i.test(safeName)) return;
+    cleaned[safeName] = content;
+  });
+  return mergeDerivedFileContext(cleaned, Array.isArray(fileLibrary) ? fileLibrary : [], sanitizeManagedCustomFiles(customFiles), generatedAt || new Date().toISOString());
+}
 
 export default async function handler(req, res) {
   const origin = req.headers.origin || '*';
@@ -214,15 +237,17 @@ export default async function handler(req, res) {
           redis(['GET', JOURNAL_KEY]),
           redis(['GET', SYNC_META_KEY])
         ]);
+        const fileLibrary = libraryRes.result ? JSON.parse(libraryRes.result) : [];
+        const customFiles = sanitizeManagedCustomFiles(customFilesRes.result ? JSON.parse(customFilesRes.result) : {});
         const bundle = {
           mode,
           exportedAt: Date.now(),
           profile: profileRes.result ? JSON.parse(profileRes.result) : {},
           memories: memoryRes.result ? JSON.parse(memoryRes.result) : [],
           history: historyRes.result ? JSON.parse(historyRes.result) : [],
-          files: filesRes.result ? JSON.parse(filesRes.result) : {},
-          fileLibrary: libraryRes.result ? JSON.parse(libraryRes.result) : [],
-          customFiles: customFilesRes.result ? JSON.parse(customFilesRes.result) : {},
+          files: sanitizeManagedFiles(filesRes.result ? JSON.parse(filesRes.result) : {}, fileLibrary, customFiles, new Date().toISOString()),
+          fileLibrary: fileLibrary,
+          customFiles: customFiles,
           journal: journalRes.result ? JSON.parse(journalRes.result) : []
         };
         const storedSyncMeta = syncMetaRes.result ? JSON.parse(syncMetaRes.result) : null;
@@ -245,9 +270,9 @@ export default async function handler(req, res) {
         const profile = bundle.profile && typeof bundle.profile === 'object' ? bundle.profile : {};
         const memories = Array.isArray(bundle.memories) ? bundle.memories : [];
         const history = Array.isArray(bundle.history) ? bundle.history : [];
-        const files = bundle.files && typeof bundle.files === 'object' ? bundle.files : {};
         const fileLibrary = Array.isArray(bundle.fileLibrary) ? bundle.fileLibrary : [];
-        const customFiles = bundle.customFiles && typeof bundle.customFiles === 'object' ? bundle.customFiles : {};
+        const customFiles = sanitizeManagedCustomFiles(bundle.customFiles);
+        const files = sanitizeManagedFiles(bundle.files, fileLibrary, customFiles, new Date().toISOString());
         const journal = Array.isArray(bundle.journal) ? bundle.journal : [];
         const syncMeta = bundle.syncMeta && typeof bundle.syncMeta === 'object'
           ? bundle.syncMeta
@@ -295,9 +320,9 @@ export default async function handler(req, res) {
           profile: profileRes.result ? JSON.parse(profileRes.result) : {},
           memories: memoryRes.result ? JSON.parse(memoryRes.result) : [],
           history: historyRes.result ? JSON.parse(historyRes.result) : [],
-          files: filesRes.result ? JSON.parse(filesRes.result) : {},
+          files: sanitizeManagedFiles(filesRes.result ? JSON.parse(filesRes.result) : {}, libraryRes.result ? JSON.parse(libraryRes.result) : [], customFilesRes.result ? JSON.parse(customFilesRes.result) : {}, new Date().toISOString()),
           fileLibrary: libraryRes.result ? JSON.parse(libraryRes.result) : [],
-          customFiles: customFilesRes.result ? JSON.parse(customFilesRes.result) : {},
+          customFiles: sanitizeManagedCustomFiles(customFilesRes.result ? JSON.parse(customFilesRes.result) : {}),
           journal: journalRes.result ? JSON.parse(journalRes.result) : []
         };
         const storedSyncMeta = syncMetaRes.result ? JSON.parse(syncMetaRes.result) : {};
@@ -321,8 +346,14 @@ export default async function handler(req, res) {
 
     if (action === 'files') {
       if (req.method === 'GET') {
-        const result = await redis(['GET', FILES_KEY]);
-        const files = result.result ? JSON.parse(result.result) : {};
+        const [result, libraryResult, customResult] = await Promise.all([
+          redis(['GET', FILES_KEY]),
+          redis(['GET', FILE_LIBRARY_KEY]),
+          redis(['GET', CUSTOM_FILES_KEY])
+        ]);
+        const fileLibrary = libraryResult.result ? JSON.parse(libraryResult.result) : [];
+        const customFiles = sanitizeManagedCustomFiles(customResult.result ? JSON.parse(customResult.result) : {});
+        const files = sanitizeManagedFiles(result.result ? JSON.parse(result.result) : {}, fileLibrary, customFiles, new Date().toISOString());
         return res.status(200).json({ files });
       }
       if (req.method === 'POST') {
@@ -337,8 +368,8 @@ export default async function handler(req, res) {
           redis(['GET', CUSTOM_FILES_KEY]),
           redis(['GET', SYNC_META_KEY])
         ]);
-        const existingFiles = filesRes.result ? JSON.parse(filesRes.result) : {};
-        const existingCustomFiles = customFilesRes.result ? JSON.parse(customFilesRes.result) : {};
+        const existingCustomFiles = sanitizeManagedCustomFiles(customFilesRes.result ? JSON.parse(customFilesRes.result) : {});
+        const existingFiles = sanitizeManagedFiles(filesRes.result ? JSON.parse(filesRes.result) : {}, libraryRes.result ? JSON.parse(libraryRes.result) : [], existingCustomFiles, new Date().toISOString());
         const currentSyncMeta = syncMetaRes.result ? JSON.parse(syncMetaRes.result) : {};
         const generatedAt = String((currentSyncMeta && (currentSyncMeta.lastCommittedAt || currentSyncMeta.updatedAt)) || new Date().toISOString());
         const generatedFiles = buildContextFiles({
@@ -374,7 +405,7 @@ export default async function handler(req, res) {
     if (action === 'custom-files') {
       if (req.method === 'GET') {
         const result = await redis(['GET', CUSTOM_FILES_KEY]);
-        const customFiles = result.result ? JSON.parse(result.result) : {};
+        const customFiles = sanitizeManagedCustomFiles(result.result ? JSON.parse(result.result) : {});
         return res.status(200).json({ customFiles });
       }
       if (req.method === 'POST') {
@@ -386,8 +417,8 @@ export default async function handler(req, res) {
           redis(['GET', CUSTOM_FILES_KEY]),
           redis(['GET', FILES_KEY])
         ]);
-        const customFiles = result.result ? JSON.parse(result.result) : {};
-        const files = filesResult.result ? JSON.parse(filesResult.result) : {};
+        const customFiles = sanitizeManagedCustomFiles(result.result ? JSON.parse(result.result) : {});
+        const files = sanitizeManagedFiles(filesResult.result ? JSON.parse(filesResult.result) : {}, [], customFiles, new Date().toISOString());
         if (!content.trim()) {
           delete customFiles[safeName];
           delete files[safeName];
@@ -408,8 +439,8 @@ export default async function handler(req, res) {
           redis(['GET', CUSTOM_FILES_KEY]),
           redis(['GET', FILES_KEY])
         ]);
-        const customFiles = result.result ? JSON.parse(result.result) : {};
-        const files = filesResult.result ? JSON.parse(filesResult.result) : {};
+        const customFiles = sanitizeManagedCustomFiles(result.result ? JSON.parse(result.result) : {});
+        const files = sanitizeManagedFiles(filesResult.result ? JSON.parse(filesResult.result) : {}, [], customFiles, new Date().toISOString());
         delete customFiles[String(name).trim()];
         delete files[String(name).trim()];
         await Promise.all([

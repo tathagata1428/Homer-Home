@@ -11,6 +11,18 @@ import {
   verifyJoeyPassphrase
 } from '../lib/joey-server.js';
 
+function sanitizeCustomFilesMap(value) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const out = {};
+  Object.entries(source).forEach(([name, content]) => {
+    const safeName = String(name || '').trim();
+    if (!safeName || /^Preserved\//i.test(safeName)) return;
+    if (typeof content !== 'string' || !content.trim()) return;
+    out[safeName] = content.trim();
+  });
+  return out;
+}
+
 export default async function handler(req, res) {
   const origin = req.headers.origin || '*';
   res.setHeader('Access-Control-Allow-Origin', origin);
@@ -97,7 +109,7 @@ export default async function handler(req, res) {
     // Restore to Redis
     const { profile, memories, history, files, fileLibrary, customFiles, journal, syncMeta } = parsed;
     const restoredFileLibrary = fileLibrary || [];
-    const restoredCustomFiles = customFiles || {};
+    const restoredCustomFiles = sanitizeCustomFilesMap(customFiles || {});
     const restoredFiles = mergeDerivedFileContext(files || {}, restoredFileLibrary, restoredCustomFiles, new Date().toISOString());
     const results = { profile: false, memories: false, history: false, files: false, fileLibrary: false, customFiles: false, journal: false, syncMeta: false };
 
