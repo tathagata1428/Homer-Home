@@ -190,6 +190,110 @@
     .span-6{grid-column:span 6}
     .span-4{grid-column:span 4}
     @media (max-width: 860px){ .span-6,.span-4{grid-column:span 12} }
+    .focuslab-page{
+      display:grid;
+      gap:18px;
+    }
+    .focuslab-hero{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:16px;
+      padding:22px 24px;
+      border-radius:24px;
+      border:1px solid rgba(255,255,255,.08);
+      background:
+        radial-gradient(560px 220px at 0% 0%, rgba(34,197,94,.14), transparent 62%),
+        radial-gradient(460px 220px at 100% 0%, rgba(96,165,250,.16), transparent 60%),
+        linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.025));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+    }
+    .focuslab-hero-copy{
+      max-width:720px;
+      display:grid;
+      gap:6px;
+    }
+    .focuslab-kicker,
+    .focus-card-kicker{
+      font-size:.72rem;
+      font-weight:900;
+      letter-spacing:.16em;
+      text-transform:uppercase;
+      color:rgba(226,232,240,.72);
+    }
+    .focuslab-title{
+      margin:0;
+      font-size:clamp(1.22rem, 1vw + .96rem, 1.68rem);
+      line-height:1.12;
+      letter-spacing:-.02em;
+    }
+    .focuslab-subtitle{
+      margin:0;
+      max-width:60ch;
+      color:var(--muted);
+      font-size:.88rem;
+    }
+    .focus-grid-wrapper{
+      gap:20px;
+      align-items:stretch;
+    }
+    .focus-grid-wrapper > .card{
+      padding:24px;
+    }
+    .focus-tool-card,
+    .brain-dump-card{
+      position:relative;
+      overflow:hidden;
+      border-color:rgba(255,255,255,.1);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.028)),
+        linear-gradient(135deg, rgba(255,255,255,.03), transparent 55%);
+    }
+    .focus-tool-card::before,
+    .brain-dump-card::before{
+      content:"";
+      position:absolute;
+      left:0; right:0; top:0;
+      height:1px;
+      background:linear-gradient(90deg, rgba(96,165,250,.45), rgba(34,197,94,.38), transparent 78%);
+      pointer-events:none;
+    }
+    .focus-breath-card{
+      grid-column:span 7;
+    }
+    .focus-neuro-card{
+      grid-column:span 5;
+    }
+    @media (min-width: 861px){
+      .focus-grid-wrapper > .focus-breath-card,
+      .focus-grid-wrapper > .focus-neuro-card{
+        min-height:420px;
+      }
+      .focus-grid-wrapper > .brain-dump-card{
+        min-height:280px;
+      }
+    }
+    @media (max-width: 860px){
+      .focuslab-page{
+        gap:14px;
+      }
+      .focuslab-hero{
+        padding:18px;
+        gap:10px;
+        align-items:flex-start;
+        flex-direction:column;
+      }
+      .focus-grid-wrapper{
+        gap:14px;
+      }
+      .focus-grid-wrapper > .card{
+        padding:18px;
+      }
+      .focus-breath-card,
+      .focus-neuro-card{
+        grid-column:span 12;
+      }
+    }
 
     /* Music */
     .music{display:flex; align-items:center; gap:12px}
@@ -404,11 +508,10 @@
 
     /* 2. Box Breathing */
     .breathing-container{
-      padding:20px;
       display:flex;
       flex-direction:column;
       align-items:stretch;
-      gap:10px;
+      gap:12px;
       height:100%;
     }
     .breathing-header{
@@ -425,16 +528,35 @@
     .breathing-copy{
       margin:0;
     }
+    .focus-card-title{
+      margin:0;
+      font-size:1.24rem;
+      line-height:1.12;
+      letter-spacing:-.02em;
+    }
+    .focus-card-copy{
+      margin:0;
+      max-width:34ch;
+      color:var(--muted);
+      font-size:.9rem;
+    }
     .breathing-shell{
       flex:1;
       display:flex;
       flex-direction:column;
       justify-content:center;
-      padding:6px 6px 0;
+      padding:14px 16px 8px;
+      border-radius:22px;
+      border:1px solid rgba(255,255,255,.08);
+      background:
+        radial-gradient(circle at 50% 16%, rgba(96,165,250,.18), transparent 54%),
+        linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.018));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+      overflow:hidden;
     }
     .breathing-circle {
       --breath-duration: 4000ms;
-      width: 116px; height: 116px; border-radius: 50%;
+      width: 118px; height: 118px; border-radius: 50%;
       background: radial-gradient(circle, var(--accent-2) 0%, rgba(96,165,250,0.1) 70%);
       margin: 0 auto;
       display: grid; place-items: center;
@@ -448,27 +570,28 @@
     .breathing-stage{
       width:100%;
       flex:1;
-      min-height: 154px;
+      min-height: 192px;
       display:grid;
       place-items:center;
-      padding: 0;
-      margin-top:-6px;
+      padding: 0 0 10px;
+      margin-top:0;
       overflow: hidden;
     }
     .breathing-rhythm{
       text-align:center;
       letter-spacing:.02em;
-      opacity:.82;
-      font-size:.82rem;
-      margin-top:2px;
+      opacity:.78;
+      font-size:.8rem;
+      margin-top:12px;
+      padding-top:2px;
     }
     .breathing-action-row{
       width:100%;
-      min-height:72px;
+      min-height:70px;
       display:flex;
       align-items:flex-end;
       justify-content:center;
-      padding:12px 0 0;
+      padding:10px 0 0;
       border-top:1px solid rgba(255,255,255,.08);
     }
     #b-toggle{
@@ -479,19 +602,65 @@
     .neuro-tools-card{
       display:flex;
       flex-direction:column;
-      gap:16px;
+      gap:14px;
       justify-content:flex-start;
       height:100%;
     }
+    .neuro-header{
+      display:grid;
+      gap:6px;
+    }
+    .focus-button-panel{
+      width:100%;
+      text-align:left;
+      padding:16px 16px 14px;
+      border-radius:18px;
+      display:grid;
+      gap:6px;
+      box-shadow:0 18px 40px rgba(22,163,74,.18);
+    }
+    .focus-button-title{
+      display:block;
+      font-size:.96rem;
+      font-weight:900;
+      letter-spacing:-.01em;
+    }
+    .focus-button-meta{
+      display:block;
+      font-size:.8rem;
+      opacity:.84;
+      font-weight:500;
+      line-height:1.45;
+    }
     .zen-panel{
       margin-top:auto;
-      background:rgba(255,255,255,0.05);
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
       padding:16px;
-      border-radius:12px;
-      border:1px solid var(--border);
-      min-height:140px;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,.1);
+      min-height:144px;
       display:flex;
       flex-direction:column;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+    }
+    .focus-surface-title{
+      margin:0 0 6px;
+      font-size:.98rem;
+      font-weight:900;
+    }
+    .focus-surface-copy{
+      margin:0 0 12px;
+      color:var(--muted);
+      font-size:.84rem;
+    }
+    .focus-input{
+      width:100%;
+      padding:11px 12px;
+      border-radius:10px;
+      background:#0b1220;
+      border:1px solid var(--border);
+      color:#fff;
+      margin-bottom:12px;
     }
     .breathing-circle .breath-inner{
       display:grid;
@@ -523,7 +692,7 @@
     }
     .breathing-circle::before{
       content:"";
-      position:absolute; inset:-24px;
+      position:absolute; inset:-18px;
       border-radius:50%;
       border:3px dotted rgba(255,255,255,.22);
       opacity:0;
@@ -554,7 +723,7 @@
       opacity:1;
     }
     .b-hold-in{
-      transform: scale(1.28);
+      transform: scale(1.22);
       border-color: #fbbf24;
       border-style: dotted;
       background: radial-gradient(circle, rgba(251,191,36,.88) 0%, rgba(251,191,36,.16) 74%);
@@ -604,24 +773,24 @@
     }
     @keyframes breatheIn {
       from { transform:scale(1); box-shadow:0 0 20px rgba(96,165,250,.45); }
-      to { transform:scale(1.28); box-shadow:0 0 40px rgba(34,197,94,.55); }
+      to { transform:scale(1.22); box-shadow:0 0 40px rgba(34,197,94,.55); }
     }
     @keyframes breatheOut {
-      from { transform:scale(1.28); box-shadow:0 0 40px rgba(96,165,250,.55); }
+      from { transform:scale(1.22); box-shadow:0 0 40px rgba(96,165,250,.55); }
       to { transform:scale(1); box-shadow:0 0 18px rgba(96,165,250,.28); }
     }
     @keyframes breatheGuideOut {
       from { transform:scale(.92); opacity:.32; }
-      to { transform:scale(1.18); opacity:.62; }
+      to { transform:scale(1.08); opacity:.58; }
     }
     @keyframes breatheGuideIn {
-      from { transform:scale(1.18); opacity:.56; }
+      from { transform:scale(1.08); opacity:.52; }
       to { transform:scale(.92); opacity:.28; }
     }
     @keyframes breatheGuideHoldLarge {
-      0%, 100% { transform:scale(1.16); opacity:.48; }
-      35% { transform:scale(1.24); opacity:.78; }
-      70% { transform:scale(1.2); opacity:.62; }
+      0%, 100% { transform:scale(1.08); opacity:.44; }
+      35% { transform:scale(1.14); opacity:.68; }
+      70% { transform:scale(1.11); opacity:.56; }
     }
     @keyframes breatheGuideHoldSmall {
       0%, 100% { transform:scale(.9); opacity:.3; }
@@ -648,11 +817,69 @@
     }
 
     /* 3. Brain Dump */
+    .brain-dump-card{
+      display:grid;
+      gap:12px;
+    }
+    .brain-dump-head{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+    }
+    .brain-dump-copy{
+      margin:4px 0 0;
+      color:var(--muted);
+      font-size:.9rem;
+      max-width:56ch;
+    }
+    .brain-dump-status{
+      padding:7px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(11,18,32,.5);
+      font-size:.76rem;
+      font-weight:800;
+      letter-spacing:.05em;
+      text-transform:uppercase;
+      white-space:nowrap;
+    }
     .brain-dump-area {
-      width: 100%; height: 150px;
-      background: rgba(0,0,0,0.3); border: 1px solid var(--border);
-      color: var(--text); padding: 12px; border-radius: 12px;
-      font-family: inherit; font-size: 1rem; resize: vertical;
+      width: 100%; min-height: 158px;
+      background:
+        linear-gradient(180deg, rgba(2,6,23,.72), rgba(2,6,23,.48));
+      border: 1px solid rgba(255,255,255,.1);
+      color: var(--text); padding: 14px 16px; border-radius: 16px;
+      font-family: inherit; font-size: 1rem; line-height:1.6; resize: vertical;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+    }
+    @media (max-width: 860px){
+      .breathing-shell{
+        padding:12px 10px 6px;
+      }
+      .breathing-stage{
+        min-height:164px;
+      }
+      .breathing-circle{
+        width:112px; height:112px;
+      }
+      .breathing-action-row{
+        min-height:64px;
+        padding-top:8px;
+      }
+      .zen-panel{
+        min-height:0;
+        padding:14px;
+      }
+      .brain-dump-head{
+        flex-direction:column;
+      }
+      .brain-dump-status{
+        align-self:flex-start;
+      }
+      .brain-dump-area{
+        min-height:142px;
+      }
     }
     .sync-floating-label{
       display:none!important;
@@ -3051,42 +3278,62 @@
     </section>
 
     <section id="tab-focuslab" class="tab card" style="display:none">
-       <div class="grid focus-grid-wrapper">
-
-         <div class="span-6 card breathing-container">
-           <div class="breathing-header">
-             <h3 class="breathing-title">Ã°Å¸Å’Â¬Ã¯Â¸Â Box Breathing</h3>
-             <p class="muted small breathing-copy">Inhale (4s) Ã¢â‚¬Â¢ Hold (4s) Ã¢â‚¬Â¢ Exhale (4s) Ã¢â‚¬Â¢ Hold (4s)</p>
-           </div>
-           <div class="breathing-shell">
-             <div class="breathing-stage"><div id="b-circle" class="breathing-circle">Ready</div></div>
-             <div class="muted small breathing-rhythm">Expand. Hold. Release. Hold.</div>
-           </div>
-           <div class="breathing-action-row">
-             <button id="b-toggle" class="btn primary">Start Breathing</button>
+       <div class="focuslab-page">
+         <div class="focuslab-hero">
+           <div class="focuslab-hero-copy">
+             <div class="focuslab-kicker">Focus Lab</div>
+             <h2 class="focuslab-title">Calm the noise. Pick one target. Stay on it.</h2>
+             <p class="focuslab-subtitle">Use breath to reset, neuro tools to sharpen attention, and brain dump to clear distractions before they steal your session.</p>
            </div>
          </div>
 
-         <div class="span-6 card neuro-tools-card">
-            <h3 style="margin-top:0">Ã°Å¸â€Â¬ Neuro Tools</h3>
+         <div class="grid focus-grid-wrapper">
+           <div class="span-6 card breathing-container focus-tool-card focus-breath-card">
+             <div class="breathing-header">
+               <div class="focus-card-kicker">Reset</div>
+               <h3 class="breathing-title focus-card-title">Box Breathing</h3>
+               <p class="muted small breathing-copy focus-card-copy">A steady four-part cadence to settle the nervous system before deep work.</p>
+             </div>
+             <div class="breathing-shell">
+               <div class="breathing-stage"><div id="b-circle" class="breathing-circle">Ready</div></div>
+               <div class="muted small breathing-rhythm">Expand. Hold. Release. Hold.</div>
+             </div>
+             <div class="breathing-action-row">
+               <button id="b-toggle" class="btn primary">Start Breathing</button>
+             </div>
+           </div>
 
-            <button id="btn-focus-dot" class="btn primary" style="padding:16px;">
-              Ã°Å¸Å½Â¯ Huberman Focus (Trataka)
-              <div style="font-size:0.8em; opacity:0.8; font-weight:400; margin-top:4px;">Stare at the dot for 30s to spike focus.</div>
-            </button>
+           <div class="span-6 card neuro-tools-card focus-tool-card focus-neuro-card">
+              <div class="neuro-header">
+                <div class="focus-card-kicker">Sharpen</div>
+                <h3 class="focus-card-title" style="margin-top:0">Neuro Tools</h3>
+                <p class="focus-card-copy">Fast interventions for attention, visual lock-in, and one-goal tunnel vision.</p>
+              </div>
 
-            <div class="zen-panel">
-               <h4 style="margin:0 0 8px;">Ã°Å¸Â§Ëœ Zen Mode</h4>
-               <input type="text" id="zen-input" placeholder="What is your ONE goal?" style="width:100%; padding:10px; border-radius:8px; background:#0b1220; border:1px solid var(--border); color:#fff; margin-bottom:10px;">
-               <button id="zen-btn" class="btn secondary" style="width:100%">Enter Zen Mode</button>
-            </div>
-         </div>
+              <button id="btn-focus-dot" class="btn primary focus-button-panel">
+                <span class="focus-button-title">Huberman Focus (Trataka)</span>
+                <span class="focus-button-meta">Stare at the dot for 30 seconds to spike focus and narrow visual attention.</span>
+              </button>
 
-         <div class="span-12 card">
-           <h3 style="margin-top:0">Ã°Å¸â€œÂ Brain Dump</h3>
-           <p class="muted" style="font-size:0.9rem; margin-bottom:10px;">Distracting thought? Park it here. Auto-saved locally.</p>
-           <textarea id="brain-dump" class="brain-dump-area" placeholder="I need to buy milk... Did I email Dave?..."></textarea>
-           <div id="dump-status" class="muted" style="font-size:0.8rem; margin-top:6px; text-align:right;">Saved</div>
+              <div class="zen-panel">
+                 <h4 class="focus-surface-title">Zen Mode</h4>
+                 <p class="focus-surface-copy">Pick one goal and strip the rest of the interface away.</p>
+                 <input type="text" id="zen-input" class="focus-input" placeholder="What is your ONE goal?">
+                 <button id="zen-btn" class="btn secondary" style="width:100%">Enter Zen Mode</button>
+              </div>
+           </div>
+
+           <div class="span-12 card brain-dump-card">
+             <div class="brain-dump-head">
+               <div>
+                 <div class="focus-card-kicker">Capture</div>
+                 <h3 class="focus-card-title" style="margin-top:4px">Brain Dump</h3>
+                 <p class="brain-dump-copy">Park every distracting thought here so your working memory can stay on the task that matters.</p>
+               </div>
+               <div id="dump-status" class="brain-dump-status muted">Saved</div>
+             </div>
+             <textarea id="brain-dump" class="brain-dump-area" placeholder="I need to buy milk... Did I email Dave?..."></textarea>
+           </div>
          </div>
        </div>
     </section>
