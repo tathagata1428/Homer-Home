@@ -360,6 +360,7 @@ export default async function handler(req, res) {
     }
 
     const driveData = asObject(drive.data);
+    const nowIso = new Date().toISOString();
     const driveCustomFiles = driveData.customFiles || deriveCustomFiles(driveData.files);
     const driveFiles = mergeDerivedFileContext(driveData.files, driveData.fileLibrary, driveCustomFiles, nowIso);
     const [currentProfile, currentMemories, currentHistory, currentFiles, currentFileLibrary, currentCustomFiles, currentJournal, storedSyncMeta] = await Promise.all([
@@ -373,7 +374,6 @@ export default async function handler(req, res) {
       loadRedisJson(redisFetch, SYNC_META_KEY, {})
     ]);
 
-    const nowIso = new Date().toISOString();
     const redisBundle = {
       mode,
       profile: currentProfile,

@@ -4475,6 +4475,9 @@ function renderQuote(q) {
       }).then(function(r){ return r.json(); })
         .then(function(data){
           if(!data || data.error) throw new Error((data && data.error) || 'Quote file sync failed');
+          refreshCanonicalFiles().catch(function(){});
+          if(typeof scheduleJoeyDriveBackup === 'function') scheduleJoeyDriveBackup('quotes-md-update');
+          if(typeof scheduleJoeyMemoryCommit === 'function') scheduleJoeyMemoryCommit('quotes-md-update', 12000);
           return true;
         })
         .catch(function(err){
@@ -16134,7 +16137,7 @@ window._homerAmbientAudio = {
       return fetch('/api/gdrive-backup', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(withContextMode({ passphrase: pass, tasks: tasks }))
+        body: JSON.stringify(withContextMode({ passphrase: pass, tasks: tasks, force:true }))
       });
     }).then(function(r){ return r.json(); }).then(function(d){
       if(d.ok){

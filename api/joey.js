@@ -328,16 +328,19 @@ export default async function handler(req, res) {
       if (req.method === 'POST') {
         const { tasks } = req.body || {};
         const effectiveTasks = mode === 'work' ? [] : (Array.isArray(tasks) ? tasks : []);
-        const [memRes, profileRes, histRes, filesRes, libraryRes, customFilesRes] = await Promise.all([
+        const [memRes, profileRes, histRes, filesRes, libraryRes, customFilesRes, syncMetaRes] = await Promise.all([
           redis(['GET', MEMORY_KEY]),
           redis(['GET', PROFILE_KEY]),
           redis(['GET', HISTORY_KEY]),
           redis(['GET', FILES_KEY]),
           redis(['GET', FILE_LIBRARY_KEY]),
-          redis(['GET', CUSTOM_FILES_KEY])
+          redis(['GET', CUSTOM_FILES_KEY]),
+          redis(['GET', SYNC_META_KEY])
         ]);
         const existingFiles = filesRes.result ? JSON.parse(filesRes.result) : {};
         const existingCustomFiles = customFilesRes.result ? JSON.parse(customFilesRes.result) : {};
+        const currentSyncMeta = syncMetaRes.result ? JSON.parse(syncMetaRes.result) : {};
+        const generatedAt = String((currentSyncMeta && (currentSyncMeta.lastCommittedAt || currentSyncMeta.updatedAt)) || new Date().toISOString());
         const generatedFiles = buildContextFiles({
           profile: profileRes.result ? JSON.parse(profileRes.result) : {},
           memories: memRes.result ? JSON.parse(memRes.result) : [],
@@ -345,7 +348,8 @@ export default async function handler(req, res) {
           tasks: effectiveTasks,
           fileLibrary: libraryRes.result ? JSON.parse(libraryRes.result) : [],
           customFiles: existingCustomFiles,
-          scope: mode
+          scope: mode,
+          generatedAt
         });
         const preserved = preserveGeneratedContextFiles(existingFiles, generatedFiles, existingCustomFiles, new Date().toISOString());
         await Promise.all([
@@ -456,18 +460,36 @@ export default async function handler(req, res) {
         loadRedisJson(redis, SYNC_META_KEY, {})
       ]);
 
+      const learnedAt = new Date().toISOString();
+      const rebuiltFiles = preserveGeneratedContextFiles(
+        currentFiles,
+        buildContextFiles({
+          profile: currentProfile,
+          memories: currentMemories,
+          history: currentHistory,
+          tasks: [],
+          fileLibrary: currentFileLibrary,
+          customFiles: currentCustomFiles,
+          scope: mode,
+          generatedAt: learnedAt
+        }),
+        currentCustomFiles,
+        learnedAt
+      ).files;
+      await saveRedisJson(redis, FILES_KEY, rebuiltFiles);
+
       const nextSyncMeta = computeJoeySyncMeta({
         mode,
         profile: currentProfile,
         memories: currentMemories,
         history: currentHistory,
-        files: currentFiles,
+        files: rebuiltFiles,
         fileLibrary: currentFileLibrary,
         customFiles: currentCustomFiles,
         journal: currentJournal
       }, {
         mode,
-        updatedAt: new Date().toISOString(),
+        updatedAt: learnedAt,
         lastCommittedAt: currentSyncMeta && currentSyncMeta.lastCommittedAt ? currentSyncMeta.lastCommittedAt : null,
         lastDriveBackupAt: currentSyncMeta && currentSyncMeta.lastDriveBackupAt ? currentSyncMeta.lastDriveBackupAt : null,
         lastDriveReconcileAt: currentSyncMeta && currentSyncMeta.lastDriveReconcileAt ? currentSyncMeta.lastDriveReconcileAt : null,
@@ -479,6 +501,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         ...learnOutcome,
         syncMetaUpdated: true,
+        filesUpdated: true,
         totalJournalEntries: Array.isArray(currentJournal) ? currentJournal.length : 0
       });
 

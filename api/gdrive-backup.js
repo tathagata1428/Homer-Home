@@ -40,6 +40,7 @@ export default async function handler(req, res) {
 
   try {
     const requestKind = String((req.body || {}).kind || '').trim().toLowerCase();
+    const forceBackup = !!(req.body && req.body.force);
     const taskSnapshot = Array.isArray((req.body || {}).tasks) ? req.body.tasks : [];
     const effectiveTasks = mode === 'work' ? [] : taskSnapshot;
     const isValid = await verifyJoeyPassphrase(passphrase, redisFetch);
@@ -113,20 +114,24 @@ export default async function handler(req, res) {
     const history = Array.isArray(fullHistory) ? fullHistory : [];
 
     let files = filesResult && typeof filesResult === 'object' ? filesResult : {};
-    if (!files || !files['AgentContext.md'] || effectiveTasks.length) {
-      const generatedFiles = buildContextFiles({
-        profile: profile || {},
-        memories,
-        history,
-        tasks: effectiveTasks,
-        fileLibrary,
-        customFiles,
-        scope: mode
-      });
-      files = preserveGeneratedContextFiles(files, generatedFiles, customFiles, new Date().toISOString()).files;
-    }
-    files = mergeDerivedFileContext(files, fileLibrary, customFiles, new Date().toISOString());
-    await saveRedisJson(redisFetch, FILES_KEY, files);
+    const generatedAt = String((syncMetaStored && (syncMetaStored.lastCommittedAt || syncMetaStored.updatedAt)) || new Date().toISOString());
+    const generatedFiles = buildContextFiles({
+      profile: profile || {},
+      memories,
+      history,
+      tasks: effectiveTasks,
+      fileLibrary,
+      customFiles,
+      scope: mode,
+      generatedAt
+    });
+    const preserved = preserveGeneratedContextFiles(files, generatedFiles, customFiles, generatedAt);
+    const nextCustomFiles = preserved.customFiles && typeof preserved.customFiles === 'object' ? preserved.customFiles : customFiles;
+    files = mergeDerivedFileContext(preserved.files, fileLibrary, nextCustomFiles, generatedAt);
+    await Promise.all([
+      saveRedisJson(redisFetch, FILES_KEY, files),
+      saveRedisJson(redisFetch, CUSTOM_FILES_KEY, nextCustomFiles)
+    ]);
 
     const syncMeta = computeJoeySyncMeta({
       mode,
@@ -135,7 +140,7 @@ export default async function handler(req, res) {
       history,
       files,
       fileLibrary,
-      customFiles,
+      customFiles: nextCustomFiles,
       journal
     }, {
       ...(syncMetaStored && typeof syncMetaStored === 'object' ? syncMetaStored : {}),
@@ -143,6 +148,31 @@ export default async function handler(req, res) {
       updatedAt: new Date().toISOString(),
       lastSource: 'gdrive-backup'
     });
+
+    if (
+      !forceBackup &&
+      syncMetaStored &&
+      typeof syncMetaStored === 'object' &&
+      syncMetaStored.lastDriveBackupAt &&
+      syncMetaStored.hashes &&
+      syncMeta.hashes &&
+      syncMetaStored.hashes.bundle === syncMeta.hashes.bundle
+    ) {
+      const nextSyncMeta = {
+        ...syncMeta,
+        lastDriveBackupAt: syncMetaStored.lastDriveBackupAt,
+        driveExportedAt: syncMetaStored.driveExportedAt || null,
+        lastSource: 'gdrive-backup-skip'
+      };
+      await saveRedisJson(redisFetch, SYNC_META_KEY, nextSyncMeta);
+      return res.status(200).json({
+        ok: true,
+        skipped: true,
+        unchanged: true,
+        reason: 'Context unchanged since last Drive backup',
+        syncMeta: nextSyncMeta
+      });
+    }
 
     const payload = {
       secret: gdriveSecret,
@@ -152,7 +182,7 @@ export default async function handler(req, res) {
       history,
       files,
       fileLibrary,
-      customFiles,
+      customFiles: nextCustomFiles,
       journal,
       syncMeta
     };

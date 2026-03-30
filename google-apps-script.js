@@ -50,6 +50,51 @@ function getTargetFolder(folderName, folderId) {
   return folders.hasNext() ? folders.next() : DriveApp.createFolder(safeName);
 }
 
+function listFilesByName(folder, fileName) {
+  var out = [];
+  var iter = folder.getFilesByName(String(fileName || '').trim());
+  while (iter.hasNext()) out.push(iter.next());
+  return out;
+}
+
+function upsertTextFile(folder, fileName, content, mimeType) {
+  var name = String(fileName || '').trim();
+  if (!name) throw new Error('File name is empty');
+  var nextContent = String(content || '');
+  var matches = listFilesByName(folder, name);
+  var primary = matches.length ? matches.shift() : null;
+  if (primary) {
+    var currentContent = '';
+    try { currentContent = primary.getBlob().getDataAsString(); } catch (_err) {}
+    if (currentContent !== nextContent) primary.setContent(nextContent);
+  } else {
+    primary = folder.createFile(name, nextContent, mimeType || MimeType.PLAIN_TEXT);
+  }
+  matches.forEach(function(file) {
+    try { file.setTrashed(true); } catch (_err) {}
+  });
+  return primary;
+}
+
+function syncManagedContextFiles(folder, filesMap) {
+  var source = filesMap && typeof filesMap === 'object' ? filesMap : {};
+  var keep = { 'joey-context.json': true };
+  Object.keys(source).forEach(function(name) {
+    var safeName = String(name || '').trim();
+    if (safeName) keep[safeName] = true;
+  });
+
+  var iter = folder.getFiles();
+  while (iter.hasNext()) {
+    var file = iter.next();
+    var name = String(file.getName() || '');
+    if (keep[name]) continue;
+    if (/\.(md|txt)$/i.test(name)) {
+      try { file.setTrashed(true); } catch (_err) {}
+    }
+  }
+}
+
 function doPost(e) {
   try {
     if (!e || !e.postData || !e.postData.contents) {
@@ -151,23 +196,14 @@ function doPost(e) {
     var content = JSON.stringify(payload, null, 2);
 
     // Update or create stable JSON snapshot
-    var jsonFiles = folder.getFilesByName('joey-context.json');
-    if (jsonFiles.hasNext()) {
-      jsonFiles.next().setContent(content);
-    } else {
-      folder.createFile('joey-context.json', content, MimeType.PLAIN_TEXT);
-    }
+    upsertTextFile(folder, 'joey-context.json', content, MimeType.PLAIN_TEXT);
 
     var files = data.files || {};
-    Object.keys(files).forEach(function (name) {
+    Object.keys(files).sort().forEach(function (name) {
       var body = String(files[name] || '');
-      var existing = folder.getFilesByName(name);
-      if (existing.hasNext()) {
-        existing.next().setContent(body);
-      } else {
-        folder.createFile(name, body, MimeType.PLAIN_TEXT);
-      }
+      upsertTextFile(folder, name, body, MimeType.PLAIN_TEXT);
     });
+    syncManagedContextFiles(folder, files);
 
     return ContentService.createTextOutput(JSON.stringify({
       ok: true,
