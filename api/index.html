@@ -16275,31 +16275,31 @@ window._homerAmbientAudio = {
       vault: 'vault'
     };
     var openMap = { notes:'notes', secrets:'secrets', projects:'projects', kanban:'kanban', goals:'goals' };
-    var tabMatch = lower.match(/^(?:open|show|go to)\s+(?:the\s+)?(home|pomodoro|focus lab|focuslab|investing|tools|links|news|vault)$/i);
+    var tabMatch = lower.match(/^(?:open|show|go to|click|press|tap)\s+(?:the\s+)?(?:tab\s+)?(home|pomodoro|focus lab|focuslab|investing|tools|links|news|vault)$/i);
     if(tabMatch) return { op:'tab', target:tabMap[tabMatch[1].toLowerCase()] };
-    var openMatch = lower.match(/^(?:open|show)\s+(?:the\s+)?(notes|secrets|projects|kanban|goals)$/i);
+    var openMatch = lower.match(/^(?:open|show|click|press|tap)\s+(?:the\s+)?(notes|secrets|projects|kanban|goals)$/i);
     if(openMatch) return { op:'open', target:openMap[openMatch[1].toLowerCase()] };
     var modeMatch = lower.match(/^(?:switch|change|set)\s+(?:to\s+)?(work|personal)(?:\s+mode)?$/i);
     if(modeMatch) return { op:'mode', target:modeMatch[1].toLowerCase() };
-    var issueMatch = body.match(/^(?:open|show)\s+([A-Z][A-Z0-9]{1,9}-\d{1,8})$/i);
+    var issueMatch = body.match(/^(?:open|show|click|press|tap)\s+([A-Z][A-Z0-9]{1,9}-\d{1,8})$/i);
     if(issueMatch) return { op:'issue-open', key: normalizeIssueKeyLookup(issueMatch[1]), target: normalizeIssueKeyLookup(issueMatch[1]) };
-    if(/^(?:start|resume)\s+(?:the\s+)?(?:pomodoro|timer|focus timer|focus)$/i.test(lower)) return { op:'pomodoro-start' };
-    if(/^(?:pause|stop)\s+(?:the\s+)?(?:pomodoro|timer|focus timer|focus)$/i.test(lower)) return { op:'pomodoro-pause' };
-    if(/^(?:reset)\s+(?:the\s+)?(?:pomodoro|timer|focus timer|focus)$/i.test(lower)) return { op:'pomodoro-reset' };
-    if(/^(?:skip)\s+(?:the\s+)?(?:pomodoro|timer|phase|break|session)$/i.test(lower)) return { op:'pomodoro-skip' };
-    var zenStart = body.match(/^(?:start|enter|open)\s+zen(?:\s+mode)?(?:\s+(?:for|with)\s+(.+))?$/i);
+    if(/^(?:start|resume|click|press|tap)\s+(?:the\s+)?(?:pomodoro|timer|focus timer|focus|start button)$/i.test(lower)) return { op:'pomodoro-start' };
+    if(/^(?:pause|stop|click|press|tap)\s+(?:the\s+)?(?:pause button|pomodoro|timer|focus timer|focus)$/i.test(lower)) return { op:'pomodoro-pause' };
+    if(/^(?:reset|click|press|tap)\s+(?:the\s+)?(?:reset button|pomodoro|timer|focus timer|focus)$/i.test(lower)) return { op:'pomodoro-reset' };
+    if(/^(?:skip|click|press|tap)\s+(?:the\s+)?(?:skip button|pomodoro|timer|phase|break|session)$/i.test(lower)) return { op:'pomodoro-skip' };
+    var zenStart = body.match(/^(?:start|enter|open|click|press|tap)\s+zen(?:\s+mode)?(?:\s+(?:for|with)\s+(.+))?$/i);
     if(zenStart) return { op:'zen-start', target: clampAgentText(zenStart[1] || '', 140) };
-    if(/^(?:stop|exit|close)\s+zen(?:\s+mode)?$/i.test(lower)) return { op:'zen-stop' };
-    if(/^(?:start|play|begin)\s+(?:box\s+)?breathing$/i.test(lower)) return { op:'breathing-start' };
-    if(/^(?:stop|pause)\s+(?:box\s+)?breathing$/i.test(lower)) return { op:'breathing-stop' };
+    if(/^(?:stop|exit|close|click|press|tap)\s+zen(?:\s+mode)?$/i.test(lower)) return { op:'zen-stop' };
+    if(/^(?:start|play|begin|click|press|tap)\s+(?:box\s+)?breathing$/i.test(lower)) return { op:'breathing-start' };
+    if(/^(?:stop|pause|click|press|tap)\s+(?:box\s+)?breathing$/i.test(lower)) return { op:'breathing-stop' };
     if(/^(?:sync\s+drive|sync\s+from\s+drive|reconcile\s+drive)$/i.test(lower)) return { op:'drive-sync' };
     if(/^(?:backup\s+drive|backup\s+to\s+drive)$/i.test(lower)) return { op:'drive-backup' };
     if(/^(?:commit\s+memory|save\s+memory|memory\s+commit)$/i.test(lower)) return { op:'memory-commit' };
     if(/^(?:mirror\s+vault|vault\s+mirror|backup\s+vault)$/i.test(lower)) return { op:'vault-mirror' };
-    var mixMatch = lower.match(/^(?:play|start)\s+(?:the\s+)?(sleep|rainy|reading|cozy)\s+mix$/i);
+    var mixMatch = lower.match(/^(?:play|start|click|press|tap)\s+(?:the\s+)?(sleep|rainy|reading|cozy)\s+mix$/i);
     if(mixMatch) return { op:'sound-mix', target: mixMatch[1].toLowerCase() };
     if(/^(?:stop|pause)\s+(?:all\s+)?(?:sounds?|music|audio|ambience|ambient)$/i.test(lower)) return { op:'sound-stop', target:'' };
-    var soundPlay = body.match(/^(?:play|start)\s+(.+)$/i);
+    var soundPlay = body.match(/^(?:play|start|click|press|tap)\s+(.+)$/i);
     if(soundPlay){
       var soundTarget = String(soundPlay[1] || '').toLowerCase()
         .replace(/\b(?:sound|music|audio|track|ambience|ambient|noise)\b/g, '')
@@ -16309,7 +16309,7 @@ window._homerAmbientAudio = {
         return { op:'sound-play', target: soundTarget };
       }
     }
-    var soundStop = body.match(/^(?:stop|pause)\s+(.+)$/i);
+    var soundStop = body.match(/^(?:stop|pause|click|press|tap)\s+(.+)$/i);
     if(soundStop){
       var stopTarget = String(soundStop[1] || '').toLowerCase()
         .replace(/\b(?:sound|music|audio|track|ambience|ambient|noise)\b/g, '')
@@ -16320,6 +16320,66 @@ window._homerAmbientAudio = {
       }
     }
     return null;
+  }
+  function inferDirectNoteRequest(text){
+    var raw = String(text || '').trim();
+    if(!raw) return null;
+    var normalized = raw.replace(/\s+/g, ' ').trim();
+    var patterns = [
+      { target:'brain-dump', mode:'append', re:/^(?:please\s+)?(?:add|append|put|save|write|include)\s+(?:the\s+following\s+)?text\s+(?:in|into|to)\s+brain\s*dump\s*[:\-]\s*(.+)$/i },
+      { target:'brain-dump', mode:'append', re:/^(?:please\s+)?(?:add|append|put|save|write|include)\s+(?:this\s+)?(?:in|into|to)\s+brain\s*dump\s*[:\-]\s*(.+)$/i },
+      { target:'brain-dump', mode:'replace', re:/^(?:please\s+)?(?:set|update|replace)\s+brain\s*dump\s+(?:to|with)\s*(.+)$/i },
+      { target:'zen-goal', mode:'replace', re:/^(?:please\s+)?(?:set|update|change)\s+(?:the\s+)?zen\s+goal\s+(?:to|as)\s*(.+)$/i },
+      { target:'vault', mode:'replace', re:/^(?:please\s+)?(?:set|update|replace)\s+(?:the\s+)?vault\s+note\s+(?:to|with)\s*(.+)$/i },
+      { target:'vault', mode:'append', re:/^(?:please\s+)?(?:add|append|put|save|write|include)\s+(?:the\s+following\s+)?text\s+(?:in|into|to)\s+(?:the\s+)?vault\s+note\s*[:\-]\s*(.+)$/i }
+    ];
+    for(var i = 0; i < patterns.length; i++){
+      var match = normalized.match(patterns[i].re);
+      if(match){
+        var noteText = clampAgentText(match[1] || '', 4000);
+        if(!noteText) return null;
+        return { target:patterns[i].target, text:noteText, mode:patterns[i].mode };
+      }
+    }
+    return null;
+  }
+  function applyAgentNoteMutation(noteData){
+    var target = String(noteData && noteData.target || 'vault').trim().toLowerCase();
+    var text = String(noteData && noteData.text || '').trim();
+    var mode = String(noteData && noteData.mode || 'replace').trim().toLowerCase();
+    if(!text) return Promise.resolve({ ok:false, message:'Note text is empty' });
+    if(target === 'brain-dump'){
+      var currentDump = localStorage.getItem('homer-brain-dump') || '';
+      var nextDump = mode === 'append' && currentDump.trim()
+        ? currentDump.replace(/\s+$/,'') + '\n' + text
+        : text;
+      if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.updateBrainDump === 'function'){
+        window._homerFocusLabAgent.updateBrainDump(nextDump);
+      } else {
+        localStorage.setItem('homer-brain-dump', nextDump);
+      }
+      return Promise.resolve({ ok:true, message:'Brain dump updated' });
+    }
+    if(target === 'zen-goal'){
+      if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.setZenGoal === 'function'){
+        window._homerFocusLabAgent.setZenGoal(text);
+      } else {
+        localStorage.setItem('homer-zen-goal', text);
+      }
+      return Promise.resolve({ ok:true, message:'Zen goal updated' });
+    }
+    if(typeof window._homerUpdateVaultNote === 'function'){
+      return Promise.resolve(window._homerUpdateVaultNote(
+        mode === 'append' ? (((typeof notesArea !== 'undefined' && notesArea && notesArea.value) || '').trim() ? (((typeof notesArea !== 'undefined' && notesArea && notesArea.value) || '').replace(/\s+$/,'') + '\n' + text) : text) : text
+      )).then(function(result){
+        return result && result.ok
+          ? { ok:true, message:'Vault note updated' }
+          : { ok:false, message:'Vault note save failed: ' + ((result && result.error) || 'unknown error') };
+      }).catch(function(err){
+        return { ok:false, message:'Vault note save failed: ' + (err && err.message ? err.message : err) };
+      });
+    }
+    return Promise.resolve({ ok:false, message:'Vault notes are unavailable right now' });
   }
   function runAgentCommand(commandData, options){
     options = options || {};
@@ -17680,6 +17740,7 @@ window._homerAmbientAudio = {
     var fullContent = cleanText || text;
     var directTaskRequest = inferDirectTaskRequest(displayText);
     var directIssueUpdate = inferDirectIssueUpdateRequest(displayText);
+    var directNoteRequest = inferDirectNoteRequest(displayText);
     var directCommandRequest = inferDirectCommandRequest(displayText);
     if(forceWebSearch) fullContent = '[FORCE_WEB_SEARCH] ' + fullContent;
     if(forceFullContext) fullContent = '[USE_FULL_CONTEXT] ' + fullContent;
@@ -17712,6 +17773,22 @@ window._homerAmbientAudio = {
       applyAgentTaskMutation(directIssueUpdate, { userText:displayText, source:'direct-user' });
     } else if(directTaskRequest && currentProvider === 'joey'){
       applyAgentTaskMutation(directTaskRequest, { userText:displayText, source:'direct-user' });
+    } else if(directNoteRequest && currentProvider === 'joey'){
+      var directNoteResult = await applyAgentNoteMutation(directNoteRequest);
+      var directNoteReply = {
+        role:'assistant',
+        content:(directNoteResult && directNoteResult.message) || 'Note updated.',
+        provider:currentProvider,
+        model:getStoredModelLabel(currentProvider, currentContextMode),
+        mode:currentContextMode
+      };
+      chatHistory.push(directNoteReply);
+      messagesEl.insertAdjacentHTML('beforeend', renderChatMessage(directNoteReply, chatHistory.length - 1));
+      injectCodeCopyButtons(messagesEl);
+      scrollMessagesToBottom(true);
+      saveChatToVault();
+      saveHistoryToRedis();
+      return;
     } else if(directCommandRequest && currentProvider === 'joey'){
       var directCommandResult = runAgentCommand(directCommandRequest, { source:'direct-user' });
       var directReply = {
