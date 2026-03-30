@@ -50,6 +50,13 @@ function getTargetFolder(folderName, folderId) {
   return folders.hasNext() ? folders.next() : DriveApp.createFolder(safeName);
 }
 
+function getChildFolder(parentFolder, folderName) {
+  var safeName = String(folderName || '').trim();
+  if (!safeName) throw new Error('Child folder name is empty');
+  var iter = parentFolder.getFoldersByName(safeName);
+  return iter.hasNext() ? iter.next() : parentFolder.createFolder(safeName);
+}
+
 function listFilesByName(folder, fileName) {
   var out = [];
   var iter = folder.getFilesByName(String(fileName || '').trim());
@@ -122,16 +129,12 @@ function doPost(e) {
     if ((data.action || '') === 'upload_file') {
       var upload = data.file || {};
       var uploadFolderCfg = getUploadsFolderConfig(mode);
-      var uploadFolder = getTargetFolder(uploadFolderCfg.name, uploadFolderCfg.id);
+      var uploadRootFolder = getTargetFolder(uploadFolderCfg.name, uploadFolderCfg.id);
+      var uploadFolder = getChildFolder(uploadRootFolder, 'Files');
       var safeName = String(upload.name || 'upload.bin').replace(/[\\/:*?"<>|]+/g, '-');
       var binary = Utilities.base64Decode(String(upload.base64Data || ''));
       var blob = Utilities.newBlob(binary, upload.mimeType || MimeType.PLAIN_TEXT, safeName);
       var driveFile = uploadFolder.createFile(blob);
-
-      if (upload.extractedText) {
-        var sidecarName = String(upload.id || driveFile.getId()) + '--' + safeName + '.txt';
-        uploadFolder.createFile(sidecarName, String(upload.extractedText || ''), MimeType.PLAIN_TEXT);
-      }
 
       return ContentService.createTextOutput(JSON.stringify({
         ok: true,

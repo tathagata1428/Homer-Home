@@ -15865,7 +15865,7 @@ window._homerAmbientAudio = {
   if(mobileCommitMemoryBtn){
     mobileCommitMemoryBtn.addEventListener('click', function(){
       closeMobileMenu();
-      commitJoeyMemory({ silent:false, skipLearn:false, reason:'manual-mobile' }).catch(function(){});
+      commitJoeyMemory({ silent:false, skipLearn:false, skipDrive:true, reason:'manual-mobile' }).catch(function(){});
     });
   }
   if(mobileClearChatBtn){
@@ -16085,7 +16085,7 @@ window._homerAmbientAudio = {
     return commitJoeyMemory(opts || {});
   };
   document.getElementById('oc-save-db').addEventListener('click', function(){
-    commitJoeyMemory({ silent:false, skipLearn:false, reason:'manual' }).catch(function(){});
+    commitJoeyMemory({ silent:false, skipLearn:false, skipDrive:true, reason:'manual' }).catch(function(){});
     return;
     var btn = this;
     var pass = localStorage.getItem('homer-sync-pass') || '';
@@ -16693,7 +16693,7 @@ window._homerAmbientAudio = {
     if(!pass || !chatHistory.length) return;
     console.log('[Joey] Auto-backup to Google Drive...');
     runJoeyDriveBackup('interval');
-  }, 12 * 60 * 60 * 1000); // 12 hours
+  }, 10 * 60 * 1000); // 10 minutes
   setInterval(function(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass || streaming) return;
@@ -17414,7 +17414,7 @@ window._homerAmbientAudio = {
     }
     if(cmd === 'memory-commit'){
       if(typeof window._homerCommitJoeyMemory === 'function'){
-        window._homerCommitJoeyMemory({ silent:true, skipLearn:false, reason:'command-action' }).catch(function(err){
+        window._homerCommitJoeyMemory({ silent:true, skipLearn:false, skipDrive:true, reason:'command-action' }).catch(function(err){
           showJoeyStatusToast('Memory commit failed: ' + (err && err.message ? err.message : err), 'warn');
         });
         return { ok:true, message:'Memory commit queued' };
@@ -18323,7 +18323,7 @@ window._homerAmbientAudio = {
             }
           } else if(cmd === 'memory-commit'){
             if(typeof window._homerCommitJoeyMemory === 'function'){
-              window._homerCommitJoeyMemory({ silent:true, skipLearn:false, reason:'command-action' }).catch(function(err){
+              window._homerCommitJoeyMemory({ silent:true, skipLearn:false, skipDrive:true, reason:'command-action' }).catch(function(err){
                 showJoeyStatusToast('Memory commit failed: ' + (err && err.message ? err.message : err), 'warn');
               });
               notifications.push('Memory commit queued');
