@@ -4477,7 +4477,10 @@ function renderQuote(q) {
         .then(function(data){
           if(!data || data.error) throw new Error((data && data.error) || 'Quote file sync failed');
           if(!opts.skipRefresh) refreshCanonicalFiles({ skipQuoteSync:true }).catch(function(){});
-          if(!opts.skipBackups && typeof scheduleJoeyMemoryCommit === 'function') scheduleJoeyMemoryCommit('quotes-md-update', 60000);
+          if(!opts.skipBackups){
+            if(typeof scheduleJoeyLearningCommit === 'function') scheduleJoeyLearningCommit('quotes-md-update', 60000);
+            else if(typeof scheduleJoeyMemoryCommit === 'function') scheduleJoeyMemoryCommit('quotes-md-update', 60000);
+          }
           return true;
         })
         .catch(function(err){
@@ -16014,6 +16017,15 @@ window._homerAmbientAudio = {
     joeyAutoCommitTimer = setTimeout(function(){
       joeyAutoCommitTimer = null;
       commitJoeyMemory({ silent:true, skipLearn:true, skipDrive:true, reason:reason || 'auto' }).catch(function(){});
+    }, typeof delayMs === 'number' ? delayMs : 45000);
+  }
+  function scheduleJoeyLearningCommit(reason, delayMs){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return;
+    if(joeyAutoCommitTimer) clearTimeout(joeyAutoCommitTimer);
+    joeyAutoCommitTimer = setTimeout(function(){
+      joeyAutoCommitTimer = null;
+      commitJoeyMemory({ silent:true, skipLearn:false, skipDrive:true, reason:reason || 'auto-learn' }).catch(function(){});
     }, typeof delayMs === 'number' ? delayMs : 45000);
   }
   function scheduleJoeyLearnRetry(reason, delayMs){
