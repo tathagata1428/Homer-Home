@@ -213,7 +213,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Redis not configured' });
   }
 
-  var MAX_VERSIONS = 10;
+  var MAX_VERSIONS = 6;
 
   function parseManifest(snapshot) {
     if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return null;

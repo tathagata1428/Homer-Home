@@ -16092,6 +16092,7 @@ window._homerAmbientAudio = {
       console.log('[Joey] Auto-reconcile error:', e && e.message ? e.message : e);
     });
   }
+  var JOEY_DRIVE_RECONCILE_INTERVAL_MS = 10 * 60 * 1000;
   // Run safe reconcile after a delay (after Redis load attempt)
   setTimeout(autoReconcileFromDrive, 3000);
 
@@ -16117,7 +16118,13 @@ window._homerAmbientAudio = {
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass || streaming) return;
     autoReconcileFromDrive();
-  }, 15 * 60 * 1000); // 15 minutes
+  }, JOEY_DRIVE_RECONCILE_INTERVAL_MS);
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState !== 'visible') return;
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass || streaming) return;
+    setTimeout(autoReconcileFromDrive, 1200);
+  });
 
   // --- Markdown rendering ---
   function renderMd(raw){

@@ -49,7 +49,7 @@ export default async function handler(req, res) {
   const { MEMORY_KEY, HISTORY_KEY, PROFILE_KEY, FILES_KEY, FILE_LIBRARY_KEY, CUSTOM_FILES_KEY, JOURNAL_KEY, SYNC_META_KEY } = getJoeyContextKeys(mode);
   const MAX_MEMORIES = 200;
   const MAX_HISTORY = 50;
-  const MAX_JOURNAL = 1000;
+  const MAX_JOURNAL = 700;
 
   async function loadJournal() {
     return loadRedisJson(redis, JOURNAL_KEY, []);
