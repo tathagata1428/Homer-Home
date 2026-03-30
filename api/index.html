@@ -5714,6 +5714,7 @@ document.addEventListener("input", e => {
     });
     return next;
   }
+  window._homerMapGoalCustomFieldsForProject = mapGoalCustomFieldsForProject;
   function getLabelDef(name){
     var found = DEFAULT_LABELS.find(function(l){ return l.name === name; });
     if(found) return found;
@@ -15926,6 +15927,11 @@ document.addEventListener("input", e => {
     var mode = resolveAgentVaultMode();
     return mode === 'work' ? 'Work' : 'Personal';
   }
+  function resolveAgentProjectCustomFields(project, rawValues){
+    var mapper = window._homerMapGoalCustomFieldsForProject || (typeof mapGoalCustomFieldsForProject === 'function' ? mapGoalCustomFieldsForProject : null);
+    if(typeof mapper === 'function') return mapper(project, rawValues);
+    return rawValues && typeof rawValues === 'object' ? Object.assign({}, rawValues) : {};
+  }
   function createAgentTaskInVault(taskData, options){
     options = options || {};
     var normalizedTask = parseTaskActionData(taskData, options.userText || '');
@@ -15970,7 +15976,7 @@ document.addEventListener("input", e => {
         showJoeyStatusToast('Project "' + displayProject.name + '" is archived. Restore it before adding tasks there.', 'warn');
         return { ok:false, reason:'archived-project', projectId:matchedProject.id, task:normalizedTask };
       }
-      var customFields = mapGoalCustomFieldsForProject(matchedProject, normalizedTask.customFields || {});
+      var customFields = resolveAgentProjectCustomFields(matchedProject, normalizedTask.customFields || {});
       var subtasks = [];
       if(normalizedTask.subtasks && Array.isArray(normalizedTask.subtasks)){
         normalizedTask.subtasks.forEach(function(st){
