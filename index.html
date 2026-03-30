@@ -16090,18 +16090,29 @@ window._homerAmbientAudio = {
     var project = '';
     var summary = body;
     var patterns = [
+      /^(?:in|into|under|for)\s+(?:the\s+)?(?:(personal|work)\s*,\s*)?["â€œ]?([^,"\n]+?)\s+project["â€]?(?:\s*,|\s*:\s*|\s+-\s+|\s+)([\s\S]+)$/i,
       /^(?:in|into|under|for)\s+(?:the\s+)?project\s+["“]?([^,"\n]+?)["”]?(?:\s*,|\s*:\s*|\s+-\s+|\s+)([\s\S]+)$/i,
       /^(?:in|into|under|for)\s+["“]?([A-Za-z][A-Za-z0-9 _-]{1,40})["”]?(?:\s*,|\s*:\s*|\s+-\s+|\s+)([\s\S]+)$/i
     ];
     for(var p = 0; p < patterns.length; p++){
       var found = body.match(patterns[p]);
       if(found){
-        project = String(found[1] || '').trim();
-        summary = String(found[2] || '').trim();
+        if(p === 0){
+          project = String(found[2] || '').trim();
+          summary = String(found[3] || '').trim();
+        } else {
+          project = String(found[1] || '').trim();
+          summary = String(found[2] || '').trim();
+        }
         break;
       }
     }
-    summary = summary.replace(/^\s*(?:for|to)\s+/i, '').replace(/^[,:-]\s*/, '').trim();
+    project = project.replace(/^(?:personal|work)\s*,\s*/i, '').trim();
+    summary = summary
+      .replace(/^\s*(?:for|to)\s+/i, '')
+      .replace(/^[,:-]\s*/, '')
+      .replace(/\s*(?:,|\band\b)?\s*(?:add|include|put|with)\s+(?:relevant\s+)?subtasks?.*$/i, '')
+      .trim();
     if(project && /^the$/i.test(project)) project = '';
     if(!summary || summary.length < 3) return null;
     return {
@@ -16109,6 +16120,9 @@ window._homerAmbientAudio = {
       summary: summary,
       notes: summary
     };
+  }
+  function taskNeedsAgentSubtasks(text){
+    return /\b(?:subtasks?|steps?|break(?:\s+it)?\s+down|relevant\s+subtasks?)\b/i.test(String(text || ''));
   }
   function normalizeIssueKeyLookup(value){
     return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9-]+/g, '');
@@ -16884,6 +16898,7 @@ window._homerAmbientAudio = {
       actions.push({type: match[1], data: match[2].trim()});
     }
     var inferredTask = inferDirectTaskRequest(userText);
+    var directTaskNeedsPlanning = taskNeedsAgentSubtasks(userText);
     var inferredIssueUpdate = inferDirectIssueUpdateRequest(userText);
     var inferredCommand = inferDirectCommandRequest(userText);
     if(!actions.length) return text;
@@ -16893,7 +16908,7 @@ window._homerAmbientAudio = {
       try{
         if(a.type === 'TASK'){
           // Kanban board task (vault) â€” accepts JSON or plain string
-          if((inferredTask || inferredIssueUpdate) && !a.inferred) return;
+          if(((inferredTask && !directTaskNeedsPlanning) || inferredIssueUpdate) && !a.inferred) return;
           var taskData = parseTaskActionData(a.data, userText);
           applyAgentTaskMutation(taskData, { userText:userText, source:'action' });
           notifications.push(taskData.key
@@ -17747,6 +17762,7 @@ window._homerAmbientAudio = {
     var displayText = cleanText || text;
     var fullContent = cleanText || text;
     var directTaskRequest = inferDirectTaskRequest(displayText);
+    var directTaskNeedsPlanning = taskNeedsAgentSubtasks(displayText);
     var directIssueUpdate = inferDirectIssueUpdateRequest(displayText);
     var directNoteRequest = inferDirectNoteRequest(displayText);
     var directCommandRequest = inferDirectCommandRequest(displayText);
@@ -17779,7 +17795,7 @@ window._homerAmbientAudio = {
     scrollMessagesToBottom(true);
     if(currentProvider === 'joey' && directIssueUpdate){
       applyAgentTaskMutation(directIssueUpdate, { userText:displayText, source:'direct-user' });
-    } else if(directTaskRequest && currentProvider === 'joey'){
+    } else if(directTaskRequest && !directTaskNeedsPlanning && currentProvider === 'joey'){
       applyAgentTaskMutation(directTaskRequest, { userText:displayText, source:'direct-user' });
     } else if(directNoteRequest && currentProvider === 'joey'){
       var directNoteResult = await applyAgentNoteMutation(directNoteRequest);
