@@ -15913,16 +15913,30 @@ document.addEventListener("input", e => {
     lastJoeyTaskFingerprint = fingerprint;
     lastJoeyTaskTs = Date.now();
   }
+  function resolveAgentVaultMode(){
+    try{
+      if(typeof window._homerGetVaultMode === 'function'){
+        var liveMode = window._homerGetVaultMode();
+        if(liveMode === 'work' || liveMode === 'personal') return liveMode;
+      }
+    }catch(_e){}
+    return (localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal';
+  }
+  function resolveAgentVaultModeLabel(){
+    var mode = resolveAgentVaultMode();
+    return mode === 'work' ? 'Work' : 'Personal';
+  }
   function createAgentTaskInVault(taskData, options){
     options = options || {};
     var normalizedTask = parseTaskActionData(taskData, options.userText || '');
+    var activeVaultMode = resolveAgentVaultMode();
     if(shouldSkipRecentTask(normalizedTask)){
       console.log('[Joey task] Skipped duplicate task request', normalizedTask);
       return Promise.resolve({ ok:false, reason:'duplicate', task:normalizedTask });
     }
     if(typeof window._homerLoadVault !== 'function' || !window._homerVaultUnlocked){
-      showJoeyStatusToast('Unlock the ' + modeLabel(currentVaultMode) + ' vault first to add tasks.', 'warn');
-      return Promise.resolve({ ok:false, reason:'locked', mode:currentVaultMode, task:normalizedTask });
+      showJoeyStatusToast('Unlock the ' + resolveAgentVaultModeLabel() + ' vault first to add tasks.', 'warn');
+      return Promise.resolve({ ok:false, reason:'locked', mode:activeVaultMode, task:normalizedTask });
     }
     return window._homerLoadVault().then(function(data){
       if(!data) throw new Error('Vault data unavailable');
@@ -15936,7 +15950,7 @@ document.addEventListener("input", e => {
       var fallbackProjectId = (goalFilterProjectEl && goalFilterProjectEl.value) || projectHelpers.getDefaultProjectId(projects);
       var matchedProject = projectHelpers.matchProject(projects, requestedProject, fallbackProjectId, !!requestedProject);
       console.log('[Joey task] Parsed request', {
-        mode: currentVaultMode,
+        mode: activeVaultMode,
         requestedProject: requestedProject,
         fallbackProjectId: fallbackProjectId,
         matchedProjectId: matchedProject && matchedProject.id,
@@ -16011,7 +16025,7 @@ document.addEventListener("input", e => {
         refreshCanonicalFiles().catch(function(){});
         console.log('[Joey task] Saved', {
           ok: true,
-          mode: currentVaultMode,
+          mode: activeVaultMode,
           issueKey: createdIssueKey,
           taskId: task.id,
           projectId: matchedProject.id,
@@ -16020,7 +16034,7 @@ document.addEventListener("input", e => {
         });
         return {
           ok:true,
-          mode:currentVaultMode,
+          mode:activeVaultMode,
           issueKey:createdIssueKey,
           taskId:task.id,
           projectId:matchedProject.id,
