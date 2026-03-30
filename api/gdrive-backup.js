@@ -61,6 +61,7 @@ export default async function handler(req, res) {
       const response = await fetchWithRedirects(gdriveWebhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        timeoutMs: 15000,
         body: JSON.stringify(payload)
       });
       const redirectChain = response.redirectChain || [];
@@ -192,6 +193,7 @@ export default async function handler(req, res) {
     const response = await fetchWithRedirects(gdriveWebhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      timeoutMs: 15000,
       body: JSON.stringify(payload)
     });
     const redirectChain = response.redirectChain || [];
