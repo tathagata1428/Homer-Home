@@ -16027,9 +16027,15 @@ document.addEventListener("input", e => {
                 if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('joey-task', 900);
                 try{ window.dispatchEvent(new Event('vault-goals-changed')); }catch(e){}
                 showJoeyStatusToast('Task added to ' + displayProject.name + ': ' + task.summary, 'success');
-                if(goalFilterProjectEl && (goalFilterProjectEl.value === '' || goalFilterProjectEl.value === matchedProject.id)){
-                  renderGoals(data.goals || [], data.projects || []);
+                if(typeof populateProjectControls === 'function'){
+                  populateProjectControls(data.projects || [], data.goals || [], {
+                    selectedFilter: matchedProject.id,
+                    preferredTaskProject: matchedProject.id
+                  });
                 }
+                renderGoals(data.goals || [], data.projects || []);
+                if(typeof renderProjectDashboard === 'function') renderProjectDashboard(data);
+                if(typeof renderVault === 'function') renderVault();
                 refreshCanonicalFiles().catch(function(){});
               }).catch(function(err){
                 showJoeyStatusToast('Task save failed: ' + (err && err.message ? err.message : err), 'warn');
