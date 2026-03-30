@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -238,7 +238,7 @@
     .primary{background:linear-gradient(135deg, var(--accent) 0%, #16a34a 100%); border:none; color:#041106}
     .secondary{background:linear-gradient(135deg, var(--accent-2) 0%, #2563eb 100%); border:none; color:#041106}
 
-    /* ðŸ”´ RED BUTTON CLASS */
+    /* Ã°Å¸â€Â´ RED BUTTON CLASS */
     .danger{
       background:linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
       border:none; color:#ffffff;
@@ -285,7 +285,7 @@
     .ring{
       --ring-size: 220px; /* smaller */
       position:relative; width:var(--ring-size); height:var(--ring-size); border-radius:50%;
-      /* ðŸ”´ THICKER RING (76% hole = 24% thick) */
+      /* Ã°Å¸â€Â´ THICKER RING (76% hole = 24% thick) */
       background:
         radial-gradient(closest-side, #151f32 76%, transparent 77%),
         conic-gradient(var(--accent) var(--pom-progress,0%), rgba(255,255,255,.18) 0);
@@ -403,11 +403,40 @@
     @keyframes breathe { 0%, 100% { transform: scale(0.8); opacity: 0.3; } 50% { transform: scale(1.5); opacity: 0.8; } }
 
     /* 2. Box Breathing */
+    .breathing-container{
+      padding:20px;
+      display:flex;
+      flex-direction:column;
+      align-items:stretch;
+      gap:10px;
+      height:100%;
+    }
+    .breathing-header{
+      display:grid;
+      gap:6px;
+      text-align:left;
+    }
+    .breathing-title{
+      margin:0;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .breathing-copy{
+      margin:0;
+    }
+    .breathing-shell{
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      padding:6px 6px 0;
+    }
     .breathing-circle {
       --breath-duration: 4000ms;
-      width: 140px; height: 140px; border-radius: 50%;
+      width: 116px; height: 116px; border-radius: 50%;
       background: radial-gradient(circle, var(--accent-2) 0%, rgba(96,165,250,0.1) 70%);
-      margin: 20px auto;
+      margin: 0 auto;
       display: grid; place-items: center;
       font-weight: 900; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.5);
       position: relative;
@@ -416,10 +445,58 @@
       border: 4px solid var(--accent-2);
       box-shadow: 0 0 20px var(--accent-2);
     }
+    .breathing-stage{
+      width:100%;
+      flex:1;
+      min-height: 154px;
+      display:grid;
+      place-items:center;
+      padding: 0;
+      margin-top:-6px;
+      overflow: hidden;
+    }
+    .breathing-rhythm{
+      text-align:center;
+      letter-spacing:.02em;
+      opacity:.82;
+      font-size:.82rem;
+      margin-top:2px;
+    }
+    .breathing-action-row{
+      width:100%;
+      min-height:72px;
+      display:flex;
+      align-items:flex-end;
+      justify-content:center;
+      padding:12px 0 0;
+      border-top:1px solid rgba(255,255,255,.08);
+    }
+    #b-toggle{
+      margin-top:0;
+      align-self:center;
+      min-width:178px;
+    }
+    .neuro-tools-card{
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+      justify-content:flex-start;
+      height:100%;
+    }
+    .zen-panel{
+      margin-top:auto;
+      background:rgba(255,255,255,0.05);
+      padding:16px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      min-height:140px;
+      display:flex;
+      flex-direction:column;
+    }
     .breathing-circle .breath-inner{
       display:grid;
       justify-items:center;
-      gap:6px;
+      gap:4px;
       line-height:1;
       text-align:center;
     }
@@ -430,12 +507,23 @@
       text-transform:uppercase;
     }
     .breathing-circle .breath-glyph{
-      font-size:1.45rem;
-      opacity:.92;
+      font-size:1.2rem;
+      opacity:.82;
+      min-height:1.2em;
+    }
+    .breathing-circle.is-hold .breath-inner{
+      gap:2px;
+    }
+    .breathing-circle.is-hold .breath-label{
+      letter-spacing:.09em;
+    }
+    .breathing-circle.is-hold .breath-glyph{
+      font-size:.8rem;
+      opacity:.58;
     }
     .breathing-circle::before{
       content:"";
-      position:absolute; inset:-30px;
+      position:absolute; inset:-24px;
       border-radius:50%;
       border:3px dotted rgba(255,255,255,.22);
       opacity:0;
@@ -450,7 +538,6 @@
       opacity:0;
       pointer-events:none;
     }
-    .breathing-container { text-align: center; padding: 20px; }
     .b-inhale{
       border-color: var(--accent);
       background: radial-gradient(circle, rgba(34,197,94,.95) 0%, rgba(34,197,94,.18) 72%);
@@ -466,22 +553,39 @@
       animation: breatheHaloIn var(--breath-duration) linear forwards;
       opacity:1;
     }
-    .b-hold{
-      transform: scale(1.5);
+    .b-hold-in{
+      transform: scale(1.28);
       border-color: #fbbf24;
-      border-style: solid;
+      border-style: dotted;
       background: radial-gradient(circle, rgba(251,191,36,.88) 0%, rgba(251,191,36,.16) 74%);
       box-shadow:0 0 34px rgba(251,191,36,.4);
     }
-    .b-hold::before{
+    .b-hold-in::before{
       border-color: rgba(251,191,36,.58);
       opacity:1;
-      transform:scale(1.18);
+      animation: breatheGuideHoldLarge var(--breath-duration) ease-in-out forwards;
     }
-    .b-hold::after{
+    .b-hold-in::after{
       border-color: rgba(251,191,36,.5);
       opacity:1;
-      transform:scale(1.06);
+      animation: breatheHaloHoldLarge var(--breath-duration) ease-in-out forwards;
+    }
+    .b-hold-out{
+      transform: scale(1);
+      border-color: #fbbf24;
+      border-style: dotted;
+      background: radial-gradient(circle, rgba(251,191,36,.82) 0%, rgba(251,191,36,.12) 70%);
+      box-shadow:0 0 22px rgba(251,191,36,.3);
+    }
+    .b-hold-out::before{
+      border-color: rgba(251,191,36,.5);
+      opacity:1;
+      animation: breatheGuideHoldSmall var(--breath-duration) ease-in-out forwards;
+    }
+    .b-hold-out::after{
+      border-color: rgba(251,191,36,.42);
+      opacity:1;
+      animation: breatheHaloHoldSmall var(--breath-duration) ease-in-out forwards;
     }
     .b-exhale{
       border-color: var(--accent-2);
@@ -500,10 +604,10 @@
     }
     @keyframes breatheIn {
       from { transform:scale(1); box-shadow:0 0 20px rgba(96,165,250,.45); }
-      to { transform:scale(1.5); box-shadow:0 0 44px rgba(34,197,94,.55); }
+      to { transform:scale(1.28); box-shadow:0 0 40px rgba(34,197,94,.55); }
     }
     @keyframes breatheOut {
-      from { transform:scale(1.5); box-shadow:0 0 40px rgba(96,165,250,.55); }
+      from { transform:scale(1.28); box-shadow:0 0 40px rgba(96,165,250,.55); }
       to { transform:scale(1); box-shadow:0 0 18px rgba(96,165,250,.28); }
     }
     @keyframes breatheGuideOut {
@@ -514,9 +618,29 @@
       from { transform:scale(1.18); opacity:.56; }
       to { transform:scale(.92); opacity:.28; }
     }
+    @keyframes breatheGuideHoldLarge {
+      0%, 100% { transform:scale(1.16); opacity:.48; }
+      35% { transform:scale(1.24); opacity:.78; }
+      70% { transform:scale(1.2); opacity:.62; }
+    }
+    @keyframes breatheGuideHoldSmall {
+      0%, 100% { transform:scale(.9); opacity:.3; }
+      35% { transform:scale(1); opacity:.62; }
+      70% { transform:scale(.95); opacity:.46; }
+    }
     @keyframes breatheHaloIn {
       from { transform:scale(.98); opacity:.2; }
       to { transform:scale(1.16); opacity:.55; }
+    }
+    @keyframes breatheHaloHoldLarge {
+      0%, 100% { transform:scale(1.04); opacity:.28; }
+      35% { transform:scale(1.12); opacity:.56; }
+      70% { transform:scale(1.08); opacity:.38; }
+    }
+    @keyframes breatheHaloHoldSmall {
+      0%, 100% { transform:scale(.96); opacity:.18; }
+      35% { transform:scale(1.04); opacity:.42; }
+      70% { transform:scale(1); opacity:.28; }
     }
     @keyframes breatheHaloOut {
       from { transform:scale(1.16); opacity:.45; }
@@ -627,7 +751,7 @@
       margin-top: auto; /* Push to bottom if needed */
     }
 
-    /* â”€â”€ Kanban â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Kanban Ã¢â€â‚¬Ã¢â€â‚¬ */
     .kanban-card{
       padding:12px 14px;border-radius:10px;background:rgba(255,255,255,.04);
       border:1px solid rgba(255,255,255,.08);margin-bottom:8px;cursor:grab;
@@ -778,7 +902,7 @@
       .goal-filters{flex-direction:column;gap:6px!important;}
       .goal-filters input,.goal-filters select{width:100%;min-width:0!important;}
       .goal-filters .archive-toggle{margin-left:0!important;width:100%;text-align:center;}
-      /* Secrets overlay â€” stack form fields */
+      /* Secrets overlay Ã¢â‚¬â€ stack form fields */
       #secrets-overlay .card > div{flex-direction:column!important;}
       #secrets-overlay .card input,#secrets-overlay .card textarea,#secrets-overlay .card > div > div{width:100%!important;min-width:0!important;flex:none!important;}
       #secrets-overlay .card .btn.primary{width:100%;}
@@ -806,7 +930,7 @@
       #project-modal-bg .fab-dialog input,
       #project-modal-bg .fab-dialog textarea{min-width:0!important;width:100%;}
     }
-    /* â”€â”€ Vault Dashboard â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Vault Dashboard Ã¢â€â‚¬Ã¢â€â‚¬ */
     .vault-dashboard{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
     .vd-card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s;display:flex;align-items:center;gap:16px;position:relative;overflow:hidden;}
     .vd-card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.18);box-shadow:0 8px 24px rgba(0,0,0,.3);}
@@ -961,7 +1085,7 @@
       .project-name{font-size:.94rem;}
       .project-desc{font-size:.78rem;min-height:0;}
     }
-    /* â”€â”€ Vault Overlays â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Vault Overlays Ã¢â€â‚¬Ã¢â€â‚¬ */
     .vault-ov{position:fixed;top:0;left:0;right:0;bottom:0;z-index:9970;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;animation:goalsSlideIn .25s ease;}
     .vault-ov-page{max-width:1100px;margin:0 auto;padding:24px 20px 60px;}
     .vault-ov-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
@@ -974,7 +1098,7 @@
       .vault-ov-topbar h2{font-size:1.1rem;}
       .vault-ov-close{width:100%;text-align:center;}
     }
-    /* â”€â”€ Life Goals â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Life Goals Ã¢â€â‚¬Ã¢â€â‚¬ */
     .lg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-top:16px;}
     @media(max-width:500px){.lg-grid{grid-template-columns:1fr;}}
     .lg-card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s;}
@@ -995,7 +1119,7 @@
     .lg-card-date{font-size:.7rem;color:var(--muted);margin-top:10px;}
     .lg-add-btn{background:none;border:2px dashed rgba(255,255,255,.12);border-radius:16px;padding:40px 20px;color:var(--muted);cursor:pointer;font-size:1rem;font-weight:700;transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:8px;}
     .lg-add-btn:hover{border-color:rgba(255,255,255,.25);color:var(--text);background:rgba(255,255,255,.03);}
-    /* â”€â”€ Goals Page Overlay â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Goals Page Overlay Ã¢â€â‚¬Ã¢â€â‚¬ */
     .goals-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9980;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;animation:goalsSlideIn .25s ease;}
     .goals-overlay.open{display:block;}
     @keyframes goalsSlideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
@@ -1095,7 +1219,7 @@
       #lg-modal-bg .fab-dialog > div{flex-direction:column!important;}
       #lg-modal-bg .fab-dialog select,#lg-modal-bg .fab-dialog input[type="text"]{width:100%!important;}
     }
-    /* â”€â”€ Fullscreen Issue View â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Fullscreen Issue View Ã¢â€â‚¬Ã¢â€â‚¬ */
     .issue-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9990;background:rgba(0,0,0,.7);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);overflow-y:auto;-webkit-overflow-scrolling:touch;}
     .issue-overlay.open{display:block;}
     .issue-panel{max-width:900px;margin:0 auto;padding:24px 20px 60px;animation:fabSlideIn .2s ease;}
@@ -1183,7 +1307,7 @@
     }
     .issue-log-body.open{display:block;}
 
-    /* â”€â”€ Floating Backup FAB â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Floating Backup FAB Ã¢â€â‚¬Ã¢â€â‚¬ */
     @keyframes fabSpin { to { transform:rotate(360deg); } }
     @keyframes fabSlideIn { from{opacity:0;transform:scale(.92) translateY(10px)} to{opacity:1;transform:none} }
     .fab-cluster{
@@ -1945,7 +2069,7 @@
       .oc-settings-input-row{grid-template-columns:1fr;}
     }
 
-    /* ===== MOBILE NAV â€” Notion-style bottom bar ===== */
+    /* ===== MOBILE NAV Ã¢â‚¬â€ Notion-style bottom bar ===== */
     #mobile-nav{display:none;}
     #mobile-sheet{display:none;}
     #mobile-overlay-dock{display:none;}
@@ -2234,7 +2358,7 @@
         scroll-margin-bottom:var(--mobile-nav-clearance);
       }
 
-      /* Joey chat â†’ Messenger-style fullscreen */
+      /* Joey chat Ã¢â€ â€™ Messenger-style fullscreen */
       #oc-panel{
         position:fixed!important;inset:0!important;
         width:100%!important;height:100%!important;
@@ -2259,7 +2383,7 @@
         background:transparent!important;
         display:flex!important;align-items:center!important;justify-content:center!important;
       }
-      #oc-close-btn::before{content:'â†';font-size:1.3rem;color:var(--text);}
+      #oc-close-btn::before{content:'Ã¢â€ Â';font-size:1.3rem;color:var(--text);}
       #oc-provider-icon{
         width:40px!important;height:40px!important;border-radius:50%!important;
         background:linear-gradient(135deg,#ea580c,#c2410c)!important;
@@ -2784,7 +2908,7 @@
   <div class="shell">
     <header class="hero">
       <div class="title">Homer <span id="greeting" class="title-badge">Hello</span></div>
-      <div class="subtitle">â€œTrying is the first step towards failure.â€ â€” Homer Simpson</div>
+      <div class="subtitle">Ã¢â‚¬Å“Trying is the first step towards failure.Ã¢â‚¬Â Ã¢â‚¬â€ Homer Simpson</div>
     </header>
 
     <div class="tabs">
@@ -2794,8 +2918,8 @@
       <button class="tab-btn" data-tab="investing">Investing</button>
       <button class="tab-btn" data-tab="tools">Tools</button>
       <button class="tab-btn" data-tab="links">Links</button>
-      <button class="tab-btn" data-tab="news">ðŸ“° News</button>
-      <button class="tab-btn" data-tab="vault">ðŸ”’ Vault</button>
+      <button class="tab-btn" data-tab="news">Ã°Å¸â€œÂ° News</button>
+      <button class="tab-btn" data-tab="vault">Ã°Å¸â€â€™ Vault</button>
     </div>
 
     <section id="tab-home" class="tab card">
@@ -2805,23 +2929,23 @@
           <div class="clock">
             <div>
               <div class="time" id="clock-time">--:--<small>--</small></div>
-              <div class="date" id="clock-date">Loading dateâ€¦</div>
+              <div class="date" id="clock-date">Loading dateÃ¢â‚¬Â¦</div>
             </div>
-            <div class="clock-icon">ðŸ•’</div>
+            <div class="clock-icon">Ã°Å¸â€¢â€™</div>
           </div>
         </div>
 
         <div class="span-6 card">
           <h2 class="section">Weather</h2>
           <div class="weather">
-            <div class="wx-icon" id="wx-icon">â›…</div>
+            <div class="wx-icon" id="wx-icon">Ã¢â€ºâ€¦</div>
             <div class="wx-main">
-              <div class="wx-place" id="wx-place">Locatingâ€¦</div>
-              <div class="wx-desc" id="wx-desc">â€”</div>
+              <div class="wx-place" id="wx-place">LocatingÃ¢â‚¬Â¦</div>
+              <div class="wx-desc" id="wx-desc">Ã¢â‚¬â€</div>
             </div>
-            <div class="wx-temp" id="wx-temp">--Â°</div>
+            <div class="wx-temp" id="wx-temp">--Ã‚Â°</div>
           </div>
-          <div class="muted" style="margin-top:10px;font-size:.85rem">Powered by open-meteÐ¾.com</div>
+          <div class="muted" style="margin-top:10px;font-size:.85rem">Powered by open-meteÃÂ¾.com</div>
         </div>
 
         <div class="span-12 card count-wrap">
@@ -2830,9 +2954,9 @@
           </div>
 
           <h2 class="section">Daily Inspiration</h2>
-          <p id="status" class="muted"><span class="spinner"></span>Fetching wisdomâ€¦</p>
+          <p id="status" class="muted"><span class="spinner"></span>Fetching wisdomÃ¢â‚¬Â¦</p>
           <blockquote id="quote" style="display:none;"></blockquote>
-          <div id="byline" class="author" style="display:none;">â€” <span id="author"></span></div>
+          <div id="byline" class="author" style="display:none;">Ã¢â‚¬â€ <span id="author"></span></div>
 
           <div class="row" aria-label="Actions">
             <button id="refresh" class="btn primary">New Quote</button>
@@ -2860,7 +2984,7 @@
         <div class="span-12 card" id="home-tasks-card" style="display:none">
           <h2 class="section">Focus Tasks</h2>
           <div class="htasklist" id="home-tasks"></div>
-          <div class="muted" id="home-tasks-empty" style="display:none">No open tasks. Add one in Pomodoro â†’ Tasks.</div>
+          <div class="muted" id="home-tasks-empty" style="display:none">No open tasks. Add one in Pomodoro Ã¢â€ â€™ Tasks.</div>
         </div>
 
         <div class="span-12 card" id="home-done-card" style="display:none">
@@ -2895,7 +3019,7 @@
               <div>Pomodoros: <strong id="pom-count">0</strong></div>
               <div>Cycle: <strong id="pom-cycle">1</strong>/4</div>
               <div><label><input type="checkbox" id="pom-notify"> Notifications</label></div>
-              <div><label><input type="checkbox" id="pom-voice" checked> Voice lines (â€œDâ€™oh!â€, â€œWoo-ho!â€)</label></div>
+              <div><label><input type="checkbox" id="pom-voice" checked> Voice lines (Ã¢â‚¬Å“DÃ¢â‚¬â„¢oh!Ã¢â‚¬Â, Ã¢â‚¬Å“Woo-ho!Ã¢â‚¬Â)</label></div>
               <div><label><input type="checkbox" id="pom-sfx" checked> Synth beeps</label></div>
             </div>
           </div>
@@ -2905,7 +3029,7 @@
           <div class="card tasks">
             <h2 class="section">Tasks</h2>
             <div class="task-row">
-              <input id="task-input" type="text" placeholder="Add a taskâ€¦">
+              <input id="task-input" type="text" placeholder="Add a taskÃ¢â‚¬Â¦">
               <button id="task-add" class="btn">Add</button>
             </div>
             <ul id="task-list"></ul>
@@ -2915,11 +3039,11 @@
           <div class="card" style="margin-top:18px">
             <h2 class="section">Hints</h2>
             <div class="muted" style="font-size:.95rem">
-              â€¢ 25/5 is classic: 25 min focus â†’ 5 min short break; every 4th break is long.<br>
-              â€¢ Write a tiny task for each focus block to stay laser-focused.<br>
-              â€¢ Enable notifications to get alerted on phase changes.<br>
-              â€¢ Use â€œSkip Phaseâ€ if you finish early or need to switch.<br>
-             <strong>Bonus:</strong>Keep everything in a single â€œtodayâ€™s goalâ€ list so youâ€™re always working toward a tangible outcome. Happy ticking!
+              Ã¢â‚¬Â¢ 25/5 is classic: 25 min focus Ã¢â€ â€™ 5 min short break; every 4th break is long.<br>
+              Ã¢â‚¬Â¢ Write a tiny task for each focus block to stay laser-focused.<br>
+              Ã¢â‚¬Â¢ Enable notifications to get alerted on phase changes.<br>
+              Ã¢â‚¬Â¢ Use Ã¢â‚¬Å“Skip PhaseÃ¢â‚¬Â if you finish early or need to switch.<br>
+             <strong>Bonus:</strong>Keep everything in a single Ã¢â‚¬Å“todayÃ¢â‚¬â„¢s goalÃ¢â‚¬Â list so youÃ¢â‚¬â„¢re always working toward a tangible outcome. Happy ticking!
             </div>
           </div>
         </div>
@@ -2930,29 +3054,36 @@
        <div class="grid focus-grid-wrapper">
 
          <div class="span-6 card breathing-container">
-           <h3 style="margin-top:0">ðŸŒ¬ï¸ Box Breathing</h3>
-           <p class="muted small">Inhale (4s) â€¢ Hold (4s) â€¢ Exhale (4s) â€¢ Hold (4s)</p>
-           <div id="b-circle" class="breathing-circle">Ready</div>
-           <button id="b-toggle" class="btn primary">Start Breathing</button>
+           <div class="breathing-header">
+             <h3 class="breathing-title">Ã°Å¸Å’Â¬Ã¯Â¸Â Box Breathing</h3>
+             <p class="muted small breathing-copy">Inhale (4s) Ã¢â‚¬Â¢ Hold (4s) Ã¢â‚¬Â¢ Exhale (4s) Ã¢â‚¬Â¢ Hold (4s)</p>
+           </div>
+           <div class="breathing-shell">
+             <div class="breathing-stage"><div id="b-circle" class="breathing-circle">Ready</div></div>
+             <div class="muted small breathing-rhythm">Expand. Hold. Release. Hold.</div>
+           </div>
+           <div class="breathing-action-row">
+             <button id="b-toggle" class="btn primary">Start Breathing</button>
+           </div>
          </div>
 
-         <div class="span-6 card" style="display:flex; flex-direction:column; gap:16px; justify-content:center;">
-            <h3 style="margin-top:0">ðŸ”¬ Neuro Tools</h3>
+         <div class="span-6 card neuro-tools-card">
+            <h3 style="margin-top:0">Ã°Å¸â€Â¬ Neuro Tools</h3>
 
             <button id="btn-focus-dot" class="btn primary" style="padding:16px;">
-              ðŸŽ¯ Huberman Focus (Trataka)
+              Ã°Å¸Å½Â¯ Huberman Focus (Trataka)
               <div style="font-size:0.8em; opacity:0.8; font-weight:400; margin-top:4px;">Stare at the dot for 30s to spike focus.</div>
             </button>
 
-            <div style="background:rgba(255,255,255,0.05); padding:16px; border-radius:12px; border:1px solid var(--border);">
-               <h4 style="margin:0 0 8px;">ðŸ§˜ Zen Mode</h4>
+            <div class="zen-panel">
+               <h4 style="margin:0 0 8px;">Ã°Å¸Â§Ëœ Zen Mode</h4>
                <input type="text" id="zen-input" placeholder="What is your ONE goal?" style="width:100%; padding:10px; border-radius:8px; background:#0b1220; border:1px solid var(--border); color:#fff; margin-bottom:10px;">
                <button id="zen-btn" class="btn secondary" style="width:100%">Enter Zen Mode</button>
             </div>
          </div>
 
          <div class="span-12 card">
-           <h3 style="margin-top:0">ðŸ“ Brain Dump</h3>
+           <h3 style="margin-top:0">Ã°Å¸â€œÂ Brain Dump</h3>
            <p class="muted" style="font-size:0.9rem; margin-bottom:10px;">Distracting thought? Park it here. Auto-saved locally.</p>
            <textarea id="brain-dump" class="brain-dump-area" placeholder="I need to buy milk... Did I email Dave?..."></textarea>
            <div id="dump-status" class="muted" style="font-size:0.8rem; margin-top:6px; text-align:right;">Saved</div>
@@ -2975,15 +3106,15 @@
         <!-- News Section -->
         <div class="span-12 card">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-            <h3 style="margin:0;">ðŸ—žï¸ Market News</h3>
+            <h3 style="margin:0;">Ã°Å¸â€”Å¾Ã¯Â¸Â Market News</h3>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
               <select id="news-country" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;">
-                <option value="us">ðŸ‡ºðŸ‡¸ United States</option>
-                <option value="ro" selected>ðŸ‡·ðŸ‡´ Romania</option>
-                <option value="uk">ðŸ‡¬ðŸ‡§ United Kingdom</option>
-                <option value="de">ðŸ‡©ðŸ‡ª Germany</option>
-                <option value="fr">ðŸ‡«ðŸ‡· France</option>
-                <option value="eu">ðŸ‡ªðŸ‡º European Union</option>
+                <option value="us">Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸ United States</option>
+                <option value="ro" selected>Ã°Å¸â€¡Â·Ã°Å¸â€¡Â´ Romania</option>
+                <option value="uk">Ã°Å¸â€¡Â¬Ã°Å¸â€¡Â§ United Kingdom</option>
+                <option value="de">Ã°Å¸â€¡Â©Ã°Å¸â€¡Âª Germany</option>
+                <option value="fr">Ã°Å¸â€¡Â«Ã°Å¸â€¡Â· France</option>
+                <option value="eu">Ã°Å¸â€¡ÂªÃ°Å¸â€¡Âº European Union</option>
               </select>
               <select id="news-source" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;">
               </select>
@@ -3003,73 +3134,73 @@
   <div class="tools-wrap" style="max-width:860px;margin-inline:auto;">
     <div class="grid">
       <div class="span-4 card tool-card">
-        <h3>ðŸ§© Nextcloud</h3>
+        <h3>Ã°Å¸Â§Â© Nextcloud</h3>
         <p class="muted">Access your personal cloud and files securely.</p>
         <a href="https://cloud.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Nextcloud</a>
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>ðŸ“š Docs</h3>
+        <h3>Ã°Å¸â€œÅ¡ Docs</h3>
         <p class="muted">Access personal documentation.</p>
         <a href="https://docs.b4it.ro/" target="_blank" rel="noopener" class="btn secondary">Open Notifications</a>
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>â° Reminders</h3>
+        <h3>Ã¢ÂÂ° Reminders</h3>
         <p class="muted">Manage your reminders and schedule tasks.</p>
         <a href="https://reminder.b4it.ro/reminders" target="_blank" rel="noopener" class="btn primary">Open Reminders</a>
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>ðŸ“” Journal</h3>
+        <h3>Ã°Å¸â€œâ€ Journal</h3>
         <p class="muted">Daily notes and reflections.</p>
         <a href="https://journal.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Journal</a>
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>ðŸ¿ Jellyfin</h3>
+        <h3>Ã°Å¸ÂÂ¿ Jellyfin</h3>
         <p class="muted">Your personal media server.</p>
         <a href="https://jellyfin.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Jellyfin</a>
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>ðŸ—’ï¸ Notes</h3>
+        <h3>Ã°Å¸â€”â€™Ã¯Â¸Â Notes</h3>
         <p class="muted">Quick notes & to-dos.</p>
         <a href="https://tasks.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Notes</a>
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>âœ¨ Glance</h3>
+        <h3>Ã¢Å“Â¨ Glance</h3>
         <p class="muted"> Various widgets.</p>
         <a href="https://glance.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Glance</a>
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>ðŸ–¼ï¸ Immich</h3>
+        <h3>Ã°Å¸â€“Â¼Ã¯Â¸Â Immich</h3>
         <p class="muted">Self-hosted photos.</p>
         <a href="https://immich.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Immich</a>
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>â˜• Keep Awake</h3>
+        <h3>Ã¢Ëœâ€¢ Keep Awake</h3>
         <p class="muted">Prevents screen from sleeping.</p>
-        <button id="btn-wake" class="btn danger">â˜• Keep Awake</button>
+        <button id="btn-wake" class="btn danger">Ã¢Ëœâ€¢ Keep Awake</button>
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>ðŸ› ï¸ Omnitools</h3>
+        <h3>Ã°Å¸â€ºÂ Ã¯Â¸Â Omnitools</h3>
         <p class="muted">All-in-one utility toolkit.</p>
         <a href="https://omnitools.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Omnitools</a>
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>ðŸŽ¬ YouTube Downloader</h3>
+        <h3>Ã°Å¸Å½Â¬ YouTube Downloader</h3>
         <p class="muted">Download videos & audio from YouTube</p>
         <a href="https://getyoutube.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Downloader</a>
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>ðŸ“¨ AI Email Rewriter</h3>
+        <h3>Ã°Å¸â€œÂ¨ AI Email Rewriter</h3>
         <p class="muted">Email & Text Proofer.</p>
         <a href="https://redefine.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Rewriter</a>
       </div>
@@ -3079,7 +3210,7 @@
   </div>
 
  <div class="card ambient-section" style="margin-top:28px; text-align:center; padding:24px; max-width:860px; margin-inline:auto;">
-  <h2 class="section" style="margin-bottom:16px;">ðŸŽ§ Ambient Sounds</h2>
+  <h2 class="section" style="margin-bottom:16px;">Ã°Å¸Å½Â§ Ambient Sounds</h2>
 
   <div style="
     display:grid;
@@ -3088,58 +3219,58 @@
     justify-items:stretch;
   ">
     <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">ðŸŒŠ Ocean</h3>
-      <button id="btn-ocean" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">â–¶ï¸ Play Ocean</button>
+      <h3 style="margin:0 0 10px;">Ã°Å¸Å’Å  Ocean</h3>
+      <button id="btn-ocean" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">Ã¢â€“Â¶Ã¯Â¸Â Play Ocean</button>
       <input id="vol-ocean" type="range" min="0" max="100" value="50" style="width:100%;">
     </div>
 
     <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">ðŸ”¥ Fireplace</h3>
-      <button id="btn-fire" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">â–¶ï¸ Play Fireplace</button>
+      <h3 style="margin:0 0 10px;">Ã°Å¸â€Â¥ Fireplace</h3>
+      <button id="btn-fire" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">Ã¢â€“Â¶Ã¯Â¸Â Play Fireplace</button>
       <input id="vol-fire" type="range" min="0" max="100" value="40" style="width:100%;">
     </div>
 
     <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">ðŸŒ§ï¸ Rain</h3>
-      <button id="btn-rain" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">â–¶ï¸ Play Rain</button>
+      <h3 style="margin:0 0 10px;">Ã°Å¸Å’Â§Ã¯Â¸Â Rain</h3>
+      <button id="btn-rain" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">Ã¢â€“Â¶Ã¯Â¸Â Play Rain</button>
       <input id="vol-rain" type="range" min="0" max="100" value="60" style="width:100%;">
     </div>
 
     <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">ðŸŒ§ï¸ðŸªŸ Jazz</h3>
-      <button id="btn-rainywindow" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">â–¶ï¸ Play Jazz</button>
+      <h3 style="margin:0 0 10px;">Ã°Å¸Å’Â§Ã¯Â¸ÂÃ°Å¸ÂªÅ¸ Jazz</h3>
+      <button id="btn-rainywindow" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">Ã¢â€“Â¶Ã¯Â¸Â Play Jazz</button>
       <input id="vol-rainywindow" type="range" min="0" max="100" value="60" style="width:100%;">
     </div>
 
     <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">â˜• CafÃ©</h3>
-      <button id="btn-cafe" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">â–¶ï¸ Play CafÃ©</button>
+      <h3 style="margin:0 0 10px;">Ã¢Ëœâ€¢ CafÃƒÂ©</h3>
+      <button id="btn-cafe" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">Ã¢â€“Â¶Ã¯Â¸Â Play CafÃƒÂ©</button>
       <input id="vol-cafe" type="range" min="0" max="100" value="50" style="width:100%;">
     </div>
 
     <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">ðŸŽ¶ Lo-Fi Chill Beats</h3>
-      <button id="btn-lofi" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">â–¶ï¸ Play Lo-Fi</button>
+      <h3 style="margin:0 0 10px;">Ã°Å¸Å½Â¶ Lo-Fi Chill Beats</h3>
+      <button id="btn-lofi" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">Ã¢â€“Â¶Ã¯Â¸Â Play Lo-Fi</button>
       <input id="vol-lofi" type="range" min="0" max="100" value="50" style="width:100%;">
     </div>
 
     <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">ðŸƒ Wind</h3>
-      <button id="btn-wind" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">â–¶ï¸ Play Wind</button>
+      <h3 style="margin:0 0 10px;">Ã°Å¸ÂÆ’ Wind</h3>
+      <button id="btn-wind" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">Ã¢â€“Â¶Ã¯Â¸Â Play Wind</button>
       <input id="vol-wind" type="range" min="0" max="100" value="50" style="width:100%;">
     </div>
 
     <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">ðŸ“š Synthwave mix</h3>
-      <button id="btn-synthwave" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">â–¶ï¸ Play Synthwave</button>
+      <h3 style="margin:0 0 10px;">Ã°Å¸â€œÅ¡ Synthwave mix</h3>
+      <button id="btn-synthwave" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">Ã¢â€“Â¶Ã¯Â¸Â Play Synthwave</button>
       <input id="vol-synthwave" type="range" min="0" max="100" value="50" style="width:100%;">
     </div>
   </div> <div class="ambient-section" style="margin-top:24px; display:flex; flex-wrap:wrap; justify-content:center; gap:12px;">
-    <button id="mix-sleep" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">ðŸŒ™ Sleep Mix</button>
-    <button id="mix-rainy" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">ðŸŒ¦ï¸ Rainy Mix</button>
-    <button id="mix-reading" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">ðŸ“– Reading Mix</button>
-    <button id="mix-cozy" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">ðŸ“– Cozy Night in</button>
-    <button id="stop-all" class="btn ghost" style="padding:8px 14px; font-size:.95rem;">â¹ Stop All</button>
+    <button id="mix-sleep" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">Ã°Å¸Å’â„¢ Sleep Mix</button>
+    <button id="mix-rainy" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">Ã°Å¸Å’Â¦Ã¯Â¸Â Rainy Mix</button>
+    <button id="mix-reading" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">Ã°Å¸â€œâ€“ Reading Mix</button>
+    <button id="mix-cozy" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">Ã°Å¸â€œâ€“ Cozy Night in</button>
+    <button id="stop-all" class="btn ghost" style="padding:8px 14px; font-size:.95rem;">Ã¢ÂÂ¹ Stop All</button>
   </div>
 
   <div id="yt-ocean" class="yt-hidden-player"></div>
@@ -3160,7 +3291,7 @@
 
   <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;align-items:flex-end;">
     <div style="position:relative;">
-      <button id="link-emoji-btn" type="button" style="width:52px;height:46px;padding:0;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-size:1.4rem;cursor:pointer;line-height:46px;text-align:center;" title="Pick emoji">ðŸ”—</button>
+      <button id="link-emoji-btn" type="button" style="width:52px;height:46px;padding:0;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-size:1.4rem;cursor:pointer;line-height:46px;text-align:center;" title="Pick emoji">Ã°Å¸â€â€”</button>
       <input id="link-emoji" type="hidden" value="">
       <div id="emoji-picker" style="display:none;position:absolute;top:52px;left:0;z-index:100;background:#1e293b;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:10px;width:280px;box-shadow:0 12px 40px rgba(0,0,0,.6);">
         <div id="emoji-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;max-height:200px;overflow-y:auto;"></div>
@@ -3181,16 +3312,16 @@
 </section>
 
 <section id="tab-news" class="tab card" style="display:none">
-  <h2 class="section">ðŸ“° News & Videos</h2>
+  <h2 class="section">Ã°Å¸â€œÂ° News & Videos</h2>
 
   <!-- NEWS -->
   <div class="card" style="padding:18px;margin-bottom:20px;">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-      <h3 style="margin:0;">ðŸ—žï¸ Latest News</h3>
+      <h3 style="margin:0;">Ã°Å¸â€”Å¾Ã¯Â¸Â Latest News</h3>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <select id="news-tab-region" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;">
-          <option value="ro">ðŸ‡·ðŸ‡´ Romania</option>
-          <option value="int">ðŸŒ International</option>
+          <option value="ro">Ã°Å¸â€¡Â·Ã°Å¸â€¡Â´ Romania</option>
+          <option value="int">Ã°Å¸Å’Â International</option>
         </select>
         <select id="news-tab-source" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;max-width:220px;">
         </select>
@@ -3205,11 +3336,11 @@
   <!-- YOUTUBE CAROUSEL -->
   <div class="card" style="padding:18px;">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-      <h3 style="margin:0;">â–¶ï¸ Video Channels</h3>
+      <h3 style="margin:0;">Ã¢â€“Â¶Ã¯Â¸Â Video Channels</h3>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <select id="yt-region" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;">
-          <option value="ro">ðŸ‡·ðŸ‡´ Romania</option>
-          <option value="int">ðŸŒ International</option>
+          <option value="ro">Ã°Å¸â€¡Â·Ã°Å¸â€¡Â´ Romania</option>
+          <option value="int">Ã°Å¸Å’Â International</option>
         </select>
         <select id="yt-channel" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;max-width:220px;">
         </select>
@@ -3225,12 +3356,12 @@
 </section>
 
 <section id="tab-vault" class="tab card" style="display:none">
-  <h2 class="section">ðŸ”’ Vault</h2>
+  <h2 class="section">Ã°Å¸â€â€™ Vault</h2>
 
   <!-- Lock Screen -->
   <div id="vault-lock" style="display:flex;align-items:center;justify-content:center;min-height:340px;padding:40px 20px;">
     <div style="width:min(360px,100%);text-align:center;">
-      <div style="width:72px;height:72px;margin:0 auto 20px;border-radius:50%;background:linear-gradient(135deg,rgba(96,165,250,.15),rgba(139,92,246,.15));border:1px solid rgba(96,165,250,.2);display:grid;place-items:center;font-size:2rem;">ðŸ”</div>
+      <div style="width:72px;height:72px;margin:0 auto 20px;border-radius:50%;background:linear-gradient(135deg,rgba(96,165,250,.15),rgba(139,92,246,.15));border:1px solid rgba(96,165,250,.2);display:grid;place-items:center;font-size:2rem;">Ã°Å¸â€Â</div>
       <h3 id="vault-lock-label" style="margin:0 0 6px;font-size:1.15rem;font-weight:800;color:var(--text);">Unlock Vault</h3>
       <p style="color:var(--muted);font-size:.88rem;margin:0 0 24px;">Enter your account credentials to access encrypted data</p>
 
@@ -3242,7 +3373,7 @@
         <input id="vault-pw-user" type="text" placeholder="Username" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" class="acct-field" style="text-align:center;margin-bottom:0;">
         <div class="acct-field-wrap" style="margin-bottom:0;">
           <input id="vault-pw" type="password" placeholder="Password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" class="acct-field" style="text-align:center;margin-bottom:0;">
-          <button type="button" class="pw-toggle" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'ðŸ‘':'ðŸ‘â€ðŸ—¨'">ðŸ‘</button>
+          <button type="button" class="pw-toggle" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'Ã°Å¸â€˜Â':'Ã°Å¸â€˜ÂÃ¢â‚¬ÂÃ°Å¸â€”Â¨'">Ã°Å¸â€˜Â</button>
         </div>
       </div>
 
@@ -3255,7 +3386,7 @@
   <div id="vault-content" style="display:none;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <p id="vault-status-line" style="color:var(--muted);margin:0;">ðŸ”“ Vault unlocked</p>
+        <p id="vault-status-line" style="color:var(--muted);margin:0;">Ã°Å¸â€â€œ Vault unlocked</p>
         <div class="vault-mode-switch">
           <span class="vault-mode-label">Profile</span>
           <button type="button" id="vault-mode-personal" class="active personal">Personal</button>
@@ -3329,7 +3460,7 @@
 <div id="img-lightbox" class="k-img-preview" onclick="this.classList.remove('open')"><img></div>
 </section>
 
-<!-- â•â•â• VAULT OVERLAYS (outside section, before scripts) â•â•â• -->
+<!-- Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â VAULT OVERLAYS (outside section, before scripts) Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â -->
 
 <!-- Projects Overlay -->
 <div id="projects-overlay" class="vault-ov" style="display:none;">
@@ -3414,7 +3545,7 @@
 <div id="goal-modal-bg" class="fab-overlay" style="z-index:9990;">
   <div class="fab-dialog" style="width:min(440px,92vw);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-      <h3 style="margin:0;font-size:1.1rem;">ðŸ“‹ New Task</h3>
+      <h3 style="margin:0;font-size:1.1rem;">Ã°Å¸â€œâ€¹ New Task</h3>
       <button id="goal-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
     </div>
     <input id="goal-summary" type="text" placeholder="Summary *" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem;margin-bottom:10px;font-weight:700;">
@@ -3423,7 +3554,7 @@
       <option value="">Project *</option>
     </select>
     <select id="goal-priority" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
-      <option value="">Priority (optional)</option><option value="high">ðŸ”´ High</option><option value="medium">ðŸŸ¡ Medium</option><option value="low">ðŸŸ¢ Low</option>
+      <option value="">Priority (optional)</option><option value="high">Ã°Å¸â€Â´ High</option><option value="medium">Ã°Å¸Å¸Â¡ Medium</option><option value="low">Ã°Å¸Å¸Â¢ Low</option>
     </select>
     <div style="display:flex;gap:8px;margin-bottom:10px;">
       <input id="goal-reporter" type="text" placeholder="Reporter" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;">
@@ -3445,7 +3576,7 @@
       <div id="goal-custom-fields" style="display:flex;flex-direction:column;gap:8px;"></div>
     </div>
     <input id="goal-due" type="date" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
-    <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px dashed var(--border);background:rgba(255,255,255,.03);cursor:pointer;margin-bottom:4px;font-size:.85rem;color:var(--muted);">ðŸ“Ž Attach files <span style="font-size:.7rem;opacity:.6;">(max 25MB each)</span><input id="goal-files" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;"></label>
+    <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px dashed var(--border);background:rgba(255,255,255,.03);cursor:pointer;margin-bottom:4px;font-size:.85rem;color:var(--muted);">Ã°Å¸â€œÅ½ Attach files <span style="font-size:.7rem;opacity:.6;">(max 25MB each)</span><input id="goal-files" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;"></label>
     <div id="goal-files-preview" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
     <button id="goal-submit" class="btn primary" style="width:100%;padding:10px;font-size:.95rem;">Create Task</button>
   </div>
@@ -3497,7 +3628,7 @@
 <div id="subtask-modal-bg" class="fab-overlay" style="z-index:9990;">
   <div class="fab-dialog" style="width:min(400px,92vw);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-      <h3 style="margin:0;font-size:1.1rem;">ðŸ“‹ New Subtask</h3>
+      <h3 style="margin:0;font-size:1.1rem;">Ã°Å¸â€œâ€¹ New Subtask</h3>
       <button id="subtask-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
     </div>
     <input id="subtask-name" type="text" placeholder="Subtask name *" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem;margin-bottom:10px;font-weight:700;">
@@ -3506,7 +3637,7 @@
     </select>
     <input id="subtask-due" type="date" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
     <textarea id="subtask-notes" placeholder="Notes..." rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;font-family:inherit;resize:vertical;margin-bottom:10px;"></textarea>
-    <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px dashed var(--border);background:rgba(255,255,255,.03);cursor:pointer;margin-bottom:4px;font-size:.85rem;color:var(--muted);">ðŸ“Ž Attach files <span style="font-size:.7rem;opacity:.6;">(max 25MB each)</span><input id="subtask-files" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;"></label>
+    <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px dashed var(--border);background:rgba(255,255,255,.03);cursor:pointer;margin-bottom:4px;font-size:.85rem;color:var(--muted);">Ã°Å¸â€œÅ½ Attach files <span style="font-size:.7rem;opacity:.6;">(max 25MB each)</span><input id="subtask-files" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;"></label>
     <div id="subtask-files-preview" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
     <button id="subtask-submit" class="btn primary" style="width:100%;padding:10px;font-size:.95rem;">Add Subtask</button>
   </div>
@@ -3515,10 +3646,10 @@
 <!-- Secrets Overlay (Passwords + Links) -->
 <div id="secrets-overlay" class="vault-ov" style="display:none;">
   <div class="vault-ov-page">
-    <div class="vault-ov-topbar"><h2>ðŸ”‘ Passwords & Secrets</h2><button class="vault-ov-close" data-close="secrets-overlay">&times; Close</button></div>
+    <div class="vault-ov-topbar"><h2>Ã°Å¸â€â€˜ Passwords & Secrets</h2><button class="vault-ov-close" data-close="secrets-overlay">&times; Close</button></div>
 
     <div class="card" style="padding:18px;margin-bottom:18px;">
-      <h3 style="margin:0 0 12px;">ðŸ”— Secret Links</h3>
+      <h3 style="margin:0 0 12px;">Ã°Å¸â€â€” Secret Links</h3>
       <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
         <input id="vault-link-name" type="text" placeholder="Name" style="flex:1;min-width:120px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;">
         <input id="vault-link-url" type="url" placeholder="https://..." style="flex:2;min-width:180px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
@@ -3530,14 +3661,14 @@
     </div>
 
     <div class="card" style="padding:18px;">
-      <h3 style="margin:0 0 12px;">ðŸ”‘ Passwords</h3>
+      <h3 style="margin:0 0 12px;">Ã°Å¸â€â€˜ Passwords</h3>
       <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
         <input id="vault-cred-label" type="text" placeholder="Label (e.g. Gmail)" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;">
         <input id="vault-cred-site" type="text" placeholder="Site URL" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
         <input id="vault-cred-user" type="text" placeholder="Username" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
         <div style="flex:1;min-width:100px;position:relative;">
           <input id="vault-cred-pass" type="password" placeholder="Password" style="width:100%;padding:10px 38px 10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
-          <button type="button" class="pw-toggle" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'ðŸ‘':'ðŸ‘â€ðŸ—¨'" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;padding:2px;">ðŸ‘</button>
+          <button type="button" class="pw-toggle" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'Ã°Å¸â€˜Â':'Ã°Å¸â€˜ÂÃ¢â‚¬ÂÃ°Å¸â€”Â¨'" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;padding:2px;">Ã°Å¸â€˜Â</button>
         </div>
         <textarea id="vault-cred-details" placeholder="Details / notes..." rows="2" style="flex-basis:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-family:inherit;font-size:.9rem;resize:vertical;"></textarea>
         <button id="vault-cred-add" class="btn primary" style="padding:10px 18px;">+ Add</button>
@@ -3552,7 +3683,7 @@
 <div id="notes-overlay" class="vault-ov" style="display:none;">
   <div class="vault-ov-page">
     <div class="vault-ov-topbar">
-      <h2>ðŸ“ Secret Notes</h2>
+      <h2>Ã°Å¸â€œÂ Secret Notes</h2>
       <div style="display:flex;align-items:center;gap:10px;">
         <span id="vault-notes-status" style="color:var(--muted);font-size:.75rem;"></span>
         <button id="vault-notes-toggle" class="btn ghost" style="padding:4px 10px;font-size:.8rem;">Hide</button>
@@ -3566,16 +3697,16 @@
 </div>
 
     <footer class="site-footer">
-      Created with â¤ï¸ by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
+      Created with Ã¢ÂÂ¤Ã¯Â¸Â by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
       <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v7.0 (Calendar Pro + Bulletproof Backup)</span>
     </footer>
   </div>
 
   <nav class="toolbar" aria-label="Quick links">
-    <a class="tool-btn" href="https://www.youtube.com/" target="_blank" rel="noopener">â–¶ï¸ YouTube</a>
-    <a class="tool-btn" href="https://gemini.google.com" target="_blank" rel="noopener">âœ¨ Gemini AI</a>
-    <a class="tool-btn" href="https://tasks.b4it.ro" target="_blank" rel="noopener">ðŸ—’ï¸ Notes</a>
-    <a class="tool-btn" href="https://www.google.com" target="_blank" rel="noopener">ðŸ”Ž Google</a>
+    <a class="tool-btn" href="https://www.youtube.com/" target="_blank" rel="noopener">Ã¢â€“Â¶Ã¯Â¸Â YouTube</a>
+    <a class="tool-btn" href="https://gemini.google.com" target="_blank" rel="noopener">Ã¢Å“Â¨ Gemini AI</a>
+    <a class="tool-btn" href="https://tasks.b4it.ro" target="_blank" rel="noopener">Ã°Å¸â€”â€™Ã¯Â¸Â Notes</a>
+    <a class="tool-btn" href="https://www.google.com" target="_blank" rel="noopener">Ã°Å¸â€Å½ Google</a>
   </nav>
 
   <script>
@@ -3806,15 +3937,15 @@
     updateClock(); setInterval(updateClock,1000);
 
     /* 3. WEATHER */
-    const WX_CODES={0:["â˜€ï¸","Clear sky"],1:["ðŸŒ¤ï¸","Mainly clear"],2:["â›…","Partly cloudy"],3:["â˜ï¸","Overcast"],45:["ðŸŒ«ï¸","Fog"],48:["ðŸŒ«ï¸","Rime fog"],51:["ðŸŒ¦ï¸","Light drizzle"],53:["ðŸŒ¦ï¸","Drizzle"],55:["ðŸŒ§ï¸","Dense drizzle"],56:["ðŸŒ§ï¸","Freezing drizzle"],57:["ðŸŒ§ï¸","Freezing drizzle"],61:["ðŸŒ¦ï¸","Light rain"],63:["ðŸŒ§ï¸","Rain"],65:["ðŸŒ§ï¸","Heavy rain"],66:["ðŸŒ§ï¸","Freezing rain"],67:["ðŸŒ§ï¸","Freezing rain"],71:["ðŸŒ¨ï¸","Light snow"],73:["ðŸŒ¨ï¸","Snow"],75:["â„ï¸","Heavy snow"],77:["â„ï¸","Snow grains"],80:["ðŸŒ¦ï¸","Rain showers"],81:["ðŸŒ§ï¸","Rain showers"],82:["â›ˆï¸","Violent rain"],85:["ðŸŒ¨ï¸","Snow showers"],86:["â„ï¸","Heavy snow showers"],95:["â›ˆï¸","Thunderstorm"],96:["â›ˆï¸","Thunder + hail"],99:["â›ˆï¸","Severe thunder/hail"]};
+    const WX_CODES={0:["Ã¢Ëœâ‚¬Ã¯Â¸Â","Clear sky"],1:["Ã°Å¸Å’Â¤Ã¯Â¸Â","Mainly clear"],2:["Ã¢â€ºâ€¦","Partly cloudy"],3:["Ã¢ËœÂÃ¯Â¸Â","Overcast"],45:["Ã°Å¸Å’Â«Ã¯Â¸Â","Fog"],48:["Ã°Å¸Å’Â«Ã¯Â¸Â","Rime fog"],51:["Ã°Å¸Å’Â¦Ã¯Â¸Â","Light drizzle"],53:["Ã°Å¸Å’Â¦Ã¯Â¸Â","Drizzle"],55:["Ã°Å¸Å’Â§Ã¯Â¸Â","Dense drizzle"],56:["Ã°Å¸Å’Â§Ã¯Â¸Â","Freezing drizzle"],57:["Ã°Å¸Å’Â§Ã¯Â¸Â","Freezing drizzle"],61:["Ã°Å¸Å’Â¦Ã¯Â¸Â","Light rain"],63:["Ã°Å¸Å’Â§Ã¯Â¸Â","Rain"],65:["Ã°Å¸Å’Â§Ã¯Â¸Â","Heavy rain"],66:["Ã°Å¸Å’Â§Ã¯Â¸Â","Freezing rain"],67:["Ã°Å¸Å’Â§Ã¯Â¸Â","Freezing rain"],71:["Ã°Å¸Å’Â¨Ã¯Â¸Â","Light snow"],73:["Ã°Å¸Å’Â¨Ã¯Â¸Â","Snow"],75:["Ã¢Ââ€žÃ¯Â¸Â","Heavy snow"],77:["Ã¢Ââ€žÃ¯Â¸Â","Snow grains"],80:["Ã°Å¸Å’Â¦Ã¯Â¸Â","Rain showers"],81:["Ã°Å¸Å’Â§Ã¯Â¸Â","Rain showers"],82:["Ã¢â€ºË†Ã¯Â¸Â","Violent rain"],85:["Ã°Å¸Å’Â¨Ã¯Â¸Â","Snow showers"],86:["Ã¢Ââ€žÃ¯Â¸Â","Heavy snow showers"],95:["Ã¢â€ºË†Ã¯Â¸Â","Thunderstorm"],96:["Ã¢â€ºË†Ã¯Â¸Â","Thunder + hail"],99:["Ã¢â€ºË†Ã¯Â¸Â","Severe thunder/hail"]};
     async function loadWeather(lat,lon,label){
       const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
       const res=await fetch(url,{cache:'no-store'}); const data=await res.json(); const cw=data.current_weather;
-      const [icon,desc]=WX_CODES[cw.weathercode]||["â›…","Weather"];
+      const [icon,desc]=WX_CODES[cw.weathercode]||["Ã¢â€ºâ€¦","Weather"];
       document.getElementById('wx-icon').textContent=icon;
       document.getElementById('wx-place').textContent=label||"Your location";
-      document.getElementById('wx-desc').textContent=`${desc} â€¢ Wind ${Math.round(cw.windspeed)} km/h`;
-      document.getElementById('wx-temp').textContent=`${Math.round(cw.temperature)}Â°`;
+      document.getElementById('wx-desc').textContent=`${desc} Ã¢â‚¬Â¢ Wind ${Math.round(cw.windspeed)} km/h`;
+      document.getElementById('wx-temp').textContent=`${Math.round(cw.temperature)}Ã‚Â°`;
     }
     function detectWeather(){
       const fallback={lat:44.4268,lon:26.1025,label:"Bucharest"};
@@ -3945,7 +4076,7 @@ function renderQuote(q) {
     }
 
     async function loadQuoteDB(){
-      // No long-term cache â€” always fetch fresh quotes
+      // No long-term cache Ã¢â‚¬â€ always fetch fresh quotes
 
       // Fetch from sources
       for(var i=0; i<QUOTE_SOURCES.length; i++){
@@ -3957,7 +4088,7 @@ function renderQuote(q) {
           var normalized = normalizeQuotes(raw, i);
           if(normalized.length > 50){
             globalQuotes = normalized;
-            // no cache â€” fresh fetch each session
+            // no cache Ã¢â‚¬â€ fresh fetch each session
             return;
           }
         }catch(e){ continue; }
@@ -4001,7 +4132,7 @@ function renderQuote(q) {
       btnHumor.addEventListener("click", async () => {
         setLoading(true);
         const statusText = document.querySelector("#status");
-        if(statusText) statusText.innerHTML = '<span class="spinner"></span>Fetching a laughâ€¦';
+        if(statusText) statusText.innerHTML = '<span class="spinner"></span>Fetching a laughÃ¢â‚¬Â¦';
         const q = await fetchHumor();
         renderQuote(q);
       });
@@ -4022,7 +4153,7 @@ function renderQuote(q) {
     }
 
     els.copy.addEventListener("click",()=>{
-      const txt=`"${els.quote.textContent}" â€” ${els.author.textContent}`;
+      const txt=`"${els.quote.textContent}" Ã¢â‚¬â€ ${els.author.textContent}`;
       navigator.clipboard.writeText(txt);
       const p=els.copy.textContent; els.copy.textContent="Copied!"; setTimeout(()=>els.copy.textContent=p,1500);
     });
@@ -4035,7 +4166,7 @@ function renderQuote(q) {
       const list=loadSaved();
       if(!list.some(it=>it.q===q && it.a===a)){
         list.unshift({q,a,ts:Date.now()}); saveSaved(list); renderSaved();
-        const prev=els.save.textContent; els.save.textContent="Saved âœ“"; setTimeout(()=>els.save.textContent=prev,1100);
+        const prev=els.save.textContent; els.save.textContent="Saved Ã¢Å“â€œ"; setTimeout(()=>els.save.textContent=prev,1100);
       }
     }
     function deleteSaved(idx){ const list=loadSaved(); list.splice(idx,1); saveSaved(list); renderSaved(); }
@@ -4045,8 +4176,8 @@ function renderQuote(q) {
       els.savedList.innerHTML=""; els.savedEmpty.style.display=empty?"block":"none";
       list.forEach((it,idx)=>{
         const wrap=document.createElement('div'); wrap.className="saved-item";
-        wrap.innerHTML=`<div><strong>â€œ${it.q}â€</strong></div>
-          <div class="saved-meta"><span>â€” ${it.a||"Unknown"}</span><span>${new Date(it.ts).toLocaleString()}</span></div>
+        wrap.innerHTML=`<div><strong>Ã¢â‚¬Å“${it.q}Ã¢â‚¬Â</strong></div>
+          <div class="saved-meta"><span>Ã¢â‚¬â€ ${it.a||"Unknown"}</span><span>${new Date(it.ts).toLocaleString()}</span></div>
           <div class="row" style="margin-top:10px"><button class="btn ghost" data-act="copy" data-i="${idx}">Copy</button><button class="btn" data-act="del" data-i="${idx}">Delete</button></div>`;
         els.savedList.appendChild(wrap);
       });
@@ -4065,7 +4196,7 @@ function renderQuote(q) {
       // Handle Copy
       if(btn.dataset.act === 'copy') {
         const list = loadSaved();
-        const textToCopy = `â€œ${list[idx].q}â€ â€” ${list[idx].a || "Unknown"}`;
+        const textToCopy = `Ã¢â‚¬Å“${list[idx].q}Ã¢â‚¬Â Ã¢â‚¬â€ ${list[idx].a || "Unknown"}`;
 
         // 1. Try modern clipboard API (using .then instead of async/await to preserve user gesture)
         if (navigator.clipboard && window.isSecureContext) {
@@ -4083,7 +4214,7 @@ function renderQuote(q) {
     // Helper for visual feedback
     function showCopiedFeedback(btn) {
         const originalText = btn.textContent;
-        btn.textContent = "Copied âœ“";
+        btn.textContent = "Copied Ã¢Å“â€œ";
         btn.style.color = "var(--accent)"; // Green text
         setTimeout(() => {
             btn.textContent = originalText;
@@ -4109,7 +4240,7 @@ function renderQuote(q) {
         document.body.removeChild(textArea);
     }
     els.exportSaved?.addEventListener('click',()=>{
-      const list=loadSaved(); const text=list.map(it=>`â€œ${it.q}â€ â€” ${it.a||"Unknown"}`).join("\n\n");
+      const list=loadSaved(); const text=list.map(it=>`Ã¢â‚¬Å“${it.q}Ã¢â‚¬Â Ã¢â‚¬â€ ${it.a||"Unknown"}`).join("\n\n");
       const blob=new Blob([text],{type:'text/plain'}); const url=URL.createObjectURL(blob);
       const a=document.createElement('a'); a.href=url; a.download='saved-quotes.txt'; a.click(); URL.revokeObjectURL(url);
     });
@@ -4238,19 +4369,21 @@ function renderQuote(q) {
     if(btnBox && boxCircle) {
         const BREATH_PHASE_MS = 4000;
         const BREATH_PHASES = [
-            { label:"Inhale", className:"b-inhale", glyph:"↑" },
-            { label:"Hold", className:"b-hold", glyph:"⏸" },
-            { label:"Exhale", className:"b-exhale", glyph:"↓" },
-            { label:"Hold", className:"b-hold", glyph:"⏸" }
+            { label:"Inhale", className:"b-inhale", glyph:"â†‘" },
+            { label:"Hold", className:"b-hold-in", glyph:". . .", isHold:true },
+            { label:"Exhale", className:"b-exhale", glyph:"â†“" },
+            { label:"Hold", className:"b-hold-out", glyph:". . .", isHold:true }
         ];
-        function renderBreathingContent(label, glyph){
+        function renderBreathingContent(label, glyph, opts){
+            var options = opts || {};
             boxCircle.innerHTML = '<div class="breath-inner"><span class="breath-label">' + label + '</span><span class="breath-glyph">' + glyph + '</span></div>';
+            boxCircle.classList.toggle('is-hold', !!options.isHold);
         }
         let bCurrentPhase = -1;
         function applyBreathingPhase(phase, phaseIndex){
             bCurrentPhase = typeof phaseIndex === 'number' ? phaseIndex : bCurrentPhase;
             boxCircle.className = "breathing-circle";
-            renderBreathingContent(phase.label, phase.glyph || '');
+            renderBreathingContent(phase.label, phase.glyph || '', phase);
             boxCircle.style.setProperty('--breath-duration', BREATH_PHASE_MS + 'ms');
             void boxCircle.offsetWidth;
             boxCircle.classList.add(phase.className);
@@ -4260,7 +4393,7 @@ function renderQuote(q) {
                 clearInterval(bInterval); bInterval = null;
                 btnBox.textContent = "Start Breathing";
                 boxCircle.className = "breathing-circle";
-                renderBreathingContent("Ready", "•");
+                renderBreathingContent("Ready", "â€¢");
             } else {
                 btnBox.textContent = "Stop";
                 bStep = 0;
@@ -4272,27 +4405,29 @@ function renderQuote(q) {
                 bInterval = setInterval(cycle, BREATH_PHASE_MS);
             }
         });
-        renderBreathingContent("Ready", "•");
+        renderBreathingContent("Ready", "â€¢");
     }
     if(btnBox && boxCircle) {
         const AGENT_BREATH_PHASES = [
-            { label:"Inhale", className:"b-inhale", glyph:"â†‘" },
-            { label:"Hold", className:"b-hold", glyph:"â¸" },
-            { label:"Exhale", className:"b-exhale", glyph:"â†“" },
-            { label:"Hold", className:"b-hold", glyph:"â¸" }
+            { label:"Inhale", className:"b-inhale", glyph:"Ã¢â€ â€˜" },
+            { label:"Hold", className:"b-hold-in", glyph:". . .", isHold:true },
+            { label:"Exhale", className:"b-exhale", glyph:"Ã¢â€ â€œ" },
+            { label:"Hold", className:"b-hold-out", glyph:". . .", isHold:true }
         ];
         let agentBreathPhase = -1;
         var liveBtn = document.getElementById("b-toggle");
         if(liveBtn && liveBtn.parentNode) {
             var cleanBtn = liveBtn.cloneNode(true);
             liveBtn.parentNode.replaceChild(cleanBtn, liveBtn);
-            function renderAgentBreathingContent(label, glyph){
+            function renderAgentBreathingContent(label, glyph, opts){
+                var options = opts || {};
                 boxCircle.innerHTML = '<div class="breath-inner"><span class="breath-label">' + label + '</span><span class="breath-glyph">' + glyph + '</span></div>';
+                boxCircle.classList.toggle('is-hold', !!options.isHold);
             }
             function applyAgentBreathingPhase(phase, phaseIndex){
                 agentBreathPhase = typeof phaseIndex === 'number' ? phaseIndex : agentBreathPhase;
                 boxCircle.className = "breathing-circle";
-                renderAgentBreathingContent(phase.label, phase.glyph || '');
+                renderAgentBreathingContent(phase.label, phase.glyph || '', phase);
                 boxCircle.style.setProperty('--breath-duration', '4000ms');
                 void boxCircle.offsetWidth;
                 boxCircle.classList.add(phase.className);
@@ -4305,7 +4440,7 @@ function renderQuote(q) {
                 agentBreathPhase = -1;
                 cleanBtn.textContent = "Start Breathing";
                 boxCircle.className = "breathing-circle";
-                renderAgentBreathingContent("Ready", "â€¢");
+                renderAgentBreathingContent("Ready", "Ã¢â‚¬Â¢");
                 return true;
             }
             function startBreathing(){
@@ -4493,7 +4628,7 @@ function renderQuote(q) {
         }else{
           setMode('focus');
           if(!isSkip) {
-            notify('Focus time', `${settings.focus} minutes â€” go!`);
+            notify('Focus time', `${settings.focus} minutes Ã¢â‚¬â€ go!`);
             sfxDoh();
           }
         }
@@ -4715,17 +4850,17 @@ function renderQuote(q) {
           const leftSpan=document.createElement('span');
 
           /* SMART CLOCK LOGIC: Show time if running (Focus OR Break) */
-          let displayContent = 'â–¶';
+          let displayContent = 'Ã¢â€“Â¶';
 
           if (isRunning) {
              if (isFocus) {
                  displayContent = fmtMMSS(remaining);
              } else {
                  // Break mode running: Mug + Timer perfectly centered in the circle
-                 displayContent = `<div style="display:flex; flex-direction:column; align-items:center; line-height:1.1; margin-top:-2px"><span style="font-size:0.75em;">â˜•</span><span style="font-size:0.85em;">${fmtMMSS(remaining)}</span></div>`;
+                 displayContent = `<div style="display:flex; flex-direction:column; align-items:center; line-height:1.1; margin-top:-2px"><span style="font-size:0.75em;">Ã¢Ëœâ€¢</span><span style="font-size:0.85em;">${fmtMMSS(remaining)}</span></div>`;
              }
           } else {
-             displayContent = isFocus ? 'â–¶' : 'â˜•';
+             displayContent = isFocus ? 'Ã¢â€“Â¶' : 'Ã¢Ëœâ€¢';
           }
 
           // Apply to first task only
@@ -4748,7 +4883,7 @@ function renderQuote(q) {
              if(isFocus) {
                 sub.textContent = isRunning ? 'Focusing...' : 'Ready to Start';
              } else {
-                sub.textContent = isRunning ? 'On Break â˜•' : 'Break Paused â˜•';
+                sub.textContent = isRunning ? 'On Break Ã¢Ëœâ€¢' : 'Break Paused Ã¢Ëœâ€¢';
              }
           } else {
              sub.textContent = 'Queued';
@@ -4778,7 +4913,7 @@ function renderQuote(q) {
     (function(){
       // Only register service worker if on HTTP/HTTPS
       if('serviceWorker'in navigator && location.protocol.startsWith('http')){
-        const swCode=`const CACHE='homer-v9'; const APP_SHELL=['/','/index.html','/manifest.json','/icon.svg','/icon-192.png','/icon-512.png'];
+        const swCode=`const CACHE='homer-v10'; const APP_SHELL=['/','/manifest.json','/icon.svg','/icon-192.png','/icon-512.png'];
           self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(APP_SHELL)).then(()=>self.skipWaiting())); })
           self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); })
           self.addEventListener('fetch',e=>{
@@ -4801,16 +4936,16 @@ function renderQuote(q) {
     })();
   </script>
 <script>
-// ðŸ”µ AUDIO PLAYER WITH BULLETPROOF STATE TRACKING
+// Ã°Å¸â€Âµ AUDIO PLAYER WITH BULLETPROOF STATE TRACKING
 const tracks = {
-  ocean: { id:"WHPEKLQID4U", btn:"btn-ocean", vol:"vol-ocean", labelPlay:"â–¶ï¸ Play Ocean", labelPause:"â¸ï¸ Pause Ocean", holder:"yt-ocean", isPlaying: false },
-  fire:  { id:"UgHKb_7884o", btn:"btn-fire",  vol:"vol-fire",  labelPlay:"â–¶ï¸ Play Fireplace", labelPause:"â¸ï¸ Pause Fireplace", holder:"yt-fire", isPlaying: false },
-  rain:  { id:"mPZkdNFkNps", btn:"btn-rain",  vol:"vol-rain",  labelPlay:"â–¶ï¸ Play Rain", labelPause:"â¸ï¸ Pause Rain", holder:"yt-rain", isPlaying: false },
-  rainywindow: { id:"Dx5qFachd3A", btn:"btn-rainywindow", vol:"vol-rainywindow", labelPlay:"â–¶ï¸ Play Jazz", labelPause:"â¸ï¸ Pause Jazz", holder:"yt-rainywindow", isPlaying: false },
-  cafe:  { id:"uiMXGIG_DQo", btn:"btn-cafe",  vol:"vol-cafe",  labelPlay:"â–¶ï¸ Play CafÃ©", labelPause:"â¸ï¸ Pause CafÃ©", holder:"yt-cafe", isPlaying: false },
-  lofi:  { id:"Na0w3Mz46GA", btn:"btn-lofi",  vol:"vol-lofi",  labelPlay:"â–¶ï¸ Play Lo-Fi", labelPause:"â¸ï¸ Pause Lo-Fi", holder:"yt-lofi", isPlaying: false },
-  wind: { id:"jYu1-CxNqks", btn:"btn-wind", vol:"vol-wind", labelPlay:"â–¶ï¸ Play Wind", labelPause:"â¸ï¸ Pause Wind", holder:"yt-wind", isPlaying: false },
-  synthwave: { id:"4xDzrJKXOOY", btn:"btn-synthwave", vol:"vol-synthwave", labelPlay:"â–¶ï¸ Play Synthwave", labelPause:"â¸ï¸ Pause Synthwave", holder:"yt-synthwave", isPlaying: false },
+  ocean: { id:"WHPEKLQID4U", btn:"btn-ocean", vol:"vol-ocean", labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Ocean", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Ocean", holder:"yt-ocean", isPlaying: false },
+  fire:  { id:"UgHKb_7884o", btn:"btn-fire",  vol:"vol-fire",  labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Fireplace", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Fireplace", holder:"yt-fire", isPlaying: false },
+  rain:  { id:"mPZkdNFkNps", btn:"btn-rain",  vol:"vol-rain",  labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Rain", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Rain", holder:"yt-rain", isPlaying: false },
+  rainywindow: { id:"Dx5qFachd3A", btn:"btn-rainywindow", vol:"vol-rainywindow", labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Jazz", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Jazz", holder:"yt-rainywindow", isPlaying: false },
+  cafe:  { id:"uiMXGIG_DQo", btn:"btn-cafe",  vol:"vol-cafe",  labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play CafÃƒÂ©", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause CafÃƒÂ©", holder:"yt-cafe", isPlaying: false },
+  lofi:  { id:"Na0w3Mz46GA", btn:"btn-lofi",  vol:"vol-lofi",  labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Lo-Fi", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Lo-Fi", holder:"yt-lofi", isPlaying: false },
+  wind: { id:"jYu1-CxNqks", btn:"btn-wind", vol:"vol-wind", labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Wind", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Wind", holder:"yt-wind", isPlaying: false },
+  synthwave: { id:"4xDzrJKXOOY", btn:"btn-synthwave", vol:"vol-synthwave", labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Synthwave", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Synthwave", holder:"yt-synthwave", isPlaying: false },
   weightless: { id:"vYIYIVmOo3Q", btn:null, vol:null, holder:"yt-weightless", isPlaying: false }
 };
 
@@ -5035,7 +5170,7 @@ window._homerAmbientAudio = {
           await acquireWakeLock();
 
           if (btnWake) {
-              btnWake.textContent = 'ðŸ‘€ Keeping Awake...';
+              btnWake.textContent = 'Ã°Å¸â€˜â‚¬ Keeping Awake...';
               btnWake.classList.remove('danger');
               btnWake.classList.add('secondary');
           }
@@ -5051,7 +5186,7 @@ window._homerAmbientAudio = {
           }
 
           if (btnWake) {
-              btnWake.textContent = 'â˜• Keep Awake';
+              btnWake.textContent = 'Ã¢Ëœâ€¢ Keep Awake';
               btnWake.classList.add('danger');
               btnWake.classList.remove('secondary');
           }
@@ -5275,7 +5410,7 @@ window._homerAmbientAudio = {
   const useIcon = document.getElementById('link-use-icon');
 
   // Emoji palette
-  var emojis = ['ðŸ”—','ðŸŒ','ðŸ’»','ðŸ“±','ðŸŽ®','ðŸŽµ','ðŸŽ¬','ðŸ“º','ðŸ“·','ðŸ›’','ðŸ’°','ðŸ“Š','ðŸ“ˆ','ðŸ“°','ðŸ“š','ðŸ“','ðŸ“§','ðŸ’¬','ðŸ”','ðŸ”§','ðŸ› ï¸','âš™ï¸','ðŸ ','ðŸš€','â­','â¤ï¸','ðŸ”¥','âš¡','ðŸŽ¯','ðŸ§©','â˜ï¸','ðŸ—‚ï¸','ðŸ“','ðŸ–¥ï¸','ðŸŽ¨','ðŸŽ­','ðŸ‹ï¸','ðŸ”','â˜•','ðŸŽ“','ðŸ¦','ðŸ¥','âœˆï¸','ðŸ—ºï¸','ðŸ“¡','ðŸ”’','ðŸ§ª','ðŸ¤–','ðŸ‘¾','ðŸ•¹ï¸','ðŸ“»','ðŸŽ§','ðŸª„','ðŸ’¡','ðŸŒ','ðŸŒ™','â˜€ï¸','ðŸŒˆ','ðŸ¿','ðŸ§ '];
+  var emojis = ['Ã°Å¸â€â€”','Ã°Å¸Å’Â','Ã°Å¸â€™Â»','Ã°Å¸â€œÂ±','Ã°Å¸Å½Â®','Ã°Å¸Å½Âµ','Ã°Å¸Å½Â¬','Ã°Å¸â€œÂº','Ã°Å¸â€œÂ·','Ã°Å¸â€ºâ€™','Ã°Å¸â€™Â°','Ã°Å¸â€œÅ ','Ã°Å¸â€œË†','Ã°Å¸â€œÂ°','Ã°Å¸â€œÅ¡','Ã°Å¸â€œÂ','Ã°Å¸â€œÂ§','Ã°Å¸â€™Â¬','Ã°Å¸â€Â','Ã°Å¸â€Â§','Ã°Å¸â€ºÂ Ã¯Â¸Â','Ã¢Å¡â„¢Ã¯Â¸Â','Ã°Å¸ÂÂ ','Ã°Å¸Å¡â‚¬','Ã¢Â­Â','Ã¢ÂÂ¤Ã¯Â¸Â','Ã°Å¸â€Â¥','Ã¢Å¡Â¡','Ã°Å¸Å½Â¯','Ã°Å¸Â§Â©','Ã¢ËœÂÃ¯Â¸Â','Ã°Å¸â€”â€šÃ¯Â¸Â','Ã°Å¸â€œÂ','Ã°Å¸â€“Â¥Ã¯Â¸Â','Ã°Å¸Å½Â¨','Ã°Å¸Å½Â­','Ã°Å¸Ââ€¹Ã¯Â¸Â','Ã°Å¸Ââ€','Ã¢Ëœâ€¢','Ã°Å¸Å½â€œ','Ã°Å¸ÂÂ¦','Ã°Å¸ÂÂ¥','Ã¢Å“Ë†Ã¯Â¸Â','Ã°Å¸â€”ÂºÃ¯Â¸Â','Ã°Å¸â€œÂ¡','Ã°Å¸â€â€™','Ã°Å¸Â§Âª','Ã°Å¸Â¤â€“','Ã°Å¸â€˜Â¾','Ã°Å¸â€¢Â¹Ã¯Â¸Â','Ã°Å¸â€œÂ»','Ã°Å¸Å½Â§','Ã°Å¸Âªâ€ž','Ã°Å¸â€™Â¡','Ã°Å¸Å’Â','Ã°Å¸Å’â„¢','Ã¢Ëœâ‚¬Ã¯Â¸Â','Ã°Å¸Å’Ë†','Ã°Å¸ÂÂ¿','Ã°Å¸Â§Â '];
 
   // Build emoji grid
   emojis.forEach(function(e){
@@ -5311,7 +5446,7 @@ window._homerAmbientAudio = {
     if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
     var links = load();
     links.push({
-      emoji: String(next.emoji || '').trim() || '🔗',
+      emoji: String(next.emoji || '').trim() || 'ðŸ”—',
       name: name,
       url: url,
       cat: String(next.category || next.cat || 'Uncategorized').trim() || 'Uncategorized',
@@ -5366,17 +5501,17 @@ window._homerAmbientAudio = {
         var iconHtml;
         if(showFavicon && faviconUrl){
           iconHtml = '<img src="' + escAttr(faviconUrl) + '" alt="" style="width:22px;height:22px;border-radius:4px;background:#fff;padding:1px;flex-shrink:0;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline\';">' +
-                     '<span style="display:none;font-size:1.2rem;flex-shrink:0;">' + (lnk.emoji || 'ðŸ”—') + '</span>';
+                     '<span style="display:none;font-size:1.2rem;flex-shrink:0;">' + (lnk.emoji || 'Ã°Å¸â€â€”') + '</span>';
         } else {
-          iconHtml = '<span style="font-size:1.2rem;flex-shrink:0;">' + (lnk.emoji || 'ðŸ”—') + '</span>';
+          iconHtml = '<span style="font-size:1.2rem;flex-shrink:0;">' + (lnk.emoji || 'Ã°Å¸â€â€”') + '</span>';
         }
 
         div.innerHTML =
           iconHtml +
           '<a href="' + escAttr(lnk.url) + '" target="_blank" rel="noopener" style="color:var(--accent-2);font-weight:700;text-decoration:none;flex:1;">' + escHtml(lnk.name) + '</a>' +
           '<span style="color:var(--muted);font-size:.85rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(lnk.url) + '</span>' +
-          '<button class="link-copy btn ghost" data-url="' + escAttr(lnk.url) + '" style="padding:4px 10px;font-size:.8rem;flex-shrink:0;" title="Copy URL">ðŸ“‹</button>' +
-          '<button class="link-del btn" data-idx="' + item.idx + '" style="padding:4px 10px;font-size:.8rem;flex-shrink:0;">âœ•</button>';
+          '<button class="link-copy btn ghost" data-url="' + escAttr(lnk.url) + '" style="padding:4px 10px;font-size:.8rem;flex-shrink:0;" title="Copy URL">Ã°Å¸â€œâ€¹</button>' +
+          '<button class="link-del btn" data-idx="' + item.idx + '" style="padding:4px 10px;font-size:.8rem;flex-shrink:0;">Ã¢Å“â€¢</button>';
         grid.appendChild(div);
       });
     });
@@ -5384,7 +5519,7 @@ window._homerAmbientAudio = {
     grid.querySelectorAll('.link-copy').forEach(function(btn){
       btn.addEventListener('click', function(){
         navigator.clipboard.writeText(btn.dataset.url).then(function(){
-          btn.textContent = 'âœ…'; setTimeout(function(){ btn.textContent = 'ðŸ“‹'; }, 1200);
+          btn.textContent = 'Ã¢Å“â€¦'; setTimeout(function(){ btn.textContent = 'Ã°Å¸â€œâ€¹'; }, 1200);
         });
       });
     });
@@ -5409,17 +5544,17 @@ window._homerAmbientAudio = {
     if(!name || !url) return;
     if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
     var links = load();
-    var chosenEmoji = inEmoji.value.trim() || 'ðŸ”—';
+    var chosenEmoji = inEmoji.value.trim() || 'Ã°Å¸â€â€”';
     links.push({
       emoji: chosenEmoji,
       name: name,
       url: url,
       cat: cat || 'Uncategorized',
-      useFavicon: (chosenEmoji !== 'ðŸ”—') ? false : useIcon.checked
+      useFavicon: (chosenEmoji !== 'Ã°Å¸â€â€”') ? false : useIcon.checked
     });
     save(links);
     inEmoji.value = ''; inName.value = ''; inUrl.value = ''; inCat.value = '';
-    emojiBtn.textContent = 'ðŸ”—';
+    emojiBtn.textContent = 'Ã°Å¸â€â€”';
     render();
   });
 
@@ -5433,7 +5568,7 @@ window._homerAmbientAudio = {
 
 <script>
 (function(){
-  // === IndexedDB Storage (replaces localStorage for vault â€” supports hundreds of MB) ===
+  // === IndexedDB Storage (replaces localStorage for vault Ã¢â‚¬â€ supports hundreds of MB) ===
   var IDB_NAME = 'homer-vault-idb';
   var IDB_STORE = 'kv';
   var idbReady = new Promise(function(resolve, reject){
@@ -5501,7 +5636,7 @@ window._homerAmbientAudio = {
     }
   };
 
-  // Vault keys â€” stored in IndexedDB for large storage capacity
+  // Vault keys Ã¢â‚¬â€ stored in IndexedDB for large storage capacity
   var SALT_KEY = 'homer-vault-salt';
   var HASH_KEY = 'homer-vault-hash';
   var DATA_KEY = 'homer-vault-data';
@@ -6017,7 +6152,7 @@ window._homerAmbientAudio = {
 
   var isNew = true;
 
-  // Initialize: migrate localStorage â†’ IndexedDB, then check if vault exists
+  // Initialize: migrate localStorage Ã¢â€ â€™ IndexedDB, then check if vault exists
   migrateToIdb().then(function(){
     return idb.get(HASH_KEY);
   }).then(function(hash){
@@ -6344,7 +6479,7 @@ window._homerAmbientAudio = {
     var isWork = normalizeVaultMode(currentVaultMode) === 'work';
     if(vaultModePersonalBtn) vaultModePersonalBtn.className = isWork ? 'personal' : 'active personal';
     if(vaultModeWorkBtn) vaultModeWorkBtn.className = isWork ? 'active work' : 'work';
-    if(vaultStatusLine) vaultStatusLine.textContent = 'ðŸ”“ ' + modeLabel(currentVaultMode) + ' vault unlocked';
+    if(vaultStatusLine) vaultStatusLine.textContent = 'Ã°Å¸â€â€œ ' + modeLabel(currentVaultMode) + ' vault unlocked';
     if(vaultModeMeta) vaultModeMeta.textContent = modeLabel(currentVaultMode) + ' profile is active. Tasks, notes, goals, and secrets stay separate from ' + (isWork ? 'Personal' : 'Work') + '.';
     if(vdOpenKanban && vdOpenKanban.querySelector('.vd-icon')) vdOpenKanban.querySelector('.vd-icon').textContent = '\u{1F4CB}';
     if(document.getElementById('vd-open-goals') && document.getElementById('vd-open-goals').querySelector('.vd-icon')) document.getElementById('vd-open-goals').querySelector('.vd-icon').textContent = '\u{1F3AF}';
@@ -6355,7 +6490,7 @@ window._homerAmbientAudio = {
     if(vdGoalsTitle) vdGoalsTitle.textContent = isWork ? 'Work Goals' : 'Life Goals';
     if(vdGoalsDesc) vdGoalsDesc.textContent = isWork ? 'Track work outcomes and milestones' : 'Track your aspirations';
     if(projectsBoardTitle) projectsBoardTitle.textContent = (isWork ? 'Work ' : 'Personal ') + 'Project Command Center';
-    if(kanbanBoardTitle) kanbanBoardTitle.textContent = 'ðŸ“‹ ' + modeLabel(currentVaultMode) + ' Board';
+    if(kanbanBoardTitle) kanbanBoardTitle.textContent = 'Ã°Å¸â€œâ€¹ ' + modeLabel(currentVaultMode) + ' Board';
     renderVaultMirrorStatus();
     updateVaultSyncBadge();
   }
@@ -6599,7 +6734,7 @@ window._homerAmbientAudio = {
       '- Zen goal format: [ACTION:NOTE]{"target":"zen-goal","text":"One clear goal"}[/ACTION]\n' +
       '\nLINK:\n' +
       '- Saves a non-secret link to the Links tab.\n' +
-      '- Format: [ACTION:LINK]{"name":"Docs","url":"https://example.com","category":"Work","emoji":"🔗"}[/ACTION]\n' +
+      '- Format: [ACTION:LINK]{"name":"Docs","url":"https://example.com","category":"Work","emoji":"ðŸ”—"}[/ACTION]\n' +
       '\nSECRET:\n' +
       '- Use type "link" for private links and type "credential" for passwords.\n' +
       '- Secret link format: [ACTION:SECRET]{"type":"link","name":"Admin","url":"https://admin.example.com","description":"Internal panel"}[/ACTION]\n' +
@@ -7378,7 +7513,7 @@ window._homerAmbientAudio = {
           favHtml +
           '<a href="'+escAttr(l.url)+'" target="_blank" rel="noopener" style="color:var(--accent-2);font-weight:700;text-decoration:none;flex:1;">'+escHtml(l.name)+'</a>' +
           '<span style="color:var(--muted);font-size:.8rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(l.url)+'</span>' +
-          '<button class="vault-link-del btn" data-idx="'+i+'" style="padding:4px 10px;font-size:.8rem;">âœ•</button>' +
+          '<button class="vault-link-del btn" data-idx="'+i+'" style="padding:4px 10px;font-size:.8rem;">Ã¢Å“â€¢</button>' +
         '</div>' +
         descHtml;
       linksList.appendChild(div);
@@ -7405,7 +7540,7 @@ window._homerAmbientAudio = {
       if(c.site){
         try{ var u = new URL(/^https?:\/\//i.test(c.site) ? c.site : 'https://'+c.site); faviconUrl = 'https://www.google.com/s2/favicons?domain='+u.hostname+'&sz=32'; }catch(e){}
       }
-      var ico = faviconUrl ? '<img src="'+escAttr(faviconUrl)+'" style="width:20px;height:20px;border-radius:4px;flex-shrink:0;" onerror="this.style.display=\'none\'">' : '<span style="font-size:1.1rem;flex-shrink:0;">ðŸ”‘</span>';
+      var ico = faviconUrl ? '<img src="'+escAttr(faviconUrl)+'" style="width:20px;height:20px;border-radius:4px;flex-shrink:0;" onerror="this.style.display=\'none\'">' : '<span style="font-size:1.1rem;flex-shrink:0;">Ã°Å¸â€â€˜</span>';
       var header = '<div class="cred-header" style="display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;">' +
         ico +
         '<span style="font-weight:800;font-size:.95rem;flex:1;">'+escHtml(c.label)+'</span>' +
@@ -7424,14 +7559,14 @@ window._homerAmbientAudio = {
         fields += '<div class="cred-field" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">' +
           '<span style="color:var(--muted);font-size:.8rem;width:60px;flex-shrink:0;">'+f.lbl+'</span>' +
           '<code class="cred-val" style="flex:1;color:var(--accent);font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:none;">'+escHtml(f.val)+'</code>' +
-          '<span class="cred-mask" style="flex:1;color:var(--muted);font-size:.85rem;">â€¢â€¢â€¢â€¢â€¢â€¢</span>' +
-          '<button class="cred-toggle btn" style="padding:2px 6px;font-size:.75rem;background:none;border:1px solid rgba(255,255,255,.12);border-radius:6px;color:var(--muted);cursor:pointer;" title="Toggle">ðŸ‘</button>' +
-          '<button class="cred-copy btn" style="padding:2px 6px;font-size:.75rem;background:none;border:1px solid rgba(255,255,255,.12);border-radius:6px;color:var(--muted);cursor:pointer;" data-val="'+escAttr(f.val)+'" title="Copy">ðŸ“‹</button>' +
+          '<span class="cred-mask" style="flex:1;color:var(--muted);font-size:.85rem;">Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢</span>' +
+          '<button class="cred-toggle btn" style="padding:2px 6px;font-size:.75rem;background:none;border:1px solid rgba(255,255,255,.12);border-radius:6px;color:var(--muted);cursor:pointer;" title="Toggle">Ã°Å¸â€˜Â</button>' +
+          '<button class="cred-copy btn" style="padding:2px 6px;font-size:.75rem;background:none;border:1px solid rgba(255,255,255,.12);border-radius:6px;color:var(--muted);cursor:pointer;" data-val="'+escAttr(f.val)+'" title="Copy">Ã°Å¸â€œâ€¹</button>' +
           '</div>';
       });
       var body = '<div class="cred-body" style="display:none;padding:0 12px 12px;border-top:1px solid rgba(255,255,255,.06);padding-top:10px;">' +
         fields +
-        '<div style="text-align:right;margin-top:6px;"><button class="vault-cred-del btn" data-idx="'+i+'" style="padding:4px 10px;font-size:.8rem;color:#ef4444;">âœ• Delete</button></div>' +
+        '<div style="text-align:right;margin-top:6px;"><button class="vault-cred-del btn" data-idx="'+i+'" style="padding:4px 10px;font-size:.8rem;color:#ef4444;">Ã¢Å“â€¢ Delete</button></div>' +
         '</div>';
       div.innerHTML = header + body;
       credsList.appendChild(div);
@@ -7460,7 +7595,7 @@ window._homerAmbientAudio = {
           e.stopPropagation();
           var btn = this;
           navigator.clipboard.writeText(btn.dataset.val).then(function(){
-            btn.textContent = 'âœ…'; setTimeout(function(){ btn.textContent = 'ðŸ“‹'; }, 1200);
+            btn.textContent = 'Ã¢Å“â€¦'; setTimeout(function(){ btn.textContent = 'Ã°Å¸â€œâ€¹'; }, 1200);
           });
         });
       });
@@ -7506,8 +7641,8 @@ window._homerAmbientAudio = {
       var el = document.createElement('div');
       el.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;background:rgba(255,255,255,.06);font-size:.75rem;color:var(--muted);';
       var isImg = f.type && f.type.startsWith('image/');
-      el.innerHTML = (isImg ? 'ðŸ–¼' : 'ðŸ“„') + ' ' + escHtml(f.name) +
-        '<button style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.7rem;padding:0 2px;">âœ•</button>';
+      el.innerHTML = (isImg ? 'Ã°Å¸â€“Â¼' : 'Ã°Å¸â€œâ€ž') + ' ' + escHtml(f.name) +
+        '<button style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.7rem;padding:0 2px;">Ã¢Å“â€¢</button>';
       el.querySelector('button').addEventListener('click', function(){ onRemove(idx); });
       container.appendChild(el);
     });
@@ -7535,7 +7670,7 @@ window._homerAmbientAudio = {
     });
   });
 
-  // Attachment data lookup â€” avoids embedding megabytes of base64 in DOM HTML
+  // Attachment data lookup Ã¢â‚¬â€ avoids embedding megabytes of base64 in DOM HTML
   var _attachDataMap = {};
   function _attachKey(gi, ai, si){ return gi+'-'+(si!==undefined?si:'g')+'-'+ai; }
 
@@ -7549,11 +7684,11 @@ window._homerAmbientAudio = {
       if(isImg){
         html += '<div class="k-attach-item">' +
           '<img loading="lazy" src="'+(_attachDataMap[key]?_attachDataMap[key]:'')+'" alt="'+escAttr(a.name)+'" data-akey="'+key+'" class="k-attach-img" style="max-width:120px;max-height:80px;object-fit:cover;cursor:pointer;">' +
-          '<button class="k-attach-rm" data-ai="'+ai+'" data-gi="'+goalIdx+'"'+(subIdx !== undefined ? ' data-si="'+subIdx+'"' : '')+'>âœ•</button></div>';
+          '<button class="k-attach-rm" data-ai="'+ai+'" data-gi="'+goalIdx+'"'+(subIdx !== undefined ? ' data-si="'+subIdx+'"' : '')+'>Ã¢Å“â€¢</button></div>';
       } else {
         html += '<div class="k-attach-item">' +
-          '<a class="k-attach-file" data-akey="'+key+'" data-fname="'+escAttr(a.name)+'">ðŸ“„ '+escHtml(a.name)+'</a>' +
-          '<button class="k-attach-rm" data-ai="'+ai+'" data-gi="'+goalIdx+'"'+(subIdx !== undefined ? ' data-si="'+subIdx+'"' : '')+'>âœ•</button></div>';
+          '<a class="k-attach-file" data-akey="'+key+'" data-fname="'+escAttr(a.name)+'">Ã°Å¸â€œâ€ž '+escHtml(a.name)+'</a>' +
+          '<button class="k-attach-rm" data-ai="'+ai+'" data-gi="'+goalIdx+'"'+(subIdx !== undefined ? ' data-si="'+subIdx+'"' : '')+'>Ã¢Å“â€¢</button></div>';
       }
     });
     html += '</div>';
@@ -7690,11 +7825,11 @@ window._homerAmbientAudio = {
       comments.forEach(function(c, ci){
         var t = new Date(c.ts);
         var ts = t.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' ' + t.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-        var author = c.author ? escHtml(c.author) + ' â€” ' : '';
+        var author = c.author ? escHtml(c.author) + ' Ã¢â‚¬â€ ' : '';
         html += '<div class="k-comment" data-ci="'+ci+'">' +
           '<div class="k-comment-meta">'+author+ts+'</div>' +
           '<div class="k-comment-text">'+escHtml(c.text)+'</div>' +
-          '<button class="k-comment-del" data-ci="'+ci+'" title="Delete comment">âœ•</button>' +
+          '<button class="k-comment-del" data-ci="'+ci+'" title="Delete comment">Ã¢Å“â€¢</button>' +
         '</div>';
       });
     }
@@ -7885,11 +8020,11 @@ window._homerAmbientAudio = {
           g.comments.forEach(function(c, ci){
             var t = new Date(c.ts);
             var ts = t.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' '+t.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-            var author = c.author ? escHtml(c.author)+' â€” ' : '';
+            var author = c.author ? escHtml(c.author)+' Ã¢â‚¬â€ ' : '';
             html += '<div class="issue-comment" data-ci="'+ci+'">' +
               '<div class="issue-comment-meta">'+author+ts+'</div>' +
               '<div class="issue-comment-text">'+escHtml(c.text)+'</div>' +
-              '<button class="issue-comment-del" data-ci="'+ci+'" title="Delete">âœ•</button></div>';
+              '<button class="issue-comment-del" data-ci="'+ci+'" title="Delete">Ã¢Å“â€¢</button></div>';
           });
         }
         html += '<div class="issue-comment-form">' +
@@ -7945,7 +8080,7 @@ window._homerAmbientAudio = {
         html += '</div>';
 
       } else {
-        // Goal sidebar â€” editable fields
+        // Goal sidebar Ã¢â‚¬â€ editable fields
         html += '<div class="issue-sidebar-card"><h4>Details</h4>';
         html += '<div class="issue-field-row"><span class="issue-field-label">Status</span><span class="issue-field-value"><span class="issue-status-badge s-'+g.col+'">'+colLabels[g.col]+'</span></span></div>';
         html += '<div class="issue-field-row"><span class="issue-field-label">Project</span><span class="issue-field-value">';
@@ -7954,7 +8089,7 @@ window._homerAmbientAudio = {
           html += '<option value="'+escAttr(project.id)+'"'+(g.projectId === project.id ? ' selected' : '')+'>'+escHtml(project.name)+'</option>';
         });
         html += '</select></span></div>';
-        // Priority â€” editable select
+        // Priority Ã¢â‚¬â€ editable select
         html += '<div class="issue-field-row"><span class="issue-field-label">Priority</span><span class="issue-field-value">';
         html += '<select class="issue-edit-priority" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;">';
         html += '<option value=""'+(g.priority?'':' selected')+'>None</option>';
@@ -7962,21 +8097,21 @@ window._homerAmbientAudio = {
         html += '<option value="medium"'+(g.priority==='medium'?' selected':'')+'>Medium</option>';
         html += '<option value="low"'+(g.priority==='low'?' selected':'')+'>Low</option>';
         html += '</select></span></div>';
-        // Due Date â€” editable input
+        // Due Date Ã¢â‚¬â€ editable input
         html += '<div class="issue-field-row"><span class="issue-field-label">Due Date</span><span class="issue-field-value">';
         html += '<input type="date" class="issue-edit-due" value="'+(g.due||'')+'" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;max-width:150px;">';
         html += '</span></div>';
-        // Reporter â€” editable input
+        // Reporter Ã¢â‚¬â€ editable input
         html += '<div class="issue-field-row"><span class="issue-field-label">Reporter</span><span class="issue-field-value">';
-        html += '<input type="text" class="issue-edit-reporter" value="'+escAttr(g.reporter||'')+'" placeholder="â€”" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;width:100%;max-width:150px;">';
+        html += '<input type="text" class="issue-edit-reporter" value="'+escAttr(g.reporter||'')+'" placeholder="Ã¢â‚¬â€" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;width:100%;max-width:150px;">';
         html += '</span></div>';
-        // Assignee â€” editable input
+        // Assignee Ã¢â‚¬â€ editable input
         html += '<div class="issue-field-row"><span class="issue-field-label">Assignee</span><span class="issue-field-value">';
-        html += '<input type="text" class="issue-edit-assignee" value="'+escAttr(g.assignee||'')+'" placeholder="â€”" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;width:100%;max-width:150px;">';
+        html += '<input type="text" class="issue-edit-assignee" value="'+escAttr(g.assignee||'')+'" placeholder="Ã¢â‚¬â€" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;width:100%;max-width:150px;">';
         html += '</span></div>';
         html += '</div>';
 
-        // Labels â€” editable with chip toggles + add new
+        // Labels Ã¢â‚¬â€ editable with chip toggles + add new
         var allLabels = getAllLabels(data.goals);
         html += '<div class="issue-sidebar-card"><h4>Labels</h4>';
         html += '<div class="issue-label-chips" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">';
@@ -8105,7 +8240,7 @@ window._homerAmbientAudio = {
           });
         }
 
-        // Subtask â†’ Outlook calendar
+        // Subtask Ã¢â€ â€™ Outlook calendar
         var subOutlookBtn = ov.querySelector('.issue-outlook-btn');
         if(subOutlookBtn){
           subOutlookBtn.addEventListener('click', function(){
@@ -8284,7 +8419,7 @@ window._homerAmbientAudio = {
           labelNewInp.addEventListener('keydown', function(e){ if(e.key==='Enter') addNewLabel(); });
         }
 
-        // Subtask clicks â†’ open subtask fullscreen
+        // Subtask clicks Ã¢â€ â€™ open subtask fullscreen
         ov.querySelectorAll('.issue-st-key').forEach(function(el){
           el.addEventListener('click', function(ev){
             ev.stopPropagation();
@@ -8312,7 +8447,7 @@ window._homerAmbientAudio = {
           });
         });
 
-        // Subtask â†’ Outlook calendar buttons in fullscreen list
+        // Subtask Ã¢â€ â€™ Outlook calendar buttons in fullscreen list
         ov.querySelectorAll('.issue-st-cal-btn').forEach(function(btn){
           btn.addEventListener('mouseenter', function(){ this.style.opacity='1'; });
           btn.addEventListener('mouseleave', function(){ this.style.opacity='.5'; });
@@ -8389,7 +8524,7 @@ window._homerAmbientAudio = {
           });
         }
 
-        // Task â†’ Outlook calendar
+        // Task Ã¢â€ â€™ Outlook calendar
         var goalOutlookBtn = ov.querySelector('.issue-outlook-btn');
         if(goalOutlookBtn){
           goalOutlookBtn.addEventListener('click', function(){
@@ -8609,7 +8744,7 @@ window._homerAmbientAudio = {
               formatStDue(s.due) +
               '<button class="k-st-cal" data-gi="'+i+'" data-si="'+si+'" title="Add to Outlook Calendar" style="background:none;border:none;color:#0078d4;cursor:pointer;font-size:.7rem;padding:0 2px;display:inline-flex;align-items:center;opacity:.6;transition:opacity .15s;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>' +
               '<span class="k-st-toggle" style="font-size:.6rem;cursor:pointer;color:var(--muted);" title="Details">&#9660;</span>' +
-              '<button class="k-st-del" data-si="'+si+'" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.7rem;padding:0 2px;" title="Remove">âœ•</button>' +
+              '<button class="k-st-del" data-si="'+si+'" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.7rem;padding:0 2px;" title="Remove">Ã¢Å“â€¢</button>' +
             '</span>' +
           '</div>' +
           '<div class="k-st-body">' +
@@ -8699,7 +8834,7 @@ window._homerAmbientAudio = {
 
       // --- Event wiring ---
 
-      // Issue key click â†’ open fullscreen
+      // Issue key click Ã¢â€ â€™ open fullscreen
       card.querySelector('.k-id').addEventListener('click', function(e){
         e.stopPropagation();
         openIssueFullscreen(parseInt(this.dataset.gi));
@@ -9095,7 +9230,7 @@ window._homerAmbientAudio = {
         });
       });
 
-      // Add subtask â€” open modal
+      // Add subtask Ã¢â‚¬â€ open modal
       var subOpenBtn = card.querySelector('.k-sub-open');
       if(subOpenBtn) subOpenBtn.addEventListener('click', function(){
         subModalGoalIdx = i;
@@ -9599,7 +9734,7 @@ window._homerAmbientAudio = {
     hashAccountCreds(user, pw).then(function(acctHash){
       if(acctHash !== storedAcctHash){ showError('Invalid username or password.'); return; }
 
-      // Account verified â€” use credentials to derive vault encryption key
+      // Account verified Ã¢â‚¬â€ use credentials to derive vault encryption key
       var vaultPw = user.toLowerCase() + ':' + pw;
       getSalt().then(function(salt){
         if(isNew){
@@ -11237,7 +11372,7 @@ window._homerAmbientAudio = {
 <!-- OpenClaw Chat Panel -->
 <div id="oc-panel">
   <div id="oc-panel-header">
-    <h3><span id="oc-provider-icon">ðŸ•</span> <span id="oc-provider-name">Joey Kilo</span> <span class="oc-model-badge" id="oc-model-badge">MiMo-V2-Pro</span></h3>
+    <h3><span id="oc-provider-icon">Ã°Å¸Ââ€¢</span> <span id="oc-provider-name">Joey Kilo</span> <span class="oc-model-badge" id="oc-model-badge">MiMo-V2-Pro</span></h3>
     <div class="oc-header-actions">
       <button type="button" id="oc-export-btn" title="Export chat">&#8615;</button>
       <button type="button" id="oc-settings-btn" title="Settings">&#9881;</button>
@@ -11338,12 +11473,12 @@ window._homerAmbientAudio = {
   </div>
   <div id="oc-chat-messages">
     <div class="oc-welcome">
-      <span class="oc-welcome-icon">ðŸ•</span>
+      <span class="oc-welcome-icon">Ã°Å¸Ââ€¢</span>
       <strong>Joey</strong> doesn't share food, but shares answers.<br>
       How you doin'? Ask me anything.
     </div>
   </div>
-  <button type="button" id="oc-scroll-latest" title="Jump to latest">Latest â†“</button>
+  <button type="button" id="oc-scroll-latest" title="Jump to latest">Latest Ã¢â€ â€œ</button>
   <div id="oc-chat-footer" style="position:relative;">
     <div id="oc-file-preview"></div>
     <div id="oc-upload-status"></div>
@@ -11378,7 +11513,7 @@ window._homerAmbientAudio = {
 <div id="acct-modal-bg" class="fab-overlay">
   <div class="fab-dialog">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
-      <h3 id="acct-title" style="margin:0;font-size:1.15rem;">ðŸ‘¤ Account</h3>
+      <h3 id="acct-title" style="margin:0;font-size:1.15rem;">Ã°Å¸â€˜Â¤ Account</h3>
       <button id="acct-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
     </div>
 
@@ -11387,12 +11522,12 @@ window._homerAmbientAudio = {
       <input id="acct-user" class="acct-field" type="text" placeholder="Username" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
       <div class="acct-field-wrap">
         <input id="acct-pass" class="acct-field" type="password" placeholder="Password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
-        <button type="button" class="pw-toggle" onclick="var i=document.getElementById('acct-pass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'ðŸ‘':'ðŸ‘â€ðŸ—¨'">ðŸ‘</button>
+        <button type="button" class="pw-toggle" onclick="var i=document.getElementById('acct-pass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'Ã°Å¸â€˜Â':'Ã°Å¸â€˜ÂÃ¢â‚¬ÂÃ°Å¸â€”Â¨'">Ã°Å¸â€˜Â</button>
       </div>
       <div id="acct-confirm-wrap" style="display:none;">
         <div class="acct-field-wrap">
           <input id="acct-confirm" class="acct-field" type="password" placeholder="Confirm password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
-          <button type="button" class="pw-toggle" onclick="var i=document.getElementById('acct-confirm');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'ðŸ‘':'ðŸ‘â€ðŸ—¨'">ðŸ‘</button>
+          <button type="button" class="pw-toggle" onclick="var i=document.getElementById('acct-confirm');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'Ã°Å¸â€˜Â':'Ã°Å¸â€˜ÂÃ¢â‚¬ÂÃ°Å¸â€”Â¨'">Ã°Å¸â€˜Â</button>
         </div>
       </div>
       <div style="display:flex;gap:8px;">
@@ -11407,7 +11542,7 @@ window._homerAmbientAudio = {
     <!-- Logged-in view -->
     <div id="acct-info" style="display:none;">
       <div style="text-align:center;margin-bottom:18px;">
-        <div style="font-size:3rem;margin-bottom:8px;">ðŸ‘¤</div>
+        <div style="font-size:3rem;margin-bottom:8px;">Ã°Å¸â€˜Â¤</div>
         <div style="font-size:1.2rem;font-weight:800;color:var(--text);" id="acct-display-name"></div>
         <div style="color:var(--muted);font-size:.85rem;margin-top:4px;">Signed in</div>
       </div>
@@ -11425,7 +11560,7 @@ window._homerAmbientAudio = {
         <input id="admin-user" class="acct-field" type="text" placeholder="Admin email" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" style="font-size:.88rem;">
         <div class="acct-field-wrap">
           <input id="admin-pass" class="acct-field" type="password" placeholder="Admin password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" style="font-size:.88rem;">
-          <button type="button" class="pw-toggle" onclick="var i=document.getElementById('admin-pass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'ðŸ‘':'ðŸ‘â€ðŸ—¨'">ðŸ‘</button>
+          <button type="button" class="pw-toggle" onclick="var i=document.getElementById('admin-pass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'Ã°Å¸â€˜Â':'Ã°Å¸â€˜ÂÃ¢â‚¬ÂÃ°Å¸â€”Â¨'">Ã°Å¸â€˜Â</button>
         </div>
         <button id="admin-signin" class="btn" style="width:100%;padding:9px;font-size:.88rem;background:linear-gradient(135deg,#8b5cf6,#6d28d9);border:none;color:#fff;">Authenticate</button>
         <p id="admin-error" style="color:#ef4444;font-size:.82rem;min-height:1em;margin:6px 0 0;text-align:center;"></p>
@@ -11462,7 +11597,7 @@ window._homerAmbientAudio = {
             <input id="new-user-email" class="acct-field" type="email" placeholder="Email" style="font-size:.85rem;margin-bottom:8px;">
             <div class="acct-field-wrap" style="margin-bottom:10px;">
               <input id="new-user-password" class="acct-field" type="password" placeholder="Password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" style="font-size:.85rem;margin-bottom:0;">
-              <button type="button" class="pw-toggle" onclick="var i=document.getElementById('new-user-password');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'ðŸ‘':'ðŸ‘â€ðŸ—¨'">ðŸ‘</button>
+              <button type="button" class="pw-toggle" onclick="var i=document.getElementById('new-user-password');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'Ã°Å¸â€˜Â':'Ã°Å¸â€˜ÂÃ¢â‚¬ÂÃ°Å¸â€”Â¨'">Ã°Å¸â€˜Â</button>
             </div>
             <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.8rem;color:var(--muted);">
@@ -11572,7 +11707,7 @@ window._homerAmbientAudio = {
       info.style.display = 'block';
       displayName.textContent = user;
       userDot.className = 'fab-user-dot logged-in';
-      titleEl.innerHTML = 'ðŸ‘¤ Account';
+      titleEl.innerHTML = 'Ã°Å¸â€˜Â¤ Account';
       // Update sync passphrase
       localStorage.setItem('homer-sync-pass', hash);
       // Update fab-sync-user if exists
@@ -11630,7 +11765,7 @@ window._homerAmbientAudio = {
       var storedHash = localStorage.getItem(AUTH_HASH_KEY);
 
       if(storedUser && storedHash){
-        // Local account exists â€” verify against it
+        // Local account exists Ã¢â‚¬â€ verify against it
         if(storedUser.toLowerCase() !== user.toLowerCase()){ errorEl.textContent = 'Invalid username or password'; return; }
         if(storedHash !== hash){ errorEl.textContent = 'Invalid username or password'; return; }
         localStorage.setItem('homer-sync-pass', hash);
@@ -11648,14 +11783,14 @@ window._homerAmbientAudio = {
         modalBg.classList.remove('open');
         window.dispatchEvent(new CustomEvent('homer-auth', {detail: {action: 'signin'}}));
       } else {
-        // No local account â€” try cloud backup with these credentials
+        // No local account Ã¢â‚¬â€ try cloud backup with these credentials
         submitBtn.disabled = true;
         submitBtn.textContent = 'Checking cloud...';
         fetch(R2_WORKER_URL+'/sync',{headers:{'X-Sync-Key':hash}})
           .then(function(r){ return r.json(); })
           .then(function(d){
             if(d.data && d.data['homer-auth-user']){
-              // Cloud account found â€” verify username matches
+              // Cloud account found Ã¢â‚¬â€ verify username matches
               if(d.data['homer-auth-user'].toLowerCase() !== user.toLowerCase()){
                 errorEl.textContent = 'Invalid username or password';
                 submitBtn.disabled = false;
@@ -11717,7 +11852,7 @@ window._homerAmbientAudio = {
     el.addEventListener('keydown', function(e){ if(e.key === 'Enter') submitBtn.click(); });
   });
 
-  // Logout â€” backup first, then clear credentials
+  // Logout Ã¢â‚¬â€ backup first, then clear credentials
   logoutBtn.addEventListener('click', function(){
     window.dispatchEvent(new CustomEvent('homer-auth', {detail: {action: 'logout'}}));
     localStorage.removeItem(AUTH_USER_KEY);
@@ -13544,7 +13679,7 @@ window._homerAmbientAudio = {
 
   function backup(force){
     var p=pass.value.trim();
-    if(!p){ st('Not logged in â€” please sign in first'); return Promise.resolve({ ok:false, skipped:true, reason:'nologin' }); }
+    if(!p){ st('Not logged in Ã¢â‚¬â€ please sign in first'); return Promise.resolve({ ok:false, skipped:true, reason:'nologin' }); }
     localStorage.setItem(SYNC_PASS_KEY,p);
 
     return getAll().then(function(allData){
@@ -13579,7 +13714,7 @@ window._homerAmbientAudio = {
           // If cloud is newer or clearly richer, do not overwrite it silently.
           if(cloudIsNewer || cloudLooksRicher){
             if(force){
-              // Manual backup â€” show confirm dialog
+              // Manual backup Ã¢â‚¬â€ show confirm dialog
               var cloudDate = cloudTs ? new Date(cloudTs).toLocaleString() : 'unknown time';
               var proceed = confirm(
                 'Warning: Cloud data looks newer or richer than this device.\n\n' +
@@ -13590,13 +13725,13 @@ window._homerAmbientAudio = {
                 'Click Cancel to keep the cloud data safe, or OK to overwrite.'
               );
               if(!proceed){
-                st('Backup cancelled â€” cloud data preserved (' + cloudDataCount + ' items).');
+                st('Backup cancelled Ã¢â‚¬â€ cloud data preserved (' + cloudDataCount + ' items).');
                 return { ok:false, skipped:true, reason:'cancelled' };
               }
             } else {
-              // Auto-backup â€” never overwrite silently, back off for a while.
+              // Auto-backup Ã¢â‚¬â€ never overwrite silently, back off for a while.
               conflictBackoffUntil = Date.now() + CONFLICT_BACKOFF_MS;
-              st('Auto-sync paused â€” cloud changed on another device. Open the app there or use Restore before pushing local changes.');
+              st('Auto-sync paused Ã¢â‚¬â€ cloud changed on another device. Open the app there or use Restore before pushing local changes.');
               return { ok:false, skipped:true, reason:'conflict' };
             }
           }
@@ -13616,11 +13751,11 @@ window._homerAmbientAudio = {
                 'Click Cancel to keep cloud data, or OK to overwrite anyway.'
               );
               if(!proceed2){
-                st('Backup cancelled â€” cloud data preserved.');
+                st('Backup cancelled Ã¢â‚¬â€ cloud data preserved.');
                 return { ok:false, skipped:true, reason:'cancelled' };
               }
             } else {
-              st('Auto-backup skipped â€” local data appears incomplete. Cloud preserved.');
+              st('Auto-backup skipped Ã¢â‚¬â€ local data appears incomplete. Cloud preserved.');
               return { ok:false, skipped:true, reason:'incomplete-local' };
             }
           }
@@ -13633,14 +13768,14 @@ window._homerAmbientAudio = {
           });
         })
         .catch(function(){
-          // Can't reach cloud â€” only backup if forced (manual)
+          // Can't reach cloud Ã¢â‚¬â€ only backup if forced (manual)
           if(force) return doBackup(p, allData).then(function(result){
             return doDbBackup(p, allData).then(function(dbResult){
               if(result && result.ok) result.dbMirrored = !!(dbResult && dbResult.ok);
               return result;
             }).catch(function(){ return result; });
           });
-          st('Auto-backup skipped â€” could not verify cloud data');
+          st('Auto-backup skipped Ã¢â‚¬â€ could not verify cloud data');
           return { ok:false, skipped:true, reason:'preflight-failed' };
         });
     });
@@ -13648,7 +13783,7 @@ window._homerAmbientAudio = {
 
   function restoreLegacyShadow(){
     var p=pass.value.trim();
-    if(!p){ st('Not logged in â€” please sign in first'); return; }
+    if(!p){ st('Not logged in Ã¢â‚¬â€ please sign in first'); return; }
     localStorage.setItem(SYNC_PASS_KEY,p);
     st('Restoring...');
     fetch(R2_WORKER_URL+'/sync',{headers:{'X-Sync-Key':p}})
@@ -14041,13 +14176,13 @@ window._homerAmbientAudio = {
       .then(function(r){ return r.json(); })
       .then(function(d){
         if(!d.ts || d.ts <= localTs){
-          // Local is same or newer â€” nothing to pull
+          // Local is same or newer Ã¢â‚¬â€ nothing to pull
           lastPullTs = Date.now();
           pullInProgress = false;
           conflictBackoffUntil = 0;
           return;
         }
-        // Cloud is newer â€” fetch full data and merge
+        // Cloud is newer Ã¢â‚¬â€ fetch full data and merge
         console.log('[CloudSync] Cloud is newer (cloud:'+d.ts+' vs local:'+localTs+'), pulling...');
         return fetch(R2_WORKER_URL+'/sync',{headers:{'X-Sync-Key':p}})
           .then(function(r){ return r.json(); })
@@ -14186,7 +14321,7 @@ window._homerAmbientAudio = {
     if(!isLeader && !leaderAlive()) tryLead(true);
   }, LEADER_TIMEOUT_MS);
 
-  // Claim on load (no sync trigger â€” page-load section handles initial sync)
+  // Claim on load (no sync trigger Ã¢â‚¬â€ page-load section handles initial sync)
   tryLead(false);
 
   var criticalDbBackupTimer = null;
@@ -14221,7 +14356,7 @@ window._homerAmbientAudio = {
     });
   }
 
-  // Save before page close â€” only leader sends beacon (or fallback if leader is dead)
+  // Save before page close Ã¢â‚¬â€ only leader sends beacon (or fallback if leader is dead)
   window.addEventListener('beforeunload', function(){
     if(isLeader){
       if(bc) bc.postMessage({ type: 'leader-dying' });
@@ -14315,12 +14450,12 @@ window._homerAmbientAudio = {
     var action = e.detail && e.detail.action;
     updateSyncUI();
     if(action === 'register'){
-      // New account â€” backup current data to cloud
+      // New account Ã¢â‚¬â€ backup current data to cloud
       backup(true).then(function(){
         startAuto();
       });
     } else if(action === 'signin'){
-      // Existing account â€” restore from cloud, then enable auto-backup
+      // Existing account Ã¢â‚¬â€ restore from cloud, then enable auto-backup
       var p = pass.value.trim();
       if(!p) return;
       st('Restoring your data...');
@@ -14328,11 +14463,11 @@ window._homerAmbientAudio = {
         .then(function(r){ return r.json(); })
         .then(function(d){
           if(d.error || !d.data){
-            // No cloud data yet â€” just backup current data
-            st('No cloud data found â€” backing up...');
+            // No cloud data yet Ã¢â‚¬â€ just backup current data
+            st('No cloud data found Ã¢â‚¬â€ backing up...');
             return backup().then(function(){ startAuto(); });
           }
-          // Cloud data exists â€” restore it
+          // Cloud data exists Ã¢â‚¬â€ restore it
           var c = 0;
           var idbWrites = [];
           Object.keys(d.data).forEach(function(k){
@@ -14352,7 +14487,7 @@ window._homerAmbientAudio = {
         })
         .catch(function(err){
           st('Restore failed: ' + (err.message || 'network error'));
-          // Don't backup on restore failure â€” could overwrite cloud with empty data
+          // Don't backup on restore failure Ã¢â‚¬â€ could overwrite cloud with empty data
           startAuto();
         });
     } else if(action === 'logout'){
@@ -14995,7 +15130,7 @@ window._homerAmbientAudio = {
       if(file.downloadUrl) links += '<a href="' + escAttr(file.downloadUrl) + '" target="_blank" rel="noopener noreferrer">Download</a>';
       return '<div class="oc-library-item">' +
         '<strong>' + escHtml(name) + '</strong>' +
-        '<span>' + escHtml(parts.join(' â€¢ ') || 'Remembered upload') + '</span>' +
+        '<span>' + escHtml(parts.join(' Ã¢â‚¬Â¢ ') || 'Remembered upload') + '</span>' +
         (excerpt ? '<span>' + escHtml(excerpt) + '</span>' : '') +
         (links ? '<div class="oc-library-actions">' + links + '</div>' : '') +
       '</div>';
@@ -15616,7 +15751,7 @@ window._homerAmbientAudio = {
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass){ alert('Log in first (unlock vault) to save.'); return; }
     btn.disabled = true;
-    btn.textContent = 'â³ Saving...';
+    btn.textContent = 'Ã¢ÂÂ³ Saving...';
     // Save history to Redis
     var historyPromise = chatHistory.length ? fetch(joeyActionUrl('history'), {
       method:'POST',
@@ -15641,7 +15776,7 @@ window._homerAmbientAudio = {
       var histResult = results[0];
       var learnResult = results[1];
       var backupResult = results[3];
-      btn.textContent = 'âœ… Saved!';
+      btn.textContent = 'Ã¢Å“â€¦ Saved!';
       var msg = 'History: ' + (histResult.count || 0) + ' msgs';
       if(learnResult.learned > 0) msg += ', Learned: ' + learnResult.learned + ' facts';
       if(learnResult.profileUpdated) msg += ', Profile updated';
@@ -15650,7 +15785,7 @@ window._homerAmbientAudio = {
       console.log('[Joey] Manual DB save:', msg);
       setTimeout(function(){ btn.innerHTML = '&#x1f4be; Commit Memory Now'; btn.disabled = false; }, 2000);
     }).catch(function(e){
-      btn.textContent = 'âŒ Error';
+      btn.textContent = 'Ã¢ÂÅ’ Error';
       console.error('[Joey] DB save error:', e);
       setTimeout(function(){ btn.innerHTML = '&#x1f4be; Commit Memory Now'; btn.disabled = false; }, 2000);
     });
@@ -15662,7 +15797,7 @@ window._homerAmbientAudio = {
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass){ alert('Log in first (unlock vault) to backup.'); return; }
     btn.disabled = true;
-    btn.textContent = 'â³ Backing up...';
+    btn.textContent = 'Ã¢ÂÂ³ Backing up...';
     collectTaskSnapshot().then(function(tasks){
       return fetch('/api/gdrive-backup', {
         method:'POST',
@@ -15673,17 +15808,17 @@ window._homerAmbientAudio = {
       if(d.ok){
         if(typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-drive-backup-ts');
         scheduleJoeySyncStatusRefresh(200);
-        btn.textContent = 'âœ… Backed up!';
+        btn.textContent = 'Ã¢Å“â€¦ Backed up!';
         setTimeout(function(){ btn.innerHTML = '&#x2601; Backup to Drive'; btn.disabled = false; }, 3000);
       } else {
-        btn.textContent = 'âŒ Failed';
+        btn.textContent = 'Ã¢ÂÅ’ Failed';
         console.error('[GDrive Backup]', d);
         // Show full error details
         alert('BACKUP ERROR:\n\n' + JSON.stringify(d, null, 2).substring(0, 800));
         setTimeout(function(){ btn.innerHTML = '&#x2601; Backup to Drive'; btn.disabled = false; }, 2000);
       }
     }).catch(function(e){
-      btn.textContent = 'âŒ Error';
+      btn.textContent = 'Ã¢ÂÅ’ Error';
       console.error('[GDrive Backup]', e);
       alert('Network error: ' + e.message);
       setTimeout(function(){ btn.innerHTML = '&#x2601; Backup to Drive'; btn.disabled = false; }, 2000);
@@ -15697,14 +15832,14 @@ window._homerAmbientAudio = {
     if(!pass){ alert('Log in first (unlock vault) to restore.'); return; }
     if(!confirm('Restore ' + currentContextMode + ' context from Google Drive? This will overwrite current memories for this mode.')) return;
     btn.disabled = true;
-    btn.textContent = 'â³ Restoring...';
+    btn.textContent = 'Ã¢ÂÂ³ Restoring...';
     fetch('/api/gdrive-restore', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(withContextMode({ passphrase: pass }))
     }).then(function(r){ return r.json(); }).then(function(d){
       if(d.ok){
-        btn.textContent = 'âœ… Restored!';
+        btn.textContent = 'Ã¢Å“â€¦ Restored!';
         // Reload chat history if restored
         if(d.restored && d.restored.history) loadHistoryFromRedis(true);
         refreshCanonicalFiles().catch(function(){});
@@ -15712,13 +15847,13 @@ window._homerAmbientAudio = {
         scheduleJoeySyncStatusRefresh(250);
         setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore from Drive'; btn.disabled = false; }, 3000);
       } else {
-        btn.textContent = 'âŒ Failed';
+        btn.textContent = 'Ã¢ÂÅ’ Failed';
         console.error('[GDrive Restore]', d);
         alert('ERROR:\n' + JSON.stringify(d, null, 2).slice(0, 500));
         setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore from Drive'; btn.disabled = false; }, 2000);
       }
     }).catch(function(e){
-      btn.textContent = 'âŒ Error';
+      btn.textContent = 'Ã¢ÂÅ’ Error';
       console.error('[GDrive Restore]', e);
       alert('Network error: ' + e.message);
       setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore from Drive'; btn.disabled = false; }, 2000);
@@ -15895,16 +16030,16 @@ window._homerAmbientAudio = {
   document.getElementById('oc-rebuild-files').addEventListener('click', function(){
     var btn = this;
     btn.disabled = true;
-    btn.textContent = 'â³ Rebuilding...';
+    btn.textContent = 'Ã¢ÂÂ³ Rebuilding...';
     refreshCanonicalFiles().then(function(data){
       if(data && data.ok){
-        btn.textContent = 'âœ… Rebuilt!';
+        btn.textContent = 'Ã¢Å“â€¦ Rebuilt!';
       } else {
-        btn.textContent = 'âŒ Failed';
+        btn.textContent = 'Ã¢ÂÅ’ Failed';
         alert('Rebuild failed: ' + JSON.stringify(data || {}).slice(0, 400));
       }
     }).catch(function(err){
-      btn.textContent = 'âŒ Failed';
+      btn.textContent = 'Ã¢ÂÅ’ Failed';
       alert('Rebuild failed: ' + err.message);
     }).finally(function(){
       setTimeout(function(){ btn.innerHTML = '&#x21bb; Rebuild Context'; btn.disabled = false; }, 2200);
@@ -15914,11 +16049,11 @@ window._homerAmbientAudio = {
   document.getElementById('oc-rebuild-library').addEventListener('click', function(){
     var btn = this;
     btn.disabled = true;
-    btn.textContent = 'Ã¢ÂÂ³ Rebuilding...';
+    btn.textContent = 'ÃƒÂ¢Ã‚ÂÃ‚Â³ Rebuilding...';
     rebuildRememberedFilesContext().then(function(){
-      btn.textContent = 'Ã¢Å“â€¦ Rebuilt!';
+      btn.textContent = 'ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Rebuilt!';
     }).catch(function(err){
-      btn.textContent = 'Ã¢ÂÅ’ Failed';
+      btn.textContent = 'ÃƒÂ¢Ã‚ÂÃ…â€™ Failed';
       if(typeof setUploadStatus === 'function'){
         setUploadStatus('File rebuild failed: ' + (err && err.message ? err.message : String(err)), 'warn', true);
       }
@@ -15956,7 +16091,7 @@ window._homerAmbientAudio = {
 
   function loadHistoryFromRedis(force){
     var pass = localStorage.getItem('homer-sync-pass') || '';
-    if(!pass){ console.warn('[Joey] No passphrase â€” cannot load history from Redis'); return; }
+    if(!pass){ console.warn('[Joey] No passphrase Ã¢â‚¬â€ cannot load history from Redis'); return; }
     fetch(joeyActionUrl('history', pass))
       .then(function(r){ return r.json(); })
       .then(function(data){
@@ -16137,7 +16272,7 @@ window._homerAmbientAudio = {
           }
           // Add agent acknowledgment message
           if(showConfirmation){
-            addAgentMessage('Context loaded from Google Drive. I\'m up to date! ðŸ§ âœ…');
+            addAgentMessage('Context loaded from Google Drive. I\'m up to date! Ã°Å¸Â§Â Ã¢Å“â€¦');
           }
           return d;
         } else {
@@ -16146,7 +16281,7 @@ window._homerAmbientAudio = {
             addAgentMessage('Sorry, could not compare context from Drive.');
           }
           if(showConfirmation){
-            addAgentMessage('Sorry, couldn\'t sync context from Drive. âŒ');
+            addAgentMessage('Sorry, couldn\'t sync context from Drive. Ã¢ÂÅ’');
           }
           throw new Error(d.error || 'Sync failed');
         }
@@ -16174,12 +16309,12 @@ window._homerAmbientAudio = {
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass){ alert('Log in first (unlock vault) to sync.'); return; }
     btn.disabled = true;
-    btn.textContent = 'â³ Syncing...';
+    btn.textContent = 'Ã¢ÂÂ³ Syncing...';
     syncContextFromDrive(true).then(function(){
-      btn.textContent = 'âœ… Synced!';
+      btn.textContent = 'Ã¢Å“â€¦ Synced!';
       setTimeout(function(){ btn.innerHTML = '&#x27f3; Sync from Drive'; btn.disabled = false; }, 2000);
     }).catch(function(e){
-      btn.textContent = 'âŒ Failed';
+      btn.textContent = 'Ã¢ÂÅ’ Failed';
       setTimeout(function(){ btn.innerHTML = '&#x27f3; Sync from Drive'; btn.disabled = false; }, 2000);
     });
   });
@@ -16491,7 +16626,7 @@ window._homerAmbientAudio = {
     if(!/\b(?:create|add|save|track|put|make|turn)\b/i.test(raw)) return null;
     if(!/\b(?:task|todo|to-?do|card|issue)\b/i.test(raw)) return null;
     var remainder = raw.replace(/^\s*(?:please\s+)?(?:create|add|save|track|put|make)\s+(?:me\s+|this\s+|a\s+|an\s+)?(?:new\s+)?(?:task|todo|to-?do|card|issue)\b/i, '').trim();
-    var remainderProjectMatch = remainder.match(/^(?:in|into|under|for)\s+(?:the\s+)?project\s+["â€œ]?([^,"\n]+?)["â€]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
+    var remainderProjectMatch = remainder.match(/^(?:in|into|under|for)\s+(?:the\s+)?project\s+["Ã¢â‚¬Å“]?([^,"\n]+?)["Ã¢â‚¬Â]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
     if(remainderProjectMatch){
       var inferredProject = String(remainderProjectMatch[1] || '').trim();
       var inferredSummary = remainder.slice(remainderProjectMatch[0].length).trim().replace(/^[,:-]\s*/, '');
@@ -16504,7 +16639,7 @@ window._homerAmbientAudio = {
         };
       }
     }
-    var remainderScopedMatch = remainder.match(/^(?:in|into|under|for)\s+["Ã¢â‚¬Å“]?([A-Za-z][A-Za-z0-9_-]{1,20})["Ã¢â‚¬Â]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
+    var remainderScopedMatch = remainder.match(/^(?:in|into|under|for)\s+["ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ]?([A-Za-z][A-Za-z0-9_-]{1,20})["ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
     if(remainderScopedMatch && !/^the$/i.test(String(remainderScopedMatch[1] || '').trim())){
       var scopedProject = String(remainderScopedMatch[1] || '').trim();
       var scopedSummary = remainder.slice(remainderScopedMatch[0].length).trim().replace(/^[,:-]\s*/, '');
@@ -16518,11 +16653,11 @@ window._homerAmbientAudio = {
       }
     }
     var project = '';
-    var projectMatch = raw.match(/\b(?:in|into|under|for)\s+(?:the\s+)?project\s+["“]?([^,"\n]+?)["”]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
+    var projectMatch = raw.match(/\b(?:in|into|under|for)\s+(?:the\s+)?project\s+["â€œ]?([^,"\n]+?)["â€]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
     if(projectMatch) project = String(projectMatch[1] || '').trim();
     var summary = raw
       .replace(/^\s*(?:please\s+)?(?:create|add|save|track|put|make)\s+(?:me\s+|this\s+|a\s+|an\s+)?(?:new\s+)?(?:task|todo|to-?do|card|issue)\b/i, '')
-      .replace(/^\s*(?:in|into|under|for)\s+(?:the\s+)?project\s+["“]?([^,"\n]+?)["”]?(?:\s*,|\s*:\s*|\s+-\s+)?/i, '')
+      .replace(/^\s*(?:in|into|under|for)\s+(?:the\s+)?project\s+["â€œ]?([^,"\n]+?)["â€]?(?:\s*,|\s*:\s*|\s+-\s+)?/i, '')
       .replace(/^\s*(?:for|to)\s+/i, '')
       .trim();
     if(!summary){
@@ -16546,9 +16681,9 @@ window._homerAmbientAudio = {
     var project = '';
     var summary = body;
     var patterns = [
-      /^(?:in|into|under|for)\s+(?:the\s+)?(?:(personal|work)\s*,\s*)?["â€œ]?([^,"\n]+?)\s+project["â€]?(?:\s*,|\s*:\s*|\s+-\s+|\s+)([\s\S]+)$/i,
-      /^(?:in|into|under|for)\s+(?:the\s+)?project\s+["“]?([^,"\n]+?)["”]?(?:\s*,|\s*:\s*|\s+-\s+|\s+)([\s\S]+)$/i,
-      /^(?:in|into|under|for)\s+["“]?([A-Za-z][A-Za-z0-9 _-]{1,40})["”]?(?:\s*,|\s*:\s*|\s+-\s+|\s+)([\s\S]+)$/i
+      /^(?:in|into|under|for)\s+(?:the\s+)?(?:(personal|work)\s*,\s*)?["Ã¢â‚¬Å“]?([^,"\n]+?)\s+project["Ã¢â‚¬Â]?(?:\s*,|\s*:\s*|\s+-\s+|\s+)([\s\S]+)$/i,
+      /^(?:in|into|under|for)\s+(?:the\s+)?project\s+["â€œ]?([^,"\n]+?)["â€]?(?:\s*,|\s*:\s*|\s+-\s+|\s+)([\s\S]+)$/i,
+      /^(?:in|into|under|for)\s+["â€œ]?([A-Za-z][A-Za-z0-9 _-]{1,40})["â€]?(?:\s*,|\s*:\s*|\s+-\s+|\s+)([\s\S]+)$/i
     ];
     for(var p = 0; p < patterns.length; p++){
       var found = body.match(patterns[p]);
@@ -17431,7 +17566,7 @@ window._homerAmbientAudio = {
     actions.forEach(function(a){
       try{
         if(a.type === 'TASK'){
-          // Kanban board task (vault) â€” accepts JSON or plain string
+          // Kanban board task (vault) Ã¢â‚¬â€ accepts JSON or plain string
           if(((inferredTask && !directTaskNeedsPlanning) || inferredIssueUpdate) && !a.inferred) return;
           var taskData = parseTaskActionData(a.data, userText);
           applyAgentTaskMutation(taskData, { userText:userText, source:'action' });
@@ -17521,13 +17656,13 @@ window._homerAmbientAudio = {
               });
             });
           } else {
-            notifications.push('Vault is locked â€” unlock it first to add tasks to the Kanban board');
+            notifications.push('Vault is locked Ã¢â‚¬â€ unlock it first to add tasks to the Kanban board');
             return;
           }
           notifications.push((a.inferred ? 'Kanban task inferred: ' : 'Kanban task queued: ') + (taskData.summary || taskData.title || a.data) + ((taskData.subtasks && taskData.subtasks.length) ? ' (' + taskData.subtasks.length + ' subtasks)' : '') + ((taskData.project || taskData.projectId) ? ' -> ' + (taskData.project || taskData.projectId) : ''));
         }
         else if(a.type === 'GOAL'){
-          // Life goal (vault) â€” aspirations with milestones
+          // Life goal (vault) Ã¢â‚¬â€ aspirations with milestones
           var lgData = JSON.parse(a.data);
           if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
             window._homerLoadVault().then(function(data){
@@ -17542,7 +17677,7 @@ window._homerAmbientAudio = {
                 milestones: (lgData.milestones || []).map(function(m){ return {text: typeof m === 'string' ? m : m.text, done: false}; }),
                 progress: 0,
                 targetDate: lgData.targetDate || '',
-                icon: lgData.icon || 'ðŸŽ¯',
+                icon: lgData.icon || 'Ã°Å¸Å½Â¯',
                 createdAt: Date.now(),
                 updatedAt: Date.now()
               });
@@ -17553,13 +17688,13 @@ window._homerAmbientAudio = {
               refreshCanonicalFiles().catch(function(){});
             });
           } else {
-            notifications.push('Vault is locked â€” unlock it first to add life goals');
+            notifications.push('Vault is locked Ã¢â‚¬â€ unlock it first to add life goals');
             return;
           }
           notifications.push('Life goal created: ' + (lgData.title || 'New Goal'));
         }
         else if(a.type === 'FOCUS'){
-          // Pomodoro focus task â€” quick task for the timer
+          // Pomodoro focus task Ã¢â‚¬â€ quick task for the timer
           var TKEY = 'pom.tasks.v1';
           var list = [];
           try{ list = JSON.parse(localStorage.getItem(TKEY) || '[]'); }catch(e){}
@@ -18120,7 +18255,7 @@ window._homerAmbientAudio = {
       }).then(function(r){
         return r.json().catch(function(){ return {}; }).then(function(data){
           if(!r.ok || !data || !data.ok || !data.file){
-            var reason = (data && [data.detail, data.hint, data.error].filter(Boolean).join(' â€” ')) || 'Upload failed';
+            var reason = (data && [data.detail, data.hint, data.error].filter(Boolean).join(' Ã¢â‚¬â€ ')) || 'Upload failed';
             throw new Error(reason);
           }
           return data;
@@ -18168,7 +18303,7 @@ window._homerAmbientAudio = {
     pendingFiles.forEach(function(f, idx){
       var tag = document.createElement('span');
       tag.className = 'oc-file-tag';
-      tag.innerHTML = escHtml(f.name) + (f.driveUrl ? ' <span title="Saved to Google Drive">â˜</span>' : ' <span title="Not synced">local</span>') + ' <button title="Remove">&times;</button>';
+      tag.innerHTML = escHtml(f.name) + (f.driveUrl ? ' <span title="Saved to Google Drive">Ã¢ËœÂ</span>' : ' <span title="Not synced">local</span>') + ' <button title="Remove">&times;</button>';
       tag.querySelector('button').addEventListener('click', function(){
         pendingFiles.splice(idx, 1);
         renderFilePreviewPanel();
@@ -18179,10 +18314,10 @@ window._homerAmbientAudio = {
 
   // --- Emoji picker ---
   var EMOJI_DATA = {
-    'ðŸ˜€': ['ðŸ˜€','ðŸ˜‚','ðŸ¤£','ðŸ˜Š','ðŸ˜','ðŸ¥°','ðŸ˜Ž','ðŸ¤©','ðŸ˜‡','ðŸ¥³','ðŸ˜','ðŸ¤”','ðŸ˜´','ðŸ¤¯','ðŸ¥º','ðŸ˜¤','ðŸ˜­','ðŸ’€','ðŸ¤–','ðŸ‘»'],
-    'ðŸ‘‹': ['ðŸ‘‹','ðŸ‘','ðŸ‘Ž','ðŸ‘','ðŸ™Œ','ðŸ¤','âœŒï¸','ðŸ¤ž','ðŸ’ª','ðŸ™','ðŸ‘€','ðŸ§ ','â¤ï¸','ðŸ”¥','â­','ðŸ’¡','âœ…','âŒ','âš¡','ðŸŽ‰'],
-    'ðŸ±': ['ðŸ±','ðŸ¶','ðŸ¦Š','ðŸ»','ðŸ¦','ðŸ¸','ðŸ™','ðŸ¦ž','ðŸ¦€','ðŸ','ðŸŒ¿','ðŸŒ¸','ðŸŒ™','â˜€ï¸','ðŸŒˆ','ðŸ’§','â„ï¸','ðŸ•','â˜•','ðŸº'],
-    'ðŸ’»': ['ðŸ’»','ðŸ“±','âŒ¨ï¸','ðŸ–¥ï¸','ðŸ“','ðŸ“„','ðŸ“Š','ðŸ”—','ðŸ”’','ðŸ”‘','ðŸ“¡','ðŸ› ï¸','âš™ï¸','ðŸ§ª','ðŸ“','ðŸ’¾','ðŸ“¦','ðŸš€','ðŸ ','ðŸ“Œ']
+    'Ã°Å¸Ëœâ‚¬': ['Ã°Å¸Ëœâ‚¬','Ã°Å¸Ëœâ€š','Ã°Å¸Â¤Â£','Ã°Å¸ËœÅ ','Ã°Å¸ËœÂ','Ã°Å¸Â¥Â°','Ã°Å¸ËœÅ½','Ã°Å¸Â¤Â©','Ã°Å¸Ëœâ€¡','Ã°Å¸Â¥Â³','Ã°Å¸ËœÂ','Ã°Å¸Â¤â€','Ã°Å¸ËœÂ´','Ã°Å¸Â¤Â¯','Ã°Å¸Â¥Âº','Ã°Å¸ËœÂ¤','Ã°Å¸ËœÂ­','Ã°Å¸â€™â‚¬','Ã°Å¸Â¤â€“','Ã°Å¸â€˜Â»'],
+    'Ã°Å¸â€˜â€¹': ['Ã°Å¸â€˜â€¹','Ã°Å¸â€˜Â','Ã°Å¸â€˜Å½','Ã°Å¸â€˜Â','Ã°Å¸â„¢Å’','Ã°Å¸Â¤Â','Ã¢Å“Å’Ã¯Â¸Â','Ã°Å¸Â¤Å¾','Ã°Å¸â€™Âª','Ã°Å¸â„¢Â','Ã°Å¸â€˜â‚¬','Ã°Å¸Â§Â ','Ã¢ÂÂ¤Ã¯Â¸Â','Ã°Å¸â€Â¥','Ã¢Â­Â','Ã°Å¸â€™Â¡','Ã¢Å“â€¦','Ã¢ÂÅ’','Ã¢Å¡Â¡','Ã°Å¸Å½â€°'],
+    'Ã°Å¸ÂÂ±': ['Ã°Å¸ÂÂ±','Ã°Å¸ÂÂ¶','Ã°Å¸Â¦Å ','Ã°Å¸ÂÂ»','Ã°Å¸Â¦Â','Ã°Å¸ÂÂ¸','Ã°Å¸Ââ„¢','Ã°Å¸Â¦Å¾','Ã°Å¸Â¦â‚¬','Ã°Å¸ÂÂ','Ã°Å¸Å’Â¿','Ã°Å¸Å’Â¸','Ã°Å¸Å’â„¢','Ã¢Ëœâ‚¬Ã¯Â¸Â','Ã°Å¸Å’Ë†','Ã°Å¸â€™Â§','Ã¢Ââ€žÃ¯Â¸Â','Ã°Å¸Ââ€¢','Ã¢Ëœâ€¢','Ã°Å¸ÂÂº'],
+    'Ã°Å¸â€™Â»': ['Ã°Å¸â€™Â»','Ã°Å¸â€œÂ±','Ã¢Å’Â¨Ã¯Â¸Â','Ã°Å¸â€“Â¥Ã¯Â¸Â','Ã°Å¸â€œÂ','Ã°Å¸â€œâ€ž','Ã°Å¸â€œÅ ','Ã°Å¸â€â€”','Ã°Å¸â€â€™','Ã°Å¸â€â€˜','Ã°Å¸â€œÂ¡','Ã°Å¸â€ºÂ Ã¯Â¸Â','Ã¢Å¡â„¢Ã¯Â¸Â','Ã°Å¸Â§Âª','Ã°Å¸â€œÂ','Ã°Å¸â€™Â¾','Ã°Å¸â€œÂ¦','Ã°Å¸Å¡â‚¬','Ã°Å¸ÂÂ ','Ã°Å¸â€œÅ’']
   };
   var emojiCats = Object.keys(EMOJI_DATA);
   var tabsEl = emojiPicker.querySelector('.oc-emoji-tabs');
@@ -18263,7 +18398,7 @@ window._homerAmbientAudio = {
     if(!text && !pendingFiles.length) return;
     if(streaming) return;
     var savedPromptOverride = getSavedSystemPrompt(currentContextMode);
-    var JOEY_PROMPT = 'You are Joey â€” a personal AI assistant with personality. You speak like Joey Tribbiani from Friends (confident, charming, fun), but you\'re genuinely smart and deeply helpful. You know this person. You have their profile, memories, and conversation history injected into your context by the server. USE THEM.\n\nTODAY: ' + new Date().toISOString().slice(0,10) + ' | TIME: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '\n\n=== PERSONALITY ===\n- Be direct, no fluff. Match the user\'s energy.\n- Use Joey catchphrases SPARINGLY and naturally â€” don\'t force them every message.\n- Have real opinions. Disagree when warranted. Be a friend, not a yes-man.\n- When you know something about them (from profile/memories), use it naturally â€” don\'t announce "I remember...".\n- Ask follow-up questions about things you know they care about (their goals, their people, recent events).\n- If they seem stressed or down, be supportive. If they\'re excited, share that energy.\n\n=== ACTIONS (append at END of your response) ===\n\nTASK (Kanban board â€” DEFAULT for any work item, to-do, action):\n- Create a TASK only when the user explicitly asks you to add, create, save, track, put on the board, or turn something into a task.\n- Do NOT create tasks proactively, by implication, or just because a deadline/problem/action item was mentioned.\n- If the user is only discussing plans or problems, respond normally without action tags.\n- For explicit task requests, include: summary, notes, priority when implied, due when mentioned, and 2-5 concrete subtasks.\n- If the user names a project, include \"project\" or \"projectId\" in the TASK JSON. Never leave it out.\n- Use notes for the task description. Do not use GOAL for normal actionable work items.\n- Simple fallback: [ACTION:TASK]Buy groceries[/ACTION]\n- Preferred detailed format: [ACTION:TASK]{\"project\":\"Apps\",\"summary\":\"Fix login bug\",\"notes\":\"Users cannot sign in after password reset. Investigate the reset flow, patch the regression, and verify the happy path.\",\"priority\":\"high\",\"due\":\"2026-03-25\",\"subtasks\":[{\"text\":\"Reproduce the bug locally\",\"notes\":\"Test the password reset flow with an affected account.\"},{\"text\":\"Identify the failing auth step\"},{\"text\":\"Implement and verify the fix\"}]}[/ACTION]\n\nGOAL (Life Goals â€” aspirations, dreams, long-term objectives):\n[ACTION:GOAL]{"title":"Buy a house","description":"Why this matters","category":"finance","milestones":["Step 1","Step 2"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\nCategories: health, finance, career, personal, education, travel, creative, relationship\n\nFOCUS (Pomodoro â€” ONLY when user explicitly says "focus", "pomodoro", "focus task"):\n[ACTION:FOCUS]Task name[/ACTION]\nIMPORTANT: NEVER create FOCUS unless explicitly asked. Default is always TASK.\n\nEVENT (Calendar â€” use category to differentiate event types):\n[ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details","category":"meeting"}[/ACTION]\nEvent categories: meeting, deadline, reminder, personal, work\n\nREMEMBER (save important facts â€” your auto-memory also captures things, but use this for explicit asks):\n[ACTION:REMEMBER]{"memory":"fact about the user","category":"preference"}[/ACTION]\nCategories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work\n\nFORGET:\n[ACTION:FORGET]text to forget[/ACTION]\n\n=== WEB SEARCH ===\n- You may receive LIVE WEB SEARCH RESULTS in your system prompt when the user asks about current events, facts, or anything that needs up-to-date info.\n- When you have search results, use them to give accurate answers. Cite sources naturally (e.g. "According to...", link titles).\n- If search results are present, prioritize them over your training data for current facts.\n- You can suggest the user search for something specific if you don\'t have results: just say "let me look that up" â€” the system will search automatically on their next related question.\n\n=== RULES ===\n- Dates: YYYY-MM-DD, Times: HH:MM (24h), Priority: high/medium/low\n- Always include action tags only when the user explicitly asked to create something.\n- When the user explicitly asks to add or create a task, append a TASK action unless they explicitly refuse.\n- For TASK actions, prefer JSON over plain text so the Kanban card is fully populated.\n- When the user names a project, the TASK must target that project explicitly instead of guessing.\n- Natural-language confirmation alone is not enough for task creation; you must append the TASK action tag.\n- Do not offer or create a task just because a deadline, plan, or obligation was mentioned.\n- Conversation memory is saved automatically from chat when sync is unlocked; use REMEMBER only when the user explicitly wants something pinned or deliberately saved.';
+    var JOEY_PROMPT = 'You are Joey Ã¢â‚¬â€ a personal AI assistant with personality. You speak like Joey Tribbiani from Friends (confident, charming, fun), but you\'re genuinely smart and deeply helpful. You know this person. You have their profile, memories, and conversation history injected into your context by the server. USE THEM.\n\nTODAY: ' + new Date().toISOString().slice(0,10) + ' | TIME: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '\n\n=== PERSONALITY ===\n- Be direct, no fluff. Match the user\'s energy.\n- Use Joey catchphrases SPARINGLY and naturally Ã¢â‚¬â€ don\'t force them every message.\n- Have real opinions. Disagree when warranted. Be a friend, not a yes-man.\n- When you know something about them (from profile/memories), use it naturally Ã¢â‚¬â€ don\'t announce "I remember...".\n- Ask follow-up questions about things you know they care about (their goals, their people, recent events).\n- If they seem stressed or down, be supportive. If they\'re excited, share that energy.\n\n=== ACTIONS (append at END of your response) ===\n\nTASK (Kanban board Ã¢â‚¬â€ DEFAULT for any work item, to-do, action):\n- Create a TASK only when the user explicitly asks you to add, create, save, track, put on the board, or turn something into a task.\n- Do NOT create tasks proactively, by implication, or just because a deadline/problem/action item was mentioned.\n- If the user is only discussing plans or problems, respond normally without action tags.\n- For explicit task requests, include: summary, notes, priority when implied, due when mentioned, and 2-5 concrete subtasks.\n- If the user names a project, include \"project\" or \"projectId\" in the TASK JSON. Never leave it out.\n- Use notes for the task description. Do not use GOAL for normal actionable work items.\n- Simple fallback: [ACTION:TASK]Buy groceries[/ACTION]\n- Preferred detailed format: [ACTION:TASK]{\"project\":\"Apps\",\"summary\":\"Fix login bug\",\"notes\":\"Users cannot sign in after password reset. Investigate the reset flow, patch the regression, and verify the happy path.\",\"priority\":\"high\",\"due\":\"2026-03-25\",\"subtasks\":[{\"text\":\"Reproduce the bug locally\",\"notes\":\"Test the password reset flow with an affected account.\"},{\"text\":\"Identify the failing auth step\"},{\"text\":\"Implement and verify the fix\"}]}[/ACTION]\n\nGOAL (Life Goals Ã¢â‚¬â€ aspirations, dreams, long-term objectives):\n[ACTION:GOAL]{"title":"Buy a house","description":"Why this matters","category":"finance","milestones":["Step 1","Step 2"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\nCategories: health, finance, career, personal, education, travel, creative, relationship\n\nFOCUS (Pomodoro Ã¢â‚¬â€ ONLY when user explicitly says "focus", "pomodoro", "focus task"):\n[ACTION:FOCUS]Task name[/ACTION]\nIMPORTANT: NEVER create FOCUS unless explicitly asked. Default is always TASK.\n\nEVENT (Calendar Ã¢â‚¬â€ use category to differentiate event types):\n[ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details","category":"meeting"}[/ACTION]\nEvent categories: meeting, deadline, reminder, personal, work\n\nREMEMBER (save important facts Ã¢â‚¬â€ your auto-memory also captures things, but use this for explicit asks):\n[ACTION:REMEMBER]{"memory":"fact about the user","category":"preference"}[/ACTION]\nCategories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work\n\nFORGET:\n[ACTION:FORGET]text to forget[/ACTION]\n\n=== WEB SEARCH ===\n- You may receive LIVE WEB SEARCH RESULTS in your system prompt when the user asks about current events, facts, or anything that needs up-to-date info.\n- When you have search results, use them to give accurate answers. Cite sources naturally (e.g. "According to...", link titles).\n- If search results are present, prioritize them over your training data for current facts.\n- You can suggest the user search for something specific if you don\'t have results: just say "let me look that up" Ã¢â‚¬â€ the system will search automatically on their next related question.\n\n=== RULES ===\n- Dates: YYYY-MM-DD, Times: HH:MM (24h), Priority: high/medium/low\n- Always include action tags only when the user explicitly asked to create something.\n- When the user explicitly asks to add or create a task, append a TASK action unless they explicitly refuse.\n- For TASK actions, prefer JSON over plain text so the Kanban card is fully populated.\n- When the user names a project, the TASK must target that project explicitly instead of guessing.\n- Natural-language confirmation alone is not enough for task creation; you must append the TASK action tag.\n- Do not offer or create a task just because a deadline, plan, or obligation was mentioned.\n- Conversation memory is saved automatically from chat when sync is unlocked; use REMEMBER only when the user explicitly wants something pinned or deliberately saved.';
     var systemPrompt = savedPromptOverride || JOEY_PROMPT;
     systemPrompt += '\n\n=== PERSONAL OPERATOR MODE ===\n- Your job is to become distinctive to this user, not generic.\n- Learn their standards, tastes, projects, recurring frustrations, and preferred way of working.\n- Use remembered context to make your suggestions feel specifically tuned to them.\n- When context is thin, ask a short sharp follow-up that improves future personalization.';
     if(typeof window._homerBuildJoeyProjectInstruction === 'function'){
@@ -18530,7 +18665,7 @@ window._homerAmbientAudio = {
 <div id="lg-modal-bg" class="fab-overlay" style="z-index:9990;">
   <div class="fab-dialog" style="width:min(440px,92vw);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-      <h3 id="lg-modal-title" style="margin:0;font-size:1.1rem;">ðŸŽ¯ New Life Goal</h3>
+      <h3 id="lg-modal-title" style="margin:0;font-size:1.1rem;">Ã°Å¸Å½Â¯ New Life Goal</h3>
       <button id="lg-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
     </div>
     <input id="lg-title" type="text" placeholder="Goal title *" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem;margin-bottom:10px;font-weight:700;">
@@ -18541,7 +18676,7 @@ window._homerAmbientAudio = {
         <option value="career">Career</option><option value="education">Education</option><option value="travel">Travel</option>
         <option value="creative">Creative</option><option value="relationship">Relationship</option>
       </select>
-      <input id="lg-icon" type="text" placeholder="Icon" value="ðŸŽ¯" style="width:60px;padding:10px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:1.2rem;text-align:center;">
+      <input id="lg-icon" type="text" placeholder="Icon" value="Ã°Å¸Å½Â¯" style="width:60px;padding:10px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:1.2rem;text-align:center;">
     </div>
     <input id="lg-target" type="date" placeholder="Target date" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
     <div style="margin-bottom:10px;">
@@ -18552,7 +18687,7 @@ window._homerAmbientAudio = {
   </div>
 </div>
 <script>
-// â”€â”€ Life Goals Page Logic â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬ Life Goals Page Logic Ã¢â€â‚¬Ã¢â€â‚¬
 (function(){
   var overlay = document.getElementById('goals-overlay');
   var closeBtn = document.getElementById('goals-close-btn');
@@ -18573,7 +18708,7 @@ window._homerAmbientAudio = {
   var fMilestones = document.getElementById('lg-milestones');
   var fSubmit = document.getElementById('lg-submit');
   var editIdx = -1; // -1 = creating new
-  var CATS = {health:{icon:'ðŸ’ª',color:'#22c55e'},finance:{icon:'ðŸ’°',color:'#fbbf24'},career:{icon:'ðŸ¢',color:'#60a5fa'},personal:{icon:'ðŸŒŸ',color:'#a78bfa'},education:{icon:'ðŸ“š',color:'#f59e0b'},travel:{icon:'âœˆï¸',color:'#06b6d4'},creative:{icon:'ðŸŽ¨',color:'#ec4899'},relationship:{icon:'â¤ï¸',color:'#ef4444'}};
+  var CATS = {health:{icon:'Ã°Å¸â€™Âª',color:'#22c55e'},finance:{icon:'Ã°Å¸â€™Â°',color:'#fbbf24'},career:{icon:'Ã°Å¸ÂÂ¢',color:'#60a5fa'},personal:{icon:'Ã°Å¸Å’Å¸',color:'#a78bfa'},education:{icon:'Ã°Å¸â€œÅ¡',color:'#f59e0b'},travel:{icon:'Ã¢Å“Ë†Ã¯Â¸Â',color:'#06b6d4'},creative:{icon:'Ã°Å¸Å½Â¨',color:'#ec4899'},relationship:{icon:'Ã¢ÂÂ¤Ã¯Â¸Â',color:'#ef4444'}};
 
   function isWorkGoalsMode(){
     return typeof window._homerGetVaultMode === 'function' && window._homerGetVaultMode() === 'work';
@@ -18584,8 +18719,8 @@ window._homerAmbientAudio = {
       pageTitle: work ? 'Work Goals' : 'Life Goals',
       addButton: work ? '+ New Work Goal' : '+ New Goal',
       searchPlaceholder: work ? 'Search work goals...' : 'Search goals...',
-      modalCreateTitle: work ? 'ðŸ’¼ New Work Goal' : 'ðŸŽ¯ New Life Goal',
-      modalEditTitle: work ? 'âœï¸ Edit Work Goal' : 'âœï¸ Edit Life Goal',
+      modalCreateTitle: work ? 'Ã°Å¸â€™Â¼ New Work Goal' : 'Ã°Å¸Å½Â¯ New Life Goal',
+      modalEditTitle: work ? 'Ã¢Å“ÂÃ¯Â¸Â Edit Work Goal' : 'Ã¢Å“ÂÃ¯Â¸Â Edit Life Goal',
       submitCreate: work ? 'Create Work Goal' : 'Create Goal',
       submitEdit: work ? 'Save Work Goal' : 'Save Changes',
       addCard: work ? 'Add a Work Goal' : 'Add a Life Goal',
@@ -18641,11 +18776,11 @@ window._homerAmbientAudio = {
       window._homerLoadVault().then(function(data){
         var g = (data.lifeGoals||[])[idx];
         if(!g) return;
-        modalTitle.textContent = 'âœï¸ Edit Life Goal';
+        modalTitle.textContent = 'Ã¢Å“ÂÃ¯Â¸Â Edit Life Goal';
         fTitle.value = g.title||'';
         fDesc.value = g.description||'';
         fCat.value = g.category||'personal';
-        fIcon.value = g.icon||'ðŸŽ¯';
+        fIcon.value = g.icon||'Ã°Å¸Å½Â¯';
         fTarget.value = g.targetDate||'';
         fMilestones.value = (g.milestones||[]).map(function(m){ return m.text; }).join('\n');
         fSubmit.textContent = 'Save Changes';
@@ -18654,8 +18789,8 @@ window._homerAmbientAudio = {
         modalBg.classList.add('open');
       });
     } else {
-      modalTitle.textContent = 'ðŸŽ¯ New Life Goal';
-      fTitle.value=''; fDesc.value=''; fCat.value='personal'; fIcon.value='ðŸŽ¯'; fTarget.value=''; fMilestones.value='';
+      modalTitle.textContent = 'Ã°Å¸Å½Â¯ New Life Goal';
+      fTitle.value=''; fDesc.value=''; fCat.value='personal'; fIcon.value='Ã°Å¸Å½Â¯'; fTarget.value=''; fMilestones.value='';
       fSubmit.textContent = 'Create Goal';
       modalTitle.textContent = getGoalsCopy().modalCreateTitle;
       fSubmit.textContent = getGoalsCopy().submitCreate;
@@ -18681,7 +18816,7 @@ window._homerAmbientAudio = {
         data.lifeGoals[editIdx].title = title;
         data.lifeGoals[editIdx].description = fDesc.value.trim();
         data.lifeGoals[editIdx].category = fCat.value;
-        data.lifeGoals[editIdx].icon = fIcon.value||'ðŸŽ¯';
+        data.lifeGoals[editIdx].icon = fIcon.value||'Ã°Å¸Å½Â¯';
         data.lifeGoals[editIdx].targetDate = fTarget.value;
         data.lifeGoals[editIdx].milestones = milestones;
         data.lifeGoals[editIdx].progress = calcProgress(milestones);
@@ -18695,7 +18830,7 @@ window._homerAmbientAudio = {
           milestones: milestones,
           progress: 0,
           targetDate: fTarget.value,
-          icon: fIcon.value||'ðŸŽ¯',
+          icon: fIcon.value||'Ã°Å¸Å½Â¯',
           createdAt: Date.now(),
           updatedAt: Date.now()
         });
@@ -18778,7 +18913,7 @@ window._homerAmbientAudio = {
       if(g.milestones && g.milestones.length){
         html += '<ul class="lg-milestones">';
         g.milestones.forEach(function(m,mi){
-          html += '<li class="'+(m.done?'done':'')+'" data-idx="'+idx+'" data-mi="'+mi+'" style="cursor:pointer;"><span>'+(m.done?'âœ…':'â¬œ')+'</span> '+escH(m.text)+'</li>';
+          html += '<li class="'+(m.done?'done':'')+'" data-idx="'+idx+'" data-mi="'+mi+'" style="cursor:pointer;"><span>'+(m.done?'Ã¢Å“â€¦':'Ã¢Â¬Å“')+'</span> '+escH(m.text)+'</li>';
         });
         html += '</ul>';
       }
@@ -19053,27 +19188,27 @@ window._homerAmbientAudio = {
     <div class="msheet-handle"></div>
     <div class="msheet-label">Tabs</div>
     <div class="msheet-grid">
-      <div class="msheet-item" data-tab="focuslab"><div class="msheet-icon">ðŸ§˜</div>Focus Lab</div>
-      <div class="msheet-item" data-tab="investing"><div class="msheet-icon">ðŸ“ˆ</div>Investing</div>
-      <div class="msheet-item" data-tab="tools"><div class="msheet-icon">ðŸ› ï¸</div>Tools</div>
-      <div class="msheet-item" data-tab="links"><div class="msheet-icon">ðŸ”—</div>Links</div>
-      <div class="msheet-item" data-tab="news"><div class="msheet-icon">ðŸ“°</div>News</div>
+      <div class="msheet-item" data-tab="focuslab"><div class="msheet-icon">Ã°Å¸Â§Ëœ</div>Focus Lab</div>
+      <div class="msheet-item" data-tab="investing"><div class="msheet-icon">Ã°Å¸â€œË†</div>Investing</div>
+      <div class="msheet-item" data-tab="tools"><div class="msheet-icon">Ã°Å¸â€ºÂ Ã¯Â¸Â</div>Tools</div>
+      <div class="msheet-item" data-tab="links"><div class="msheet-icon">Ã°Å¸â€â€”</div>Links</div>
+      <div class="msheet-item" data-tab="news"><div class="msheet-icon">Ã°Å¸â€œÂ°</div>News</div>
     </div>
     <div class="msheet-sep"></div>
     <div class="msheet-label">Quick Links</div>
     <div class="msheet-grid">
-      <a class="msheet-item" href="https://www.youtube.com/" target="_blank" rel="noopener"><div class="msheet-icon">â–¶ï¸</div>YouTube</a>
-      <a class="msheet-item" href="https://gemini.google.com" target="_blank" rel="noopener"><div class="msheet-icon">âœ¨</div>Gemini</a>
-      <a class="msheet-item" href="https://tasks.b4it.ro" target="_blank" rel="noopener"><div class="msheet-icon">ðŸ—’ï¸</div>Notes</a>
-      <a class="msheet-item" href="https://www.google.com" target="_blank" rel="noopener"><div class="msheet-icon">ðŸ”Ž</div>Google</a>
+      <a class="msheet-item" href="https://www.youtube.com/" target="_blank" rel="noopener"><div class="msheet-icon">Ã¢â€“Â¶Ã¯Â¸Â</div>YouTube</a>
+      <a class="msheet-item" href="https://gemini.google.com" target="_blank" rel="noopener"><div class="msheet-icon">Ã¢Å“Â¨</div>Gemini</a>
+      <a class="msheet-item" href="https://tasks.b4it.ro" target="_blank" rel="noopener"><div class="msheet-icon">Ã°Å¸â€”â€™Ã¯Â¸Â</div>Notes</a>
+      <a class="msheet-item" href="https://www.google.com" target="_blank" rel="noopener"><div class="msheet-icon">Ã°Å¸â€Å½</div>Google</a>
     </div>
     <div class="msheet-sep"></div>
     <div class="msheet-label">Actions</div>
     <div class="msheet-grid">
-      <div class="msheet-item" id="msheet-account"><div class="msheet-icon">ðŸ‘¤</div>Account</div>
-      <div class="msheet-item" id="msheet-sync"><div class="msheet-icon">â˜ï¸</div>Sync</div>
-      <div class="msheet-item" id="msheet-wake"><div class="msheet-icon">â˜€ï¸</div>Awake</div>
-      <div class="msheet-item" id="msheet-clear"><div class="msheet-icon">ðŸ—‘ï¸</div>Clear</div>
+      <div class="msheet-item" id="msheet-account"><div class="msheet-icon">Ã°Å¸â€˜Â¤</div>Account</div>
+      <div class="msheet-item" id="msheet-sync"><div class="msheet-icon">Ã¢ËœÂÃ¯Â¸Â</div>Sync</div>
+      <div class="msheet-item" id="msheet-wake"><div class="msheet-icon">Ã¢Ëœâ‚¬Ã¯Â¸Â</div>Awake</div>
+      <div class="msheet-item" id="msheet-clear"><div class="msheet-icon">Ã°Å¸â€”â€˜Ã¯Â¸Â</div>Clear</div>
     </div>
   </div>
 </div>
@@ -19115,7 +19250,7 @@ window._homerAmbientAudio = {
     });
   });
 
-  // Joey button â€” trigger the fab-openclaw click
+  // Joey button Ã¢â‚¬â€ trigger the fab-openclaw click
   var joeyBtn = document.getElementById('mnav-joey');
   if(joeyBtn){
     joeyBtn.addEventListener('click', function(){
@@ -19124,7 +19259,7 @@ window._homerAmbientAudio = {
     });
   }
 
-  // More button â€” open bottom sheet
+  // More button Ã¢â‚¬â€ open bottom sheet
   var moreBtn = document.getElementById('mnav-more');
   if(moreBtn){
     moreBtn.addEventListener('click', function(){
@@ -19145,7 +19280,7 @@ window._homerAmbientAudio = {
     });
   });
 
-  // Sheet action items â€” proxy to existing FABs
+  // Sheet action items Ã¢â‚¬â€ proxy to existing FABs
   var actions = {account:'fab-account', sync:'fab-cloud', wake:'fab-wake', clear:'fab-clear'};
   Object.keys(actions).forEach(function(key){
     var el = document.getElementById('msheet-'+key);
@@ -19186,3 +19321,4 @@ window._homerAmbientAudio = {
 
 </body>
 </html>
+
