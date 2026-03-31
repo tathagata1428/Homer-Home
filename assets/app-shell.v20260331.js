@@ -12029,7 +12029,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!pass || joeyAutoLearnRetryTimer) return;
     joeyAutoLearnRetryTimer = setTimeout(function(){
       joeyAutoLearnRetryTimer = null;
-      commitJoeyMemory({ silent:true, skipLearn:false, reason:reason || 'auto-learn-retry' }).catch(function(){});
+      commitJoeyMemory({ silent:true, skipLearn:false, skipDrive:true, reason:reason || 'auto-learn-retry' }).catch(function(){});
     }, typeof delayMs === 'number' ? delayMs : 15000);
   }
   function commitJoeyMemory(opts){
