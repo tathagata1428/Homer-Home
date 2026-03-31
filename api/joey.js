@@ -29,6 +29,15 @@ function sanitizeManagedFiles(value, fileLibrary, customFiles, generatedAt) {
   return mergeDerivedFileContext(cleaned, Array.isArray(fileLibrary) ? fileLibrary : [], sanitizeManagedCustomFiles(customFiles), generatedAt || new Date().toISOString());
 }
 
+function resolveManagedGeneratedAt(syncMeta, fallback) {
+  const stable = String(
+    (syncMeta && (syncMeta.lastCommittedAt || syncMeta.updatedAt || syncMeta.lastDriveBackupAt || syncMeta.lastDriveReconcileAt)) ||
+    fallback ||
+    new Date().toISOString()
+  ).trim();
+  return stable || new Date().toISOString();
+}
+
 const QUOTES_FILE_NAME = 'Quotes.md';
 
 function normalizeQuoteKey(text, author) {
@@ -549,21 +558,22 @@ export default async function handler(req, res) {
           redis(['GET', JOURNAL_KEY]),
           redis(['GET', SYNC_META_KEY])
         ]);
+        const storedSyncMeta = syncMetaRes.result ? JSON.parse(syncMetaRes.result) : {};
+        const generatedAt = resolveManagedGeneratedAt(storedSyncMeta);
         const bundle = {
           mode,
           profile: profileRes.result ? JSON.parse(profileRes.result) : {},
           memories: memoryRes.result ? JSON.parse(memoryRes.result) : [],
           history: historyRes.result ? JSON.parse(historyRes.result) : [],
-          files: sanitizeManagedFiles(filesRes.result ? JSON.parse(filesRes.result) : {}, libraryRes.result ? JSON.parse(libraryRes.result) : [], customFilesRes.result ? JSON.parse(customFilesRes.result) : {}, new Date().toISOString()),
+          files: sanitizeManagedFiles(filesRes.result ? JSON.parse(filesRes.result) : {}, libraryRes.result ? JSON.parse(libraryRes.result) : [], customFilesRes.result ? JSON.parse(customFilesRes.result) : {}, generatedAt),
           fileLibrary: libraryRes.result ? JSON.parse(libraryRes.result) : [],
           customFiles: sanitizeManagedCustomFiles(customFilesRes.result ? JSON.parse(customFilesRes.result) : {}),
           journal: journalRes.result ? JSON.parse(journalRes.result) : []
         };
-        const storedSyncMeta = syncMetaRes.result ? JSON.parse(syncMetaRes.result) : {};
         const syncMeta = computeJoeySyncMeta(bundle, {
           ...storedSyncMeta,
           mode,
-          updatedAt: new Date().toISOString()
+          updatedAt: storedSyncMeta && storedSyncMeta.updatedAt ? storedSyncMeta.updatedAt : generatedAt
         });
         return res.status(200).json({ ok: true, syncMeta });
       }
@@ -580,18 +590,16 @@ export default async function handler(req, res) {
 
     if (action === 'files') {
       if (req.method === 'GET') {
-        const [result, libraryResult, customResult] = await Promise.all([
+        const [result, libraryResult, customResult, syncMetaRes] = await Promise.all([
           redis(['GET', FILES_KEY]),
           redis(['GET', FILE_LIBRARY_KEY]),
-          redis(['GET', CUSTOM_FILES_KEY])
+          redis(['GET', CUSTOM_FILES_KEY]),
+          redis(['GET', SYNC_META_KEY])
         ]);
         const fileLibrary = libraryResult.result ? JSON.parse(libraryResult.result) : [];
         const customFiles = sanitizeManagedCustomFiles(customResult.result ? JSON.parse(customResult.result) : {});
-        const files = sanitizeManagedFiles(result.result ? JSON.parse(result.result) : {}, fileLibrary, customFiles, new Date().toISOString());
-        await Promise.all([
-          redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(customFiles)]),
-          redis(['SET', FILES_KEY, JSON.stringify(files)])
-        ]);
+        const syncMeta = syncMetaRes.result ? JSON.parse(syncMetaRes.result) : {};
+        const files = sanitizeManagedFiles(result.result ? JSON.parse(result.result) : {}, fileLibrary, customFiles, resolveManagedGeneratedAt(syncMeta));
         return res.status(200).json({ files });
       }
       if (req.method === 'POST') {
@@ -607,9 +615,9 @@ export default async function handler(req, res) {
           redis(['GET', SYNC_META_KEY])
         ]);
         const existingCustomFiles = sanitizeManagedCustomFiles(customFilesRes.result ? JSON.parse(customFilesRes.result) : {});
-        const existingFiles = sanitizeManagedFiles(filesRes.result ? JSON.parse(filesRes.result) : {}, libraryRes.result ? JSON.parse(libraryRes.result) : [], existingCustomFiles, new Date().toISOString());
         const currentSyncMeta = syncMetaRes.result ? JSON.parse(syncMetaRes.result) : {};
-        const generatedAt = String((currentSyncMeta && (currentSyncMeta.lastCommittedAt || currentSyncMeta.updatedAt)) || new Date().toISOString());
+        const generatedAt = resolveManagedGeneratedAt(currentSyncMeta);
+        const existingFiles = sanitizeManagedFiles(filesRes.result ? JSON.parse(filesRes.result) : {}, libraryRes.result ? JSON.parse(libraryRes.result) : [], existingCustomFiles, generatedAt);
         const generatedFiles = buildContextFiles({
           profile: profileRes.result ? JSON.parse(profileRes.result) : {},
           memories: memRes.result ? JSON.parse(memRes.result) : [],
@@ -644,7 +652,6 @@ export default async function handler(req, res) {
       if (req.method === 'GET') {
         const result = await redis(['GET', CUSTOM_FILES_KEY]);
         const customFiles = sanitizeManagedCustomFiles(result.result ? JSON.parse(result.result) : {});
-        await redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(customFiles)]);
         return res.status(200).json({ customFiles });
       }
       if (req.method === 'POST') {
@@ -652,13 +659,15 @@ export default async function handler(req, res) {
         if (!name || typeof content !== 'string') return res.status(400).json({ error: 'Missing name or content' });
         const safeName = String(name).trim().replace(/\.\./g, '').replace(/^\/+/, '').slice(0, 200);
         if (!safeName) return res.status(400).json({ error: 'Invalid file name' });
-        const [result, filesResult, memoriesResult] = await Promise.all([
+        const [result, filesResult, memoriesResult, syncMetaRes] = await Promise.all([
           redis(['GET', CUSTOM_FILES_KEY]),
           redis(['GET', FILES_KEY]),
-          redis(['GET', MEMORY_KEY])
+          redis(['GET', MEMORY_KEY]),
+          redis(['GET', SYNC_META_KEY])
         ]);
         const customFiles = sanitizeManagedCustomFiles(result.result ? JSON.parse(result.result) : {});
-        const files = sanitizeManagedFiles(filesResult.result ? JSON.parse(filesResult.result) : {}, [], customFiles, new Date().toISOString());
+        const syncMeta = syncMetaRes.result ? JSON.parse(syncMetaRes.result) : {};
+        const files = sanitizeManagedFiles(filesResult.result ? JSON.parse(filesResult.result) : {}, [], customFiles, resolveManagedGeneratedAt(syncMeta));
         let memories = memoriesResult.result ? JSON.parse(memoriesResult.result) : [];
         if (!Array.isArray(memories)) memories = [];
         const baseMemories = memories.filter((entry) => !(entry && entry.source === 'saved-quotes-sync'));
