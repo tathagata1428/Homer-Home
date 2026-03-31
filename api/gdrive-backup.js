@@ -18,25 +18,6 @@ function normalizeQuoteKey(text, author) {
   return String(text || '').trim().toLowerCase().replace(/\s+/g, ' ') + '|' + String(author || 'Unknown').trim().toLowerCase();
 }
 
-function normalizeQuoteEntryForStorage(text, author, savedAt) {
-  let quote = String(text || '').replace(/\r\n/g, '\n').trim();
-  let nextAuthor = String(author || 'Unknown').trim() || 'Unknown';
-  quote = quote.replace(/^quote\s*:\s*/i, '').trim();
-  const inlineAuthor = quote.match(/^(["“']?)([\s\S]+?)\1\s*[—-]\s*([^,.;\n]{2,80})$/);
-  if (inlineAuthor) {
-    quote = String(inlineAuthor[2] || '').trim();
-    if (!author || /^unknown$/i.test(String(author || '').trim())) {
-      nextAuthor = String(inlineAuthor[3] || '').trim() || nextAuthor;
-    }
-  }
-  quote = quote.replace(/^["“']+|["”']+$/g, '').trim();
-  return {
-    quote,
-    author: nextAuthor || 'Unknown',
-    savedAt: String(savedAt || '').trim()
-  };
-}
-
 function extractQuoteEntriesFromMarkdown(markdown) {
   const value = String(markdown || '').replace(/\r\n/g, '\n').trim();
   if (!value) return [];
@@ -50,7 +31,7 @@ function extractQuoteEntriesFromMarkdown(markdown) {
     const author = authorMatch ? String(authorMatch[1] || '').trim() : 'Unknown';
     const savedAt = savedMatch ? String(savedMatch[1] || '').trim() : '';
     if (!quoteText) return;
-    entries.push(normalizeQuoteEntryForStorage(quoteText, author || 'Unknown', savedAt));
+    entries.push({ quote: quoteText, author: author || 'Unknown', savedAt });
   });
   return entries;
 }
@@ -83,11 +64,10 @@ function mergeQuotesMarkdown(existingMarkdown, incomingMarkdown) {
   const seen = new Set();
   const addEntries = (entries) => {
     entries.forEach((entry) => {
-      const normalizedEntry = normalizeQuoteEntryForStorage(entry && entry.quote, entry && entry.author, entry && entry.savedAt);
-      const quote = String(normalizedEntry.quote || '').trim();
+      const quote = String(entry && entry.quote || '').trim();
       if (!quote) return;
-      const author = String(normalizedEntry.author || 'Unknown').trim() || 'Unknown';
-      const savedAt = String(normalizedEntry.savedAt || '').trim();
+      const author = String(entry && entry.author || 'Unknown').trim() || 'Unknown';
+      const savedAt = String(entry && entry.savedAt || '').trim();
       const key = normalizeQuoteKey(quote, author);
       if (seen.has(key)) return;
       seen.add(key);
