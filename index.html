@@ -16176,10 +16176,13 @@ window._homerAmbientAudio = {
     Promise.resolve(ensureSavedQuotesContext('gdrive-backup')).catch(function(){ return false; }).then(function(){
       return collectTaskSnapshot();
     }).then(function(tasks){
+      var quoteMarkdown = (typeof buildSavedQuotesMarkdown === 'function' && typeof loadSaved === 'function')
+        ? buildSavedQuotesMarkdown(loadSaved())
+        : '';
       return fetch('/api/gdrive-backup', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(withContextMode({ passphrase: pass, tasks: tasks, force:true }))
+        body: JSON.stringify(withContextMode({ passphrase: pass, tasks: tasks, force:true, quoteMarkdown: quoteMarkdown }))
       });
     }).then(function(r){ return r.json(); }).then(function(d){
       if(d.ok){
@@ -16281,10 +16284,13 @@ window._homerAmbientAudio = {
     return Promise.resolve(ensureSavedQuotesContext('gdrive-backup-auto')).catch(function(){ return false; }).then(function(){
       return collectTaskSnapshot();
     }).then(function(tasks){
+      var quoteMarkdown = (typeof buildSavedQuotesMarkdown === 'function' && typeof loadSaved === 'function')
+        ? buildSavedQuotesMarkdown(loadSaved())
+        : '';
       return fetch('/api/gdrive-backup', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(withContextMode({ passphrase: pass, tasks: tasks }))
+        body: JSON.stringify(withContextMode({ passphrase: pass, tasks: tasks, quoteMarkdown: quoteMarkdown }))
       });
     }).then(function(r){ return r.json(); })
       .then(function(d){

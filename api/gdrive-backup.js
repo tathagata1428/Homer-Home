@@ -12,6 +12,72 @@ import {
 } from '../lib/joey-server.js';
 
 const GDRIVE_BACKUP_TIMEOUT_MS = 60000;
+const QUOTES_FILE_NAME = 'Quotes.md';
+
+function normalizeQuoteKey(text, author) {
+  return String(text || '').trim().toLowerCase().replace(/\s+/g, ' ') + '|' + String(author || 'Unknown').trim().toLowerCase();
+}
+
+function extractQuoteEntriesFromMarkdown(markdown) {
+  const value = String(markdown || '').replace(/\r\n/g, '\n').trim();
+  if (!value) return [];
+  const entries = [];
+  const blocks = value.split(/\n(?=##\s+Quote\b)/g);
+  blocks.forEach((block) => {
+    const quoteMatch = block.match(/^\s*>\s*([\s\S]*?)(?:\n(?:-|##|$))/m);
+    const authorMatch = block.match(/^\s*-\s*Author:\s*(.+)$/mi);
+    const savedMatch = block.match(/^\s*-\s*Saved:\s*(.+)$/mi);
+    const quoteText = quoteMatch ? quoteMatch[1].replace(/\n>\s*/g, '\n').trim() : '';
+    const author = authorMatch ? String(authorMatch[1] || '').trim() : 'Unknown';
+    const savedAt = savedMatch ? String(savedMatch[1] || '').trim() : '';
+    if (!quoteText) return;
+    entries.push({ quote: quoteText, author: author || 'Unknown', savedAt });
+  });
+  return entries;
+}
+
+function buildQuotesMarkdown(entries) {
+  const items = Array.isArray(entries) ? entries.filter((entry) => entry && String(entry.quote || '').trim()) : [];
+  if (!items.length) return '';
+  const lines = [
+    '# Quotes',
+    '',
+    'Saved quotes from Homer Motivator and Joey memory. Joey can use these for recall, tone, advice, and preference shaping.',
+    ''
+  ];
+  items.forEach((entry, index) => {
+    const quote = String(entry.quote || '').trim();
+    const author = String(entry.author || 'Unknown').trim() || 'Unknown';
+    const savedAt = String(entry.savedAt || '').trim();
+    lines.push('## Quote ' + (index + 1));
+    lines.push('> ' + quote.replace(/\r?\n+/g, '\n> '));
+    lines.push('');
+    lines.push('- Author: ' + author);
+    if (savedAt) lines.push('- Saved: ' + savedAt);
+    lines.push('');
+  });
+  return lines.join('\n').trim() + '\n';
+}
+
+function mergeQuotesMarkdown(existingMarkdown, incomingMarkdown) {
+  const merged = [];
+  const seen = new Set();
+  const addEntries = (entries) => {
+    entries.forEach((entry) => {
+      const quote = String(entry && entry.quote || '').trim();
+      if (!quote) return;
+      const author = String(entry && entry.author || 'Unknown').trim() || 'Unknown';
+      const savedAt = String(entry && entry.savedAt || '').trim();
+      const key = normalizeQuoteKey(quote, author);
+      if (seen.has(key)) return;
+      seen.add(key);
+      merged.push({ quote, author, savedAt });
+    });
+  };
+  addEntries(extractQuoteEntriesFromMarkdown(existingMarkdown));
+  addEntries(extractQuoteEntriesFromMarkdown(incomingMarkdown));
+  return buildQuotesMarkdown(merged);
+}
 
 // Google Drive context backup — fetches Joey context from Redis, POSTs to Google Apps Script
 export default async function handler(req, res) {
@@ -44,6 +110,7 @@ export default async function handler(req, res) {
     const requestKind = String((req.body || {}).kind || '').trim().toLowerCase();
     const forceBackup = !!(req.body && req.body.force);
     const taskSnapshot = Array.isArray((req.body || {}).tasks) ? req.body.tasks : [];
+    const quoteMarkdown = typeof (req.body || {}).quoteMarkdown === 'string' ? String(req.body.quoteMarkdown || '').trim() : '';
     const effectiveTasks = mode === 'work' ? [] : taskSnapshot;
     const isValid = await verifyJoeyPassphrase(passphrase, redisFetch);
     if (!isValid) return res.status(403).json({ error: 'Forbidden' });
@@ -117,6 +184,10 @@ export default async function handler(req, res) {
     const history = Array.isArray(fullHistory) ? fullHistory : [];
 
     let files = filesResult && typeof filesResult === 'object' ? filesResult : {};
+    let nextCustomFilesSource = customFiles && typeof customFiles === 'object' ? { ...customFiles } : {};
+    if (quoteMarkdown) {
+      nextCustomFilesSource[QUOTES_FILE_NAME] = mergeQuotesMarkdown(nextCustomFilesSource[QUOTES_FILE_NAME], quoteMarkdown);
+    }
     const generatedAt = String((syncMetaStored && (syncMetaStored.lastCommittedAt || syncMetaStored.updatedAt)) || new Date().toISOString());
     const generatedFiles = buildContextFiles({
       profile: profile || {},
@@ -124,12 +195,12 @@ export default async function handler(req, res) {
       history,
       tasks: effectiveTasks,
       fileLibrary,
-      customFiles,
+      customFiles: nextCustomFilesSource,
       scope: mode,
       generatedAt
     });
-    const preserved = preserveGeneratedContextFiles(files, generatedFiles, customFiles, generatedAt);
-    const nextCustomFiles = preserved.customFiles && typeof preserved.customFiles === 'object' ? preserved.customFiles : customFiles;
+    const preserved = preserveGeneratedContextFiles(files, generatedFiles, nextCustomFilesSource, generatedAt);
+    const nextCustomFiles = preserved.customFiles && typeof preserved.customFiles === 'object' ? preserved.customFiles : nextCustomFilesSource;
     files = mergeDerivedFileContext(preserved.files, fileLibrary, nextCustomFiles, generatedAt);
     await Promise.all([
       saveRedisJson(redisFetch, FILES_KEY, files),
