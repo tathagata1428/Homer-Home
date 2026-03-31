@@ -138,12 +138,49 @@ function splitCompoundQuoteText(text, author, savedAt) {
     results.push({ quote, author: nextAuthor, savedAt: String(savedAt || '').trim() });
   };
 
-  const quotedParts = [...normalized.matchAll(/"([^"]{2,}?)"/g)]
-    .map((match) => String(match[1] || '').trim())
-    .filter(Boolean);
+  const extractDelimitedQuotes = (input) => {
+    const extracted = [];
+    let buffer = '';
+    let inside = false;
+    let delimiter = '';
+    for (let i = 0; i < input.length; i += 1) {
+      const ch = input[i];
+      const prev = i > 0 ? input[i - 1] : '';
+      const next = i + 1 < input.length ? input[i + 1] : '';
+      const prevIsWord = /[A-Za-z0-9]/.test(prev);
+      const nextIsWord = /[A-Za-z0-9]/.test(next);
+      const isApostrophe = ch === '\'' && prevIsWord && nextIsWord;
+      if (!inside && (ch === '"' || (ch === '\'' && !isApostrophe))) {
+        inside = true;
+        delimiter = ch;
+        buffer = '';
+        continue;
+      }
+      if (inside && ch === delimiter) {
+        if (delimiter === '\'' && nextIsWord) {
+          buffer += ch;
+          continue;
+        }
+        extracted.push(buffer.trim());
+        inside = false;
+        delimiter = '';
+        buffer = '';
+        continue;
+      }
+      if (inside) buffer += ch;
+    }
+    return extracted.filter(Boolean);
+  };
+
+  const quotedParts = extractDelimitedQuotes(normalized);
   quotedParts.forEach((part) => pushEntry(part, author));
 
-  let remainder = normalized.replace(/"([^"]{2,}?)"/g, ' ').replace(/\s+/g, ' ').trim();
+  let remainder = normalized;
+  quotedParts.forEach((part) => {
+    const escaped = part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    remainder = remainder.replace(new RegExp(`["']${escaped}["']`), ' ');
+  });
+  remainder = remainder.replace(/\s+/g, ' ').trim();
   remainder = remainder.replace(/^[^:]{0,120}quotes?\s+saved\s+to\s+quotes\.md[:\s-]*/i, '').trim();
   if (!quotedParts.length && /^[^:]{0,120}quotes?[:\s-]/i.test(remainder)) {
     remainder = remainder.replace(/^[^:]+:\s*/, '').trim();
