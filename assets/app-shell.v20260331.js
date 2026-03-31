@@ -298,6 +298,7 @@
       countdownText:document.getElementById("countdown-text"),
       savedList:document.getElementById("savedList"),
       savedEmpty:document.getElementById("savedEmpty"),
+      syncSaved:document.getElementById("syncSavedQuotes"),
       exportSaved:document.getElementById("exportSaved"),
       clearSaved:document.getElementById("clearSaved"),
     };
@@ -760,12 +761,55 @@ function renderQuote(q) {
       if(!hasSavedQuotesPendingSync()) return Promise.resolve(false);
       return syncSavedQuotesToJoeyFile(reason || 'saved-quotes-pending', { skipBackups:false });
     }
+    function setSavedQuotesSyncButtonState(label, delayMs){
+      if(!els.syncSaved) return;
+      const original = els.syncSaved.getAttribute('data-label') || 'Sync Quotes Now';
+      els.syncSaved.textContent = label;
+      if(delayMs){
+        setTimeout(()=>{ if(els.syncSaved) els.syncSaved.textContent = original; }, delayMs);
+      }
+    }
+    function syncSavedQuotesNow(){
+      const pass = localStorage.getItem('homer-sync-pass') || '';
+      if(!pass){
+        alert('Unlock Joey first so saved quotes can sync into Quotes.md.');
+        return Promise.resolve(false);
+      }
+      if(els.syncSaved){
+        els.syncSaved.disabled = true;
+        els.syncSaved.setAttribute('data-label', 'Sync Quotes Now');
+        setSavedQuotesSyncButtonState('Syncing...');
+      }
+      return syncSavedQuotesToJoeyFile('saved-quotes-manual', { skipBackups:false }).then(function(ok){
+        if(!ok) throw new Error('Saved quotes did not sync to Quotes.md.');
+        if(typeof window._homerBackupJoeyToDrive === 'function'){
+          return window._homerBackupJoeyToDrive('manual').catch(function(){ return { ok:false }; }).then(function(){
+            setSavedQuotesSyncButtonState('Synced', 1800);
+            return true;
+          });
+        }
+        setSavedQuotesSyncButtonState('Synced', 1800);
+        return true;
+      }).catch(function(err){
+        setSavedQuotesSyncButtonState('Sync failed', 2200);
+        alert(err && err.message ? err.message : 'Saved quotes sync failed.');
+        return false;
+      }).finally(function(){
+        if(els.syncSaved) setTimeout(()=>{ els.syncSaved.disabled = false; }, 50);
+      });
+    }
     els.refresh.click(); renderSaved(); queueSavedQuotesFileSync('quotes-init');
     window.addEventListener('homer-vault-state', function(){
       if(window._homerVaultUnlocked) flushPendingSavedQuotesSync('saved-quotes-unlock');
     });
     window.addEventListener('focus', function(){
       if(localStorage.getItem('homer-sync-pass')) flushPendingSavedQuotesSync('saved-quotes-focus');
+    });
+    setInterval(function(){
+      if(localStorage.getItem('homer-sync-pass')) flushPendingSavedQuotesSync('saved-quotes-interval');
+    }, 5 * 60 * 1000);
+    els.syncSaved?.addEventListener('click', function(){
+      syncSavedQuotesNow();
     });
 
     /* Saved Quotes collapsible toggle */
