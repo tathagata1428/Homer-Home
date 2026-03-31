@@ -15168,6 +15168,8 @@ window._homerAmbientAudio = {
     body.mode = currentContextMode;
     return body;
   }
+  window._homerJoeyActionUrl = joeyActionUrl;
+  window._homerWithContextMode = withContextMode;
 
   function formatJoeySyncTime(value){
     if(!value) return 'Never';
@@ -18154,17 +18156,29 @@ window._homerAmbientAudio = {
           try{ memData = JSON.parse(a.data); }catch(e){ memData = {memory: a.data, category: 'general'}; }
           var pass = localStorage.getItem('homer-sync-pass') || '';
           if(pass){
-            fetch(joeyActionUrl('memory'), {
-              method:'POST',
-              headers:{'Content-Type':'application/json'},
-              body:JSON.stringify(withContextMode({
+            var rememberUrl = typeof window._homerJoeyActionUrl === 'function' ? window._homerJoeyActionUrl('memory') : '/api/joey?action=memory&mode=' + encodeURIComponent((localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal');
+            var rememberBody = typeof window._homerWithContextMode === 'function'
+              ? window._homerWithContextMode({
                 passphrase:pass,
                 memory:memData.memory||memData.text||a.data,
                 category:memData.category||'general',
                 source:memData.source||'explicit-agent-action',
                 confidence:typeof memData.confidence === 'number' ? memData.confidence : 0.96,
                 pinned:!!memData.pinned || String(memData.category||'').toLowerCase() === 'pin'
-              }))
+              })
+              : {
+                passphrase:pass,
+                mode:(localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal',
+                memory:memData.memory||memData.text||a.data,
+                category:memData.category||'general',
+                source:memData.source||'explicit-agent-action',
+                confidence:typeof memData.confidence === 'number' ? memData.confidence : 0.96,
+                pinned:!!memData.pinned || String(memData.category||'').toLowerCase() === 'pin'
+              };
+            fetch(rememberUrl, {
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify(rememberBody)
             }).then(function(r){return r.json();}).then(function(d){
               if(d.ok){
                 console.log('Memory saved, total:', d.count);
@@ -18179,10 +18193,14 @@ window._homerAmbientAudio = {
           // Remove from Joey's persistent memory
           var pass = localStorage.getItem('homer-sync-pass') || '';
           if(pass){
-            fetch(joeyActionUrl('memory'), {
+            var forgetUrl = typeof window._homerJoeyActionUrl === 'function' ? window._homerJoeyActionUrl('memory') : '/api/joey?action=memory&mode=' + encodeURIComponent((localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal');
+            var forgetBody = typeof window._homerWithContextMode === 'function'
+              ? window._homerWithContextMode({passphrase:pass, match:a.data})
+              : {passphrase:pass, mode:(localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal', match:a.data};
+            fetch(forgetUrl, {
               method:'DELETE',
               headers:{'Content-Type':'application/json'},
-              body:JSON.stringify(withContextMode({passphrase:pass, match:a.data}))
+              body:JSON.stringify(forgetBody)
             }).then(function(r){return r.json();}).then(function(d){
               if(d.ok){
                 console.log('Memory removed, remaining:', d.count);
