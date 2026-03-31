@@ -321,13 +321,23 @@ export default async function handler(req, res) {
     };
   }
 
-  async function readJsonKey(redis, key) {
-    var result = await redis(['GET', key]);
-    return result && result.result ? JSON.parse(result.result) : null;
+  function wait(ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms); });
+  }
+
+  async function readJsonKey(redis, key, retries, delayMs) {
+    var attempts = Math.max(1, Number(retries || 0) + 1);
+    var delay = Math.max(0, Number(delayMs || 0) || 0);
+    for (var attempt = 0; attempt < attempts; attempt += 1) {
+      var result = await redis(['GET', key]);
+      if (result && result.result) return JSON.parse(result.result);
+      if (attempt < attempts - 1 && delay > 0) await wait(delay);
+    }
+    return null;
   }
 
   async function verifyStoredSnapshot(redis, key, expectedHash) {
-    var stored = await readJsonKey(redis, key);
+    var stored = await readJsonKey(redis, key, 3, 80);
     if (!stored) return { ok: false, reason: 'Stored snapshot missing after write' };
     var inspected = inspectSnapshot(stored);
     if (!inspected.ok) return { ok: false, reason: inspected.reason, integrity: inspected };
@@ -549,7 +559,7 @@ export default async function handler(req, res) {
         // Data hasn't changed - update timestamp but skip full backup
           meta.lastTs = now;
           await redis(['SET', hk + ':meta', JSON.stringify(meta)]);
-          var verifiedSkipMeta = await readJsonKey(redis, hk + ':meta');
+          var verifiedSkipMeta = await readJsonKey(redis, hk + ':meta', 3, 80);
           if (!verifiedSkipMeta || verifiedSkipMeta.lastTs !== now) {
             return res.status(500).json({ error: 'Backup metadata verification failed after unchanged write' });
           }
@@ -607,7 +617,7 @@ export default async function handler(req, res) {
 
       // 5. Save updated metadata
       await redis(['SET', hk + ':meta', JSON.stringify(meta)]);
-      var verifiedMeta = await readJsonKey(redis, hk + ':meta');
+      var verifiedMeta = await readJsonKey(redis, hk + ':meta', 3, 80);
       if (!verifiedMeta || verifiedMeta.lastDataHash !== newDataHash || verifiedMeta.lastTs !== now) {
         return res.status(500).json({ error: 'Backup metadata verification failed' });
       }

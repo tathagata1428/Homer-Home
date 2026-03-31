@@ -535,7 +535,10 @@ function renderQuote(q) {
           clearSavedQuotesPendingSync();
           if(!opts.skipRefresh && typeof refreshCanonicalFiles === 'function') refreshCanonicalFiles({ skipQuoteSync:true }).catch(function(){});
           if(!opts.skipBackups){
-            markJoeyDriveBackupDirty(reason || 'quotes-md-update');
+            var markDriveDirty = (typeof window._homerMarkJoeyDriveBackupDirty === 'function')
+              ? window._homerMarkJoeyDriveBackupDirty
+              : (typeof markJoeyDriveBackupDirty === 'function' ? markJoeyDriveBackupDirty : null);
+            if(markDriveDirty) markDriveDirty(reason || 'quotes-md-update');
             if(typeof scheduleJoeyLearningCommit === 'function') scheduleJoeyLearningCommit('quotes-md-update', 60000);
             else if(typeof scheduleJoeyMemoryCommit === 'function') scheduleJoeyMemoryCommit('quotes-md-update', 60000);
           }
@@ -11044,6 +11047,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     joeyDriveBackupDirtyReason = String(reason || joeyDriveBackupDirtyReason || 'context-change');
     joeyDriveBackupDirtyAt = Date.now();
   }
+  window._homerMarkJoeyDriveBackupDirty = markJoeyDriveBackupDirty;
   function clearJoeyDriveBackupDirty(){
     joeyDriveBackupDirty = false;
     joeyDriveBackupDirtyReason = '';
