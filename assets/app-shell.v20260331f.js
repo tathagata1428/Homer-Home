@@ -8508,7 +8508,7 @@ let tvWidgetCreated = false;
     BACKUP_LOCAL_SAVE_TS_KEY, BACKUP_DB_TS_KEY, BACKUP_JOEY_TS_KEY, BACKUP_DRIVE_TS_KEY, BACKUP_EMERGENCY_DRIVE_TS_KEY,
     BACKUP_LAST_RESTORE_TS_KEY, BACKUP_LAST_RESTORE_SOURCE_KEY
   ];
-  var LOCAL_ONLY_BACKUP_KEYS = ['homer-pre-restore-backup', 'homer-pre-restore-ts', 'homer-field-sync-version', 'homer-sync-device-id'];
+  var LOCAL_ONLY_BACKUP_KEYS = ['homer-pre-restore-backup', 'homer-pre-restore-ts', 'homer-field-sync-version', 'homer-sync-device-id', 'homer-quotes-seen'];
   var LOCAL_ONLY_BACKUP_PREFIXES = ['homer-oc-chat-cache:', 'homer-oc-chat-cleared:'];
   var BACKUP_SCHEMA_VERSION = 2;
   var JOEY_BUNDLE_PREFIX = 'homer-joey-bundle:';
@@ -10544,7 +10544,7 @@ let tvWidgetCreated = false;
   ];
   localStorage.setItem = function(key, value){
     origSetItem(key, value);
-    if(syncMetaKeys.indexOf(key) >= 0) return;
+    if(syncMetaKeys.indexOf(key) >= 0 || isLocalOnlyBackupKey(key)) return;
     markDirty();
   };
   localStorage.removeItem = function(key){
@@ -10753,7 +10753,7 @@ let tvWidgetCreated = false;
       }
       return;
     }
-    if(syncMetaKeys.indexOf(e.key) >= 0) return;
+    if(syncMetaKeys.indexOf(e.key) >= 0 || isLocalOnlyBackupKey(e.key)) return;
     markDirty();
     scanPersistentFieldLabels(document);
     requestSyncFieldLabelUpdate();
