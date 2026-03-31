@@ -337,7 +337,7 @@ export default async function handler(req, res) {
   }
 
   async function verifyStoredSnapshot(redis, key, expectedHash) {
-    var stored = await readJsonKey(redis, key, 3, 80);
+    var stored = await readJsonKey(redis, key, 8, 250);
     if (!stored) return { ok: false, reason: 'Stored snapshot missing after write' };
     var inspected = inspectSnapshot(stored);
     if (!inspected.ok) return { ok: false, reason: inspected.reason, integrity: inspected };
@@ -559,7 +559,7 @@ export default async function handler(req, res) {
         // Data hasn't changed - update timestamp but skip full backup
           meta.lastTs = now;
           await redis(['SET', hk + ':meta', JSON.stringify(meta)]);
-          var verifiedSkipMeta = await readJsonKey(redis, hk + ':meta', 3, 80);
+          var verifiedSkipMeta = await readJsonKey(redis, hk + ':meta', 8, 250);
           if (!verifiedSkipMeta || verifiedSkipMeta.lastTs !== now) {
             return res.status(500).json({ error: 'Backup metadata verification failed after unchanged write' });
           }
@@ -617,7 +617,7 @@ export default async function handler(req, res) {
 
       // 5. Save updated metadata
       await redis(['SET', hk + ':meta', JSON.stringify(meta)]);
-      var verifiedMeta = await readJsonKey(redis, hk + ':meta', 3, 80);
+      var verifiedMeta = await readJsonKey(redis, hk + ':meta', 8, 250);
       if (!verifiedMeta || verifiedMeta.lastDataHash !== newDataHash || verifiedMeta.lastTs !== now) {
         return res.status(500).json({ error: 'Backup metadata verification failed' });
       }
