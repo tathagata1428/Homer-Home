@@ -14981,6 +14981,123 @@ window._homerAmbientAudio = {
 <script>window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='undefined')pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/build/pdf.worker.min.mjs';});</script>
 <!-- DOCX text extraction for Joey file uploads -->
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js" defer></script>
+<script>
+(function(){
+  var MOJIBAKE_PATTERN = /[ÃÂâÅÐË]/;
+  var CP1252_INVERSE = {
+    '\u20ac': 0x80, '\u201a': 0x82, '\u0192': 0x83, '\u201e': 0x84, '\u2026': 0x85,
+    '\u2020': 0x86, '\u2021': 0x87, '\u02c6': 0x88, '\u2030': 0x89, '\u0160': 0x8a,
+    '\u2039': 0x8b, '\u0152': 0x8c, '\u017d': 0x8e, '\u2018': 0x91, '\u2019': 0x92,
+    '\u201c': 0x93, '\u201d': 0x94, '\u2022': 0x95, '\u2013': 0x96, '\u2014': 0x97,
+    '\u02dc': 0x98, '\u2122': 0x99, '\u0161': 0x9a, '\u203a': 0x9b, '\u0153': 0x9c,
+    '\u017e': 0x9e, '\u0178': 0x9f
+  };
+  function shouldRepairText(value){
+    return typeof value === 'string' && value && (MOJIBAKE_PATTERN.test(value) || value.indexOf('\u00e2\u2192') !== -1 || value.indexOf('open-mete\u043e.com') !== -1);
+  }
+  function decodeLatin1ishToUtf8(value){
+    var bytes = [];
+    for(var i = 0; i < value.length; i++){
+      var code = value.charCodeAt(i);
+      if(code <= 0xff){
+        bytes.push(code);
+      }else{
+        var ch = value.charAt(i);
+        if(!(ch in CP1252_INVERSE)) return value;
+        bytes.push(CP1252_INVERSE[ch]);
+      }
+    }
+    try{
+      return new TextDecoder('utf-8', { fatal:true }).decode(new Uint8Array(bytes));
+    }catch(_err){
+      return value;
+    }
+  }
+  function repairMojibakeText(value){
+    if(!shouldRepairText(value)) return value;
+    var current = value;
+    for(var i = 0; i < 3; i++){
+      var next = decodeLatin1ishToUtf8(current);
+      if(next === current) break;
+      current = next;
+    }
+    return current
+      .replace(/open-mete\u043e\.com/g, 'open-meteo.com')
+      .replace(/\u00e2\u2192/g, '\u2192');
+  }
+  function normalizeAttributes(el){
+    if(!el || el.nodeType !== 1) return;
+    ['title','placeholder','aria-label'].forEach(function(attr){
+      var value = el.getAttribute(attr);
+      if(!shouldRepairText(value)) return;
+      var fixed = repairMojibakeText(value);
+      if(fixed !== value) el.setAttribute(attr, fixed);
+    });
+    if(el.tagName === 'BUTTON' || (el.tagName === 'INPUT' && /^(button|submit|reset)$/i.test(el.type || ''))){
+      var buttonValue = el.getAttribute('value');
+      if(shouldRepairText(buttonValue)){
+        var fixedButtonValue = repairMojibakeText(buttonValue);
+        if(fixedButtonValue !== buttonValue){
+          el.setAttribute('value', fixedButtonValue);
+          if('value' in el) el.value = fixedButtonValue;
+        }
+      }
+    }
+  }
+  function normalizeTextNode(node){
+    if(!node || node.nodeType !== Node.TEXT_NODE || !shouldRepairText(node.nodeValue)) return;
+    var fixed = repairMojibakeText(node.nodeValue);
+    if(fixed !== node.nodeValue) node.nodeValue = fixed;
+  }
+  function normalizeSubtree(root){
+    if(!root) return;
+    if(root.nodeType === Node.TEXT_NODE){
+      normalizeTextNode(root);
+      return;
+    }
+    if(root.nodeType !== Node.ELEMENT_NODE) return;
+    if(/^(SCRIPT|STYLE|TEXTAREA)$/i.test(root.tagName)) return;
+    normalizeAttributes(root);
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var current;
+    while((current = walker.nextNode())){
+      if(current.parentNode && current.parentNode.nodeType === 1 && /^(SCRIPT|STYLE|TEXTAREA)$/i.test(current.parentNode.tagName)) continue;
+      normalizeTextNode(current);
+    }
+    root.querySelectorAll('[title],[placeholder],[aria-label],button[value],input[type="button"][value],input[type="submit"][value],input[type="reset"][value]').forEach(normalizeAttributes);
+  }
+  function startMojibakeRepair(){
+    if(!document.body) return;
+    normalizeSubtree(document.body);
+    var observer = new MutationObserver(function(records){
+      records.forEach(function(record){
+        if(record.type === 'characterData'){
+          normalizeTextNode(record.target);
+          return;
+        }
+        if(record.type === 'attributes'){
+          normalizeAttributes(record.target);
+          return;
+        }
+        record.addedNodes.forEach(normalizeSubtree);
+      });
+    });
+    observer.observe(document.body, {
+      childList:true,
+      subtree:true,
+      characterData:true,
+      attributes:true,
+      attributeFilter:['title','placeholder','aria-label','value']
+    });
+  }
+  window._homerRepairMojibakeText = repairMojibakeText;
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', startMojibakeRepair, { once:true });
+  }else{
+    startMojibakeRepair();
+  }
+})();
+</script>
 <!-- OpenClaw Chat -->
 <script>
 (function(){
