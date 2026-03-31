@@ -67,11 +67,11 @@ function buildQuotesMarkdown(entries) {
     ''
   ];
   items.forEach((entry, index) => {
-    const quote = String(entry.quote || '').trim();
+    const quote = String(entry.quote || '').trim().replace(/^["“']+|["”']+$/g, '');
     const author = String(entry.author || 'Unknown').trim() || 'Unknown';
     const savedAt = String(entry.savedAt || '').trim();
     lines.push('## Quote ' + (index + 1));
-    lines.push('> ' + quote.replace(/\r?\n+/g, '\n> '));
+    lines.push('> "' + quote.replace(/\r?\n+/g, '\n> ') + '"');
     lines.push('');
     lines.push('- Author: ' + author);
     if (savedAt) lines.push('- Saved: ' + savedAt);
