@@ -448,6 +448,7 @@ function renderQuote(q) {
 
     const SAVED_KEY="motivator.savedQuotes.v1";
     const SAVED_QUOTES_FILE_NAME = 'Quotes.md';
+    const SAVED_QUOTES_PENDING_KEY = 'motivator.savedQuotes.pendingSync';
     let savedQuotesSyncTimer = null;
     function loadSaved(){ try{ return JSON.parse(localStorage.getItem(SAVED_KEY)||"[]"); }catch{return [];} }
     function getSavedQuotesMode(){
@@ -497,10 +498,22 @@ function renderQuote(q) {
       });
       return lines.join('\n').trim() + '\n';
     }
+    function markSavedQuotesPendingSync(){
+      try{ localStorage.setItem(SAVED_QUOTES_PENDING_KEY, 'true'); }catch(_e){}
+    }
+    function clearSavedQuotesPendingSync(){
+      try{ localStorage.removeItem(SAVED_QUOTES_PENDING_KEY); }catch(_e){}
+    }
+    function hasSavedQuotesPendingSync(){
+      try{ return localStorage.getItem(SAVED_QUOTES_PENDING_KEY) === 'true'; }catch(_e){ return false; }
+    }
     function syncSavedQuotesToJoeyFile(reason, opts){
       opts = opts || {};
       var pass = localStorage.getItem('homer-sync-pass') || '';
-      if(!pass) return Promise.resolve(false);
+      if(!pass){
+        markSavedQuotesPendingSync();
+        return Promise.resolve(false);
+      }
       var content = buildSavedQuotesMarkdown(loadSaved());
       return fetch(savedQuotesActionUrl('custom-files', pass), {
         method:'POST',
@@ -514,6 +527,7 @@ function renderQuote(q) {
       }).then(function(r){ return r.json(); })
         .then(function(data){
           if(!data || data.error) throw new Error((data && data.error) || 'Quote file sync failed');
+          clearSavedQuotesPendingSync();
           if(!opts.skipRefresh && typeof refreshCanonicalFiles === 'function') refreshCanonicalFiles({ skipQuoteSync:true }).catch(function(){});
           if(!opts.skipBackups){
             markJoeyDriveBackupDirty(reason || 'quotes-md-update');
@@ -523,6 +537,7 @@ function renderQuote(q) {
           return true;
         })
         .catch(function(err){
+          markSavedQuotesPendingSync();
           console.warn('[Quotes] Quotes.md sync skipped (' + (reason || 'update') + '):', err && err.message ? err.message : err);
           return false;
         });
@@ -541,6 +556,7 @@ function renderQuote(q) {
     }
     function saveSaved(list){
       localStorage.setItem(SAVED_KEY,JSON.stringify(list));
+      markSavedQuotesPendingSync();
       queueSavedQuotesFileSync('saved-quotes');
     }
     function normalizeSavedQuoteText(value){
@@ -740,7 +756,17 @@ function renderQuote(q) {
       const a=document.createElement('a'); a.href=url; a.download='saved-quotes.txt'; a.click(); URL.revokeObjectURL(url);
     });
     els.clearSaved?.addEventListener('click',clearAllSaved); els.save.addEventListener("click",addCurrentToSaved);
+    function flushPendingSavedQuotesSync(reason){
+      if(!hasSavedQuotesPendingSync()) return Promise.resolve(false);
+      return syncSavedQuotesToJoeyFile(reason || 'saved-quotes-pending', { skipBackups:false });
+    }
     els.refresh.click(); renderSaved(); queueSavedQuotesFileSync('quotes-init');
+    window.addEventListener('homer-vault-state', function(){
+      if(window._homerVaultUnlocked) flushPendingSavedQuotesSync('saved-quotes-unlock');
+    });
+    window.addEventListener('focus', function(){
+      if(localStorage.getItem('homer-sync-pass')) flushPendingSavedQuotesSync('saved-quotes-focus');
+    });
 
     /* Saved Quotes collapsible toggle */
     const savedToggle=document.getElementById('saved-toggle');
