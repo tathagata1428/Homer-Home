@@ -2771,15 +2771,25 @@ let tvWidgetCreated = false;
     normalizedRoot.profiles[mode] = ensureProfileData(normalizedRoot.profiles[mode], mode);
     return normalizedRoot.profiles[mode];
   }
-  function loadVault(){
+  function getVaultDataForMode(root, mode){
+    var normalizedRoot = ensureVaultRoot(root);
+    var resolvedMode = normalizeVaultMode(mode);
+    if(!normalizedRoot.profiles[resolvedMode]) normalizedRoot.profiles[resolvedMode] = defaultData(resolvedMode);
+    normalizedRoot.profiles[resolvedMode] = ensureProfileData(normalizedRoot.profiles[resolvedMode], resolvedMode);
+    return normalizedRoot.profiles[resolvedMode];
+  }
+  function loadVaultForMode(mode){
     return loadVaultRoot().then(function(root){
-      return getActiveVaultData(root);
+      return getVaultDataForMode(root, mode);
     });
   }
-  function saveVault(data){
+  function loadVault(){
+    return loadVaultForMode(currentVaultMode);
+  }
+  function saveVaultForMode(mode, data){
     return loadVaultRoot().then(function(root){
       var nextRoot = ensureVaultRoot(root);
-      var normalizedMode = normalizeVaultMode(currentVaultMode);
+      var normalizedMode = normalizeVaultMode(mode);
       nextRoot.profiles[normalizedMode] = ensureProfileData(data, normalizedMode);
       _vaultRootCache = nextRoot;
       return encrypt(cryptoKey, JSON.stringify(nextRoot)).then(function(enc){
@@ -2802,10 +2812,15 @@ let tvWidgetCreated = false;
       });
     });
   }
+  function saveVault(data){
+    return saveVaultForMode(currentVaultMode, data);
+  }
 
   // Expose vault functions globally for AI Agent chat and Goals page
   window._homerLoadVault = loadVault;
+  window._homerLoadVaultForMode = loadVaultForMode;
   window._homerSaveVault = function(data){ return saveVault(data); };
+  window._homerSaveVaultForMode = function(mode, data){ return saveVaultForMode(mode, data); };
   window._homerOpenIssue = function(gi, si){ openIssueFullscreen(gi, si); };
   window._homerGetVaultMode = function(){ return currentVaultMode; };
   function getCachedVaultData(){
@@ -3204,6 +3219,7 @@ let tvWidgetCreated = false;
       '- Vault contains projects/kanban, life goals, encrypted notes, private links, credentials, and sync/recovery.\n' +
       '- Joey also controls memory commit, Drive backup, Drive compare/sync, and vault mirror status.\n' +
       '- Current Joey mode: ' + mode + '. Current vault mode: ' + vaultMode + '.\n' +
+      '- Create and update tasks, projects, secrets, notes, and backups only inside the current mode. Personal writes go only to the Personal vault/profile and Personal Drive backup. Work writes go only to the Work vault/profile and Work Drive backup.\n' +
       '\n=== EXECUTABLE ACTIONS ===\n' +
       '- Supported action tags are TASK, GOAL, FOCUS, EVENT, REMEMBER, FORGET, PROJECT, NOTE, LINK, SECRET, and COMMAND.\n' +
       '- Only output these exact action tags. Never invent unsupported tags.\n' +
@@ -3487,8 +3503,8 @@ let tvWidgetCreated = false;
     var offset = circumference - (safePct / 100) * circumference;
     return '<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="' + radius + '" class="ring-bg"></circle><circle cx="24" cy="24" r="' + radius + '" class="ring-fg" stroke="' + color + '" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + offset + '"></circle></svg><span class="ring-label">' + safePct + '%</span>';
   }
-  function persistProjectMutation(data, reason){
-    return saveVault(data).then(function(){
+  function persistProjectMutation(data, reason, mode){
+    return saveVaultForMode(mode || currentVaultMode, data).then(function(){
       var backupTask = typeof window._homerBackupEverythingToDb === 'function'
         ? window._homerBackupEverythingToDb()
         : flushDbBackupNow(reason || 'project-mutation');
@@ -3539,8 +3555,9 @@ let tvWidgetCreated = false;
       return { ok:false, error: err && err.message ? err.message : String(err) };
     });
   }
-  function createProjectEntry(projectData){
-    return loadVault().then(function(data){
+  function createProjectEntry(projectData, options){
+    var mode = resolveAgentActionMode(options);
+    return loadVaultForMode(mode).then(function(data){
       var projects = ensureProjects(data.projects || []);
       var name = String(projectData && (projectData.name || projectData.title) || '').trim();
       if(!name) return { ok:false, reason:'missing-name' };
@@ -3568,13 +3585,14 @@ let tvWidgetCreated = false;
         color: /^#[0-9a-f]{6}$/i.test(projectData.color || '') ? projectData.color : '#60a5fa',
         order: projects.length
       }]));
-      return persistProjectMutation(data, 'project-create').then(function(){
+      return persistProjectMutation(data, 'project-create', mode).then(function(){
         return { ok:true, projectId:id, name:name, key:key };
       });
     });
   }
-  function updateProjectEntry(projectId, projectData){
-    return loadVault().then(function(data){
+  function updateProjectEntry(projectId, projectData, options){
+    var mode = resolveAgentActionMode(options);
+    return loadVaultForMode(mode).then(function(data){
       var projects = ensureProjects(data.projects || []);
       var project = projects.find(function(entry){ return entry && entry.id === projectId; });
       if(!project) return { ok:false, reason:'missing' };
@@ -3595,13 +3613,14 @@ let tvWidgetCreated = false;
       project.icon = String(projectData && projectData.icon || '').trim();
       project.color = /^#[0-9a-f]{6}$/i.test(projectData && projectData.color || '') ? projectData.color : (project.color || '#60a5fa');
       data.projects = ensureProjects(projects);
-      return persistProjectMutation(data, 'project-update').then(function(){
+      return persistProjectMutation(data, 'project-update', mode).then(function(){
         return { ok:true, projectId:projectId, name:nextName, key:nextKey };
       });
     });
   }
-  function archiveProjectById(projectId){
-    return loadVault().then(function(data){
+  function archiveProjectById(projectId, options){
+    var mode = resolveAgentActionMode(options);
+    return loadVaultForMode(mode).then(function(data){
       var projects = ensureProjects(data.projects || []);
       var project = projects.find(function(entry){ return entry.id === projectId; });
       if(!project) return { ok:false, reason:'missing' };
@@ -3613,22 +3632,24 @@ let tvWidgetCreated = false;
       project.archivedAt = Date.now();
       data.projects = ensureProjects(projects);
       if(goalFilterProject && goalFilterProject.value === projectId) goalFilterProject.value = '';
-      return persistProjectMutation(data, 'project-archive').then(function(){ return { ok:true, projectId:projectId }; });
+      return persistProjectMutation(data, 'project-archive', mode).then(function(){ return { ok:true, projectId:projectId }; });
     });
   }
-  function restoreProjectById(projectId){
-    return loadVault().then(function(data){
+  function restoreProjectById(projectId, options){
+    var mode = resolveAgentActionMode(options);
+    return loadVaultForMode(mode).then(function(data){
       var projects = ensureProjects(data.projects || []);
       var project = projects.find(function(entry){ return entry.id === projectId; });
       if(!project) return { ok:false, reason:'missing' };
       project.archived = false;
       project.archivedAt = 0;
       data.projects = ensureProjects(projects);
-      return persistProjectMutation(data, 'project-restore').then(function(){ return { ok:true, projectId:projectId }; });
+      return persistProjectMutation(data, 'project-restore', mode).then(function(){ return { ok:true, projectId:projectId }; });
     });
   }
-  function deleteProjectById(projectId){
-    return loadVault().then(function(data){
+  function deleteProjectById(projectId, options){
+    var mode = resolveAgentActionMode(options);
+    return loadVaultForMode(mode).then(function(data){
       var projects = ensureProjects(data.projects || []);
       var project = projects.find(function(entry){ return entry.id === projectId; });
       if(!project) return { ok:false, reason:'missing' };
@@ -3654,7 +3675,7 @@ let tvWidgetCreated = false;
         return entry;
       });
       if(goalFilterProject && goalFilterProject.value === projectId) goalFilterProject.value = projectGoals.length ? fallbackProject.id : '';
-      return persistProjectMutation(data, 'project-delete').then(function(){ return { ok:true, projectId:projectId }; });
+      return persistProjectMutation(data, 'project-delete', mode).then(function(){ return { ok:true, projectId:projectId }; });
     });
   }
   function populateProjectControls(projects, goals, options){
@@ -6322,11 +6343,12 @@ let tvWidgetCreated = false;
     }
     return { ok:false, error:'Unknown vault surface: ' + surface };
   };
-  window._homerUpdateVaultNote = function(text){
+  window._homerUpdateVaultNote = function(text, mode){
     if(!window._homerVaultUnlocked) return Promise.resolve({ ok:false, error:'Vault is locked' });
-    return loadVault().then(function(data){
+    var targetMode = normalizeVaultMode(mode || currentVaultMode);
+    return loadVaultForMode(targetMode).then(function(data){
       data.notes = String(text || '');
-      return saveVault(data).then(function(){
+      return saveVaultForMode(targetMode, data).then(function(){
         if(notesArea) notesArea.value = data.notes;
         if(notesStatus) notesStatus.textContent = 'saved';
         refreshCanonicalFiles().catch(function(){});
@@ -6334,30 +6356,32 @@ let tvWidgetCreated = false;
       });
     });
   };
-  window._homerAddVaultSecretLink = function(payload){
+  window._homerAddVaultSecretLink = function(payload, mode){
     if(!window._homerVaultUnlocked) return Promise.resolve({ ok:false, error:'Vault is locked' });
     var entry = payload && typeof payload === 'object' ? payload : {};
     var name = String(entry.name || entry.title || '').trim();
     var url = String(entry.url || '').trim();
     if(!name || !url) return Promise.resolve({ ok:false, error:'Missing name or url' });
     if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
-    return loadVault().then(function(data){
+    var targetMode = normalizeVaultMode(mode || currentVaultMode);
+    return loadVaultForMode(targetMode).then(function(data){
       if(!Array.isArray(data.links)) data.links = [];
       data.links.push({ name:name, url:url, desc:String(entry.description || entry.desc || '').trim() });
-      return saveVault(data).then(function(){
+      return saveVaultForMode(targetMode, data).then(function(){
         renderLinks(data.links || []);
         refreshCanonicalFiles().catch(function(){});
         return { ok:true, name:name, url:url };
       });
     });
   };
-  window._homerAddVaultCredential = function(payload){
+  window._homerAddVaultCredential = function(payload, mode){
     if(!window._homerVaultUnlocked) return Promise.resolve({ ok:false, error:'Vault is locked' });
     var entry = payload && typeof payload === 'object' ? payload : {};
     var label = String(entry.label || entry.name || '').trim();
     var passValue = String(entry.password || entry.pass || '').trim();
     if(!label || !passValue) return Promise.resolve({ ok:false, error:'Missing label or password' });
-    return loadVault().then(function(data){
+    var targetMode = normalizeVaultMode(mode || currentVaultMode);
+    return loadVaultForMode(targetMode).then(function(data){
       if(!Array.isArray(data.creds)) data.creds = [];
       data.creds.push({
         label: label,
@@ -6366,7 +6390,7 @@ let tvWidgetCreated = false;
         pass: passValue,
         details: String(entry.details || entry.notes || '').trim()
       });
-      return saveVault(data).then(function(){
+      return saveVaultForMode(targetMode, data).then(function(){
         renderCreds(data.creds || []);
         refreshCanonicalFiles().catch(function(){});
         return { ok:true, label:label };
@@ -11877,9 +11901,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
 
   // --- Manual memory commit (Redis + Drive) ---
   function collectTaskSnapshot(){
-    if(currentContextMode === 'work') return Promise.resolve([]);
-    if(typeof window._homerLoadVault !== 'function' || !window._homerVaultUnlocked) return Promise.resolve([]);
-    return window._homerLoadVault().then(function(data){
+    if(typeof window._homerLoadVaultForMode !== 'function' || !window._homerVaultUnlocked) return Promise.resolve([]);
+    return window._homerLoadVaultForMode(currentContextMode).then(function(data){
       return ((data && data.goals) || []).map(function(g){
         var project = getProjectById((data && data.projects) || _cachedProjects, g.projectId || getDefaultProjectId((data && data.projects) || _cachedProjects, true));
         return {
@@ -13005,6 +13028,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!/\b(?:task|todo|to-?do|card|issue)\b/i.test(raw)) return null;
     var body = raw.replace(/^\s*(?:please\s+)?(?:create|add|save|track|put|make|turn)\s+(?:me\s+|this\s+|a\s+|an\s+)?(?:new\s+)?(?:task|todo|to-?do|card|issue)\b/i, '').trim();
     if(!body) return null;
+    var requestedMode = '';
     var project = '';
     var summary = body;
     var patterns = [
@@ -13016,6 +13040,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       var found = body.match(patterns[p]);
       if(found){
         if(p === 0){
+          requestedMode = String(found[1] || '').trim().toLowerCase();
           project = String(found[2] || '').trim();
           summary = String(found[3] || '').trim();
         } else {
@@ -13034,6 +13059,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(project && /^the$/i.test(project)) project = '';
     if(!summary || summary.length < 3) return null;
     return {
+      mode: requestedMode === 'work' ? 'work' : (requestedMode === 'personal' ? 'personal' : ''),
       project: project,
       summary: summary,
       notes: summary
@@ -13129,6 +13155,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
     if(!taskData || typeof taskData !== 'object') taskData = { summary: rawText };
     var normalized = {
+      mode: String(taskData.mode || taskData.scope || '').trim().toLowerCase() === 'work' ? 'work' : (String(taskData.mode || taskData.scope || '').trim().toLowerCase() === 'personal' ? 'personal' : ''),
       op: clampAgentText(taskData.op || taskData.action || (taskData.key || taskData.issueKey ? 'update' : 'create'), 24).toLowerCase(),
       key: normalizeIssueKeyLookup(taskData.key || taskData.issueKey || taskData.issue || ''),
       project: clampAgentText(taskData.project || taskData.projectId || taskData.projectName || taskData.projectKey || '', 80),
@@ -13148,6 +13175,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     };
     var inferred = inferDirectIssueUpdateRequest(userText) || inferDirectIssueUpdateRequest(rawText) || inferTaskActionFromUserText(userText) || inferTaskActionFromUserText(rawText);
     if(!normalized.key && inferred && inferred.key) normalized.key = normalizeIssueKeyLookup(inferred.key);
+    if(!normalized.mode && inferred && inferred.mode) normalized.mode = inferred.mode === 'work' ? 'work' : 'personal';
     if(!normalized.status && inferred && inferred.status) normalized.status = normalizeIssueColumn(inferred.status);
     if(!normalized.project && inferred && inferred.project) normalized.project = clampAgentText(inferred.project, 80);
     if(!normalized.summary && inferred && inferred.summary) normalized.summary = clampAgentText(inferred.summary, 180);
@@ -13434,10 +13462,12 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       return { ok:false, message:err && err.message ? err.message : String(err) };
     });
   }
-  function applyAgentNoteMutation(noteData){
+  function applyAgentNoteMutation(noteData, options){
+    options = options || {};
     var target = String(noteData && noteData.target || 'vault').trim().toLowerCase();
     var text = String(noteData && noteData.text || '').trim();
     var mode = String(noteData && noteData.mode || 'replace').trim().toLowerCase();
+    var actionMode = resolveAgentActionMode(options);
     if(!text) return Promise.resolve({ ok:false, message:'Note text is empty' });
     if(target === 'brain-dump'){
       var currentDump = localStorage.getItem('homer-brain-dump') || '';
@@ -13462,7 +13492,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(typeof window._homerUpdateVaultNote === 'function'){
       return Promise.resolve(window._homerUpdateVaultNote(
         mode === 'append' ? (((typeof notesArea !== 'undefined' && notesArea && notesArea.value) || '').trim() ? (((typeof notesArea !== 'undefined' && notesArea && notesArea.value) || '').replace(/\s+$/,'') + '\n' + text) : text) : text
-      )).then(function(result){
+      , actionMode)).then(function(result){
         return result && result.ok
           ? { ok:true, message:'Vault note updated' }
           : { ok:false, message:'Vault note save failed: ' + ((result && result.error) || 'unknown error') };
@@ -13659,6 +13689,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }catch(_e){}
     return (localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal';
   }
+  function resolveAgentActionMode(options, requestedMode){
+    var optionMode = options && options.mode;
+    var inferredMode = requestedMode || optionMode || (typeof currentContextMode !== 'undefined' ? currentContextMode : '') || resolveAgentVaultMode();
+    return inferredMode === 'work' ? 'work' : 'personal';
+  }
   function resolveAgentVaultModeLabel(){
     var mode = resolveAgentVaultMode();
     return mode === 'work' ? 'Work' : 'Personal';
@@ -13683,16 +13718,20 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   function updateAgentTaskInVault(taskData, options){
     options = options || {};
     var normalizedTask = parseTaskActionData(taskData, options.userText || '');
-    var activeVaultMode = resolveAgentVaultMode();
+    var activeVaultMode = resolveAgentActionMode(options, normalizedTask.mode);
+    if(normalizedTask.mode && normalizedTask.mode !== activeVaultMode){
+      showJoeyStatusToast('Cross-mode issue updates are blocked. Switch to ' + (normalizedTask.mode === 'work' ? 'Work' : 'Personal') + ' mode first.', 'warn');
+      return Promise.resolve({ ok:false, reason:'cross-mode-blocked', mode:activeVaultMode, requestedMode:normalizedTask.mode, task:normalizedTask });
+    }
     if(!normalizedTask.key){
       showJoeyStatusToast('Issue update needs a key like APP-13.', 'warn');
       return Promise.resolve({ ok:false, reason:'missing-key', task:normalizedTask });
     }
-    if(typeof window._homerLoadVault !== 'function' || !window._homerVaultUnlocked){
-      showJoeyStatusToast('Unlock the ' + resolveAgentVaultModeLabel() + ' vault first to update issues.', 'warn');
+    if(typeof window._homerLoadVaultForMode !== 'function' || typeof window._homerSaveVaultForMode !== 'function' || !window._homerVaultUnlocked){
+      showJoeyStatusToast('Unlock the ' + (activeVaultMode === 'work' ? 'Work' : 'Personal') + ' vault first to update issues.', 'warn');
       return Promise.resolve({ ok:false, reason:'locked', mode:activeVaultMode, task:normalizedTask });
     }
-    return window._homerLoadVault().then(function(data){
+    return window._homerLoadVaultForMode(activeVaultMode).then(function(data){
       if(!data) throw new Error('Vault data unavailable');
       if(!Array.isArray(data.goals)) data.goals = [];
       if(!data._nextSubId) data._nextSubId = 1;
@@ -13784,7 +13823,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       }
       if(!Array.isArray(task.log)) task.log = [];
       task.log.push({ action:'Task updated by Joey: ' + changes.join(', '), ts:Date.now() });
-      return window._homerSaveVault(data).then(function(){
+      return window._homerSaveVaultForMode(activeVaultMode, data).then(function(){
         var updatedIssueKey = typeof issueKey === 'function' ? issueKey(task, data.projects || []) : normalizedTask.key;
         if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('joey-task-update', 900);
         try{ window.dispatchEvent(new Event('vault-goals-changed')); }catch(e){}
@@ -13836,16 +13875,20 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(normalizedTask.key || normalizedTask.op === 'update') return updateAgentTaskInVault(normalizedTask, options);
     if(!normalizedTask.summary) normalizedTask.summary = 'New Task';
     if(!normalizedTask.notes) normalizedTask.notes = normalizedTask.summary;
-    var activeVaultMode = resolveAgentVaultMode();
+    var activeVaultMode = resolveAgentActionMode(options, normalizedTask.mode);
+    if(normalizedTask.mode && normalizedTask.mode !== activeVaultMode){
+      showJoeyStatusToast('Cross-mode task creation is blocked. Switch to ' + (normalizedTask.mode === 'work' ? 'Work' : 'Personal') + ' mode first.', 'warn');
+      return Promise.resolve({ ok:false, reason:'cross-mode-blocked', mode:activeVaultMode, requestedMode:normalizedTask.mode, task:normalizedTask });
+    }
     if(shouldSkipRecentTask(normalizedTask)){
       console.log('[Joey task] Skipped duplicate task request', normalizedTask);
       return Promise.resolve({ ok:false, reason:'duplicate', task:normalizedTask });
     }
-    if(typeof window._homerLoadVault !== 'function' || !window._homerVaultUnlocked){
-      showJoeyStatusToast('Unlock the ' + resolveAgentVaultModeLabel() + ' vault first to add tasks.', 'warn');
+    if(typeof window._homerLoadVaultForMode !== 'function' || typeof window._homerSaveVaultForMode !== 'function' || !window._homerVaultUnlocked){
+      showJoeyStatusToast('Unlock the ' + (activeVaultMode === 'work' ? 'Work' : 'Personal') + ' vault first to add tasks.', 'warn');
       return Promise.resolve({ ok:false, reason:'locked', mode:activeVaultMode, task:normalizedTask });
     }
-    return window._homerLoadVault().then(function(data){
+    return window._homerLoadVaultForMode(activeVaultMode).then(function(data){
       if(!data) throw new Error('Vault data unavailable');
       if(!Array.isArray(data.goals)) data.goals = [];
       if(!data._nextId) data._nextId = 1;
@@ -13913,7 +13956,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
         log: [{action:'Task created by Joey in ' + displayProject.name, ts:Date.now()}]
       };
       data.goals.push(task);
-      return window._homerSaveVault(data).then(function(){
+      return window._homerSaveVaultForMode(activeVaultMode, data).then(function(){
         var createdIssueKey = typeof issueKey === 'function' ? issueKey(task, data.projects || []) : ((matchedProject.key || 'TASK') + '-' + task.id);
         rememberRecentTask({ projectId: matchedProject.id, summary: task.summary });
         if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('joey-task', 900);
@@ -14012,6 +14055,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var inferredCommand = inferDirectCommandRequest(userText);
     if(!actions.length) return text;
 
+    var actionMode = resolveAgentActionMode({ mode:(typeof currentContextMode !== 'undefined' ? currentContextMode : resolveAgentVaultMode()) });
     var notifications = [];
     actions.forEach(function(a){
       try{
@@ -14019,14 +14063,14 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
           // Kanban board task (vault) Ã¢â‚¬â€ accepts JSON or plain string
           if(((inferredTask && !directTaskNeedsPlanning) || inferredIssueUpdate) && !a.inferred) return;
           var taskData = parseTaskActionData(a.data, userText);
-          applyAgentTaskMutation(taskData, { userText:userText, source:'action' });
+          applyAgentTaskMutation(taskData, { userText:userText, source:'action', mode:actionMode });
           notifications.push(taskData.key
             ? 'Issue update queued: ' + taskData.key
             : ((a.inferred ? 'Kanban task inferred: ' : 'Kanban task queued: ') + (taskData.summary || taskData.title || a.data) + ((taskData.subtasks && taskData.subtasks.length) ? ' (' + taskData.subtasks.length + ' subtasks)' : '') + ((taskData.project || taskData.projectId) ? ' -> ' + (taskData.project || taskData.projectId) : '')));
           return;
           if(shouldSkipRecentTask(taskData)) return;
-          if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
-            window._homerLoadVault().then(function(data){
+          if(typeof window._homerLoadVaultForMode === 'function' && window._homerVaultUnlocked){
+            window._homerLoadVaultForMode(actionMode).then(function(data){
               if(!data) return;
               if(!Array.isArray(data.goals)) data.goals = [];
               if(!data._nextId) data._nextId = 1;
@@ -14223,9 +14267,9 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
               var matchedProject = requestedProject ? projectHelpers.matchProject(projects, requestedProject, projectHelpers.getDefaultProjectId(projects, true), true) : null;
               var matchedName = matchedProject ? (projectHelpers.projectDisplay(matchedProject) || matchedProject).name : requestedProject;
               if(op === 'create'){
-                createProjectEntry(projectAction).then(function(result){
+                createProjectEntry(projectAction, { mode: actionMode }).then(function(result){
                   if(result && result.ok){
-                    loadVault().then(function(nextData){
+                    loadVaultForMode(actionMode).then(function(nextData){
                       populateProjectControls(nextData.projects, nextData.goals, {selectedFilter:result.projectId, preferredTaskProject:result.projectId});
                       renderProjectDashboard(nextData);
                     });
@@ -14248,9 +14292,9 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
                   showJoeyStatusToast('Project not found: ' + requestedProject, 'warn');
                   return;
                 }
-                updateProjectEntry(matchedProject.id, projectAction).then(function(result){
+                updateProjectEntry(matchedProject.id, projectAction, { mode: actionMode }).then(function(result){
                   if(result && result.ok){
-                    loadVault().then(function(nextData){
+                    loadVaultForMode(actionMode).then(function(nextData){
                       populateProjectControls(nextData.projects, nextData.goals, {selectedFilter:matchedProject.id, preferredTaskProject:matchedProject.id});
                       renderProjectDashboard(nextData);
                       renderGoals(nextData.goals || [], nextData.projects || []);
@@ -14270,19 +14314,19 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
               } else if(!matchedProject){
                 showJoeyStatusToast('Project not found: ' + requestedProject, 'warn');
               } else if(op === 'archive'){
-                archiveProjectById(matchedProject.id).then(function(result){
+                archiveProjectById(matchedProject.id, { mode: actionMode }).then(function(result){
                   if(result && result.ok) showJoeyStatusToast('Project archived: ' + matchedName);
                 }).catch(function(err){
                   showJoeyStatusToast('Archive failed: ' + (err && err.message ? err.message : err), 'warn');
                 });
               } else if(op === 'restore'){
-                restoreProjectById(matchedProject.id).then(function(result){
+                restoreProjectById(matchedProject.id, { mode: actionMode }).then(function(result){
                   if(result && result.ok) showJoeyStatusToast('Project restored: ' + matchedName);
                 }).catch(function(err){
                   showJoeyStatusToast('Restore failed: ' + (err && err.message ? err.message : err), 'warn');
                 });
               } else if(op === 'delete'){
-                deleteProjectById(matchedProject.id).then(function(result){
+                deleteProjectById(matchedProject.id, { mode: actionMode }).then(function(result){
                   if(result && result.ok) showJoeyStatusToast('Project deleted: ' + matchedName);
                   else if(result && result.reason === 'has-issues') showJoeyStatusToast('Project still has issues. Move or archive them before delete.', 'warn');
                 }).catch(function(err){
@@ -14318,7 +14362,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
             }
             notifications.push('Zen goal updated');
           } else if(typeof window._homerUpdateVaultNote === 'function'){
-            window._homerUpdateVaultNote(noteText).catch(function(err){
+            window._homerUpdateVaultNote(noteText, actionMode).catch(function(err){
               showJoeyStatusToast('Vault note save failed: ' + (err && err.message ? err.message : err), 'warn');
             });
             notifications.push('Vault note updated');
@@ -14344,7 +14388,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
           var secretType = String(secretData.type || 'credential').trim().toLowerCase();
           if(secretType === 'link'){
             if(typeof window._homerAddVaultSecretLink === 'function'){
-              window._homerAddVaultSecretLink(secretData).then(function(result){
+              window._homerAddVaultSecretLink(secretData, actionMode).then(function(result){
                 if(!result || !result.ok) showJoeyStatusToast('Secret link failed: ' + ((result && result.error) || 'invalid data'), 'warn');
               }).catch(function(err){
                 showJoeyStatusToast('Secret link failed: ' + (err && err.message ? err.message : err), 'warn');
@@ -14354,7 +14398,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
               notifications.push('Vault secret links are unavailable right now');
             }
           } else if(typeof window._homerAddVaultCredential === 'function'){
-            window._homerAddVaultCredential(secretData).then(function(result){
+            window._homerAddVaultCredential(secretData, actionMode).then(function(result){
               if(!result || !result.ok) showJoeyStatusToast('Credential save failed: ' + ((result && result.error) || 'invalid data'), 'warn');
             }).catch(function(err){
               showJoeyStatusToast('Credential save failed: ' + (err && err.message ? err.message : err), 'warn');
@@ -14436,8 +14480,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
               notifications.push('Vault mirror unavailable');
             }
           } else if(cmd === 'issue-open'){
-            if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
-              window._homerLoadVault().then(function(data){
+          if(typeof window._homerLoadVaultForMode === 'function' && window._homerVaultUnlocked){
+            window._homerLoadVaultForMode(actionMode).then(function(data){
                 var foundIssue = findIssueRecordByKey(data, commandData.key || cmdTarget);
                 if(!foundIssue){
                   showJoeyStatusToast('Issue not found: ' + (commandData.key || cmdTarget || 'unknown'), 'warn');
@@ -14843,6 +14887,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
     systemPrompt += '\n\n=== PROJECT ACTIONS ===\n- If the user explicitly asks to create, rename, edit, archive, restore, or delete a project, append a PROJECT action.\n- PROJECT create format: [ACTION:PROJECT]{\"op\":\"create\",\"name\":\"Project Name\",\"description\":\"Optional description\",\"icon\":\"rocket\",\"color\":\"#60a5fa\"}[/ACTION]\n- PROJECT update format: [ACTION:PROJECT]{\"op\":\"update\",\"project\":\"Apps\",\"name\":\"Apps Platform\",\"description\":\"Shared product work\",\"icon\":\"AP\",\"color\":\"#34d399\"}[/ACTION]\n- PROJECT archive format: [ACTION:PROJECT]{\"op\":\"archive\",\"project\":\"Apps\"}[/ACTION]\n- PROJECT restore format: [ACTION:PROJECT]{\"op\":\"restore\",\"project\":\"Apps\"}[/ACTION]\n- PROJECT delete format: [ACTION:PROJECT]{\"op\":\"delete\",\"project\":\"Apps\"}[/ACTION]\n- Use \"project\" to identify the existing project for any non-create action.\n- Never delete a project that still has issues.\n- Never place new tasks into archived projects.';
     systemPrompt += '\n\n=== MODE ISOLATION ===\n- Personal and Work are separate memory domains.\n- Never reveal, summarize, hint at, or rely on information from the other mode.\n- If the user asks for something that belongs to the other mode, tell them to switch modes.\n- "Use full context" means full context for the current mode only.';
+    systemPrompt += '\n- All vault mutations are mode-bound. In Personal mode, create and update only Personal vault items and Personal Drive backup. In Work mode, create and update only Work vault items and Work Drive backup. Never write across modes.';
     systemPrompt += '\n\n=== CANONICAL FILES ===\n- Mode-specific context lives in AgentContext.md, Today.md, OpenLoops.md, Projects.md, Areas.md, Resources.md, People.md, Wins.md, Lessons.md, WeeklyReview.md, Decisions.md, PinnedContext.md, Archive.md, FilesIndex.md, Quotes.md when saved quotes exist, and Uploads/*.md for the current mode only.\n- FilesIndex.md lists remembered uploaded files and their Google Drive links for this mode.\n- Quotes.md is an accumulating reference file containing quotes saved from Home and quotes Joey saved via memory actions; use it for recall, advice framing, and preference shaping when relevant.\n- Quote entries must be stored in canonical form: blockquote contains only the quote text wrapped in quotation marks, Author line contains only the speaker name, Saved line contains only the ISO timestamp.\n- Never store prefixes like "Quote:" inside the quote body, and never leave the author inside the quoted text when it can be separated.\n- Uploads/*.md contains extracted text for previously processed files when relevant to this mode.\n- Prefer REMEMBER with categories win, lesson, resource, decision, pin, archive, or quote when the user explicitly asks to save something.\n- If the user says "save this as a win", store category "win".\n- If the user says "save this as a lesson", store category "lesson".\n- If the user says "save this as a resource" or "keep this note", store category "resource".\n- If the user says "save this quote", "remember this quote", or asks you to keep a line for later advice, store category "quote".\n- If the user says "pin this" or "always remember this", store category "pin" with pinned:true.\n- If the user asks for deeper recall, tell them they can say "use full context".';
     if(currentContextMode === 'work'){
       systemPrompt += '\n\n=== WORK MODE ===\n- You are in Work mode with separate work memory, uploads, files, and Drive backups.\n- Optimize for execution and recall: tasks, deadlines, blockers, dependencies, decisions, meeting outcomes, stakeholders, and next actions.\n- Beat a human personal assistant on follow-through: be organized, specific, concise, and proactive about missing details that matter for delivery.\n- When the user asks to save something work-related, prefer REMEMBER with categories work, decision, resource, win, lesson, or pin.\n- When work is discussed, default to crisp operational framing: what is due, who owns it, what is blocked, and what should happen next.\n- Never answer with personal-only memories unless they are present in current work context.';
@@ -14892,9 +14937,9 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     inputEl.style.height = 'auto';
     scrollMessagesToBottom(true);
     if(currentProvider === 'joey' && directIssueUpdate){
-      applyAgentTaskMutation(directIssueUpdate, { userText:displayText, source:'direct-user' });
+      applyAgentTaskMutation(directIssueUpdate, { userText:displayText, source:'direct-user', mode:currentContextMode });
     } else if(directTaskRequest && !directTaskNeedsPlanning && currentProvider === 'joey'){
-      applyAgentTaskMutation(directTaskRequest, { userText:displayText, source:'direct-user' });
+      applyAgentTaskMutation(directTaskRequest, { userText:displayText, source:'direct-user', mode:currentContextMode });
     } else if(directQuoteEditRequest && currentProvider === 'joey'){
       var directQuoteEditResult = await applySavedQuoteMutation(directQuoteEditRequest);
       var directQuoteEditReply = {
@@ -14928,7 +14973,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       saveHistoryToRedis();
       return;
     } else if(directNoteRequest && currentProvider === 'joey'){
-      var directNoteResult = await applyAgentNoteMutation(directNoteRequest);
+      var directNoteResult = await applyAgentNoteMutation(directNoteRequest, { mode:currentContextMode });
       var directNoteReply = {
         role:'assistant',
         content:(directNoteResult && directNoteResult.message) || 'Note updated.',
@@ -15058,7 +15103,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
                 target: deferredNoteRequest.target,
                 mode: deferredNoteRequest.mode,
                 text: generatedNoteText
-              });
+              }, { mode:currentContextMode });
               if(deferredSave && deferredSave.ok){
                 cleanResponse += '\n\nSaved to ' + (deferredNoteRequest.target === 'brain-dump' ? 'brain dump.' : (deferredNoteRequest.target === 'zen-goal' ? 'zen goal.' : 'vault note.'));
               } else if(deferredSave && deferredSave.message){

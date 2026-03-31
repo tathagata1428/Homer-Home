@@ -112,7 +112,7 @@ export default async function handler(req, res) {
     const taskSnapshot = Array.isArray((req.body || {}).tasks) ? req.body.tasks : [];
     const quoteMarkdown = typeof (req.body || {}).quoteMarkdown === 'string' ? String(req.body.quoteMarkdown || '').trim() : '';
     const cleanupManaged = !!(req.body && req.body.cleanupManaged);
-    const effectiveTasks = mode === 'work' ? [] : taskSnapshot;
+    const effectiveTasks = taskSnapshot;
     const isValid = await verifyJoeyPassphrase(passphrase, redisFetch);
     if (!isValid) return res.status(403).json({ error: 'Forbidden' });
 
