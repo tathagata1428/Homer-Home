@@ -102,6 +102,10 @@ function syncManagedContextFiles(folder, filesMap) {
   }
 }
 
+function isCleanupRequested(data) {
+  return !!(data && data.cleanupManaged);
+}
+
 function doPost(e) {
   try {
     if (!e || !e.postData || !e.postData.contents) {
@@ -206,7 +210,9 @@ function doPost(e) {
       var body = String(files[name] || '');
       upsertTextFile(folder, name, body, MimeType.PLAIN_TEXT);
     });
-    syncManagedContextFiles(folder, files);
+    if (isCleanupRequested(data)) {
+      syncManagedContextFiles(folder, files);
+    }
 
     return ContentService.createTextOutput(JSON.stringify({
       ok: true,
@@ -215,7 +221,8 @@ function doPost(e) {
       historyCount: (data.history || []).length,
       hasProfile: !!data.profile,
       customFilesCount: Object.keys(data.customFiles || {}).length,
-      journalCount: (data.journal || []).length
+      journalCount: (data.journal || []).length,
+      cleanupManaged: isCleanupRequested(data)
     })).setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {

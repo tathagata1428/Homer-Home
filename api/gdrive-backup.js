@@ -111,6 +111,7 @@ export default async function handler(req, res) {
     const forceBackup = !!(req.body && req.body.force);
     const taskSnapshot = Array.isArray((req.body || {}).tasks) ? req.body.tasks : [];
     const quoteMarkdown = typeof (req.body || {}).quoteMarkdown === 'string' ? String(req.body.quoteMarkdown || '').trim() : '';
+    const cleanupManaged = !!(req.body && req.body.cleanupManaged);
     const effectiveTasks = mode === 'work' ? [] : taskSnapshot;
     const isValid = await verifyJoeyPassphrase(passphrase, redisFetch);
     if (!isValid) return res.status(403).json({ error: 'Forbidden' });
@@ -258,7 +259,8 @@ export default async function handler(req, res) {
       fileLibrary,
       customFiles: nextCustomFiles,
       journal,
-      syncMeta
+      syncMeta,
+      cleanupManaged
     };
 
     // --- POST to Google Apps Script with manual redirect following ---
@@ -299,6 +301,7 @@ export default async function handler(req, res) {
       return res.status(502).json({
         error: 'Google Script rejected the request',
         scriptError: parsed.error,
+        scriptStack: parsed.stack || undefined,
         hint: parsed.error === 'Unauthorized'
           ? 'GDRIVE_SECRET env var does not match the SECRET in your Google Apps Script. Check both values match exactly.'
           : undefined,
