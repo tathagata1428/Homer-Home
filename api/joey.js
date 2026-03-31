@@ -27,6 +27,92 @@ function sanitizeManagedFiles(value, fileLibrary, customFiles, generatedAt) {
   return mergeDerivedFileContext(cleaned, Array.isArray(fileLibrary) ? fileLibrary : [], sanitizeManagedCustomFiles(customFiles), generatedAt || new Date().toISOString());
 }
 
+const QUOTES_FILE_NAME = 'Quotes.md';
+
+function normalizeQuoteKey(text, author) {
+  return String(text || '').trim().toLowerCase().replace(/\s+/g, ' ') + '|' + String(author || 'Unknown').trim().toLowerCase();
+}
+
+function extractQuoteEntriesFromMarkdown(markdown) {
+  const value = String(markdown || '').replace(/\r\n/g, '\n').trim();
+  if (!value) return [];
+  const entries = [];
+  const blocks = value.split(/\n(?=##\s+Quote\b)/g);
+  blocks.forEach((block) => {
+    const quoteMatch = block.match(/^\s*>\s*([\s\S]*?)(?:\n(?:-|##|$))/m);
+    const authorMatch = block.match(/^\s*-\s*Author:\s*(.+)$/mi);
+    const savedMatch = block.match(/^\s*-\s*Saved:\s*(.+)$/mi);
+    const quoteText = quoteMatch ? quoteMatch[1].replace(/\n>\s*/g, '\n').trim() : '';
+    const author = authorMatch ? String(authorMatch[1] || '').trim() : 'Unknown';
+    const savedAt = savedMatch ? String(savedMatch[1] || '').trim() : '';
+    if (!quoteText) return;
+    entries.push({ quote: quoteText, author: author || 'Unknown', savedAt });
+  });
+  return entries;
+}
+
+function buildQuotesMarkdown(entries) {
+  const items = Array.isArray(entries) ? entries.filter((entry) => entry && String(entry.quote || '').trim()) : [];
+  if (!items.length) return '';
+  const lines = [
+    '# Quotes',
+    '',
+    'Saved quotes from Homer Motivator and Joey memory. Joey can use these for recall, tone, advice, and preference shaping.',
+    ''
+  ];
+  items.forEach((entry, index) => {
+    const quote = String(entry.quote || '').trim();
+    const author = String(entry.author || 'Unknown').trim() || 'Unknown';
+    const savedAt = String(entry.savedAt || '').trim();
+    lines.push('## Quote ' + (index + 1));
+    lines.push('> ' + quote.replace(/\r?\n+/g, '\n> '));
+    lines.push('');
+    lines.push('- Author: ' + author);
+    if (savedAt) lines.push('- Saved: ' + savedAt);
+    lines.push('');
+  });
+  return lines.join('\n').trim() + '\n';
+}
+
+function mergeQuotesMarkdown(existingMarkdown, incomingMarkdown) {
+  const merged = [];
+  const seen = new Set();
+  const addEntries = (entries) => {
+    entries.forEach((entry) => {
+      const quote = String(entry && entry.quote || '').trim();
+      if (!quote) return;
+      const author = String(entry && entry.author || 'Unknown').trim() || 'Unknown';
+      const savedAt = String(entry && entry.savedAt || '').trim();
+      const key = normalizeQuoteKey(quote, author);
+      if (seen.has(key)) return;
+      seen.add(key);
+      merged.push({ quote, author, savedAt });
+    });
+  };
+  addEntries(extractQuoteEntriesFromMarkdown(existingMarkdown));
+  addEntries(extractQuoteEntriesFromMarkdown(incomingMarkdown));
+  return buildQuotesMarkdown(merged);
+}
+
+function isQuoteLikeCategory(category) {
+  const value = String(category || '').trim().toLowerCase();
+  return ['quote', 'quotes', 'wisdom', 'stoic', 'mantra', 'motto', 'inspiration'].includes(value);
+}
+
+function buildQuoteMarkdownFromMemory(memory, category) {
+  const text = String(memory || '').trim();
+  if (!text) return '';
+  const quoteMatch = text.match(/^["“](.+?)["”]\s*(?:[-—]\s*(.+))?$/);
+  const quote = quoteMatch ? String(quoteMatch[1] || '').trim() : text;
+  const author = quoteMatch && quoteMatch[2] ? String(quoteMatch[2] || '').trim() : 'Unknown';
+  return buildQuotesMarkdown([{
+    quote,
+    author,
+    savedAt: new Date().toISOString(),
+    category: category || 'quote'
+  }]);
+}
+
 export default async function handler(req, res) {
   const origin = req.headers.origin || '*';
   res.setHeader('Access-Control-Allow-Origin', origin);
@@ -169,7 +255,11 @@ export default async function handler(req, res) {
       if (req.method === 'POST') {
         const { memory, category, source, confidence, pinned } = req.body || {};
         if (!memory) return res.status(400).json({ error: 'Missing memory' });
-        const result = await redis(['GET', MEMORY_KEY]);
+        const [result, customFilesResult, filesResult] = await Promise.all([
+          redis(['GET', MEMORY_KEY]),
+          redis(['GET', CUSTOM_FILES_KEY]),
+          redis(['GET', FILES_KEY])
+        ]);
         const memories = result.result ? JSON.parse(result.result) : [];
         memories.push({
           id: Date.now(),
@@ -181,7 +271,20 @@ export default async function handler(req, res) {
           pinned: !!pinned
         });
         while (memories.length > MAX_MEMORIES) memories.shift();
-        await redis(['SET', MEMORY_KEY, JSON.stringify(memories)]);
+        const customFiles = sanitizeManagedCustomFiles(customFilesResult.result ? JSON.parse(customFilesResult.result) : {});
+        const files = sanitizeManagedFiles(filesResult.result ? JSON.parse(filesResult.result) : {}, [], customFiles, new Date().toISOString());
+        if (isQuoteLikeCategory(category)) {
+          const nextQuoteContent = mergeQuotesMarkdown(customFiles[QUOTES_FILE_NAME], buildQuoteMarkdownFromMemory(memory, category));
+          if (nextQuoteContent) {
+            customFiles[QUOTES_FILE_NAME] = nextQuoteContent;
+            files[QUOTES_FILE_NAME] = nextQuoteContent;
+          }
+        }
+        await Promise.all([
+          redis(['SET', MEMORY_KEY, JSON.stringify(memories)]),
+          redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(customFiles)]),
+          redis(['SET', FILES_KEY, JSON.stringify(files)])
+        ]);
         await appendJournalEntries([
           buildJournalEntry('memory-added', {
             text: memory,
@@ -423,7 +526,10 @@ export default async function handler(req, res) {
           delete customFiles[safeName];
           delete files[safeName];
         } else {
-          customFiles[safeName] = content.trim().slice(0, 50000);
+          const nextContent = safeName === QUOTES_FILE_NAME
+            ? mergeQuotesMarkdown(customFiles[safeName], content)
+            : content.trim().slice(0, 50000);
+          customFiles[safeName] = nextContent;
           files[safeName] = customFiles[safeName];
         }
         await Promise.all([
