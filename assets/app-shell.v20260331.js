@@ -10290,6 +10290,7 @@ let tvWidgetCreated = false;
 
   autoChk.addEventListener('change', function(){
     localStorage.setItem(SYNC_AUTO_KEY, autoChk.checked);
+    window.dispatchEvent(new CustomEvent('homer-sync-auto-changed', { detail:{ enabled: !!autoChk.checked } }));
     if(autoChk.checked) startAuto(); else stopAuto();
     updDot();
   });
@@ -10430,6 +10431,13 @@ let tvWidgetCreated = false;
     if(debounceTimer){ clearTimeout(debounceTimer); debounceTimer=null; }
     stopFieldSyncLoop();
   }
+  window.addEventListener('homer-sync-auto-changed', function(e){
+    var enabled = !!(e && e.detail && e.detail.enabled);
+    autoChk.checked = enabled;
+    if(enabled) startAuto();
+    else stopAuto();
+    updDot();
+  });
 
   // --- Tab Coordination (leader election + BroadcastChannel) ---
   var TAB_ID = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
@@ -10849,10 +10857,12 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   var mobileModeWorkBtn = document.getElementById('oc-mobile-mode-work');
   var mobileEditPromptBtn = document.getElementById('oc-mobile-edit-prompt');
   var mobileClearPromptBtn = document.getElementById('oc-mobile-clear-prompt');
+  var mobileSyncToggleBtn = document.getElementById('oc-mobile-sync-toggle');
   var mobileCommitMemoryBtn = document.getElementById('oc-mobile-commit-memory');
   var mobileSyncDriveBtn = document.getElementById('oc-mobile-sync-drive');
   var mobileBackupDriveBtn = document.getElementById('oc-mobile-backup-drive');
   var mobileClearChatBtn = document.getElementById('oc-mobile-clear-chat');
+  var syncToggleBtn = document.getElementById('oc-sync-toggle');
   var saveDbBtn = document.getElementById('oc-save-db');
   var expandBtn = document.getElementById('oc-expand-btn');
   var fullscreenBtn = document.getElementById('oc-fullscreen-btn');
@@ -10893,6 +10903,23 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     joeyDriveBackupDirty = false;
     joeyDriveBackupDirtyReason = '';
     joeyDriveBackupDirtyAt = 0;
+  }
+  function isAutoSyncEnabled(){
+    return localStorage.getItem('homer-sync-auto') === 'true';
+  }
+  function setAutoSyncEnabled(enabled){
+    localStorage.setItem('homer-sync-auto', enabled ? 'true' : 'false');
+    window.dispatchEvent(new CustomEvent('homer-sync-auto-changed', { detail:{ enabled: !!enabled } }));
+  }
+  function refreshJoeySyncToggleUi(){
+    var enabled = isAutoSyncEnabled();
+    if(syncToggleBtn){
+      syncToggleBtn.textContent = enabled ? 'Auto Sync On' : 'Auto Sync Off';
+      syncToggleBtn.classList.toggle('warn', !enabled);
+    }
+    if(mobileSyncToggleBtn){
+      mobileSyncToggleBtn.textContent = enabled ? 'Auto Sync On' : 'Auto Sync Off';
+    }
   }
   function getJoeyAccessState(){
     var rawUser = String(localStorage.getItem('homer-auth-user') || '').trim();
@@ -11806,6 +11833,15 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       if(desktopSyncBtn) desktopSyncBtn.click();
     });
   }
+  if(mobileSyncToggleBtn){
+    mobileSyncToggleBtn.addEventListener('click', function(){
+      var nextEnabled = !isAutoSyncEnabled();
+      setAutoSyncEnabled(nextEnabled);
+      refreshJoeySyncToggleUi();
+      closeMobileMenu();
+      showJoeyStatusToast(nextEnabled ? 'Automatic sync enabled.' : 'Automatic sync paused.', nextEnabled ? 'success' : 'warn');
+    });
+  }
   if(mobileBackupDriveBtn){
     mobileBackupDriveBtn.addEventListener('click', function(){
       closeMobileMenu();
@@ -11828,6 +11864,14 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   if(libraryBtn){
     libraryBtn.addEventListener('click', function(){
       toggleLibraryPanel();
+    });
+  }
+  if(syncToggleBtn){
+    syncToggleBtn.addEventListener('click', function(){
+      var nextEnabled = !isAutoSyncEnabled();
+      setAutoSyncEnabled(nextEnabled);
+      refreshJoeySyncToggleUi();
+      showJoeyStatusToast(nextEnabled ? 'Automatic sync enabled.' : 'Automatic sync paused.', nextEnabled ? 'success' : 'warn');
     });
   }
   if(settingsAdvancedToggle && settingsAdvanced){
@@ -11857,6 +11901,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       renderMessages();
     });
   }
+  refreshJoeySyncToggleUi();
+  window.addEventListener('storage', function(e){
+    if(e.key === 'homer-sync-auto') refreshJoeySyncToggleUi();
+  });
+  window.addEventListener('homer-sync-auto-changed', refreshJoeySyncToggleUi);
 
   // --- Expand / Fullscreen toggles ---
   expandBtn.addEventListener('click', function(){
@@ -12206,6 +12255,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass || joeyDriveBackupInFlight) return Promise.resolve({ ok:false, skipped:true, reason:'unavailable' });
     var forceBackup = /^(manual|agent-action|command-action|quote-memory)$/i.test(String(reason || ''));
+    if(!forceBackup && !isAutoSyncEnabled()) return Promise.resolve({ ok:true, skipped:true, reason:'sync-disabled' });
     if(!forceBackup && !joeyDriveBackupDirty) return Promise.resolve({ ok:true, skipped:true, reason:'clean' });
     joeyDriveBackupInFlight = true;
     return Promise.resolve(ensureSavedQuotesContext('gdrive-backup-auto')).catch(function(){ return false; }).then(function(){
@@ -12688,6 +12738,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   function autoReconcileFromDrive(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass) return;
+    if(!isAutoSyncEnabled()) return;
     if(streaming) return;
     syncContextFromDrive(false, true).then(function(d){
       console.log('[Joey] Auto-reconciled from Drive' + (d && d.changed ? ' (merged changes)' : ' (no changes)'));
@@ -12702,6 +12753,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   // --- Periodic context save to DB every 5 minutes ---
   setInterval(function(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!isAutoSyncEnabled()) return;
     if(!pass || !chatHistory.length) return;
     console.log('[Joey] Periodic DB save...');
     saveHistoryToRedis();
@@ -12713,18 +12765,21 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   // --- Periodic auto-backup to Google Drive only after real Joey/context changes ---
   setInterval(function(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!isAutoSyncEnabled()) return;
     if(!pass || !joeyDriveBackupDirty) return;
     console.log('[Joey] Auto-backup to Google Drive (' + (joeyDriveBackupDirtyReason || 'context-change') + ')...');
     runJoeyDriveBackup('interval');
   }, JOEY_DRIVE_BACKUP_INTERVAL_MS); // 4 hours
   setInterval(function(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!isAutoSyncEnabled()) return;
     if(!pass || streaming) return;
     autoReconcileFromDrive();
   }, JOEY_DRIVE_RECONCILE_INTERVAL_MS);
   document.addEventListener('visibilitychange', function(){
     if(document.visibilityState !== 'visible') return;
     var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!isAutoSyncEnabled()) return;
     if(!pass || streaming) return;
     setTimeout(autoReconcileFromDrive, 1200);
   });
