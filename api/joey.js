@@ -603,7 +603,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ files });
       }
       if (req.method === 'POST') {
-        const { tasks } = req.body || {};
+        const { tasks, savedQuotesContent } = req.body || {};
         const effectiveTasks = mode === 'work' ? [] : (Array.isArray(tasks) ? tasks : []);
         const [memRes, profileRes, histRes, filesRes, libraryRes, customFilesRes, syncMetaRes] = await Promise.all([
           redis(['GET', MEMORY_KEY]),
@@ -615,12 +615,37 @@ export default async function handler(req, res) {
           redis(['GET', SYNC_META_KEY])
         ]);
         const existingCustomFiles = sanitizeManagedCustomFiles(customFilesRes.result ? JSON.parse(customFilesRes.result) : {});
+        let memories = memRes.result ? JSON.parse(memRes.result) : [];
+        if (!Array.isArray(memories)) memories = [];
+        const baseMemories = memories.filter((entry) => !(entry && entry.source === 'saved-quotes-sync'));
+        let quoteMemories = null;
+        let savedQuotesChanged = false;
+        if (typeof savedQuotesContent === 'string') {
+          const normalizedQuotes = mergeQuotesMarkdown('', savedQuotesContent);
+          const currentQuotes = String(existingCustomFiles[QUOTES_FILE_NAME] || '');
+          if (normalizedQuotes.trim()) {
+            existingCustomFiles[QUOTES_FILE_NAME] = normalizedQuotes;
+          } else {
+            delete existingCustomFiles[QUOTES_FILE_NAME];
+          }
+          savedQuotesChanged = currentQuotes !== String(existingCustomFiles[QUOTES_FILE_NAME] || '');
+          const quoteEntries = extractQuoteEntriesFromMarkdown(existingCustomFiles[QUOTES_FILE_NAME] || '').slice(-120);
+          quoteMemories = quoteEntries.map((entry, idx) => ({
+            id: Date.now() + idx,
+            text: '"' + String(entry.quote || '').trim() + '" — ' + (String(entry.author || 'Unknown').trim() || 'Unknown'),
+            category: 'quote',
+            ts: entry.savedAt ? Date.parse(entry.savedAt) || Date.now() : Date.now(),
+            source: 'saved-quotes-sync',
+            confidence: 0.98
+          }));
+          memories = baseMemories.concat(quoteMemories).slice(-MAX_MEMORIES);
+        }
         const currentSyncMeta = syncMetaRes.result ? JSON.parse(syncMetaRes.result) : {};
         const generatedAt = resolveManagedGeneratedAt(currentSyncMeta);
         const existingFiles = sanitizeManagedFiles(filesRes.result ? JSON.parse(filesRes.result) : {}, libraryRes.result ? JSON.parse(libraryRes.result) : [], existingCustomFiles, generatedAt);
         const generatedFiles = buildContextFiles({
           profile: profileRes.result ? JSON.parse(profileRes.result) : {},
-          memories: memRes.result ? JSON.parse(memRes.result) : [],
+          memories: memories,
           history: histRes.result ? JSON.parse(histRes.result) : [],
           tasks: effectiveTasks,
           fileLibrary: libraryRes.result ? JSON.parse(libraryRes.result) : [],
@@ -631,7 +656,8 @@ export default async function handler(req, res) {
         const preserved = preserveGeneratedContextFiles(existingFiles, generatedFiles, existingCustomFiles, new Date().toISOString());
         await Promise.all([
           redis(['SET', FILES_KEY, JSON.stringify(preserved.files)]),
-          redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(preserved.customFiles)])
+          redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(preserved.customFiles)]),
+          (typeof savedQuotesContent === 'string' || savedQuotesChanged) ? redis(['SET', MEMORY_KEY, JSON.stringify(memories)]) : Promise.resolve()
         ]);
         return res.status(200).json({ ok: true, files: preserved.files, preserved: Object.keys(preserved.customFiles).length - Object.keys(existingCustomFiles || {}).length });
       }
