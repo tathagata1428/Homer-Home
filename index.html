@@ -17411,6 +17411,26 @@ window._homerAmbientAudio = {
       mode: /\b(?:append|add|put|save|store|keep|place)\b/i.test(normalized) ? 'append' : 'replace'
     };
   }
+  function inferDirectQuoteRequest(text){
+    var raw = String(text || '').trim();
+    if(!raw) return null;
+    var normalized = raw.replace(/\s+/g, ' ').trim();
+    var patterns = [
+      /^(?:please\s+)?(?:save|remember|keep|store|add)\s+(?:this\s+)?(?:quote|line|mantra|stoic\s+line|wisdom)\s*[:\-]\s*(.+)$/i,
+      /^(?:please\s+)?(?:save|remember|keep|store)\s+this\s+for\s+later\s*[:\-]\s*(.+)$/i,
+      /^(?:please\s+)?(?:save|remember|keep|store)\s+(.+?)\s+(?:in|into|to)\s+quotes\.md$/i,
+      /^(?:please\s+)?(?:save|remember|keep|store)\s+this\s*[:\-]\s*(.+)$/i
+    ];
+    for(var i = 0; i < patterns.length; i++){
+      var match = normalized.match(patterns[i]);
+      if(!match) continue;
+      var quoteText = clampAgentText(match[1] || '', 2000);
+      if(!quoteText) return null;
+      if(i === 3 && !/(?:["'“”].+["'“”]|(?:^| )[-—][ ]?[A-Z][a-z]+|Ted Lasso|Marcus Aurelius|Seneca|Epictetus)/.test(quoteText)) return null;
+      return { memory: quoteText, category:'quote', source:'direct-user-quote' };
+    }
+    return null;
+  }
   function extractGeneratedNoteText(text){
     var clean = String(text || '').trim();
     if(!clean) return '';
@@ -17418,6 +17438,45 @@ window._homerAmbientAudio = {
     clean = clean.replace(/^(?:stoic|brain dump|zen goal|vault note)\s*[:\-]\s*/i, '');
     clean = clean.replace(/^["']+|["']+$/g, '').trim();
     return clampAgentText(clean, 4000);
+  }
+  function applyAgentRememberMutation(memData){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return Promise.resolve({ ok:false, message:'Unlock vault first so Joey memory can be updated.' });
+    var payload = memData && typeof memData === 'object' ? memData : { memory:String(memData || ''), category:'general' };
+    var rememberUrl = typeof window._homerJoeyActionUrl === 'function' ? window._homerJoeyActionUrl('memory') : '/api/joey?action=memory&mode=' + encodeURIComponent((localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal');
+    var rememberBody = typeof window._homerWithContextMode === 'function'
+      ? window._homerWithContextMode({
+        passphrase:pass,
+        memory:payload.memory || payload.text || '',
+        category:payload.category || 'general',
+        source:payload.source || 'explicit-agent-action',
+        confidence:typeof payload.confidence === 'number' ? payload.confidence : 0.96,
+        pinned:!!payload.pinned || String(payload.category || '').toLowerCase() === 'pin'
+      })
+      : {
+        passphrase:pass,
+        mode:(localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal',
+        memory:payload.memory || payload.text || '',
+        category:payload.category || 'general',
+        source:payload.source || 'explicit-agent-action',
+        confidence:typeof payload.confidence === 'number' ? payload.confidence : 0.96,
+        pinned:!!payload.pinned || String(payload.category || '').toLowerCase() === 'pin'
+      };
+    return fetch(rememberUrl, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(rememberBody)
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if(d && d.ok){
+        refreshCanonicalFiles().catch(function(){});
+        scheduleJoeyMemoryCommit('remember-action', 60000);
+        if(String(payload.category || '').toLowerCase() === 'quote') scheduleJoeyDriveBackup('quote-memory', 90000);
+        return { ok:true, count:d.count, message:String(payload.category || '').toLowerCase() === 'quote' ? 'Saved to Quotes.md.' : 'Memory saved.' };
+      }
+      return { ok:false, message:(d && (d.error || d.reason)) || 'Memory save failed.' };
+    }).catch(function(err){
+      return { ok:false, message:err && err.message ? err.message : String(err) };
+    });
   }
   function applyAgentNoteMutation(noteData){
     var target = String(noteData && noteData.target || 'vault').trim().toLowerCase();
@@ -18165,40 +18224,10 @@ window._homerAmbientAudio = {
           // Save to Joey's persistent memory (Redis)
           var memData;
           try{ memData = JSON.parse(a.data); }catch(e){ memData = {memory: a.data, category: 'general'}; }
-          var pass = localStorage.getItem('homer-sync-pass') || '';
-          if(pass){
-            var rememberUrl = typeof window._homerJoeyActionUrl === 'function' ? window._homerJoeyActionUrl('memory') : '/api/joey?action=memory&mode=' + encodeURIComponent((localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal');
-            var rememberBody = typeof window._homerWithContextMode === 'function'
-              ? window._homerWithContextMode({
-                passphrase:pass,
-                memory:memData.memory||memData.text||a.data,
-                category:memData.category||'general',
-                source:memData.source||'explicit-agent-action',
-                confidence:typeof memData.confidence === 'number' ? memData.confidence : 0.96,
-                pinned:!!memData.pinned || String(memData.category||'').toLowerCase() === 'pin'
-              })
-              : {
-                passphrase:pass,
-                mode:(localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal',
-                memory:memData.memory||memData.text||a.data,
-                category:memData.category||'general',
-                source:memData.source||'explicit-agent-action',
-                confidence:typeof memData.confidence === 'number' ? memData.confidence : 0.96,
-                pinned:!!memData.pinned || String(memData.category||'').toLowerCase() === 'pin'
-              };
-            fetch(rememberUrl, {
-              method:'POST',
-              headers:{'Content-Type':'application/json'},
-              body:JSON.stringify(rememberBody)
-            }).then(function(r){return r.json();}).then(function(d){
-              if(d.ok){
-                console.log('Memory saved, total:', d.count);
-                refreshCanonicalFiles().catch(function(){});
-                scheduleJoeyMemoryCommit('remember-action', 60000);
-              }
-            }).catch(function(){});
-          }
-          notifications.push('Remembered: ' + (memData.memory||memData.text||a.data));
+          applyAgentRememberMutation(memData).then(function(result){
+            if(result && result.ok) console.log('Memory saved:', result.message);
+          });
+          notifications.push((String(memData.category || '').toLowerCase() === 'quote' ? 'Saved quote: ' : 'Remembered: ') + (memData.memory||memData.text||a.data));
         }
         else if(a.type === 'FORGET'){
           // Remove from Joey's persistent memory
@@ -18875,6 +18904,7 @@ window._homerAmbientAudio = {
     var directIssueUpdate = inferDirectIssueUpdateRequest(displayText);
     var directNoteRequest = inferDirectNoteRequest(displayText);
     var deferredNoteRequest = directNoteRequest ? null : inferDeferredNoteRequest(displayText);
+    var directQuoteRequest = inferDirectQuoteRequest(displayText);
     var directCommandRequest = inferDirectCommandRequest(displayText);
     if(forceWebSearch) fullContent = '[FORCE_WEB_SEARCH] ' + fullContent;
     if(forceFullContext) fullContent = '[USE_FULL_CONTEXT] ' + fullContent;
@@ -18907,6 +18937,22 @@ window._homerAmbientAudio = {
       applyAgentTaskMutation(directIssueUpdate, { userText:displayText, source:'direct-user' });
     } else if(directTaskRequest && !directTaskNeedsPlanning && currentProvider === 'joey'){
       applyAgentTaskMutation(directTaskRequest, { userText:displayText, source:'direct-user' });
+    } else if(directQuoteRequest && currentProvider === 'joey'){
+      var directQuoteResult = await applyAgentRememberMutation(directQuoteRequest);
+      var directQuoteReply = {
+        role:'assistant',
+        content:(directQuoteResult && directQuoteResult.message) || 'Saved to Quotes.md.',
+        provider:currentProvider,
+        model:getStoredModelLabel(currentProvider, currentContextMode),
+        mode:currentContextMode
+      };
+      chatHistory.push(directQuoteReply);
+      messagesEl.insertAdjacentHTML('beforeend', renderChatMessage(directQuoteReply, chatHistory.length - 1));
+      injectCodeCopyButtons(messagesEl);
+      scrollMessagesToBottom(true);
+      saveChatToVault();
+      saveHistoryToRedis();
+      return;
     } else if(directNoteRequest && currentProvider === 'joey'){
       var directNoteResult = await applyAgentNoteMutation(directNoteRequest);
       var directNoteReply = {
