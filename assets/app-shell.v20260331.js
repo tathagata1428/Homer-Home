@@ -10932,6 +10932,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   var resizeHandle = document.getElementById('oc-resize-handle');
   var unreadBadge = document.getElementById('oc-unread-badge');
   var CHAT_CACHE_PREFIX = 'homer-oc-chat-cache:';
+  var CHAT_CLEAR_PREFIX = 'homer-oc-chat-cleared:';
   var chatHistory = [];
   var chatLastLocalMutationAt = 0;
   var chatLastRemoteHydrateAt = 0;
@@ -10972,6 +10973,26 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   }
   function getChatCacheKey(mode){
     return CHAT_CACHE_PREFIX + (mode === 'work' ? 'work' : 'personal');
+  }
+  function getChatClearKey(mode){
+    return CHAT_CLEAR_PREFIX + (mode === 'work' ? 'work' : 'personal');
+  }
+  function markChatCleared(mode, ts){
+    try{
+      localStorage.setItem(getChatClearKey(mode || currentContextMode), String(Number(ts || Date.now()) || Date.now()));
+    }catch(e){}
+  }
+  function clearChatClearedMark(mode){
+    try{
+      localStorage.removeItem(getChatClearKey(mode || currentContextMode));
+    }catch(e){}
+  }
+  function getChatClearedAt(mode){
+    try{
+      return Number(localStorage.getItem(getChatClearKey(mode || currentContextMode)) || 0) || 0;
+    }catch(e){
+      return 0;
+    }
   }
   function normalizeChatHistoryEntries(items){
     return (Array.isArray(items) ? items : []).filter(function(item){
@@ -11052,8 +11073,14 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       return false;
     }
     if(!normalizedCurrent.length){
+      var clearedAt = getChatClearedAt(currentContextMode);
+      if(!force && clearedAt && (Date.now() - clearedAt) < (30 * 60 * 1000)){
+        console.log('[Joey] Ignored ' + source + ' history because chat was explicitly cleared recently.');
+        return false;
+      }
       chatHistory = normalizedNext;
       chatLastRemoteHydrateAt = updatedAt;
+      clearChatClearedMark(currentContextMode);
       renderMessages();
       saveChatToVault();
       persistChatCache(currentContextMode, updatedAt);
@@ -11067,6 +11094,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(isChatHistoryPrefix(normalizedCurrent, normalizedNext)){
       chatHistory = normalizedNext;
       chatLastRemoteHydrateAt = updatedAt;
+      clearChatClearedMark(currentContextMode);
       renderMessages();
       saveChatToVault();
       persistChatCache(currentContextMode, updatedAt);
@@ -12502,6 +12530,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   function clearChatWindow(){
     chatHistory = [];
     chatLastLocalMutationAt = Date.now();
+    markChatCleared(currentContextMode, chatLastLocalMutationAt);
     renderMessages();
     saveChatToVault();
     persistChatCache(currentContextMode, chatLastLocalMutationAt);
