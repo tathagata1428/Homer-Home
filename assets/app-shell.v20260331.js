@@ -516,13 +516,9 @@ function renderQuote(q) {
           if(!data || data.error) throw new Error((data && data.error) || 'Quote file sync failed');
           if(!opts.skipRefresh && typeof refreshCanonicalFiles === 'function') refreshCanonicalFiles({ skipQuoteSync:true }).catch(function(){});
           if(!opts.skipBackups){
+            markJoeyDriveBackupDirty(reason || 'quotes-md-update');
             if(typeof scheduleJoeyLearningCommit === 'function') scheduleJoeyLearningCommit('quotes-md-update', 60000);
             else if(typeof scheduleJoeyMemoryCommit === 'function') scheduleJoeyMemoryCommit('quotes-md-update', 60000);
-            if(typeof window._homerBackupJoeyToDrive === 'function'){
-              setTimeout(function(){
-                try{ window._homerBackupJoeyToDrive('quotes-md-update'); }catch(_err){}
-              }, 90000);
-            }
           }
           return true;
         })
@@ -10879,12 +10875,25 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   var autoLearnFlushActive = false;
   var joeyDriveBackupTimer = null;
   var joeyDriveBackupInFlight = false;
+  var joeyDriveBackupDirty = false;
+  var joeyDriveBackupDirtyReason = '';
+  var joeyDriveBackupDirtyAt = 0;
   var joeyAutoCommitTimer = null;
   var joeyAutoLearnRetryTimer = null;
   var joeyManualCommitInFlight = false;
   var joeySyncStatusTimer = null;
   var joeySyncStatusInFlight = null;
   var mobileSuppressedFields = [];
+  function markJoeyDriveBackupDirty(reason){
+    joeyDriveBackupDirty = true;
+    joeyDriveBackupDirtyReason = String(reason || joeyDriveBackupDirtyReason || 'context-change');
+    joeyDriveBackupDirtyAt = Date.now();
+  }
+  function clearJoeyDriveBackupDirty(){
+    joeyDriveBackupDirty = false;
+    joeyDriveBackupDirtyReason = '';
+    joeyDriveBackupDirtyAt = 0;
+  }
   function getJoeyAccessState(){
     var rawUser = String(localStorage.getItem('homer-auth-user') || '').trim();
     if(!rawUser){
@@ -12101,6 +12110,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       });
     }).then(function(r){ return r.json(); }).then(function(d){
       if(d.ok){
+        clearJoeyDriveBackupDirty();
         if(typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-drive-backup-ts');
         scheduleJoeySyncStatusRefresh(200);
         btn.textContent = 'Ã¢Å“â€¦ Backed up!';
@@ -12195,6 +12205,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   function runJoeyDriveBackup(reason){
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass || joeyDriveBackupInFlight) return Promise.resolve({ ok:false, skipped:true, reason:'unavailable' });
+    var forceBackup = /^(manual|agent-action|command-action|quote-memory)$/i.test(String(reason || ''));
+    if(!forceBackup && !joeyDriveBackupDirty) return Promise.resolve({ ok:true, skipped:true, reason:'clean' });
     joeyDriveBackupInFlight = true;
     return Promise.resolve(ensureSavedQuotesContext('gdrive-backup-auto')).catch(function(){ return false; }).then(function(){
       return collectTaskSnapshot();
@@ -12210,6 +12222,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }).then(function(r){ return r.json(); })
       .then(function(d){
         if(d && d.ok){
+          clearJoeyDriveBackupDirty();
           if(typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-drive-backup-ts');
           scheduleJoeySyncStatusRefresh(250);
           console.log('[Joey] Auto-backup to Drive successful' + (reason ? ' (' + reason + ')' : ''));
@@ -12226,6 +12239,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   function scheduleJoeyDriveBackup(reason, delayMs){
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass) return;
+    markJoeyDriveBackupDirty(reason || 'auto');
     if(joeyDriveBackupTimer) clearTimeout(joeyDriveBackupTimer);
     joeyDriveBackupTimer = setTimeout(function(){
       joeyDriveBackupTimer = null;
@@ -12695,13 +12709,14 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(chatHistory.length >= 2) triggerAutoLearn();
   }, 5 * 60 * 1000); // 5 minutes
 
-  // --- Periodic auto-backup to Google Drive twice per day ---
+  var JOEY_DRIVE_BACKUP_INTERVAL_MS = 4 * 60 * 60 * 1000;
+  // --- Periodic auto-backup to Google Drive only after real Joey/context changes ---
   setInterval(function(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
-    if(!pass || !chatHistory.length) return;
-    console.log('[Joey] Auto-backup to Google Drive...');
+    if(!pass || !joeyDriveBackupDirty) return;
+    console.log('[Joey] Auto-backup to Google Drive (' + (joeyDriveBackupDirtyReason || 'context-change') + ')...');
     runJoeyDriveBackup('interval');
-  }, 10 * 60 * 1000); // 10 minutes
+  }, JOEY_DRIVE_BACKUP_INTERVAL_MS); // 4 hours
   setInterval(function(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass || streaming) return;
@@ -13454,7 +13469,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       if(d && d.ok){
         refreshCanonicalFiles().catch(function(){});
         scheduleJoeyMemoryCommit('remember-action', 60000);
-        if(String(payload.category || '').toLowerCase() === 'quote') scheduleJoeyDriveBackup('quote-memory', 90000);
+        markJoeyDriveBackupDirty(String(payload.category || '').toLowerCase() === 'quote' ? 'quote-memory' : 'remember-action');
         return { ok:true, count:d.count, message:String(payload.category || '').toLowerCase() === 'quote' ? 'Saved to Quotes.md.' : 'Memory saved.' };
       }
       return { ok:false, message:(d && (d.error || d.reason)) || 'Memory save failed.' };
@@ -14931,6 +14946,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var historyEntry = {role:'user', content:fullContent, displayText:displayText, provider:currentProvider, mode:currentContextMode};
     if(fileNames.length) historyEntry.files = fileNames;
     chatHistory.push(historyEntry);
+    markJoeyDriveBackupDirty('chat-user');
     autoStickToBottom = true;
     messagesEl.insertAdjacentHTML('beforeend', renderChatMessage(historyEntry, chatHistory.length - 1));
     inputEl.value = '';
@@ -15115,6 +15131,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
           }
         }
         chatHistory.push({role:'assistant', content:cleanResponse, provider:currentProvider, model:modelLabel || primaryModelLabel || getStoredModelLabel(currentProvider, currentContextMode), mode:currentContextMode});
+        markJoeyDriveBackupDirty('chat-assistant');
         incrementUnread();
         // Re-render the last bot message without action tags
         var lastBot = messagesEl.querySelector('.oc-msg.bot:last-of-type');
