@@ -671,7 +671,10 @@ export default async function handler(req, res) {
         let memories = memoriesResult.result ? JSON.parse(memoriesResult.result) : [];
         if (!Array.isArray(memories)) memories = [];
         const baseMemories = memories.filter((entry) => !(entry && entry.source === 'saved-quotes-sync'));
+        let quoteMemories = null;
+        let contentChanged = false;
         if (!content.trim()) {
+          contentChanged = !!customFiles[safeName] || !!files[safeName];
           delete customFiles[safeName];
           delete files[safeName];
           if (safeName === QUOTES_FILE_NAME) memories = baseMemories;
@@ -679,11 +682,12 @@ export default async function handler(req, res) {
           const nextContent = safeName === QUOTES_FILE_NAME
             ? (replace ? mergeQuotesMarkdown('', content) : mergeQuotesMarkdown(customFiles[safeName], content))
             : content.trim().slice(0, 50000);
+          contentChanged = String(customFiles[safeName] || '') !== String(nextContent || '');
           customFiles[safeName] = nextContent;
           files[safeName] = customFiles[safeName];
           if (safeName === QUOTES_FILE_NAME) {
             const quoteEntries = extractQuoteEntriesFromMarkdown(nextContent).slice(-120);
-            const quoteMemories = quoteEntries.map((entry, idx) => ({
+            quoteMemories = quoteEntries.map((entry, idx) => ({
               id: Date.now() + idx,
               text: '"' + String(entry.quote || '').trim() + '" — ' + (String(entry.author || 'Unknown').trim() || 'Unknown'),
               category: 'quote',
@@ -693,6 +697,26 @@ export default async function handler(req, res) {
             }));
             memories = baseMemories.concat(quoteMemories).slice(-MAX_MEMORIES);
           }
+        }
+        if (!contentChanged) {
+          if (safeName === QUOTES_FILE_NAME) {
+            const existingSavedQuoteMemories = memories.filter((entry) => entry && entry.source === 'saved-quotes-sync');
+            const nextSavedQuoteMemories = Array.isArray(quoteMemories) ? quoteMemories : [];
+            const existingFingerprint = JSON.stringify(existingSavedQuoteMemories.map((entry) => ({
+              text: String(entry.text || ''),
+              category: String(entry.category || ''),
+              source: String(entry.source || '')
+            })));
+            const nextFingerprint = JSON.stringify(nextSavedQuoteMemories.map((entry) => ({
+              text: String(entry.text || ''),
+              category: String(entry.category || ''),
+              source: String(entry.source || '')
+            })));
+            if (existingFingerprint !== nextFingerprint) {
+              await redis(['SET', MEMORY_KEY, JSON.stringify(baseMemories.concat(nextSavedQuoteMemories).slice(-MAX_MEMORIES))]);
+            }
+          }
+          return res.status(200).json({ ok: true, name: safeName, count: Object.keys(customFiles).length, unchanged: true });
         }
         await Promise.all([
           redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(customFiles)]),
@@ -704,20 +728,26 @@ export default async function handler(req, res) {
       if (req.method === 'DELETE') {
         const { name } = req.body || {};
         if (!name) return res.status(400).json({ error: 'Missing name' });
-        const [result, filesResult, memoriesResult] = await Promise.all([
+        const [result, filesResult, memoriesResult, syncMetaRes] = await Promise.all([
           redis(['GET', CUSTOM_FILES_KEY]),
           redis(['GET', FILES_KEY]),
-          redis(['GET', MEMORY_KEY])
+          redis(['GET', MEMORY_KEY]),
+          redis(['GET', SYNC_META_KEY])
         ]);
         const customFiles = sanitizeManagedCustomFiles(result.result ? JSON.parse(result.result) : {});
-        const files = sanitizeManagedFiles(filesResult.result ? JSON.parse(filesResult.result) : {}, [], customFiles, new Date().toISOString());
+        const syncMeta = syncMetaRes.result ? JSON.parse(syncMetaRes.result) : {};
+        const files = sanitizeManagedFiles(filesResult.result ? JSON.parse(filesResult.result) : {}, [], customFiles, resolveManagedGeneratedAt(syncMeta));
         const targetName = String(name).trim();
+        const existed = !!customFiles[targetName] || !!files[targetName];
         delete customFiles[targetName];
         delete files[targetName];
         let memories = memoriesResult.result ? JSON.parse(memoriesResult.result) : [];
         if (!Array.isArray(memories)) memories = [];
         if (targetName === QUOTES_FILE_NAME) {
           memories = memories.filter((entry) => !(entry && entry.source === 'saved-quotes-sync'));
+        }
+        if (!existed && targetName !== QUOTES_FILE_NAME) {
+          return res.status(200).json({ ok: true, count: Object.keys(customFiles).length, unchanged: true });
         }
         await Promise.all([
           redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(customFiles)]),
