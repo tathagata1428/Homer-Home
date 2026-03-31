@@ -35,6 +35,10 @@ function normalizeQuoteKey(text, author) {
   return String(text || '').trim().toLowerCase().replace(/\s+/g, ' ') + '|' + String(author || 'Unknown').trim().toLowerCase();
 }
 
+function isBlockedQuoteEntry(text) {
+  return /ted lasso quotes saved to quotes\.md\s*:/i.test(String(text || '').trim());
+}
+
 extractQuoteEntriesFromMarkdown = function(markdown) {
   const value = String(markdown || '').replace(/\r\n/g, '\n').trim();
   if (!value) return [];
@@ -83,6 +87,7 @@ function mergeQuotesMarkdown(existingMarkdown, incomingMarkdown) {
     entries.forEach((entry) => {
       const quote = String(entry && entry.quote || '').trim();
       if (!quote) return;
+      if (isBlockedQuoteEntry(quote)) return;
       const author = String(entry && entry.author || 'Unknown').trim() || 'Unknown';
       const savedAt = String(entry && entry.savedAt || '').trim();
       const key = normalizeQuoteKey(quote, author);
@@ -130,6 +135,7 @@ function splitCompoundQuoteText(text, author, savedAt) {
   const pushEntry = (value, entryAuthor) => {
     const quote = String(value || '').trim().replace(/^[-–—:,\s]+/, '').replace(/[-–—:,\s]+$/, '');
     if (!quote) return;
+    if (isBlockedQuoteEntry(quote)) return;
     if (/^(?:ted lasso quotes saved to quotes\.md|quotes saved to quotes\.md|saved quotes?)[:\s-]*$/i.test(quote)) return;
     const nextAuthor = String(entryAuthor || author || 'Unknown').trim() || 'Unknown';
     const key = normalizeQuoteKey(quote, nextAuthor);
