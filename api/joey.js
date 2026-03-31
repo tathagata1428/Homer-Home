@@ -11,7 +11,9 @@ function sanitizeManagedCustomFiles(value) {
     const safeName = String(name || '').trim();
     if (!safeName || /^Preserved\//i.test(safeName)) return;
     if (typeof content !== 'string' || !content.trim()) return;
-    out[safeName] = content.trim();
+    out[safeName] = safeName === QUOTES_FILE_NAME
+      ? mergeQuotesMarkdown('', content)
+      : content.trim();
   });
   return out;
 }
@@ -534,6 +536,10 @@ export default async function handler(req, res) {
         const fileLibrary = libraryResult.result ? JSON.parse(libraryResult.result) : [];
         const customFiles = sanitizeManagedCustomFiles(customResult.result ? JSON.parse(customResult.result) : {});
         const files = sanitizeManagedFiles(result.result ? JSON.parse(result.result) : {}, fileLibrary, customFiles, new Date().toISOString());
+        await Promise.all([
+          redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(customFiles)]),
+          redis(['SET', FILES_KEY, JSON.stringify(files)])
+        ]);
         return res.status(200).json({ files });
       }
       if (req.method === 'POST') {
@@ -586,6 +592,7 @@ export default async function handler(req, res) {
       if (req.method === 'GET') {
         const result = await redis(['GET', CUSTOM_FILES_KEY]);
         const customFiles = sanitizeManagedCustomFiles(result.result ? JSON.parse(result.result) : {});
+        await redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(customFiles)]);
         return res.status(200).json({ customFiles });
       }
       if (req.method === 'POST') {
