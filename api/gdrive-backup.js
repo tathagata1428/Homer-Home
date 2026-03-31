@@ -11,6 +11,8 @@ import {
   verifyJoeyPassphrase
 } from '../lib/joey-server.js';
 
+const GDRIVE_BACKUP_TIMEOUT_MS = 60000;
+
 // Google Drive context backup — fetches Joey context from Redis, POSTs to Google Apps Script
 export default async function handler(req, res) {
   const origin = req.headers.origin || '*';
@@ -61,7 +63,7 @@ export default async function handler(req, res) {
       const response = await fetchWithRedirects(gdriveWebhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        timeoutMs: 15000,
+        timeoutMs: GDRIVE_BACKUP_TIMEOUT_MS,
         body: JSON.stringify(payload)
       });
       const redirectChain = response.redirectChain || [];
@@ -193,7 +195,7 @@ export default async function handler(req, res) {
     const response = await fetchWithRedirects(gdriveWebhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      timeoutMs: 15000,
+      timeoutMs: GDRIVE_BACKUP_TIMEOUT_MS,
       body: JSON.stringify(payload)
     });
     const redirectChain = response.redirectChain || [];
