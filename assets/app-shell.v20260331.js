@@ -569,7 +569,7 @@ function renderQuote(q) {
       }
       return -1;
     }
-    function applySavedQuoteMutation(request){
+  function applySavedQuoteMutation(request){
       var list = loadSaved();
       var req = request && typeof request === 'object' ? request : {};
       var op = String(req.op || 'save').toLowerCase();
@@ -6736,6 +6736,7 @@ let tvWidgetCreated = false;
   // --- ICS Feed Integration ---
   var ICS_KEY = 'homer-cal-ics';
   var EVENTS_KEY = 'homer-cal-events';
+  var HEARTBEAT_KEY = 'homer-heartbeats';
   var icsCache = { personal:null, work:null };
   var icsCacheTs = { personal:0, work:0 };
   var ICS_TTL = 5 * 60 * 1000;
@@ -6785,11 +6786,35 @@ let tvWidgetCreated = false;
     saveCustomEvents(evts);
     return evt;
   }
+  function getHeartbeatRules(){
+    var scoped = localStorage.getItem(scopedCalendarKey(HEARTBEAT_KEY));
+    try { return JSON.parse(scoped || '[]'); }
+    catch(e){ return []; }
+  }
+  function saveHeartbeatRules(rules){
+    localStorage.setItem(scopedCalendarKey(HEARTBEAT_KEY), JSON.stringify(Array.isArray(rules) ? rules : []));
+  }
+  function addHeartbeatRule(rule){
+    var rules = getHeartbeatRules();
+    var nextRule = Object.assign({
+      id: Date.now() + '-' + Math.random().toString(36).substring(2, 8),
+      title: 'Reminder',
+      body: '',
+      intervalMinutes: 30,
+      createdAt: Date.now(),
+      nextAt: Date.now() + (30 * 60 * 1000),
+      enabled: true
+    }, rule || {});
+    rules.push(nextRule);
+    saveHeartbeatRules(rules);
+    return nextRule;
+  }
   function deleteCustomEvent(id){
     var evts = getCustomEvents().filter(function(e){ return e.id !== id; });
     saveCustomEvents(evts);
   }
   window._calendarAddCustomEvent = addCustomEvent;
+  window._calendarAddHeartbeatRule = addHeartbeatRule;
 
   function mergeCustomEvents(dueMap){
     var evts = getCustomEvents();
@@ -6805,11 +6830,48 @@ let tvWidgetCreated = false;
         time: ev.time || '',
         description: ev.description || '',
         location: ev.location || '',
+        recurrence: ev.recurrence || null,
         id: ev.id
       });
     });
     return dueMap;
   }
+  var heartbeatTickTimer = null;
+  function heartbeatNotify(title, body){
+    var safeTitle = String(title || 'Reminder').trim() || 'Reminder';
+    var safeBody = String(body || '').trim();
+    if('Notification' in window && Notification.permission === 'granted'){
+      try{
+        var n = new Notification(safeTitle, safeBody ? { body:safeBody } : {});
+        setTimeout(function(){ try{ n.close(); }catch(_e){} }, 5000);
+        return;
+      }catch(_e){}
+    }
+    try{ showJoeyStatusToast(safeBody ? (safeTitle + ': ' + safeBody) : safeTitle, 'warn'); }catch(_e){}
+  }
+  function runHeartbeatTick(){
+    var now = Date.now();
+    var rules = getHeartbeatRules();
+    var changed = false;
+    rules.forEach(function(rule){
+      if(!rule || rule.enabled === false) return;
+      var intervalMinutes = Math.max(1, parseInt(rule.intervalMinutes, 10) || 0);
+      if(!intervalMinutes) return;
+      var nextAt = Number(rule.nextAt || 0) || (now + intervalMinutes * 60 * 1000);
+      if(now < nextAt) return;
+      heartbeatNotify(rule.title || 'Reminder', rule.body || '');
+      rule.lastTriggeredAt = now;
+      rule.nextAt = now + (intervalMinutes * 60 * 1000);
+      changed = true;
+    });
+    if(changed) saveHeartbeatRules(rules);
+  }
+  function ensureHeartbeatScheduler(){
+    if(heartbeatTickTimer) return;
+    heartbeatTickTimer = setInterval(runHeartbeatTick, 30000);
+    setTimeout(runHeartbeatTick, 1200);
+  }
+  ensureHeartbeatScheduler();
 
   // Toggle ICS settings row
   if(icsToggle){
@@ -13138,8 +13200,91 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   function taskNeedsAgentSubtasks(text){
     return /\b(?:subtasks?|steps?|break(?:\s+it)?\s+down|relevant\s+subtasks?)\b/i.test(String(text || ''));
   }
+  function applyAgentEventMutation(eventData, options){
+    options = options || {};
+    var evt = eventData && typeof eventData === 'object' ? Object.assign({}, eventData) : {};
+    evt.title = clampAgentText(evt.title || evt.summary || 'Reminder', 120) || 'Reminder';
+    evt.summary = evt.title;
+    evt.description = clampAgentText(evt.description || evt.notes || evt.body || '', 300);
+    evt.location = clampAgentText(evt.location || '', 120);
+    evt.category = clampAgentText(evt.category || 'reminder', 32) || 'reminder';
+    evt.date = clampAgentText(evt.date || new Date().toISOString().slice(0,10), 20) || new Date().toISOString().slice(0,10);
+    evt.time = clampAgentText(evt.time || '', 10);
+    if(typeof window._calendarAddCustomEvent === 'function'){
+      window._calendarAddCustomEvent(evt);
+    }
+    if(evt.heartbeat && evt.heartbeat.enabled && typeof window._calendarAddHeartbeatRule === 'function'){
+      var intervalMinutes = Math.max(1, parseInt(evt.heartbeat.intervalMinutes, 10) || 0);
+      if(intervalMinutes){
+        window._calendarAddHeartbeatRule({
+          title: evt.title,
+          body: clampAgentText(evt.heartbeat.body || evt.description || evt.title, 240),
+          intervalMinutes: intervalMinutes,
+          nextAt: Date.now() + (intervalMinutes * 60 * 1000),
+          enabled: true
+        });
+      }
+    }
+    try{ window.dispatchEvent(new Event('calendar-changed')); }catch(_e){}
+    return {
+      ok:true,
+      title:evt.title,
+      intervalMinutes: evt.heartbeat && evt.heartbeat.intervalMinutes ? parseInt(evt.heartbeat.intervalMinutes, 10) : 0,
+      message: evt.heartbeat && evt.heartbeat.intervalMinutes
+        ? ('Recurring reminder set every ' + evt.heartbeat.intervalMinutes + ' min: ' + evt.title)
+        : ('Event added: ' + evt.title)
+    };
+  }
   function normalizeIssueKeyLookup(value){
     return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9-]+/g, '');
+  }
+  function toTitleCaseText(value){
+    return String(value || '').replace(/\s+/g, ' ').trim().replace(/\b([a-z])/g, function(_m, ch){ return ch.toUpperCase(); });
+  }
+  function inferDirectEventRequest(text){
+    var raw = String(text || '').replace(/\s+/g, ' ').trim();
+    if(!raw) return null;
+    var lower = raw.toLowerCase();
+    if(!/\b(remind|reminder|heartbeat|heart bit|check[- ]?in|check in)\b/.test(lower)) return null;
+    var everyMatch = raw.match(/\bevery\s+(\d{1,3})\s*(minute|minutes|min|mins|hour|hours|hr|hrs)\b/i);
+    var intervalMinutes = 0;
+    if(everyMatch){
+      intervalMinutes = parseInt(everyMatch[1], 10) || 0;
+      var unit = String(everyMatch[2] || '').toLowerCase();
+      if(/^h/.test(unit)) intervalMinutes *= 60;
+    }
+    var bodyMatch = raw.match(/\b(?:to|for)\s+(.+)$/i);
+    var body = bodyMatch ? String(bodyMatch[1] || '').trim() : '';
+    body = body.replace(/[.?!]+$/g, '').trim();
+    if(!body){
+      body = raw
+        .replace(/^\s*(?:please\s+)?(?:set|create|add|make)\s+(?:a\s+)?(?:heartbeat|heart bit|reminder|check[- ]?in)\b/i, '')
+        .replace(/\bevery\s+\d{1,3}\s*(?:minute|minutes|min|mins|hour|hours|hr|hrs)\b/ig, '')
+        .replace(/^\s*(?:to|for)\s+/i, '')
+        .replace(/[.?!]+$/g, '')
+        .trim();
+    }
+    if(!body) body = 'Reminder';
+    var title = toTitleCaseText(body);
+    var evt = {
+      title: title,
+      summary: title,
+      description: body,
+      category: 'reminder',
+      date: new Date().toISOString().slice(0, 10)
+    };
+    if(intervalMinutes > 0){
+      evt.heartbeat = {
+        enabled: true,
+        intervalMinutes: intervalMinutes,
+        body: body
+      };
+      evt.recurrence = {
+        freq: intervalMinutes % 60 === 0 ? 'HOURLY' : 'MINUTELY',
+        interval: intervalMinutes % 60 === 0 ? Math.max(1, Math.round(intervalMinutes / 60)) : intervalMinutes
+      };
+    }
+    return evt;
   }
   function normalizeIssueColumn(value){
     var raw = String(value || '').trim().toLowerCase();
@@ -14275,18 +14420,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
             time: evtData.time || '',
             location: evtData.location || '',
             description: evtData.description || '',
-            category: evtData.category || ''
+            category: evtData.category || '',
+            recurrence: evtData.recurrence || null,
+            heartbeat: evtData.heartbeat || null
           };
-          if(typeof window._calendarAddCustomEvent === 'function') window._calendarAddCustomEvent(evt);
-          else {
-            var scope = (localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal';
-            var EKEY = 'homer-cal-events:' + scope;
-            var evts = [];
-            try{ evts = JSON.parse(localStorage.getItem(EKEY) || '[]'); }catch(e){}
-            evt.id = Date.now() + '-' + Math.random().toString(36).substring(2, 8);
-            evts.push(evt);
-            localStorage.setItem(EKEY, JSON.stringify(evts));
-          }
+          applyAgentEventMutation(evt, { source:'action', mode:actionMode });
           var catLabel = evtData.category ? ' ['+evtData.category+']' : '';
           notifications.push('Event added: ' + (evtData.title || 'New Event') + catLabel + ' on ' + (evtData.date || 'today'));
         }
@@ -14973,6 +15111,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var directTaskRequest = inferDirectTaskRequest(displayText);
     var directTaskNeedsPlanning = taskNeedsAgentSubtasks(displayText);
     var directIssueUpdate = inferDirectIssueUpdateRequest(displayText);
+    var directEventRequest = inferDirectEventRequest(displayText);
     var directNoteRequest = inferDirectNoteRequest(displayText);
     var deferredNoteRequest = directNoteRequest ? null : inferDeferredNoteRequest(displayText);
     var directQuoteRequest = inferDirectQuoteRequest(displayText);
@@ -15011,6 +15150,22 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       applyAgentTaskMutation(directIssueUpdate, { userText:displayText, source:'direct-user', mode:currentContextMode });
     } else if(directTaskRequest && !directTaskNeedsPlanning && currentProvider === 'joey'){
       applyAgentTaskMutation(directTaskRequest, { userText:displayText, source:'direct-user', mode:currentContextMode });
+    } else if(directEventRequest && currentProvider === 'joey'){
+      var directEventResult = applyAgentEventMutation(directEventRequest, { source:'direct-user', mode:currentContextMode });
+      var directEventReply = {
+        role:'assistant',
+        content:(directEventResult && directEventResult.message) || 'Reminder set.',
+        provider:currentProvider,
+        model:getStoredModelLabel(currentProvider, currentContextMode),
+        mode:currentContextMode
+      };
+      chatHistory.push(directEventReply);
+      messagesEl.insertAdjacentHTML('beforeend', renderChatMessage(directEventReply, chatHistory.length - 1));
+      injectCodeCopyButtons(messagesEl);
+      scrollMessagesToBottom(true);
+      saveChatToVault();
+      saveHistoryToRedis();
+      return;
     } else if(directQuoteEditRequest && currentProvider === 'joey'){
       var directQuoteEditResult = await applySavedQuoteMutation(directQuoteEditRequest);
       var directQuoteEditReply = {
