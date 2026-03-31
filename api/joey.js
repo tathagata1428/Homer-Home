@@ -639,7 +639,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ customFiles });
       }
       if (req.method === 'POST') {
-        const { name, content } = req.body || {};
+        const { name, content, replace } = req.body || {};
         if (!name || typeof content !== 'string') return res.status(400).json({ error: 'Missing name or content' });
         const safeName = String(name).trim().replace(/\.\./g, '').replace(/^\/+/, '').slice(0, 200);
         if (!safeName) return res.status(400).json({ error: 'Invalid file name' });
@@ -654,7 +654,7 @@ export default async function handler(req, res) {
           delete files[safeName];
         } else {
           const nextContent = safeName === QUOTES_FILE_NAME
-            ? mergeQuotesMarkdown(customFiles[safeName], content)
+            ? (replace ? mergeQuotesMarkdown('', content) : mergeQuotesMarkdown(customFiles[safeName], content))
             : content.trim().slice(0, 50000);
           customFiles[safeName] = nextContent;
           files[safeName] = customFiles[safeName];
