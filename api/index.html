@@ -4534,6 +4534,81 @@ function renderQuote(q) {
       localStorage.setItem(SAVED_KEY,JSON.stringify(list));
       queueSavedQuotesFileSync('saved-quotes');
     }
+    function normalizeSavedQuoteText(value){
+      return String(value || '').trim().replace(/^["“']+|["”']+$/g, '').trim();
+    }
+    function parseSavedQuoteValue(value, fallbackAuthor){
+      var raw = String(value || '').trim();
+      if(!raw) return null;
+      raw = raw.replace(/^quote\s*:\s*/i, '').trim();
+      var match = raw.match(/^(["“']?)([\s\S]+?)\1\s*[—-]\s*([^,.;\n]{2,80})$/);
+      var quote = match ? String(match[2] || '').trim() : raw;
+      var author = match ? String(match[3] || '').trim() : String(fallbackAuthor || 'Unknown').trim();
+      quote = normalizeSavedQuoteText(quote);
+      author = String(author || 'Unknown').trim() || 'Unknown';
+      if(!quote) return null;
+      return { q:quote, a:author };
+    }
+    function findSavedQuoteIndex(list, ref){
+      if(!Array.isArray(list) || !list.length) return -1;
+      if(typeof ref === 'number' && ref >= 0 && ref < list.length) return ref;
+      var lookup = normalizeSavedQuoteText(ref).toLowerCase();
+      if(!lookup) return -1;
+      for(var i = 0; i < list.length; i++){
+        var itemText = normalizeSavedQuoteText(list[i] && list[i].q || '').toLowerCase();
+        if(itemText === lookup || itemText.indexOf(lookup) >= 0 || lookup.indexOf(itemText) >= 0) return i;
+      }
+      return -1;
+    }
+    function applySavedQuoteMutation(request){
+      var list = loadSaved();
+      var req = request && typeof request === 'object' ? request : {};
+      var op = String(req.op || 'save').toLowerCase();
+      var index = typeof req.index === 'number' ? req.index : -1;
+      if(op === 'clear'){
+        saveSaved([]);
+        renderSaved();
+        return Promise.resolve({ ok:true, message:'Saved quotes cleared.' });
+      }
+      if(op === 'delete'){
+        var deleteIdx = findSavedQuoteIndex(list, index >= 0 ? index : req.match);
+        if(deleteIdx < 0) return Promise.resolve({ ok:false, message:'Quote not found.' });
+        list.splice(deleteIdx, 1);
+        saveSaved(list);
+        renderSaved();
+        return Promise.resolve({ ok:true, message:'Quote removed.' });
+      }
+      if(op === 'update' || op === 'author'){
+        var targetIdx = findSavedQuoteIndex(list, index >= 0 ? index : req.match);
+        if(targetIdx < 0) return Promise.resolve({ ok:false, message:'Quote not found.' });
+        if(op === 'author'){
+          list[targetIdx].a = String(req.author || 'Unknown').trim() || 'Unknown';
+        } else {
+          var parsedUpdate = parseSavedQuoteValue(req.quote || req.memory || '', req.author || list[targetIdx].a || 'Unknown');
+          if(!parsedUpdate) return Promise.resolve({ ok:false, message:'Invalid quote update.' });
+          list[targetIdx] = { q:parsedUpdate.q, a:parsedUpdate.a, ts:list[targetIdx].ts || Date.now() };
+        }
+        saveSaved(list);
+        renderSaved();
+        return syncSavedQuotesToJoeyFile('saved-quotes-edit', { skipBackups:false }).then(function(){
+          return { ok:true, message:'Quote updated in Quotes.md.' };
+        });
+      }
+      var parsed = parseSavedQuoteValue(req.quote || req.memory || '', req.author || 'Unknown');
+      if(!parsed) return Promise.resolve({ ok:false, message:'Invalid quote.' });
+      var existingIdx = findSavedQuoteIndex(list, parsed.q);
+      if(existingIdx >= 0){
+        list[existingIdx].a = parsed.a;
+        list[existingIdx].ts = list[existingIdx].ts || Date.now();
+      } else {
+        list.unshift({ q:parsed.q, a:parsed.a, ts:Date.now() });
+      }
+      saveSaved(list);
+      renderSaved();
+      return syncSavedQuotesToJoeyFile('saved-quotes-add', { skipBackups:false }).then(function(){
+        return { ok:true, quote:parsed, message:'Saved to Quotes.md.' };
+      });
+    }
     function addCurrentToSaved(){
       const q=els.quote.textContent.trim(), a=els.author.textContent.trim(); if(!q) return;
       const list=loadSaved();
@@ -17442,6 +17517,19 @@ window._homerAmbientAudio = {
     }
     return null;
   }
+  function inferDirectQuoteEditRequest(text){
+    var raw = String(text || '').replace(/\s+/g, ' ').trim();
+    if(!raw) return null;
+    var clearMatch = raw.match(/^(?:clear|reset|wipe)\s+(?:all\s+)?(?:saved\s+)?quotes$/i);
+    if(clearMatch) return { op:'clear' };
+    var deleteMatch = raw.match(/^(?:delete|remove)\s+(?:saved\s+)?quote\s+(\d{1,4})$/i);
+    if(deleteMatch) return { op:'delete', index:Math.max(0, parseInt(deleteMatch[1], 10) - 1) };
+    var authorMatch = raw.match(/^(?:change|set|update)\s+(?:the\s+)?author\s+(?:of|for)\s+(?:saved\s+)?quote\s+(\d{1,4})\s+(?:to|as)\s+(.+)$/i);
+    if(authorMatch) return { op:'author', index:Math.max(0, parseInt(authorMatch[1], 10) - 1), author:clampAgentText(authorMatch[2] || '', 120) };
+    var updateMatch = raw.match(/^(?:update|edit|change|replace)\s+(?:saved\s+)?quote\s+(\d{1,4})\s+(?:to|with|as)\s+(.+)$/i);
+    if(updateMatch) return { op:'update', index:Math.max(0, parseInt(updateMatch[1], 10) - 1), quote:clampAgentText(updateMatch[2] || '', 2000) };
+    return null;
+  }
   function extractGeneratedNoteText(text){
     var clean = String(text || '').trim();
     if(!clean) return '';
@@ -17454,6 +17542,16 @@ window._homerAmbientAudio = {
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass) return Promise.resolve({ ok:false, message:'Unlock vault first so Joey memory can be updated.' });
     var payload = memData && typeof memData === 'object' ? memData : { memory:String(memData || ''), category:'general' };
+    if(String(payload.category || '').toLowerCase() === 'quote'){
+      return applySavedQuoteMutation({
+        op:'save',
+        quote:payload.memory || payload.text || '',
+        author:payload.author || 'Unknown'
+      }).then(function(result){
+        if(!result || !result.ok) return result || { ok:false, message:'Quote save failed.' };
+        return { ok:true, message:result.message || 'Saved to Quotes.md.' };
+      });
+    }
     var rememberUrl = typeof window._homerJoeyActionUrl === 'function' ? window._homerJoeyActionUrl('memory') : '/api/joey?action=memory&mode=' + encodeURIComponent((localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal');
     var rememberBody = typeof window._homerWithContextMode === 'function'
       ? window._homerWithContextMode({
@@ -18916,6 +19014,7 @@ window._homerAmbientAudio = {
     var directNoteRequest = inferDirectNoteRequest(displayText);
     var deferredNoteRequest = directNoteRequest ? null : inferDeferredNoteRequest(displayText);
     var directQuoteRequest = inferDirectQuoteRequest(displayText);
+    var directQuoteEditRequest = inferDirectQuoteEditRequest(displayText);
     var directCommandRequest = inferDirectCommandRequest(displayText);
     if(forceWebSearch) fullContent = '[FORCE_WEB_SEARCH] ' + fullContent;
     if(forceFullContext) fullContent = '[USE_FULL_CONTEXT] ' + fullContent;
@@ -18948,6 +19047,22 @@ window._homerAmbientAudio = {
       applyAgentTaskMutation(directIssueUpdate, { userText:displayText, source:'direct-user' });
     } else if(directTaskRequest && !directTaskNeedsPlanning && currentProvider === 'joey'){
       applyAgentTaskMutation(directTaskRequest, { userText:displayText, source:'direct-user' });
+    } else if(directQuoteEditRequest && currentProvider === 'joey'){
+      var directQuoteEditResult = await applySavedQuoteMutation(directQuoteEditRequest);
+      var directQuoteEditReply = {
+        role:'assistant',
+        content:(directQuoteEditResult && directQuoteEditResult.message) || 'Quote updated.',
+        provider:currentProvider,
+        model:getStoredModelLabel(currentProvider, currentContextMode),
+        mode:currentContextMode
+      };
+      chatHistory.push(directQuoteEditReply);
+      messagesEl.insertAdjacentHTML('beforeend', renderChatMessage(directQuoteEditReply, chatHistory.length - 1));
+      injectCodeCopyButtons(messagesEl);
+      scrollMessagesToBottom(true);
+      saveChatToVault();
+      saveHistoryToRedis();
+      return;
     } else if(directQuoteRequest && currentProvider === 'joey'){
       var directQuoteResult = await applyAgentRememberMutation(directQuoteRequest);
       var directQuoteReply = {
