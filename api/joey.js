@@ -33,7 +33,7 @@ function normalizeQuoteKey(text, author) {
   return String(text || '').trim().toLowerCase().replace(/\s+/g, ' ') + '|' + String(author || 'Unknown').trim().toLowerCase();
 }
 
-function extractQuoteEntriesFromMarkdown(markdown) {
+extractQuoteEntriesFromMarkdown = function(markdown) {
   const value = String(markdown || '').replace(/\r\n/g, '\n').trim();
   if (!value) return [];
   const entries = [];
@@ -97,9 +97,9 @@ function mergeQuotesMarkdown(existingMarkdown, incomingMarkdown) {
 function isQuoteLikeCategory(category) {
   const value = String(category || '').trim().toLowerCase();
   return ['quote', 'quotes', 'wisdom', 'stoic', 'mantra', 'motto', 'inspiration'].includes(value);
-}
+};
 
-function buildQuoteMarkdownFromMemory(memory, category) {
+buildQuoteMarkdownFromMemory = function(memory, category) {
   const text = String(memory || '').trim();
   if (!text) return '';
   const quoteMatch = text.match(/^["“](.+?)["”]\s*(?:[-—]\s*(.+))?$/);
@@ -111,6 +111,83 @@ function buildQuoteMarkdownFromMemory(memory, category) {
     savedAt: new Date().toISOString(),
     category: category || 'quote'
   }]);
+};
+
+function splitCompoundQuoteText(text, author, savedAt) {
+  const raw = String(text || '').replace(/\r\n/g, '\n').trim();
+  if (!raw) return [];
+
+  const normalized = raw
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const results = [];
+  const seen = new Set();
+  const pushEntry = (value, entryAuthor) => {
+    const quote = String(value || '').trim().replace(/^[-–—:,\s]+/, '').replace(/[-–—:,\s]+$/, '');
+    if (!quote) return;
+    if (/^(?:ted lasso quotes saved to quotes\.md|quotes saved to quotes\.md|saved quotes?)[:\s-]*$/i.test(quote)) return;
+    const nextAuthor = String(entryAuthor || author || 'Unknown').trim() || 'Unknown';
+    const key = normalizeQuoteKey(quote, nextAuthor);
+    if (seen.has(key)) return;
+    seen.add(key);
+    results.push({ quote, author: nextAuthor, savedAt: String(savedAt || '').trim() });
+  };
+
+  const quotedParts = [...normalized.matchAll(/"([^"]{2,}?)"/g)]
+    .map((match) => String(match[1] || '').trim())
+    .filter(Boolean);
+  quotedParts.forEach((part) => pushEntry(part, author));
+
+  let remainder = normalized.replace(/"([^"]{2,}?)"/g, ' ').replace(/\s+/g, ' ').trim();
+  remainder = remainder.replace(/^[^:]{0,120}quotes?\s+saved\s+to\s+quotes\.md[:\s-]*/i, '').trim();
+  if (!quotedParts.length && /^[^:]{0,120}quotes?[:\s-]/i.test(remainder)) {
+    remainder = remainder.replace(/^[^:]+:\s*/, '').trim();
+  }
+  remainder.split(/\s*,\s*|\s*;\s*|\s+\|\s+/).forEach((part) => {
+    if (!part) return;
+    pushEntry(part, author);
+  });
+
+  if (!results.length) {
+    const singleMatch = normalized.match(/^"(.+?)"\s*(?:[-—–]\s*(.+))?$/);
+    if (singleMatch) pushEntry(singleMatch[1], singleMatch[2] || author);
+    else pushEntry(normalized, author);
+  }
+  return results;
+}
+
+function extractQuoteEntriesFromMarkdown(markdown) {
+  const value = String(markdown || '').replace(/\r\n/g, '\n').trim();
+  if (!value) return [];
+  const entries = [];
+  const blocks = value.split(/\n(?=##\s+Quote\b)/g);
+  blocks.forEach((block) => {
+    const quoteMatch = block.match(/^\s*>\s*([\s\S]*?)(?:\n(?:-|##|$))/m);
+    const authorMatch = block.match(/^\s*-\s*Author:\s*(.+)$/mi);
+    const savedMatch = block.match(/^\s*-\s*Saved:\s*(.+)$/mi);
+    const quoteText = quoteMatch ? quoteMatch[1].replace(/\n>\s*/g, '\n').trim() : '';
+    const quoteAuthor = authorMatch ? String(authorMatch[1] || '').trim() : 'Unknown';
+    const quoteSavedAt = savedMatch ? String(savedMatch[1] || '').trim() : '';
+    if (!quoteText) return;
+    splitCompoundQuoteText(quoteText, quoteAuthor || 'Unknown', quoteSavedAt).forEach((entry) => entries.push(entry));
+  });
+  return entries;
+}
+
+function buildQuoteMarkdownFromMemory(memory, category) {
+  const text = String(memory || '').trim();
+  if (!text) return '';
+  return buildQuotesMarkdown(
+    splitCompoundQuoteText(text, 'Unknown', new Date().toISOString()).map((entry) => ({
+      quote: entry.quote,
+      author: entry.author,
+      savedAt: entry.savedAt,
+      category: category || 'quote'
+    }))
+  );
 }
 
 export default async function handler(req, res) {
