@@ -10960,6 +10960,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   var joeySyncStatusTimer = null;
   var joeySyncStatusInFlight = null;
   var joeyLastDriveReconcileAt = 0;
+  var JOEY_DRIVE_BACKUP_MIN_DIRTY_MS = 10 * 60 * 1000;
   var mobileSuppressedFields = [];
   function markJoeyDriveBackupDirty(reason){
     joeyDriveBackupDirty = true;
@@ -12482,6 +12483,9 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var forceBackup = /^(manual|agent-action|command-action|quote-memory)$/i.test(String(reason || ''));
     if(!forceBackup && !isAutoSyncEnabled()) return Promise.resolve({ ok:true, skipped:true, reason:'sync-disabled' });
     if(!forceBackup && !joeyDriveBackupDirty) return Promise.resolve({ ok:true, skipped:true, reason:'clean' });
+    if(!forceBackup && joeyDriveBackupDirtyAt && (Date.now() - joeyDriveBackupDirtyAt) < JOEY_DRIVE_BACKUP_MIN_DIRTY_MS){
+      return Promise.resolve({ ok:true, skipped:true, reason:'dirty-too-recent' });
+    }
     joeyDriveBackupInFlight = true;
     return Promise.resolve(ensureSavedQuotesContext('gdrive-backup-auto')).catch(function(){ return false; }).then(function(){
       return collectTaskSnapshot();
@@ -12985,9 +12989,6 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     });
   }
   var JOEY_DRIVE_RECONCILE_INTERVAL_MS = 6 * 60 * 60 * 1000;
-  // Run safe reconcile after a delay (after Redis load attempt)
-  setTimeout(autoReconcileFromDrive, 3000);
-
   // --- Periodic context save to DB every 5 minutes ---
   setInterval(function(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
@@ -13014,14 +13015,6 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!pass || streaming) return;
     autoReconcileFromDrive();
   }, JOEY_DRIVE_RECONCILE_INTERVAL_MS);
-  document.addEventListener('visibilitychange', function(){
-    if(document.visibilityState !== 'visible') return;
-    var pass = localStorage.getItem('homer-sync-pass') || '';
-    if(!isAutoSyncEnabled()) return;
-    if(!pass || streaming) return;
-    if(joeyLastDriveReconcileAt && (Date.now() - joeyLastDriveReconcileAt) < (90 * 60 * 1000)) return;
-    setTimeout(autoReconcileFromDrive, 1200);
-  });
 
   // --- Markdown rendering ---
   function renderMd(raw){
