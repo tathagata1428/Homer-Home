@@ -191,10 +191,19 @@ function splitCompoundQuoteText(text, author, savedAt) {
   if (!quotedParts.length && /^[^:]{0,120}quotes?[:\s-]/i.test(remainder)) {
     remainder = remainder.replace(/^[^:]+:\s*/, '').trim();
   }
-  remainder.split(/\s*,\s*|\s*;\s*|\s+\|\s+/).forEach((part) => {
-    if (!part) return;
-    pushEntry(part, author);
-  });
+  const looksLikeQuoteList =
+    quotedParts.length > 0 ||
+    /quotes?\s+saved\s+to\s+quotes\.md/i.test(normalized) ||
+    /^[^:]{0,120}quotes?[:\s-]/i.test(normalized) ||
+    /\s+\|\s+/.test(remainder);
+  if (looksLikeQuoteList) {
+    remainder.split(/\s*,\s*|\s*;\s*|\s+\|\s+/).forEach((part) => {
+      if (!part) return;
+      pushEntry(part, author);
+    });
+  } else if (remainder) {
+    pushEntry(remainder, author);
+  }
 
   if (!results.length) {
     const singleMatch = normalized.match(/^"(.+?)"\s*(?:[-—–]\s*(.+))?$/);
