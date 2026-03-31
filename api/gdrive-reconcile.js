@@ -142,26 +142,47 @@ function mergeMemories(currentValue, incomingValue) {
 }
 
 function mergeHistory(currentValue, incomingValue) {
-  const seen = new Set();
-  const merged = [];
-
-  function absorb(item) {
-    if (!item || (item.role !== 'user' && item.role !== 'assistant')) return;
-    const content = String(item.content || '').trim();
-    if (!content) return;
-    const key = item.role + '::' + normalizeText(content);
-    if (seen.has(key)) return;
-    seen.add(key);
-    merged.push({
-      role: item.role,
-      content: content.slice(0, 2000)
-    });
+  function normalize(items) {
+    return asArray(items)
+      .filter((item) => item && (item.role === 'user' || item.role === 'assistant'))
+      .map((item) => ({
+        role: item.role,
+        content: String(item.content || '').trim().slice(0, 2000)
+      }))
+      .filter((item) => item.content);
   }
 
-  asArray(currentValue).forEach(absorb);
-  asArray(incomingValue).forEach(absorb);
+  function historiesEqual(left, right) {
+    if (left.length !== right.length) return false;
+    return left.every((item, index) => (
+      right[index] &&
+      right[index].role === item.role &&
+      right[index].content === item.content
+    ));
+  }
 
-  return merged.slice(-MAX_HISTORY);
+  function isPrefix(prefix, full) {
+    if (prefix.length > full.length) return false;
+    return prefix.every((item, index) => (
+      full[index] &&
+      full[index].role === item.role &&
+      full[index].content === item.content
+    ));
+  }
+
+  const current = normalize(currentValue);
+  const incoming = normalize(incomingValue);
+
+  if (!incoming.length) return current.slice(-MAX_HISTORY);
+  if (!current.length) return incoming.slice(-MAX_HISTORY);
+  if (historiesEqual(current, incoming)) return current.slice(-MAX_HISTORY);
+  if (isPrefix(current, incoming)) return incoming.slice(-MAX_HISTORY);
+  if (isPrefix(incoming, current)) return current.slice(-MAX_HISTORY);
+
+  // History order matters more than set-union. When Redis and Drive diverge,
+  // prefer the active Redis window instead of appending stale Drive messages
+  // out of order and pulling old conversations back into the UI.
+  return current.slice(-MAX_HISTORY);
 }
 
 function mergeJournal(currentValue, incomingValue) {
