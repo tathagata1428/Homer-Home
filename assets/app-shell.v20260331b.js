@@ -13393,7 +13393,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var raw = String(text || '').replace(/\s+/g, ' ').trim();
     if(!raw) return null;
     var lower = raw.toLowerCase();
-    if(!/\b(remind|reminder|heartbeat|heart bit|check[- ]?in|check in)\b/.test(lower)) return null;
+    if(!/\b(remind|reminder|heartbeat|heart\s*beat|heart\s*bit|heartbit|check[- ]?in|check in)\b/.test(lower)) return null;
     var everyMatch = raw.match(/\bevery\s+(\d{1,3})\s*(minute|minutes|min|mins|hour|hours|hr|hrs)\b/i);
     var intervalMinutes = 0;
     if(everyMatch){
@@ -13406,7 +13406,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     body = body.replace(/[.?!]+$/g, '').trim();
     if(!body){
       body = raw
-        .replace(/^\s*(?:please\s+)?(?:set|create|add|make)\s+(?:a\s+)?(?:heartbeat|heart bit|reminder|check[- ]?in)\b/i, '')
+        .replace(/^\s*(?:please\s+)?(?:set|create|add|make)\s+(?:a\s+)?(?:heartbeat|heart\s*beat|heart\s*bit|heartbit|reminder|check[- ]?in)\b/i, '')
         .replace(/\bevery\s+\d{1,3}\s*(?:minute|minutes|min|mins|hour|hours|hr|hrs)\b/ig, '')
         .replace(/^\s*(?:to|for)\s+/i, '')
         .replace(/[.?!]+$/g, '')
