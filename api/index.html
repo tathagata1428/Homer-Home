@@ -4451,12 +4451,6 @@ function renderQuote(q) {
       body.mode = getSavedQuotesMode();
       return body;
     }
-    function buildSeedQuotes(){
-      return [
-        { q:'Be curious, not judgmental.', a:'Ted Lasso' },
-        { q:"You gotta let 'em know you're good at what you do. But you also gotta leave room for God to enter the room.", a:'Ted Lasso' }
-      ];
-    }
     function buildSavedQuotesMarkdown(list){
       var items = Array.isArray(list) ? list.slice() : [];
       var seen = {};
@@ -4468,14 +4462,6 @@ function renderQuote(q) {
         if(seen[key]) return false;
         seen[key] = true;
         return true;
-      });
-      buildSeedQuotes().forEach(function(seed){
-        var q = String(seed.q || '').trim();
-        var a = String(seed.a || 'Unknown').trim() || 'Unknown';
-        var key = q.toLowerCase().replace(/\s+/g,' ') + '|' + a.toLowerCase().replace(/\s+/g,' ');
-        if(!q || seen[key]) return;
-        seen[key] = true;
-        items.push({ q:q, a:a, ts:Date.now() });
       });
       if(!items.length) return '';
       var lines = [
