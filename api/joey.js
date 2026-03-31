@@ -652,42 +652,68 @@ export default async function handler(req, res) {
         if (!name || typeof content !== 'string') return res.status(400).json({ error: 'Missing name or content' });
         const safeName = String(name).trim().replace(/\.\./g, '').replace(/^\/+/, '').slice(0, 200);
         if (!safeName) return res.status(400).json({ error: 'Invalid file name' });
-        const [result, filesResult] = await Promise.all([
+        const [result, filesResult, memoriesResult] = await Promise.all([
           redis(['GET', CUSTOM_FILES_KEY]),
-          redis(['GET', FILES_KEY])
+          redis(['GET', FILES_KEY]),
+          redis(['GET', MEMORY_KEY])
         ]);
         const customFiles = sanitizeManagedCustomFiles(result.result ? JSON.parse(result.result) : {});
         const files = sanitizeManagedFiles(filesResult.result ? JSON.parse(filesResult.result) : {}, [], customFiles, new Date().toISOString());
+        let memories = memoriesResult.result ? JSON.parse(memoriesResult.result) : [];
+        if (!Array.isArray(memories)) memories = [];
+        const baseMemories = memories.filter((entry) => !(entry && entry.source === 'saved-quotes-sync'));
         if (!content.trim()) {
           delete customFiles[safeName];
           delete files[safeName];
+          if (safeName === QUOTES_FILE_NAME) memories = baseMemories;
         } else {
           const nextContent = safeName === QUOTES_FILE_NAME
             ? (replace ? mergeQuotesMarkdown('', content) : mergeQuotesMarkdown(customFiles[safeName], content))
             : content.trim().slice(0, 50000);
           customFiles[safeName] = nextContent;
           files[safeName] = customFiles[safeName];
+          if (safeName === QUOTES_FILE_NAME) {
+            const quoteEntries = extractQuoteEntriesFromMarkdown(nextContent).slice(-120);
+            const quoteMemories = quoteEntries.map((entry, idx) => ({
+              id: Date.now() + idx,
+              text: '"' + String(entry.quote || '').trim() + '" — ' + (String(entry.author || 'Unknown').trim() || 'Unknown'),
+              category: 'quote',
+              ts: entry.savedAt ? Date.parse(entry.savedAt) || Date.now() : Date.now(),
+              source: 'saved-quotes-sync',
+              confidence: 0.98
+            }));
+            memories = baseMemories.concat(quoteMemories).slice(-MAX_MEMORIES);
+          }
         }
         await Promise.all([
           redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(customFiles)]),
-          redis(['SET', FILES_KEY, JSON.stringify(files)])
+          redis(['SET', FILES_KEY, JSON.stringify(files)]),
+          safeName === QUOTES_FILE_NAME ? redis(['SET', MEMORY_KEY, JSON.stringify(memories)]) : Promise.resolve()
         ]);
         return res.status(200).json({ ok: true, name: safeName, count: Object.keys(customFiles).length });
       }
       if (req.method === 'DELETE') {
         const { name } = req.body || {};
         if (!name) return res.status(400).json({ error: 'Missing name' });
-        const [result, filesResult] = await Promise.all([
+        const [result, filesResult, memoriesResult] = await Promise.all([
           redis(['GET', CUSTOM_FILES_KEY]),
-          redis(['GET', FILES_KEY])
+          redis(['GET', FILES_KEY]),
+          redis(['GET', MEMORY_KEY])
         ]);
         const customFiles = sanitizeManagedCustomFiles(result.result ? JSON.parse(result.result) : {});
         const files = sanitizeManagedFiles(filesResult.result ? JSON.parse(filesResult.result) : {}, [], customFiles, new Date().toISOString());
-        delete customFiles[String(name).trim()];
-        delete files[String(name).trim()];
+        const targetName = String(name).trim();
+        delete customFiles[targetName];
+        delete files[targetName];
+        let memories = memoriesResult.result ? JSON.parse(memoriesResult.result) : [];
+        if (!Array.isArray(memories)) memories = [];
+        if (targetName === QUOTES_FILE_NAME) {
+          memories = memories.filter((entry) => !(entry && entry.source === 'saved-quotes-sync'));
+        }
         await Promise.all([
           redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(customFiles)]),
-          redis(['SET', FILES_KEY, JSON.stringify(files)])
+          redis(['SET', FILES_KEY, JSON.stringify(files)]),
+          targetName === QUOTES_FILE_NAME ? redis(['SET', MEMORY_KEY, JSON.stringify(memories)]) : Promise.resolve()
         ]);
         return res.status(200).json({ ok: true, count: Object.keys(customFiles).length });
       }
