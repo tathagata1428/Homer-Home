@@ -86,7 +86,7 @@
   <div class="shell">
     <header class="hero">
       <div class="title">Homer <span id="greeting" class="title-badge">Hello</span></div>
-      <div class="subtitle">Ã¢â‚¬Å“Trying is the first step towards failure.Ã¢â‚¬Â Ã¢â‚¬â€ Homer Simpson</div>
+      <div class="subtitle">&ldquo;Trying is the first step towards failure.&rdquo; &mdash; Homer Simpson</div>
     </header>
 
     <div class="tabs">
@@ -132,9 +132,9 @@
           </div>
 
           <h2 class="section">Daily Inspiration</h2>
-          <p id="status" class="muted"><span class="spinner"></span>Fetching wisdomÃ¢â‚¬Â¦</p>
+          <p id="status" class="muted"><span class="spinner"></span>Fetching wisdom...</p>
           <blockquote id="quote" style="display:none;"></blockquote>
-          <div id="byline" class="author" style="display:none;">Ã¢â‚¬â€ <span id="author"></span></div>
+          <div id="byline" class="author" style="display:none;">&mdash; <span id="author"></span></div>
 
           <div class="row" aria-label="Actions">
             <button id="refresh" class="btn primary">New Quote</button>
@@ -163,7 +163,7 @@
         <div class="span-12 card" id="home-tasks-card" style="display:none">
           <h2 class="section">Focus Tasks</h2>
           <div class="htasklist" id="home-tasks"></div>
-          <div class="muted" id="home-tasks-empty" style="display:none">No open tasks. Add one in Pomodoro Ã¢â€ â€™ Tasks.</div>
+          <div class="muted" id="home-tasks-empty" style="display:none">No open tasks. Add one in Pomodoro -> Tasks.</div>
         </div>
 
         <div class="span-12 card" id="home-done-card" style="display:none">
@@ -566,13 +566,13 @@
         <p style="color:#fbbf24;font-size:.88rem;margin:0;line-height:1.5;">No account found. Create one via the <strong style="color:#fcd34d;">Account</strong> button first.</p>
       </div>
 
-      <div id="vault-login-fields" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+      <form id="vault-login-fields" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;" onsubmit="return false;">
         <input id="vault-pw-user" type="text" placeholder="Username" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" class="acct-field" style="text-align:center;margin-bottom:0;">
         <div class="acct-field-wrap" style="margin-bottom:0;">
           <input id="vault-pw" type="password" placeholder="Password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" class="acct-field" style="text-align:center;margin-bottom:0;">
           <button type="button" class="pw-toggle" aria-label="Show password" title="Show password" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';var l=i.type==='password'?'Show password':'Hide password';this.setAttribute('aria-label',l);this.title=l;">&#128065;</button>
         </div>
-      </div>
+      </form>
 
       <button id="vault-unlock" class="btn primary" style="width:100%;padding:12px;font-size:1rem;font-weight:800;">Unlock</button>
       <p id="vault-error" style="color:#ef4444;font-size:.88rem;margin:10px 0 0;min-height:1.2em;display:none;"></p>
@@ -847,12 +847,12 @@
 
     <div class="card" style="padding:18px;margin-bottom:18px;">
       <h3 style="margin:0 0 12px;">Ã°Å¸â€â€” Secret Links</h3>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+      <form style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;" onsubmit="return false;">
         <input id="vault-link-name" type="text" placeholder="Name" style="flex:1;min-width:120px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;">
         <input id="vault-link-url" type="url" placeholder="https://..." style="flex:2;min-width:180px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
         <textarea id="vault-link-desc" placeholder="Description (optional)" rows="1" style="flex-basis:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-family:inherit;font-size:.9rem;resize:vertical;"></textarea>
         <button id="vault-link-add" class="btn primary" style="padding:10px 18px;">+ Add</button>
-      </div>
+      </form>
       <div id="vault-links-list"></div>
       <p id="vault-links-empty" class="empty" style="display:none;">No secret links yet.</p>
     </div>
@@ -900,10 +900,10 @@
   </div>
 
   <nav class="toolbar" aria-label="Quick links">
-    <a class="tool-btn" href="https://www.youtube.com/" target="_blank" rel="noopener">Ã¢â€“Â¶Ã¯Â¸Â YouTube</a>
-    <a class="tool-btn" href="https://gemini.google.com" target="_blank" rel="noopener">Ã¢Å“Â¨ Gemini AI</a>
-    <a class="tool-btn" href="https://tasks.b4it.ro" target="_blank" rel="noopener">Ã°Å¸â€”â€™Ã¯Â¸Â Notes</a>
-    <a class="tool-btn" href="https://www.google.com" target="_blank" rel="noopener">Ã°Å¸â€Å½ Google</a>
+    <a class="tool-btn" href="https://www.youtube.com/" target="_blank" rel="noopener">&#9658;&#65039; YouTube</a>
+    <a class="tool-btn" href="https://gemini.google.com" target="_blank" rel="noopener">&#10024; Gemini AI</a>
+    <a class="tool-btn" href="https://tasks.b4it.ro" target="_blank" rel="noopener">&#128221; Notes</a>
+    <a class="tool-btn" href="https://www.google.com" target="_blank" rel="noopener">&#128269; Google</a>
   </nav>
 
   
@@ -948,7 +948,7 @@
 <!-- OpenClaw Chat Panel -->
 <div id="oc-panel">
   <div id="oc-panel-header">
-    <h3><span id="oc-provider-icon">Ã°Å¸Ââ€¢</span> <span id="oc-provider-name">Joey Kilo</span> <span class="oc-model-badge" id="oc-model-badge">MiMo-V2-Pro</span></h3>
+    <h3><span id="oc-provider-icon">&#127821;</span> <span id="oc-provider-name">Joey Kilo</span> <span class="oc-model-badge" id="oc-model-badge">MiMo-V2-Pro</span></h3>
     <div class="oc-header-actions">
       <button type="button" id="oc-export-btn" title="Export chat">&#8615;</button>
       <button type="button" id="oc-settings-btn" title="Settings">&#9881;</button>
@@ -1081,12 +1081,12 @@
 <div id="acct-modal-bg" class="fab-overlay">
   <div class="fab-dialog">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
-      <h3 id="acct-title" style="margin:0;font-size:1.15rem;">Ã°Å¸â€˜Â¤ Account</h3>
+      <h3 id="acct-title" style="margin:0;font-size:1.15rem;">&#128100; Account</h3>
       <button id="acct-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
     </div>
 
     <!-- Logged-out view: create / sign-in -->
-    <div id="acct-form">
+    <form id="acct-form" onsubmit="return false;">
       <input id="acct-user" class="acct-field" type="text" placeholder="Username" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
       <div class="acct-field-wrap">
         <input id="acct-pass" class="acct-field" type="password" placeholder="Password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
@@ -1105,12 +1105,12 @@
       <div style="text-align:center;margin-top:12px;">
         <button id="acct-mode-toggle" style="background:none;border:none;color:var(--accent-2);cursor:pointer;font-size:.85rem;text-decoration:underline;">Don't have an account? Create one</button>
       </div>
-    </div>
+    </form>
 
     <!-- Logged-in view -->
     <div id="acct-info" style="display:none;">
       <div style="text-align:center;margin-bottom:18px;">
-        <div style="font-size:3rem;margin-bottom:8px;">Ã°Å¸â€˜Â¤</div>
+        <div style="font-size:3rem;margin-bottom:8px;">&#128100;</div>
         <div style="font-size:1.2rem;font-weight:800;color:var(--text);" id="acct-display-name"></div>
         <div style="color:var(--muted);font-size:.85rem;margin-top:4px;">Signed in</div>
       </div>
@@ -1124,7 +1124,7 @@
         <button id="admin-toggle-btn" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.78rem;opacity:.4;transition:opacity .2s;">Super Admin</button>
       </div>
 
-      <div id="admin-login" style="display:none;margin-top:12px;">
+      <form id="admin-login" style="display:none;margin-top:12px;" onsubmit="return false;">
         <input id="admin-user" class="acct-field" type="text" placeholder="Admin email" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" style="font-size:.88rem;">
         <div class="acct-field-wrap">
           <input id="admin-pass" class="acct-field" type="password" placeholder="Admin password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" style="font-size:.88rem;">
@@ -1132,7 +1132,7 @@
         </div>
         <button id="admin-signin" class="btn" style="width:100%;padding:9px;font-size:.88rem;background:linear-gradient(135deg,#8b5cf6,#6d28d9);border:none;color:#fff;">Authenticate</button>
         <p id="admin-error" style="color:#ef4444;font-size:.82rem;min-height:1em;margin:6px 0 0;text-align:center;"></p>
-      </div>
+      </form>
 
       <div id="admin-panel" style="display:none;margin-top:12px;">
         <!-- Admin Tabs -->
@@ -1159,7 +1159,7 @@
           </div>
 
           <!-- Create User Form -->
-          <div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;">
+          <form id="admin-create-user-form" style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;" onsubmit="return false;">
             <h4 style="margin:0 0 10px;font-size:.85rem;color:var(--text);">Create New User</h4>
             <input id="new-user-username" class="acct-field" type="text" placeholder="Username" style="font-size:.85rem;margin-bottom:8px;">
             <input id="new-user-email" class="acct-field" type="email" placeholder="Email" style="font-size:.85rem;margin-bottom:8px;">
@@ -1179,7 +1179,7 @@
             </div>
             <button id="admin-create-user" class="btn" style="width:100%;padding:8px;font-size:.85rem;background:linear-gradient(135deg,var(--accent),#16a34a);border:none;color:#fff;">Create User</button>
             <p id="admin-create-error" style="color:#ef4444;font-size:.8rem;min-height:1em;margin:6px 0 0;"></p>
-          </div>
+          </form>
 
           <!-- Users List -->
           <div id="admin-users-status" style="color:var(--muted);font-size:.8rem;min-height:1em;margin-bottom:8px;"></div>
@@ -1344,31 +1344,31 @@
     <div class="msheet-handle"></div>
     <div class="msheet-label">Tabs</div>
     <div class="msheet-grid">
-      <div class="msheet-item" data-tab="focuslab"><div class="msheet-icon">Ã°Å¸Â§Ëœ</div>Focus Lab</div>
-      <div class="msheet-item" data-tab="investing"><div class="msheet-icon">Ã°Å¸â€œË†</div>Investing</div>
-      <div class="msheet-item" data-tab="tools"><div class="msheet-icon">Ã°Å¸â€ºÂ Ã¯Â¸Â</div>Tools</div>
-      <div class="msheet-item" data-tab="links"><div class="msheet-icon">Ã°Å¸â€â€”</div>Links</div>
-      <div class="msheet-item" data-tab="news"><div class="msheet-icon">Ã°Å¸â€œÂ°</div>News</div>
+      <div class="msheet-item" data-tab="focuslab"><div class="msheet-icon">&#129504;</div>Focus Lab</div>
+      <div class="msheet-item" data-tab="investing"><div class="msheet-icon">&#128200;</div>Investing</div>
+      <div class="msheet-item" data-tab="tools"><div class="msheet-icon">&#128736;&#65039;</div>Tools</div>
+      <div class="msheet-item" data-tab="links"><div class="msheet-icon">&#128279;</div>Links</div>
+      <div class="msheet-item" data-tab="news"><div class="msheet-icon">&#128240;</div>News</div>
     </div>
     <div class="msheet-sep"></div>
     <div class="msheet-label">Quick Links</div>
     <div class="msheet-grid">
-      <a class="msheet-item" href="https://www.youtube.com/" target="_blank" rel="noopener"><div class="msheet-icon">Ã¢â€“Â¶Ã¯Â¸Â</div>YouTube</a>
-      <a class="msheet-item" href="https://gemini.google.com" target="_blank" rel="noopener"><div class="msheet-icon">Ã¢Å“Â¨</div>Gemini</a>
-      <a class="msheet-item" href="https://tasks.b4it.ro" target="_blank" rel="noopener"><div class="msheet-icon">Ã°Å¸â€”â€™Ã¯Â¸Â</div>Notes</a>
-      <a class="msheet-item" href="https://www.google.com" target="_blank" rel="noopener"><div class="msheet-icon">Ã°Å¸â€Å½</div>Google</a>
+      <a class="msheet-item" href="https://www.youtube.com/" target="_blank" rel="noopener"><div class="msheet-icon">&#9658;&#65039;</div>YouTube</a>
+      <a class="msheet-item" href="https://gemini.google.com" target="_blank" rel="noopener"><div class="msheet-icon">&#10024;</div>Gemini</a>
+      <a class="msheet-item" href="https://tasks.b4it.ro" target="_blank" rel="noopener"><div class="msheet-icon">&#128221;</div>Notes</a>
+      <a class="msheet-item" href="https://www.google.com" target="_blank" rel="noopener"><div class="msheet-icon">&#128269;</div>Google</a>
     </div>
     <div class="msheet-sep"></div>
     <div class="msheet-label">Actions</div>
     <div class="msheet-grid">
-      <div class="msheet-item" id="msheet-account"><div class="msheet-icon">Ã°Å¸â€˜Â¤</div>Account</div>
-      <div class="msheet-item" id="msheet-sync"><div class="msheet-icon">Ã¢ËœÂÃ¯Â¸Â</div>Sync</div>
-      <div class="msheet-item" id="msheet-wake"><div class="msheet-icon">Ã¢Ëœâ‚¬Ã¯Â¸Â</div>Awake</div>
-      <div class="msheet-item" id="msheet-clear"><div class="msheet-icon">Ã°Å¸â€”â€˜Ã¯Â¸Â</div>Clear</div>
+      <div class="msheet-item" id="msheet-account"><div class="msheet-icon">&#128100;</div>Account</div>
+      <div class="msheet-item" id="msheet-sync"><div class="msheet-icon">&#9729;&#65039;</div>Sync</div>
+      <div class="msheet-item" id="msheet-wake"><div class="msheet-icon">&#9728;&#65039;</div>Awake</div>
+      <div class="msheet-item" id="msheet-clear"><div class="msheet-icon">&#128465;&#65039;</div>Clear</div>
     </div>
   </div>
 </div>
 
-    <script src="/assets/app-shell.v20260401x.js"></script>
+    <script src="/assets/app-shell.v20260401y.js"></script>
 </body>
 </html>
