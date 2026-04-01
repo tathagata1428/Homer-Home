@@ -89,6 +89,7 @@ export default async function handler(req, res) {
       });
     }
 
+    const driveScope = String(parsed.driveScope || '').trim().toLowerCase();
     const validation = validateJoeySyncBundleMeta({
       mode,
       profile: parsed.profile,
@@ -99,7 +100,7 @@ export default async function handler(req, res) {
       customFiles: parsed.customFiles,
       journal: parsed.journal
     }, parsed.syncMeta);
-    if (parsed.syncMeta && !validation.ok && validation.reason !== 'missing-hashes') {
+    if (parsed.syncMeta && driveScope !== 'md-only' && !validation.ok && validation.reason !== 'missing-hashes') {
       return res.status(409).json({
         error: 'Drive bundle failed integrity validation',
         validation
@@ -108,9 +109,18 @@ export default async function handler(req, res) {
 
     // Restore to Redis
     const { profile, memories, history, files, fileLibrary, customFiles, journal, syncMeta } = parsed;
-    const restoredFileLibrary = fileLibrary || [];
+    const [currentProfile, currentMemories, currentHistory, currentFileLibrary, currentJournal] = await Promise.all([
+      loadRedisJson(redisFetch, PROFILE_KEY, {}),
+      loadRedisJson(redisFetch, MEMORY_KEY, []),
+      loadRedisJson(redisFetch, HISTORY_KEY, []),
+      loadRedisJson(redisFetch, FILE_LIBRARY_KEY, []),
+      loadRedisJson(redisFetch, JOURNAL_KEY, [])
+    ]);
+    const restoredFileLibrary = fileLibrary || currentFileLibrary || [];
     const restoredCustomFiles = sanitizeCustomFilesMap(customFiles || {});
-    const restoredFiles = mergeDerivedFileContext(files || {}, restoredFileLibrary, restoredCustomFiles, new Date().toISOString());
+    const restoredFiles = driveScope === 'md-only'
+      ? (files && typeof files === 'object' ? files : {})
+      : mergeDerivedFileContext(files || {}, restoredFileLibrary, restoredCustomFiles, new Date().toISOString());
     const results = { profile: false, memories: false, history: false, files: false, fileLibrary: false, customFiles: false, journal: false, syncMeta: false };
 
     if (profile !== undefined) {
@@ -143,13 +153,13 @@ export default async function handler(req, res) {
     }
     const computedSyncMeta = computeJoeySyncMeta({
       mode,
-      profile: profile || {},
-      memories: memories || [],
-      history: history || [],
+      profile: profile !== undefined ? (profile || {}) : currentProfile,
+      memories: memories !== undefined ? (memories || []) : currentMemories,
+      history: history !== undefined ? (history || []) : currentHistory,
       files: restoredFiles,
       fileLibrary: restoredFileLibrary,
       customFiles: restoredCustomFiles,
-      journal: journal || []
+      journal: journal !== undefined ? (journal || []) : currentJournal
     }, {
       ...(syncMeta && typeof syncMeta === 'object' ? syncMeta : {}),
       mode,

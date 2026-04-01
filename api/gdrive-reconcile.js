@@ -385,9 +385,12 @@ export default async function handler(req, res) {
     }
 
     const driveData = asObject(drive.data);
+    const driveScope = String(driveData.driveScope || '').trim().toLowerCase();
     const nowIso = new Date().toISOString();
     const driveCustomFiles = driveData.customFiles || deriveCustomFiles(driveData.files);
-    const driveFiles = mergeDerivedFileContext(driveData.files, driveData.fileLibrary, driveCustomFiles, nowIso);
+    const driveFiles = driveScope === 'md-only'
+      ? asObject(driveData.files)
+      : mergeDerivedFileContext(driveData.files, driveData.fileLibrary, driveCustomFiles, nowIso);
     const [currentProfile, currentMemories, currentHistory, currentFiles, currentFileLibrary, currentCustomFiles, currentJournal, storedSyncMeta] = await Promise.all([
       loadRedisJson(redisFetch, PROFILE_KEY, {}),
       loadRedisJson(redisFetch, MEMORY_KEY, []),
@@ -417,13 +420,13 @@ export default async function handler(req, res) {
     });
     const driveMeta = computeJoeySyncMeta({
       mode,
-      profile: driveData.profile,
-      memories: driveData.memories,
-      history: driveData.history,
+      profile: driveScope === 'md-only' ? currentProfile : driveData.profile,
+      memories: driveScope === 'md-only' ? currentMemories : driveData.memories,
+      history: driveScope === 'md-only' ? currentHistory : driveData.history,
       files: driveFiles,
-      fileLibrary: driveData.fileLibrary,
+      fileLibrary: driveScope === 'md-only' ? currentFileLibrary : driveData.fileLibrary,
       customFiles: driveCustomFiles,
-      journal: driveData.journal || []
+      journal: driveScope === 'md-only' ? currentJournal : (driveData.journal || [])
     }, {
       ...(driveData.syncMeta && typeof driveData.syncMeta === 'object' ? driveData.syncMeta : {}),
       mode,

@@ -14,6 +14,18 @@ import {
 const GDRIVE_BACKUP_TIMEOUT_MS = 60000;
 const QUOTES_FILE_NAME = 'Quotes.md';
 
+function filterMarkdownFileMap(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const filtered = {};
+  Object.entries(source).forEach(([name, content]) => {
+    const safeName = String(name || '').trim();
+    if (!safeName || !/\.md$/i.test(safeName)) return;
+    if (typeof content !== 'string' || !content.trim()) return;
+    filtered[safeName] = content;
+  });
+  return filtered;
+}
+
 function normalizeQuoteKey(text, author) {
   return String(text || '').trim().toLowerCase().replace(/\s+/g, ' ') + '|' + String(author || 'Unknown').trim().toLowerCase();
 }
@@ -252,16 +264,14 @@ export default async function handler(req, res) {
       });
     }
 
+    const driveFiles = filterMarkdownFileMap(files);
+    const driveCustomFiles = filterMarkdownFileMap(nextCustomFiles);
     const payload = {
       secret: gdriveSecret,
       mode,
-      profile,
-      memories,
-      history,
-      files,
-      fileLibrary,
-      customFiles: nextCustomFiles,
-      journal,
+      driveScope: 'md-only',
+      files: driveFiles,
+      customFiles: driveCustomFiles,
       syncMeta,
       cleanupManaged
     };
