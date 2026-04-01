@@ -381,6 +381,9 @@ export default async function handler(req, res) {
   const MAX_MEMORIES = 320;
   const MAX_HISTORY = 100;
   const MAX_JOURNAL = 1800;
+  const requestDeviceId = String((req.body && req.body.deviceId) || '').trim().slice(0, 120);
+  const requestDeviceLabel = String((req.body && req.body.deviceLabel) || '').trim().slice(0, 160);
+  const REDIS_PLAN_BYTES = Math.max(1, Number(process.env.HOMER_REDIS_PLAN_BYTES || 1073741824) || 1073741824);
 
   async function loadJournal() {
     return loadRedisJson(redis, JOURNAL_KEY, []);
@@ -411,6 +414,26 @@ export default async function handler(req, res) {
     };
   }
 
+  function measureJsonBytes(value) {
+    try {
+      return Buffer.byteLength(JSON.stringify(value == null ? null : value), 'utf8');
+    } catch (_error) {
+      return 0;
+    }
+  }
+
+  function buildSyncMetaDevicePatch(existing, updatedAt, source) {
+    return {
+      ...existing,
+      mode,
+      updatedAt,
+      lastSource: source || existing.lastSource || 'joey-update',
+      lastDeviceId: requestDeviceId || existing.lastDeviceId || '',
+      lastDeviceLabel: requestDeviceLabel || existing.lastDeviceLabel || '',
+      lastDeviceSyncedAt: updatedAt
+    };
+  }
+
   function buildChatUrl(baseUrl) {
     const normalized = String(baseUrl || '').replace(/\/+$/, '');
     if (/\/openai\/v1$/i.test(normalized) || /\/v1$/i.test(normalized)) {
@@ -425,16 +448,27 @@ export default async function handler(req, res) {
     // --- HISTORY ACTIONS ---
     if (action === 'history') {
       if (req.method === 'GET') {
-        const result = await redis(['GET', HISTORY_KEY]);
+        const [result, syncMetaResult] = await Promise.all([
+          redis(['GET', HISTORY_KEY]),
+          redis(['GET', SYNC_META_KEY])
+        ]);
         const history = result.result ? JSON.parse(result.result) : [];
-        return res.status(200).json({ history });
+        const syncMeta = syncMetaResult.result ? JSON.parse(syncMetaResult.result) : {};
+        return res.status(200).json({
+          history,
+          syncMeta,
+          updatedAt: syncMeta && syncMeta.updatedAt ? syncMeta.updatedAt : null
+        });
       }
       if (req.method === 'POST') {
         const { messages } = req.body || {};
         if (!messages || !Array.isArray(messages)) {
           return res.status(400).json({ error: 'Missing messages array' });
         }
-        const previous = await loadRedisJson(redis, HISTORY_KEY, []);
+        const [previous, syncMetaExisting] = await Promise.all([
+          loadRedisJson(redis, HISTORY_KEY, []),
+          loadRedisJson(redis, SYNC_META_KEY, {})
+        ]);
         const cleaned = messages
           .filter(m => m.role === 'user' || m.role === 'assistant')
           .map(m => ({ role: m.role, content: (m.content || '').slice(0, 2000) }))
@@ -462,7 +496,15 @@ export default async function handler(req, res) {
           }));
         }
         await appendJournalEntries(journalEntries);
-        return res.status(200).json({ ok: true, count: cleaned.length });
+        const updatedAt = new Date().toISOString();
+        const nextSyncMeta = buildSyncMetaDevicePatch(syncMetaExisting, updatedAt, 'history-sync');
+        await saveRedisJson(redis, SYNC_META_KEY, nextSyncMeta);
+        return res.status(200).json({
+          ok: true,
+          count: cleaned.length,
+          updatedAt,
+          syncMeta: nextSyncMeta
+        });
       }
       return res.status(405).json({ error: 'Method not allowed' });
     }
@@ -533,10 +575,7 @@ export default async function handler(req, res) {
           customFiles,
           journal: []
         }, {
-          ...storedSyncMeta,
-          mode,
-          updatedAt: generatedAt,
-          lastSource: 'memory-action'
+          ...buildSyncMetaDevicePatch(storedSyncMeta, generatedAt, 'memory-action')
         });
         await Promise.all([
           redis(['SET', MEMORY_KEY, JSON.stringify(memories)]),
@@ -555,7 +594,9 @@ export default async function handler(req, res) {
         return res.status(200).json({
           ok: true,
           count: memories.length,
-          profileUpdated: JSON.stringify(profile) !== JSON.stringify(currentProfile)
+          profileUpdated: JSON.stringify(profile) !== JSON.stringify(currentProfile),
+          updatedAt: generatedAt,
+          syncMeta
         });
       }
       if (req.method === 'DELETE') {
@@ -699,7 +740,28 @@ export default async function handler(req, res) {
           mode,
           updatedAt: storedSyncMeta && storedSyncMeta.updatedAt ? storedSyncMeta.updatedAt : generatedAt
         });
-        return res.status(200).json({ ok: true, syncMeta });
+        const stats = {
+          planBytes: REDIS_PLAN_BYTES,
+          keyCount: 8,
+          bundleBytes:
+            measureJsonBytes(bundle.profile) +
+            measureJsonBytes(bundle.memories) +
+            measureJsonBytes(bundle.history) +
+            measureJsonBytes(bundle.files) +
+            measureJsonBytes(bundle.fileLibrary) +
+            measureJsonBytes(bundle.customFiles) +
+            measureJsonBytes(bundle.journal) +
+            measureJsonBytes(syncMeta),
+          memoryCount: Array.isArray(bundle.memories) ? bundle.memories.length : 0,
+          historyCount: Array.isArray(bundle.history) ? bundle.history.length : 0,
+          fileCount: bundle.files && typeof bundle.files === 'object' ? Object.keys(bundle.files).length : 0,
+          customFileCount: bundle.customFiles && typeof bundle.customFiles === 'object' ? Object.keys(bundle.customFiles).length : 0,
+          uploadCount: Array.isArray(bundle.fileLibrary) ? bundle.fileLibrary.length : 0,
+          journalCount: Array.isArray(bundle.journal) ? bundle.journal.length : 0
+        };
+        stats.bundleMegabytes = Number((stats.bundleBytes / (1024 * 1024)).toFixed(3));
+        stats.planUtilizationPct = Number(((stats.bundleBytes / REDIS_PLAN_BYTES) * 100).toFixed(3));
+        return res.status(200).json({ ok: true, syncMeta, stats });
       }
       return res.status(405).json({ error: 'Method not allowed' });
     }

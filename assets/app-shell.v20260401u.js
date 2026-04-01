@@ -1,0 +1,17008 @@
+(function(){
+      var CP1252_ENCODE = {
+        0x20AC:0x80,0x201A:0x82,0x0192:0x83,0x201E:0x84,0x2026:0x85,0x2020:0x86,0x2021:0x87,
+        0x02C6:0x88,0x2030:0x89,0x0160:0x8A,0x2039:0x8B,0x0152:0x8C,0x017D:0x8E,0x2018:0x91,
+        0x2019:0x92,0x201C:0x93,0x201D:0x94,0x2022:0x95,0x2013:0x96,0x2014:0x97,0x02DC:0x98,
+        0x2122:0x99,0x0161:0x9A,0x203A:0x9B,0x0153:0x9C,0x017E:0x9E,0x0178:0x9F
+      };
+      var MOJIBAKE_RE = /[\u00C3\u00C2\u00E2\u00F0]/;
+      function encodeCp1252(str){
+        var bytes = [];
+        for(var i = 0; i < str.length; i++){
+          var code = str.charCodeAt(i);
+          if(code <= 0xFF){
+            bytes.push(code);
+            continue;
+          }
+          var mapped = CP1252_ENCODE[code];
+          if(mapped == null) return null;
+          bytes.push(mapped);
+        }
+        return new Uint8Array(bytes);
+      }
+      function mojibakeScore(str){
+        if(!str) return 0;
+        var hits = str.match(/[\u00C3\u00C2\u00E2\u00F0]/g) || [];
+        var replacements = str.match(/\uFFFD/g) || [];
+        return hits.length + (replacements.length * 3);
+      }
+      function decodeMojibakeOnce(str){
+        if(typeof str !== 'string' || !MOJIBAKE_RE.test(str)) return str;
+        var bytes = encodeCp1252(str);
+        if(!bytes) return str;
+        try{
+          return new TextDecoder('utf-8', { fatal:true }).decode(bytes);
+        }catch(_err){
+          return str;
+        }
+      }
+      function repairMojibakeString(value){
+        if(typeof value !== 'string' || !MOJIBAKE_RE.test(value)) return value;
+        var current = value;
+        for(var pass = 0; pass < 2; pass++){
+          var next = decodeMojibakeOnce(current);
+          if(!next || next === current) break;
+          if(mojibakeScore(next) > mojibakeScore(current) && next.indexOf('\uFFFD') >= 0) break;
+          current = next;
+        }
+        return current;
+      }
+      function shouldSkipNode(node){
+        var parent = node && node.parentElement;
+        if(!parent) return true;
+        if(parent.closest('script, style, textarea, code, pre, [contenteditable="true"], [data-no-mojibake-fix]')) return true;
+        return false;
+      }
+      function repairTextNode(node){
+        if(!node || node.nodeType !== 3 || shouldSkipNode(node)) return;
+        var fixed = repairMojibakeString(node.nodeValue);
+        if(fixed !== node.nodeValue) node.nodeValue = fixed;
+      }
+      function repairAttributes(el){
+        if(!el || el.nodeType !== 1) return;
+        ['title','placeholder','aria-label'].forEach(function(attr){
+          if(!el.hasAttribute(attr)) return;
+          var raw = el.getAttribute(attr);
+          var fixed = repairMojibakeString(raw);
+          if(fixed !== raw) el.setAttribute(attr, fixed);
+        });
+        if(el.tagName === 'INPUT'){
+          var type = (el.getAttribute('type') || '').toLowerCase();
+          if(type === 'button' || type === 'submit' || type === 'reset'){
+            var fixedValue = repairMojibakeString(el.value);
+            if(fixedValue !== el.value) el.value = fixedValue;
+          }
+        }
+      }
+      function repairTree(root){
+        var target = root && root.nodeType ? root : document.body;
+        if(!target) return;
+        if(target.nodeType === 3){
+          repairTextNode(target);
+          return;
+        }
+        if(target.nodeType === 1) repairAttributes(target);
+        var walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT, null);
+        while(walker.nextNode()) repairTextNode(walker.currentNode);
+        if(target.querySelectorAll){
+          target.querySelectorAll('*').forEach(repairAttributes);
+        }
+      }
+      function installRepairObserver(){
+        if(!document.body || window._homerMojibakeObserver) return;
+        repairTree(document.body);
+        var observer = new MutationObserver(function(mutations){
+          mutations.forEach(function(mutation){
+            if(mutation.type === 'characterData'){
+              repairTextNode(mutation.target);
+              return;
+            }
+            if(mutation.type === 'attributes'){
+              repairAttributes(mutation.target);
+              return;
+            }
+            Array.prototype.forEach.call(mutation.addedNodes || [], function(node){
+              repairTree(node);
+            });
+          });
+        });
+        observer.observe(document.body, {
+          childList:true,
+          subtree:true,
+          characterData:true,
+          attributes:true,
+          attributeFilter:['title','placeholder','aria-label','value']
+        });
+        window._homerMojibakeObserver = observer;
+      }
+      window._homerFixMojibakeText = repairMojibakeString;
+      window._homerRepairDomText = repairTree;
+      if(document.readyState === 'loading'){
+        document.addEventListener('DOMContentLoaded', installRepairObserver, { once:true });
+      } else {
+        installRepairObserver();
+      }
+    })();
+
+    /* 1. TABS */
+    const tabBtns = [...document.querySelectorAll('.tab-btn')];
+    const tabs = {
+      home: document.getElementById('tab-home'),
+      pomodoro: document.getElementById('tab-pomodoro'),
+      focuslab: document.getElementById('tab-focuslab'),
+      investing: document.getElementById('tab-investing'),
+      tools: document.getElementById('tab-tools'),
+      links: document.getElementById('tab-links'),
+      vault: document.getElementById('tab-vault'),
+      news: document.getElementById('tab-news')
+    };
+    function hasPermission(perm){
+      var perms = localStorage.getItem('homer-user-permissions');
+      if(!perms) return true; // Default allow if no permissions set
+      try{ return JSON.parse(perms)[perm] === true; }catch(e){ return true; }
+    }
+    function showTab(name) {
+      // Check vault permission
+      if(name === 'vault' && !hasPermission('vault')){
+        alert('You do not have permission to access the Vault.');
+        return;
+      }
+      Object.entries(tabs).forEach(([k, el]) => {
+        if(el) el.style.display = (k === name) ? 'block' : 'none';
+      });
+      tabBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+
+      // FIXED: Only initialize the chart AFTER the display is set to block
+      if(name === 'investing') {
+        setTimeout(initInvestingTab, 50);
+      }
+      document.body.dataset.activeTab = name;
+      window.dispatchEvent(new CustomEvent('homer-tab-change', { detail:{ tab:name } }));
+    }
+    tabBtns.forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+    window._homerShowTab = showTab;
+
+    /* DESKTOP SIDEBAR */
+    (function(){
+      var sidebar = document.getElementById('desktop-sidebar');
+      if(!sidebar || window.innerWidth <= 900) return;
+      var items = sidebar.querySelectorAll('.sb-item[data-tab]');
+      var toggleBtn = document.getElementById('sb-toggle-btn');
+
+      // Restore collapsed state
+      if(localStorage.getItem('homer-sb-collapsed') === '1'){
+        sidebar.classList.add('collapsed');
+        document.body.classList.add('sb-collapsed');
+      }
+
+      // Tab switching from sidebar
+      items.forEach(function(item){
+        item.addEventListener('click', function(){
+          var tab = item.dataset.tab;
+          showTab(tab);
+          // Sync sidebar active state
+          items.forEach(function(i){i.classList.remove('active');});
+          item.classList.add('active');
+        });
+      });
+
+      // Keep sidebar in sync when tabs are switched by other means
+      var origShowTab = showTab;
+      showTab = function(name){
+        origShowTab(name);
+        items.forEach(function(i){i.classList.toggle('active', i.dataset.tab === name);});
+      };
+
+      // Collapse toggle
+      if(toggleBtn){
+        toggleBtn.addEventListener('click', function(){
+          sidebar.classList.toggle('collapsed');
+          document.body.classList.toggle('sb-collapsed');
+          localStorage.setItem('homer-sb-collapsed', sidebar.classList.contains('collapsed') ? '1' : '0');
+        });
+      }
+    })();
+
+    /* 2. CLOCK */
+    function updateClock(){
+      const now=new Date();
+      const hh=now.getHours().toString().padStart(2,'0');
+      const mm=now.getMinutes().toString().padStart(2,'0');
+      const ss=now.getSeconds().toString().padStart(2,'0');
+      const day=new Intl.DateTimeFormat(undefined,{weekday:'long'}).format(now);
+      const date=new Intl.DateTimeFormat(undefined,{day:'2-digit',month:'long',year:'numeric'}).format(now);
+      document.getElementById('clock-time').innerHTML=`${hh}:${mm}<small>${ss}</small>`;
+      document.getElementById('clock-date').textContent=`${day}, ${date}`;
+
+      const hVal = now.getHours();
+      let greet = "Hello";
+      if(hVal < 12) greet = "Good Morning";
+      else if(hVal < 18) greet = "Good Afternoon";
+      else greet = "Good Evening";
+      const gEl = document.getElementById('greeting');
+      if(gEl) gEl.textContent = greet;
+    }
+    updateClock(); setInterval(updateClock,1000);
+
+    /* 3. WEATHER */
+    const fixMojibake = window._homerFixMojibakeText || function(value){ return value; };
+    const WX_CODES={0:["Ã¢Ëœâ‚¬Ã¯Â¸Â","Clear sky"],1:["Ã°Å¸Å’Â¤Ã¯Â¸Â","Mainly clear"],2:["Ã¢â€ºâ€¦","Partly cloudy"],3:["Ã¢ËœÂÃ¯Â¸Â","Overcast"],45:["Ã°Å¸Å’Â«Ã¯Â¸Â","Fog"],48:["Ã°Å¸Å’Â«Ã¯Â¸Â","Rime fog"],51:["Ã°Å¸Å’Â¦Ã¯Â¸Â","Light drizzle"],53:["Ã°Å¸Å’Â¦Ã¯Â¸Â","Drizzle"],55:["Ã°Å¸Å’Â§Ã¯Â¸Â","Dense drizzle"],56:["Ã°Å¸Å’Â§Ã¯Â¸Â","Freezing drizzle"],57:["Ã°Å¸Å’Â§Ã¯Â¸Â","Freezing drizzle"],61:["Ã°Å¸Å’Â¦Ã¯Â¸Â","Light rain"],63:["Ã°Å¸Å’Â§Ã¯Â¸Â","Rain"],65:["Ã°Å¸Å’Â§Ã¯Â¸Â","Heavy rain"],66:["Ã°Å¸Å’Â§Ã¯Â¸Â","Freezing rain"],67:["Ã°Å¸Å’Â§Ã¯Â¸Â","Freezing rain"],71:["Ã°Å¸Å’Â¨Ã¯Â¸Â","Light snow"],73:["Ã°Å¸Å’Â¨Ã¯Â¸Â","Snow"],75:["Ã¢Ââ€žÃ¯Â¸Â","Heavy snow"],77:["Ã¢Ââ€žÃ¯Â¸Â","Snow grains"],80:["Ã°Å¸Å’Â¦Ã¯Â¸Â","Rain showers"],81:["Ã°Å¸Å’Â§Ã¯Â¸Â","Rain showers"],82:["Ã¢â€ºË†Ã¯Â¸Â","Violent rain"],85:["Ã°Å¸Å’Â¨Ã¯Â¸Â","Snow showers"],86:["Ã¢Ââ€žÃ¯Â¸Â","Heavy snow showers"],95:["Ã¢â€ºË†Ã¯Â¸Â","Thunderstorm"],96:["Ã¢â€ºË†Ã¯Â¸Â","Thunder + hail"],99:["Ã¢â€ºË†Ã¯Â¸Â","Severe thunder/hail"]};
+    Object.keys(WX_CODES).forEach(function(code){
+      if(WX_CODES[code] && WX_CODES[code][0]) WX_CODES[code][0] = fixMojibake(WX_CODES[code][0]);
+    });
+    async function loadWeather(lat,lon,label){
+      const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
+      const res=await fetch(url,{cache:'no-store'}); const data=await res.json(); const cw=data.current_weather;
+      const [icon,desc]=WX_CODES[cw.weathercode]||["Ã¢â€ºâ€¦","Weather"];
+      document.getElementById('wx-icon').textContent=fixMojibake(icon);
+      document.getElementById('wx-place').textContent=label||"Your location";
+      document.getElementById('wx-desc').textContent=`${desc} Ã¢â‚¬Â¢ Wind ${Math.round(cw.windspeed)} km/h`;
+      document.getElementById('wx-temp').textContent=`${Math.round(cw.temperature)}Ã‚Â°`;
+    }
+    function detectWeather(){
+      const fallback={lat:44.4268,lon:26.1025,label:"Bucharest"};
+      if(!('geolocation'in navigator)) return loadWeather(fallback.lat,fallback.lon,fallback.label);
+      navigator.geolocation.getCurrentPosition(
+        pos=>loadWeather(pos.coords.latitude,pos.coords.longitude,"Your location"),
+        _=>loadWeather(fallback.lat,fallback.lon,fallback.label),
+        {enableHighAccuracy:false,timeout:8000,maximumAge:600000}
+      );
+    }
+    detectWeather();
+
+    /* 4. QUOTES (Hybrid Static Logic) */
+    const AUTO_MS = 900_000; // 15 min
+    const QUOTES_CACHE_KEY = 'homer-quotes-cache';
+    const SEEN_KEY = 'homer-quotes-seen';
+    const SEEN_MAX = 2; // reset seen list after this many
+
+    const QUOTE_SOURCES = [
+      "https://raw.githubusercontent.com/dwyl/quotes/main/quotes.json",
+      "https://raw.githubusercontent.com/JamesFT/Database-Quotes-JSON/master/quotes.json"
+    ];
+
+    let globalQuotes = null;
+
+    const BACKUP_MOTIVATION = [
+      {t:"The impediment to action advances action. What stands in the way becomes the way.", a:"Marcus Aurelius"},
+      {t:"We suffer more often in imagination than in reality.", a:"Seneca"},
+      {t:"Waste no more time arguing about what a good man should be. Be one.", a:"Marcus Aurelius"},
+      {t:"It is not that we have a short time to live, but that we waste a great deal of it.", a:"Seneca"},
+      {t:"The happiness of your life depends upon the quality of your thoughts.", a:"Marcus Aurelius"},
+      {t:"No man is free who is not master of himself.", a:"Epictetus"},
+      {t:"Man is not worried by real problems so much as by his imagined anxieties about real problems.", a:"Epictetus"},
+      {t:"Success is not final, failure is not fatal: it is the courage to continue that counts.", a:"Winston Churchill"},
+      {t:"Life is simple. Are you happy? Yes? Keep going. No? Change something.", a:"Bogdan Radu"},
+      {t:"The only way to do great work is to love what you do.", a:"Steve Jobs"},
+      {t:"In the middle of difficulty lies opportunity.", a:"Albert Einstein"},
+      {t:"He who has a why to live can bear almost any how.", a:"Friedrich Nietzsche"},
+      {t:"The best time to plant a tree was 20 years ago. The second best time is now.", a:"Chinese Proverb"},
+      {t:"What we do in life echoes in eternity.", a:"Marcus Aurelius"},
+      {t:"Luck is what happens when preparation meets opportunity.", a:"Seneca"},
+      {t:"First say to yourself what you would be; and then do what you have to do.", a:"Epictetus"},
+      {t:"The mind is everything. What you think you become.", a:"Buddha"},
+      {t:"Do not go where the path may lead, go instead where there is no path and leave a trail.", a:"Ralph Waldo Emerson"},
+      {t:"It does not matter how slowly you go as long as you do not stop.", a:"Confucius"},
+      {t:"Everything has beauty, but not everyone sees it.", a:"Confucius"}
+    ];
+    const BACKUP_HUMOR = [
+      {content: "I am so clever that sometimes I don't understand a single word of what I am saying.", author: "Oscar Wilde"},
+      {content: "Behind every great man is a woman rolling her eyes.", author: "Jim Carrey"}
+    ];
+
+    const els = {
+      quote:document.getElementById("quote"),
+      author:document.getElementById("author"),
+      byline:document.getElementById("byline"),
+      status:document.getElementById("status"),
+      refresh:document.getElementById("refresh"),
+      save:document.getElementById("save"),
+      copy:document.getElementById("copy"),
+      countdown:document.getElementById("countdown"),
+      countdownText:document.getElementById("countdown-text"),
+      savedList:document.getElementById("savedList"),
+      savedEmpty:document.getElementById("savedEmpty"),
+      syncSaved:document.getElementById("syncSavedQuotes"),
+      exportSaved:document.getElementById("exportSaved"),
+      clearSaved:document.getElementById("clearSaved"),
+    };
+
+    function setLoading(show){ els.status.style.display=show?"block":"none"; els.quote.style.display=show?"none":"block"; els.byline.style.display=show?"none":"block"; }
+    function fadeIn(){ els.quote.classList.remove('fade-in'); els.byline.classList.remove('fade-in'); void els.quote.offsetWidth; els.quote.classList.add('fade-in'); els.byline.classList.add('fade-in'); }
+    // --- Seen tracking (no repeats) ---
+    function getSeenSet(){
+      try{ return new Set(JSON.parse(localStorage.getItem(SEEN_KEY)||'[]')); }catch(e){ return new Set(); }
+    }
+    function markSeen(hash){
+      var seen = getSeenSet();
+      seen.add(hash);
+      if(seen.size > SEEN_MAX) seen = new Set([...seen].slice(-Math.floor(SEEN_MAX/2)));
+      localStorage.setItem(SEEN_KEY, JSON.stringify([...seen]));
+    }
+    function quoteHash(txt){ return txt.trim().toLowerCase().replace(/\s+/g,' ').slice(0,80); }
+
+    function pickUnseen(pool){
+      var seen = getSeenSet();
+      var unseen = pool.filter(function(q){
+        var txt = q.t || q.content || q.quoteText || '';
+        return !seen.has(quoteHash(txt));
+      });
+      var pick = unseen.length > 0 ? unseen : pool; // reset if all seen
+      if(unseen.length === 0){
+        localStorage.removeItem(SEEN_KEY); // clear seen list
+      }
+      var chosen = pick[Math.floor(Math.random() * pick.length)];
+      var chosenTxt = chosen.t || chosen.content || chosen.quoteText || '';
+      markSeen(quoteHash(chosenTxt));
+      return chosen;
+    }
+
+function renderQuote(q) {
+  let txt = q.t || q.content || q.quoteText || "Stay motivated.";
+  const ath = q.a || q.author || q.quoteAuthor || "Unknown";
+
+  txt = txt.replace(/[\uFFFD\u00E2\u0080\u0099]/g, "'")
+           .replace(/[\u00E2\u0080\u009C\u00E2\u0080\u009D]/g, '"')
+           .replace(/&quot;/g, '"')
+           .replace(/&apos;/g, "'");
+
+  els.quote.textContent = txt;
+  els.author.textContent = ath;
+  setLoading(false);
+  fadeIn();
+  resetCountdown();
+}
+
+    const API_HUMOR = "https://official-joke-api.appspot.com/random_joke";
+
+    // Normalize quotes from different source formats into {t, a}
+    function normalizeQuotes(arr, sourceIdx){
+      return arr.map(function(q){
+        if(sourceIdx === 0){
+          // dwyl/quotes format: {text, author}
+          return {t: q.text || q.content || '', a: q.author || 'Unknown'};
+        } else {
+          // JamesFT format: {quoteText, quoteAuthor}
+          return {t: q.quoteText || '', a: q.quoteAuthor || 'Unknown'};
+        }
+      }).filter(function(q){ return q.t.length > 10 && q.t.length < 300; });
+    }
+
+    async function loadQuoteDB(){
+      // No long-term cache Ã¢â‚¬â€ always fetch fresh quotes
+
+      // Fetch from sources
+      for(var i=0; i<QUOTE_SOURCES.length; i++){
+        try{
+          var r = await fetch(QUOTE_SOURCES[i]);
+          var text = await r.text();
+          if(text.trim().startsWith("<")) continue;
+          var raw = JSON.parse(text);
+          var normalized = normalizeQuotes(raw, i);
+          if(normalized.length > 50){
+            globalQuotes = normalized;
+            // no cache Ã¢â‚¬â€ fresh fetch each session
+            return;
+          }
+        }catch(e){ continue; }
+      }
+
+      // Fallback to backups
+      globalQuotes = BACKUP_MOTIVATION;
+    }
+
+    async function fetchMotivation() {
+      try {
+        if (!globalQuotes) await loadQuoteDB();
+        return pickUnseen(globalQuotes);
+      } catch (e) {
+        return pickUnseen(BACKUP_MOTIVATION);
+      }
+    }
+
+    async function fetchHumor() {
+      try {
+        const r = await fetch(API_HUMOR);
+        if (!r.ok) throw new Error("Humor API Failed");
+        const data = await r.json();
+        if(data.setup && data.punchline) return { content: `${data.setup} ... ${data.punchline}`, author: "Daily Joke" };
+        throw new Error("Invalid");
+      } catch (e) {
+        return BACKUP_HUMOR[Math.floor(Math.random() * BACKUP_HUMOR.length)];
+      }
+    }
+
+    els.refresh.addEventListener("click", async () => {
+      setLoading(true);
+      const statusText = document.querySelector("#status");
+      if(statusText) statusText.innerHTML = '<span class="spinner"></span>Accessing library...';
+      const q = await fetchMotivation();
+      renderQuote(q);
+    });
+
+    const btnHumor = document.getElementById("btn-humor");
+    if(btnHumor) {
+      btnHumor.addEventListener("click", async () => {
+        setLoading(true);
+        const statusText = document.querySelector("#status");
+        if(statusText) statusText.innerHTML = '<span class="spinner"></span>Fetching a laughÃ¢â‚¬Â¦';
+        const q = await fetchHumor();
+        renderQuote(q);
+      });
+    }
+
+    let deadline = Date.now()+AUTO_MS, cdTimer=null;
+    function resetCountdown(){ deadline = Date.now()+AUTO_MS; tickCountdown(); }
+    function tickCountdown(){
+      if(cdTimer) clearTimeout(cdTimer);
+      const now=Date.now();
+      let rem=Math.max(0, deadline-now);
+      const mins=Math.floor(rem/60000);
+      const secs=Math.floor((rem%60000)/1000);
+      els.countdownText.textContent = mins>0 ? `${mins}m` : `${secs}s`;
+      const pct = 100 - Math.round((rem/AUTO_MS)*100);
+      els.countdown.style.setProperty('--progress', pct + '%');
+      if(rem<=0){ els.refresh.click(); } else{ cdTimer=setTimeout(tickCountdown, 1000); }
+    }
+
+    els.copy.addEventListener("click",()=>{
+      const txt=`"${els.quote.textContent}" Ã¢â‚¬â€ ${els.author.textContent}`;
+      navigator.clipboard.writeText(txt);
+      const p=els.copy.textContent; els.copy.textContent="Copied!"; setTimeout(()=>els.copy.textContent=p,1500);
+    });
+
+    const SAVED_KEY="motivator.savedQuotes.v1";
+    const SAVED_QUOTES_FILE_NAME = 'Quotes.md';
+    const SAVED_QUOTES_PENDING_KEY = 'motivator.savedQuotes.pendingSync';
+    let savedQuotesSyncTimer = null;
+    function loadSaved(){ try{ return JSON.parse(localStorage.getItem(SAVED_KEY)||"[]"); }catch{return [];} }
+    function getSavedQuotesMode(){
+      var storedMode = localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode');
+      return storedMode === 'work' ? 'work' : 'personal';
+    }
+    function savedQuotesActionUrl(action, passphrase){
+      var url = '/api/joey?action=' + encodeURIComponent(action) + '&mode=' + encodeURIComponent(getSavedQuotesMode());
+      if(passphrase) url += '&passphrase=' + encodeURIComponent(passphrase);
+      return url;
+    }
+    function withSavedQuotesMode(payload){
+      var body = payload && typeof payload === 'object' ? payload : {};
+      body.mode = getSavedQuotesMode();
+      return body;
+    }
+    function buildSavedQuotesMarkdown(list){
+      var items = Array.isArray(list) ? list.slice() : [];
+      var seen = {};
+      items = items.filter(function(it){
+        var q = String(it && it.q || '').trim();
+        var a = String(it && it.a || 'Unknown').trim() || 'Unknown';
+        if(!q) return false;
+        var key = q.toLowerCase().replace(/\s+/g,' ') + '|' + a.toLowerCase().replace(/\s+/g,' ');
+        if(seen[key]) return false;
+        seen[key] = true;
+        return true;
+      });
+      if(!items.length) return '';
+      var lines = [
+        '# Quotes',
+        '',
+        'Saved quotes from Homer Motivator. Joey can use these for recall, tone, advice, and preference shaping.',
+        ''
+      ];
+      items.forEach(function(it, idx){
+        var quote = String(it && it.q || '').trim().replace(/^["“']+|["”']+$/g, '');
+        if(!quote) return;
+        var author = String(it && it.a || 'Unknown').trim() || 'Unknown';
+        var savedAt = it && it.ts ? new Date(it.ts).toISOString() : '';
+        lines.push('## Quote ' + (idx + 1));
+        lines.push('> "' + quote.replace(/\r?\n+/g, '\n> ') + '"');
+        lines.push('');
+        lines.push('- Author: ' + author);
+        if(savedAt) lines.push('- Saved: ' + savedAt);
+        lines.push('');
+      });
+      return lines.join('\n').trim() + '\n';
+    }
+    function getLatestSavedQuoteTimestampFromMarkdown(markdown){
+      var latest = 0;
+      String(markdown || '').replace(/\r\n/g, '\n').replace(/^\s*-\s*Saved:\s*(.+)$/gmi, function(_m, rawTs){
+        var ts = Date.parse(String(rawTs || '').trim());
+        if(Number.isFinite(ts) && ts > latest) latest = ts;
+        return _m;
+      });
+      return latest;
+    }
+    function getLatestSavedQuoteTextFromList(list){
+      var items = Array.isArray(list) ? list : [];
+      var latestItem = null;
+      items.forEach(function(it){
+        if(!it || !String(it.q || '').trim()) return;
+        if(!latestItem || Number(it.ts || 0) > Number(latestItem.ts || 0)) latestItem = it;
+      });
+      return latestItem ? normalizeSavedQuoteText(latestItem.q) : '';
+    }
+    function verifyRemoteQuotesFile(pass, expectedContent){
+      var expectedLatestTs = getLatestSavedQuoteTimestampFromMarkdown(expectedContent);
+      var expectedLatestQuote = getLatestSavedQuoteTextFromList(loadSaved()).toLowerCase();
+      return fetch(savedQuotesActionUrl('custom-files', pass), { cache:'no-store' })
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+          var remoteContent = data && data.customFiles ? String(data.customFiles[SAVED_QUOTES_FILE_NAME] || '') : '';
+          var remoteLatestTs = getLatestSavedQuoteTimestampFromMarkdown(remoteContent);
+          var remoteHasLatestQuote = !expectedLatestQuote || remoteContent.toLowerCase().indexOf(expectedLatestQuote) >= 0;
+          return remoteHasLatestQuote && ((!expectedLatestTs) || remoteLatestTs >= expectedLatestTs);
+        })
+        .catch(function(){ return false; });
+    }
+    function markSavedQuotesPendingSync(){
+      try{ localStorage.setItem(SAVED_QUOTES_PENDING_KEY, 'true'); }catch(_e){}
+    }
+    function clearSavedQuotesPendingSync(){
+      try{ localStorage.removeItem(SAVED_QUOTES_PENDING_KEY); }catch(_e){}
+    }
+    function hasSavedQuotesPendingSync(){
+      try{ return localStorage.getItem(SAVED_QUOTES_PENDING_KEY) === 'true'; }catch(_e){ return false; }
+    }
+    function syncSavedQuotesToJoeyFile(reason, opts){
+      opts = opts || {};
+      var pass = localStorage.getItem('homer-sync-pass') || '';
+      if(!pass){
+        markSavedQuotesPendingSync();
+        return Promise.resolve(false);
+      }
+      var content = buildSavedQuotesMarkdown(loadSaved());
+      function finalizeQuoteSyncSuccess(){
+        clearSavedQuotesPendingSync();
+        if(!opts.skipBackups){
+          var markDriveDirty = (typeof window._homerMarkJoeyDriveBackupDirty === 'function')
+            ? window._homerMarkJoeyDriveBackupDirty
+            : (typeof markJoeyDriveBackupDirty === 'function' ? markJoeyDriveBackupDirty : null);
+          if(markDriveDirty) markDriveDirty(reason || 'quotes-md-update');
+          if(typeof scheduleJoeyLearningCommit === 'function') scheduleJoeyLearningCommit('quotes-md-update', 60000);
+          else if(typeof scheduleJoeyMemoryCommit === 'function') scheduleJoeyMemoryCommit('quotes-md-update', 60000);
+        }
+        return true;
+      }
+      function tryCanonicalRefreshFallback(originalErr){
+        if(typeof refreshCanonicalFiles !== 'function') throw originalErr;
+        return Promise.resolve(refreshCanonicalFiles({ skipQuoteSync:true })).then(function(data){
+          if(!data || data.error || data.ok === false){
+            throw originalErr;
+          }
+          return finalizeQuoteSyncSuccess();
+        });
+      }
+      return fetch(savedQuotesActionUrl('custom-files', pass), {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(withSavedQuotesMode({
+          passphrase: pass,
+          name: SAVED_QUOTES_FILE_NAME,
+          content: content,
+          replace: !!opts.replace
+        }))
+      }).then(function(r){ return r.json(); })
+        .then(function(data){
+          if(!data || data.error) throw new Error((data && data.error) || 'Quote file sync failed');
+          if(!opts.skipRefresh && typeof refreshCanonicalFiles === 'function'){
+            return Promise.resolve(refreshCanonicalFiles({ skipQuoteSync:true })).then(function(rebuild){
+              if(!rebuild || rebuild.error || rebuild.ok === false){
+                throw new Error((rebuild && (rebuild.error || rebuild.reason)) || 'Canonical context rebuild failed');
+              }
+              return verifyRemoteQuotesFile(pass, content).then(function(ok){
+                if(!ok) throw new Error('Remote Quotes.md did not reflect the latest saved quotes');
+                return finalizeQuoteSyncSuccess();
+              });
+            });
+          }
+          return verifyRemoteQuotesFile(pass, content).then(function(ok){
+            if(!ok) throw new Error('Remote Quotes.md did not reflect the latest saved quotes');
+            return finalizeQuoteSyncSuccess();
+          });
+        })
+        .catch(function(err){
+          return tryCanonicalRefreshFallback(err).catch(function(fallbackErr){
+            markSavedQuotesPendingSync();
+            console.warn('[Quotes] Quotes.md sync skipped (' + (reason || 'update') + '):', fallbackErr && fallbackErr.message ? fallbackErr.message : fallbackErr);
+            return false;
+          });
+        });
+    }
+    function ensureSavedQuotesContext(reason){
+      var list = loadSaved();
+      if(!Array.isArray(list) || !list.length) return Promise.resolve(false);
+      return syncSavedQuotesToJoeyFile(reason || 'quotes-ensure', { skipRefresh:true, skipBackups:true });
+    }
+    function queueSavedQuotesFileSync(reason){
+      if(savedQuotesSyncTimer) clearTimeout(savedQuotesSyncTimer);
+      savedQuotesSyncTimer = setTimeout(function(){
+        savedQuotesSyncTimer = null;
+        syncSavedQuotesToJoeyFile(reason);
+      }, 300);
+    }
+    function saveSaved(list){
+      localStorage.setItem(SAVED_KEY,JSON.stringify(list));
+      markSavedQuotesPendingSync();
+      queueSavedQuotesFileSync('saved-quotes');
+    }
+    function normalizeSavedQuoteText(value){
+      return String(value || '').trim().replace(/^["“']+|["”']+$/g, '').trim();
+    }
+    function parseSavedQuoteValue(value, fallbackAuthor){
+      var raw = String(value || '').trim();
+      if(!raw) return null;
+      raw = raw.replace(/^quote\s*:\s*/i, '').trim();
+      var match = raw.match(/^(["“']?)([\s\S]+?)\1\s*[—-]\s*([^,.;\n]{2,80})$/);
+      var quote = match ? String(match[2] || '').trim() : raw;
+      var author = match ? String(match[3] || '').trim() : String(fallbackAuthor || 'Unknown').trim();
+      quote = normalizeSavedQuoteText(quote);
+      author = String(author || 'Unknown').trim() || 'Unknown';
+      if(!quote) return null;
+      return { q:quote, a:author };
+    }
+    function parseSavedQuoteInput(value, fallbackAuthor){
+      var parsed = parseSavedQuoteValue(value, fallbackAuthor);
+      if(parsed){
+        parsed.q = normalizeSavedQuoteText(String(parsed.q || '').replace(/\s*,?\s*(?:author|by|said by)\s+[A-Za-z][^,.;\n]{0,80}$/i, '').trim());
+        if(parsed.q) return parsed;
+      }
+      var raw = String(value || '').trim();
+      if(!raw) return null;
+      raw = raw.replace(/^(?:the\s+)?quote\s+/i, '').trim();
+      var saidByMatch = raw.match(/^(["â€œ']?)([\s\S]+?)\1\s*,?\s*(?:said\s+by|by|author)\s+([^,.;\n]{2,80})$/i);
+      if(!saidByMatch) return null;
+      var quote = normalizeSavedQuoteText(String(saidByMatch[2] || '').trim());
+      var author = String(saidByMatch[3] || fallbackAuthor || 'Unknown').trim() || 'Unknown';
+      if(!quote) return null;
+      return { q:quote, a:author };
+    }
+    function findSavedQuoteIndex(list, ref){
+      if(!Array.isArray(list) || !list.length) return -1;
+      if(typeof ref === 'number' && ref >= 0 && ref < list.length) return ref;
+      var lookup = normalizeSavedQuoteText(ref).toLowerCase();
+      if(!lookup) return -1;
+      for(var i = 0; i < list.length; i++){
+        var itemText = normalizeSavedQuoteText(list[i] && list[i].q || '').toLowerCase();
+        if(itemText === lookup || itemText.indexOf(lookup) >= 0 || lookup.indexOf(itemText) >= 0) return i;
+      }
+      return -1;
+    }
+  function applySavedQuoteMutation(request){
+      var list = loadSaved();
+      var req = request && typeof request === 'object' ? request : {};
+      var op = String(req.op || 'save').toLowerCase();
+      var index = typeof req.index === 'number' ? req.index : -1;
+      if(op === 'clear'){
+        saveSaved([]);
+        renderSaved();
+        return syncSavedQuotesToJoeyFile('saved-quotes-clear', { skipBackups:false, replace:true }).then(function(ok){
+          if(!ok) return { ok:false, message:'Saved quotes cleared locally, but Quotes.md sync failed.' };
+          return { ok:true, message:'Saved quotes cleared.' };
+        });
+      }
+      if(op === 'delete'){
+        var deleteIdx = findSavedQuoteIndex(list, index >= 0 ? index : req.match);
+        if(deleteIdx < 0) return Promise.resolve({ ok:false, message:'Quote not found.' });
+        list.splice(deleteIdx, 1);
+        saveSaved(list);
+        renderSaved();
+        return syncSavedQuotesToJoeyFile('saved-quotes-delete', { skipBackups:false, replace:true }).then(function(ok){
+          if(!ok) return { ok:false, message:'Quote removed locally, but Quotes.md sync failed.' };
+          return { ok:true, message:'Quote removed.' };
+        });
+      }
+      if(op === 'update' || op === 'author'){
+        var targetIdx = findSavedQuoteIndex(list, index >= 0 ? index : req.match);
+        if(targetIdx < 0) return Promise.resolve({ ok:false, message:'Quote not found.' });
+        if(op === 'author'){
+          list[targetIdx].a = String(req.author || 'Unknown').trim() || 'Unknown';
+          list[targetIdx].ts = Date.now();
+        } else {
+          var parsedUpdate = parseSavedQuoteInput(req.quote || req.memory || '', req.author || list[targetIdx].a || 'Unknown');
+          if(!parsedUpdate) return Promise.resolve({ ok:false, message:'Invalid quote update.' });
+          list[targetIdx] = { q:parsedUpdate.q, a:parsedUpdate.a, ts:Date.now() };
+        }
+        if(targetIdx > 0){
+          var updatedItem = list.splice(targetIdx, 1)[0];
+          list.unshift(updatedItem);
+        }
+        saveSaved(list);
+        renderSaved();
+        return syncSavedQuotesToJoeyFile('saved-quotes-edit', { skipBackups:false, replace:true }).then(function(ok){
+          if(!ok) return { ok:false, message:'Quote updated locally, but Quotes.md sync failed.' };
+          return { ok:true, message:'Quote updated in Quotes.md.' };
+        });
+      }
+      var parsed = parseSavedQuoteInput(req.quote || req.memory || '', req.author || 'Unknown');
+      if(!parsed) return Promise.resolve({ ok:false, message:'Invalid quote.' });
+      var existingIdx = findSavedQuoteIndex(list, parsed.q);
+      if(existingIdx >= 0){
+        list[existingIdx].q = parsed.q;
+        list[existingIdx].a = parsed.a;
+        list[existingIdx].ts = Date.now();
+        if(existingIdx > 0){
+          var existingItem = list.splice(existingIdx, 1)[0];
+          list.unshift(existingItem);
+        }
+      } else {
+        list.unshift({ q:parsed.q, a:parsed.a, ts:Date.now() });
+      }
+      saveSaved(list);
+      renderSaved();
+      return syncSavedQuotesToJoeyFile('saved-quotes-add', { skipBackups:false }).then(function(ok){
+        if(!ok) return { ok:false, quote:parsed, message:'Quote saved locally, but Quotes.md sync failed.' };
+        return { ok:true, quote:parsed, message:'Saved to Quotes.md.' };
+      });
+    }
+    function applySavedQuoteBatch(entries, reason){
+      var source = Array.isArray(entries) ? entries : [];
+      var parsedEntries = [];
+      var seen = {};
+      source.forEach(function(entry){
+        var parsed = parseSavedQuoteInput(
+          entry && (entry.quote || entry.memory || entry.text || ''),
+          entry && entry.author || 'Unknown'
+        );
+        if(!parsed) return;
+        var key = (normalizeSavedQuoteText(parsed.q).toLowerCase() + '|' + String(parsed.a || 'Unknown').trim().toLowerCase());
+        if(seen[key]) return;
+        seen[key] = true;
+        parsedEntries.push(parsed);
+      });
+      if(!parsedEntries.length) return Promise.resolve({ ok:false, count:0, message:'No quotes detected.' });
+      var list = loadSaved();
+      for(var i = parsedEntries.length - 1; i >= 0; i--){
+        var parsed = parsedEntries[i];
+        var existingIdx = findSavedQuoteIndex(list, parsed.q);
+        if(existingIdx >= 0){
+          list[existingIdx].q = parsed.q;
+          list[existingIdx].a = parsed.a;
+          list[existingIdx].ts = Date.now();
+          if(existingIdx > 0){
+            var batchItem = list.splice(existingIdx, 1)[0];
+            list.unshift(batchItem);
+          }
+        } else {
+          list.unshift({ q:parsed.q, a:parsed.a, ts:Date.now() });
+        }
+      }
+      saveSaved(list);
+      renderSaved();
+      return syncSavedQuotesToJoeyFile(reason || 'saved-quotes-batch', { skipBackups:false }).then(function(ok){
+        if(!ok){
+          return {
+            ok:false,
+            count:parsedEntries.length,
+            message:'Quotes saved locally, but Quotes.md sync failed.'
+          };
+        }
+        return {
+          ok:true,
+          count:parsedEntries.length,
+          message:parsedEntries.length === 1 ? 'Saved to Quotes.md.' : ('Saved ' + parsedEntries.length + ' quotes to Quotes.md.')
+        };
+      });
+    }
+    function addCurrentToSaved(){
+      const q=els.quote.textContent.trim(), a=els.author.textContent.trim();
+      if(!q) return Promise.resolve({ ok:false, message:'No quote to save.' });
+      const prev=els.save.textContent;
+      els.save.disabled = true;
+      els.save.textContent = "Saving...";
+      return applySavedQuoteMutation({ op:'save', quote:q, author:a }).then(function(result){
+        if(result && result.ok){
+          els.save.textContent = "Saved";
+          setTimeout(()=>{ if(els.save) els.save.textContent = prev; },1100);
+          return result;
+        }
+        els.save.textContent = prev;
+        if(result && result.message) alert(result.message);
+        return result || { ok:false, message:'Quote save failed.' };
+      }).catch(function(err){
+        els.save.textContent = prev;
+        alert(err && err.message ? err.message : 'Quote save failed.');
+        return { ok:false, message: err && err.message ? err.message : 'Quote save failed.' };
+      }).finally(function(){
+        els.save.disabled = false;
+      });
+    }
+    function deleteSaved(idx){ return applySavedQuoteMutation({ op:'delete', index:idx }); }
+    function clearAllSaved(){ return applySavedQuoteMutation({ op:'clear' }); }
+    function renderSaved(){
+      const list=loadSaved(); const empty=(list.length===0);
+      els.savedList.innerHTML=""; els.savedEmpty.style.display=empty?"block":"none";
+      list.forEach((it,idx)=>{
+        const wrap=document.createElement('div'); wrap.className="saved-item";
+        wrap.innerHTML=`<div><strong>Ã¢â‚¬Å“${it.q}Ã¢â‚¬Â</strong></div>
+          <div class="saved-meta"><span>Ã¢â‚¬â€ ${it.a||"Unknown"}</span><span>${new Date(it.ts).toLocaleString()}</span></div>
+          <div class="row" style="margin-top:10px"><button class="btn ghost" data-act="copy" data-i="${idx}">Copy</button><button class="btn" data-act="del" data-i="${idx}">Delete</button></div>`;
+        els.savedList.appendChild(wrap);
+      });
+    }
+   els.savedList?.addEventListener('click', e => {
+      const btn = e.target.closest('button');
+      if(!btn) return;
+
+      const idx = +btn.dataset.i;
+
+      // Handle Delete
+      if(btn.dataset.act === 'del') {
+        deleteSaved(idx).then(function(result){
+          if(result && !result.ok && result.message) alert(result.message);
+        });
+      }
+
+      // Handle Copy
+      if(btn.dataset.act === 'copy') {
+        const list = loadSaved();
+        const textToCopy = `Ã¢â‚¬Å“${list[idx].q}Ã¢â‚¬Â Ã¢â‚¬â€ ${list[idx].a || "Unknown"}`;
+
+        // 1. Try modern clipboard API (using .then instead of async/await to preserve user gesture)
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showCopiedFeedback(btn);
+            }).catch(() => {
+                fallbackCopy(textToCopy, btn);
+            });
+        } else {
+            fallbackCopy(textToCopy, btn);
+        }
+      }
+    });
+
+    // Helper for visual feedback
+    function showCopiedFeedback(btn) {
+        const originalText = btn.textContent;
+        btn.textContent = "Copied Ã¢Å“â€œ";
+        btn.style.color = "var(--accent)"; // Green text
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.color = "";
+        }, 1500);
+    }
+
+    // Helper for old-school fallback copy
+    function fallbackCopy(text, btn) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed"; // Avoid scrolling to bottom
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            showCopiedFeedback(btn);
+        } catch (err) {
+            console.error("Fallback copy failed", err);
+        }
+        document.body.removeChild(textArea);
+    }
+    els.exportSaved?.addEventListener('click',()=>{
+      const list=loadSaved(); const text=list.map(it=>`Ã¢â‚¬Å“${it.q}Ã¢â‚¬Â Ã¢â‚¬â€ ${it.a||"Unknown"}`).join("\n\n");
+      const blob=new Blob([text],{type:'text/plain'}); const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download='saved-quotes.txt'; a.click(); URL.revokeObjectURL(url);
+    });
+    els.clearSaved?.addEventListener('click', function(){
+      clearAllSaved().then(function(result){
+        if(result && !result.ok && result.message) alert(result.message);
+      });
+    }); els.save.addEventListener("click", function(){ addCurrentToSaved(); });
+    function flushPendingSavedQuotesSync(reason){
+      if(!hasSavedQuotesPendingSync()) return Promise.resolve(false);
+      return syncSavedQuotesToJoeyFile(reason || 'saved-quotes-pending', { skipBackups:false });
+    }
+    function setSavedQuotesSyncButtonState(label, delayMs){
+      if(!els.syncSaved) return;
+      const original = els.syncSaved.getAttribute('data-label') || 'Sync Quotes Now';
+      els.syncSaved.textContent = label;
+      if(delayMs){
+        setTimeout(()=>{ if(els.syncSaved) els.syncSaved.textContent = original; }, delayMs);
+      }
+    }
+    function syncSavedQuotesNow(){
+      const pass = localStorage.getItem('homer-sync-pass') || '';
+      if(!pass){
+        alert('Unlock Joey first so saved quotes can sync into Quotes.md.');
+        return Promise.resolve(false);
+      }
+      if(els.syncSaved){
+        els.syncSaved.disabled = true;
+        els.syncSaved.setAttribute('data-label', 'Sync Quotes Now');
+        setSavedQuotesSyncButtonState('Syncing...');
+      }
+      return syncSavedQuotesToJoeyFile('saved-quotes-manual', { skipBackups:true, replace:true }).then(function(ok){
+        if(!ok) throw new Error('Saved quotes did not sync to Quotes.md.');
+        setSavedQuotesSyncButtonState('Synced', 1800);
+        return true;
+      }).catch(function(err){
+        setSavedQuotesSyncButtonState('Sync failed', 2200);
+        alert(err && err.message ? err.message : 'Saved quotes sync failed.');
+        return false;
+      }).finally(function(){
+        if(els.syncSaved) setTimeout(()=>{ els.syncSaved.disabled = false; }, 50);
+      });
+    }
+    els.refresh.click(); renderSaved(); ensureSavedQuotesContext('quotes-init');
+    window.addEventListener('homer-vault-state', function(){
+      if(window._homerVaultUnlocked) flushPendingSavedQuotesSync('saved-quotes-unlock');
+    });
+    window.addEventListener('focus', function(){
+      if(localStorage.getItem('homer-sync-pass')) flushPendingSavedQuotesSync('saved-quotes-focus');
+    });
+    setInterval(function(){
+      if(localStorage.getItem('homer-sync-pass')) flushPendingSavedQuotesSync('saved-quotes-interval');
+    }, 5 * 60 * 1000);
+    els.syncSaved?.addEventListener('click', function(){
+      syncSavedQuotesNow();
+    });
+
+    /* Saved Quotes collapsible toggle */
+    const savedToggle=document.getElementById('saved-toggle');
+    const savedBody=document.getElementById('saved-body');
+    const savedArrow=document.getElementById('saved-arrow');
+    if(savedToggle){
+      savedToggle.addEventListener('click',()=>{
+        const open=savedBody.style.display!=='none';
+        savedBody.style.display=open?'none':'block';
+        savedArrow.style.transform=open?'':'rotate(180deg)';
+      });
+    }
+
+    /* 5. FOCUS LAB LOGIC */
+
+    // Focus Dot (Trataka) Logic - FIXED
+    const btnFocusDot = document.getElementById("btn-focus-dot");
+    const focusOverlay = document.getElementById("focus-overlay");
+
+    if(btnFocusDot && focusOverlay) {
+      btnFocusDot.addEventListener("click", () => {
+        focusOverlay.style.display = "grid";
+        // Try fullscreen
+        if(document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(e => console.log(e));
+        }
+      });
+
+      focusOverlay.addEventListener("click", () => {
+        focusOverlay.style.display = "none";
+        // Exit fullscreen
+        if(document.exitFullscreen) {
+            document.exitFullscreen().catch(e => console.log(e));
+        }
+      });
+    }
+
+    // Zen Mode Logic - FIXED
+    const zenBtn = document.getElementById("zen-btn");
+    const zenExit = document.getElementById("zen-exit");
+    const zenOverlay = document.getElementById("zen-overlay");
+    const zenInput = document.getElementById("zen-input");
+    const zenText = document.getElementById("zen-text");
+    const FOCUS_LAB_BRAIN_EDIT_TS_KEY = 'homer-focuslab-brain-edit-ts';
+    const FOCUS_LAB_ZEN_EDIT_TS_KEY = 'homer-focuslab-zen-edit-ts';
+    function markFocusLabLocalEdit(markerKey){
+        try{ sessionStorage.setItem(markerKey, String(Date.now())); }catch(_e){}
+    }
+    function queueFocusLabDbSync(reason){
+        if(typeof window._homerQueueFocusLabFieldSync === 'function'){
+            if(reason === 'focus-lab-brain-dump' || reason === 'agent-brain-dump'){
+                window._homerQueueFocusLabFieldSync('brain-dump', localStorage.getItem('homer-brain-dump') || '', reason);
+            } else if(reason === 'focus-lab-zen-goal' || reason === 'agent-zen-goal'){
+                window._homerQueueFocusLabFieldSync('zen-goal', localStorage.getItem('homer-zen-goal') || '', reason);
+            }
+        }
+        if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup(reason || 'focus-lab', 300);
+        if(typeof window._homerMarkCloudDirty === 'function') window._homerMarkCloudDirty();
+    }
+
+    // Restore saved zen goal
+    if(zenInput){
+        var savedZen = localStorage.getItem('homer-zen-goal');
+        if(savedZen) zenInput.value = savedZen;
+        zenInput.addEventListener('input', function(){
+            localStorage.setItem('homer-zen-goal', zenInput.value);
+            markFocusLabLocalEdit(FOCUS_LAB_ZEN_EDIT_TS_KEY);
+            try{ localStorage.removeItem('homer-field-draft:zen-input'); }catch(_e){}
+            queueFocusLabDbSync('focus-lab-zen-goal');
+        });
+    }
+
+    function startZenMode(goalText){
+        if(!zenOverlay) return false;
+        const goal = String(goalText || (zenInput && zenInput.value) || '').trim() || "FOCUS";
+        if(zenText) zenText.textContent = goal;
+        localStorage.setItem('homer-zen-goal', goal);
+        markFocusLabLocalEdit(FOCUS_LAB_ZEN_EDIT_TS_KEY);
+        if(zenInput) zenInput.value = goal;
+        queueFocusLabDbSync('focus-lab-zen-goal');
+        document.body.classList.add("zen-active");
+        zenOverlay.style.display = "flex";
+        if(document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(function(e){ console.log(e); });
+        }
+        return true;
+    }
+    function stopZenMode(){
+        if(!zenOverlay) return false;
+        document.body.classList.remove("zen-active");
+        zenOverlay.style.display = "none";
+        if(document.exitFullscreen) {
+            document.exitFullscreen().catch(function(e){ console.log(e); });
+        }
+        return true;
+    }
+
+    if(zenBtn && zenOverlay) {
+        zenBtn.addEventListener("click", function(){ startZenMode(); });
+        zenExit.addEventListener("click", function(){ stopZenMode(); });
+    }
+
+    // Brain Dump
+    const txtDump = document.getElementById("brain-dump");
+    const dumpStatus = document.getElementById("dump-status");
+    if(txtDump) {
+        txtDump.value = localStorage.getItem("homer-brain-dump") || "";
+        txtDump.addEventListener("input", () => {
+            localStorage.setItem("homer-brain-dump", txtDump.value);
+            markFocusLabLocalEdit(FOCUS_LAB_BRAIN_EDIT_TS_KEY);
+            try{ localStorage.removeItem('homer-field-draft:brain-dump'); }catch(_e){}
+            dumpStatus.textContent = "Saving...";
+            queueFocusLabDbSync('focus-lab-brain-dump');
+            setTimeout(() => dumpStatus.textContent = "Saved", 1000);
+        });
+    }
+    // Box Breathing
+    const btnBox = document.getElementById("b-toggle");
+    const boxCircle = document.getElementById("b-circle");
+    let bInterval = null, bStep = 0;
+    if(btnBox && boxCircle) {
+        const BREATH_PHASE_MS = 4000;
+        const BREATH_PHASES = [
+            { label:"Inhale", className:"b-inhale", glyph:"â†‘" },
+            { label:"Hold", className:"b-hold-in", glyph:". . .", isHold:true },
+            { label:"Exhale", className:"b-exhale", glyph:"â†“" },
+            { label:"Hold", className:"b-hold-out", glyph:". . .", isHold:true }
+        ];
+        function renderBreathingContent(label, glyph, opts){
+            var options = opts || {};
+            boxCircle.innerHTML = '<div class="breath-inner"><span class="breath-label">' + label + '</span><span class="breath-glyph">' + glyph + '</span></div>';
+            boxCircle.classList.toggle('is-hold', !!options.isHold);
+        }
+        let bCurrentPhase = -1;
+        function applyBreathingPhase(phase, phaseIndex){
+            bCurrentPhase = typeof phaseIndex === 'number' ? phaseIndex : bCurrentPhase;
+            boxCircle.className = "breathing-circle";
+            renderBreathingContent(phase.label, phase.glyph || '', phase);
+            boxCircle.style.setProperty('--breath-duration', BREATH_PHASE_MS + 'ms');
+            void boxCircle.offsetWidth;
+            boxCircle.classList.add(phase.className);
+        }
+        btnBox.addEventListener("click", () => {
+            if(bInterval) {
+                clearInterval(bInterval); bInterval = null;
+                btnBox.textContent = "Start Breathing";
+                boxCircle.className = "breathing-circle";
+                renderBreathingContent("Ready", "â€¢");
+            } else {
+                btnBox.textContent = "Stop";
+                bStep = 0;
+                const cycle = () => {
+                    applyBreathingPhase(BREATH_PHASES[bStep]);
+                    bStep = (bStep + 1) % 4;
+                };
+                cycle();
+                bInterval = setInterval(cycle, BREATH_PHASE_MS);
+            }
+        });
+        renderBreathingContent("Ready", "â€¢");
+    }
+    if(btnBox && boxCircle) {
+        const AGENT_BREATH_PHASES = [
+            { label:"Inhale", className:"b-inhale", glyph:"Ã¢â€ â€˜" },
+            { label:"Hold", className:"b-hold-in", glyph:". . .", isHold:true },
+            { label:"Exhale", className:"b-exhale", glyph:"Ã¢â€ â€œ" },
+            { label:"Hold", className:"b-hold-out", glyph:". . .", isHold:true }
+        ];
+        let agentBreathPhase = -1;
+        var liveBtn = document.getElementById("b-toggle");
+        if(liveBtn && liveBtn.parentNode) {
+            var cleanBtn = liveBtn.cloneNode(true);
+            liveBtn.parentNode.replaceChild(cleanBtn, liveBtn);
+            function renderAgentBreathingContent(label, glyph, opts){
+                var options = opts || {};
+                boxCircle.innerHTML = '<div class="breath-inner"><span class="breath-label">' + label + '</span><span class="breath-glyph">' + glyph + '</span></div>';
+                boxCircle.classList.toggle('is-hold', !!options.isHold);
+            }
+            function applyAgentBreathingPhase(phase, phaseIndex){
+                agentBreathPhase = typeof phaseIndex === 'number' ? phaseIndex : agentBreathPhase;
+                boxCircle.className = "breathing-circle";
+                renderAgentBreathingContent(phase.label, phase.glyph || '', phase);
+                boxCircle.style.setProperty('--breath-duration', '4000ms');
+                void boxCircle.offsetWidth;
+                boxCircle.classList.add(phase.className);
+            }
+            function stopBreathing(){
+                if(bInterval) {
+                    clearInterval(bInterval);
+                    bInterval = null;
+                }
+                agentBreathPhase = -1;
+                cleanBtn.textContent = "Start Breathing";
+                boxCircle.className = "breathing-circle";
+                renderAgentBreathingContent("Ready", "Ã¢â‚¬Â¢");
+                return true;
+            }
+            function startBreathing(){
+                if(bInterval) return true;
+                cleanBtn.textContent = "Stop";
+                bStep = 0;
+                const cycle = function() {
+                    applyAgentBreathingPhase(AGENT_BREATH_PHASES[bStep], bStep);
+                    bStep = (bStep + 1) % AGENT_BREATH_PHASES.length;
+                };
+                cycle();
+                bInterval = setInterval(cycle, 4000);
+                return true;
+            }
+            cleanBtn.addEventListener("click", function() {
+                if(bInterval) stopBreathing();
+                else startBreathing();
+            });
+            window._homerFocusLabAgent = {
+                getState: function(){
+                    var savedGoal = localStorage.getItem('homer-zen-goal') || '';
+                    var brainDump = localStorage.getItem('homer-brain-dump') || '';
+                    var phase = agentBreathPhase >= 0 ? AGENT_BREATH_PHASES[agentBreathPhase] : null;
+                    return {
+                        zenActive: !!(zenOverlay && zenOverlay.style.display === 'flex' && document.body.classList.contains('zen-active')),
+                        zenGoal: savedGoal,
+                        breathingRunning: !!bInterval,
+                        breathingPhase: phase ? phase.label : 'Ready',
+                        brainDumpLength: brainDump.trim().length
+                    };
+                },
+                startZen: startZenMode,
+                stopZen: stopZenMode,
+                setZenGoal: function(text){
+                    var goal = String(text || '').trim();
+                    localStorage.setItem('homer-zen-goal', goal);
+                    markFocusLabLocalEdit(FOCUS_LAB_ZEN_EDIT_TS_KEY);
+                    try{ localStorage.removeItem('homer-field-draft:zen-input'); }catch(_e){}
+                    if(zenInput) zenInput.value = goal;
+                    if(zenText && document.body.classList.contains('zen-active')) zenText.textContent = goal || 'FOCUS';
+                    queueFocusLabDbSync('agent-zen-goal');
+                    return true;
+                },
+                updateBrainDump: function(text){
+                    var nextText = String(text == null ? '' : text);
+                    localStorage.setItem('homer-brain-dump', nextText);
+                    markFocusLabLocalEdit(FOCUS_LAB_BRAIN_EDIT_TS_KEY);
+                    try{ localStorage.removeItem('homer-field-draft:brain-dump'); }catch(_e){}
+                    if(txtDump){
+                        if(txtDump.dataset) txtDump.dataset.dbSyncEditTs = String(Date.now());
+                        if(typeof writePersistentFieldValue === 'function') writePersistentFieldValue(txtDump, nextText);
+                        else txtDump.value = nextText;
+                        if(typeof dispatchPersistentFieldSyncEvents === 'function') dispatchPersistentFieldSyncEvents(txtDump);
+                    }
+                    if(dumpStatus) dumpStatus.textContent = "Saved";
+                    queueFocusLabDbSync('agent-brain-dump');
+                    return true;
+                },
+                startBreathing: startBreathing,
+                stopBreathing: stopBreathing
+            };
+        }
+    }
+
+document.addEventListener('DOMContentLoaded', function(){
+      const PKEY='pom.settings.v1', TKEY='pom.tasks.v1', SKEY='pom.state.v1';
+      const elTime=document.getElementById('pom-time');
+      const elRing=document.getElementById('pom-ring');
+      const elMode=document.getElementById('pom-mode');
+      const elCount=document.getElementById('pom-count');
+      const elCycle=document.getElementById('pom-cycle');
+      const elNotify=document.getElementById('pom-notify');
+      const elVoice=document.getElementById('pom-voice');
+      const elSfx=document.getElementById('pom-sfx');
+      const elSetFocus=document.getElementById('set-focus');
+      const elSetShort=document.getElementById('set-short');
+      const elSetLong=document.getElementById('set-long');
+
+      const btnStart=document.getElementById('pom-start');
+      const btnPause=document.getElementById('pom-pause');
+      const btnReset=document.getElementById('pom-reset');
+      const btnSkip=document.getElementById('pom-skip');
+
+      function loadJSON(k,def){ try{ return JSON.parse(localStorage.getItem(k)||JSON.stringify(def)); }catch{return def;} }
+      function saveJSON(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
+
+      const settings=loadJSON(PKEY,{focus:25, short:5, long:15, longEvery:4});
+      const state=loadJSON(SKEY,{mode:'focus', remaining:settings.focus*60, running:false, pomodoros:0, endTime:0});
+      // Cross-device sync: recalculate remaining from absolute endTime
+      if(state.running && state.endTime){
+        var _left=Math.floor((state.endTime - Date.now())/1000);
+        if(_left > 0){ state.remaining = _left; } else { state.remaining = 0; }
+      }
+      elSetFocus.value=settings.focus; elSetShort.value=settings.short; elSetLong.value=settings.long;
+      elMode.textContent=cap(state.mode); updateTime(); updateRing(); updateMeta();
+
+      function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+      function durFor(mode){ return (mode==='focus'?settings.focus:mode==='short'?settings.short:settings.long)*60; }
+      function setMode(next){ state.mode=next; state.remaining=durFor(next); elMode.textContent=cap(next); updateTime(); updateRing(); save(); }
+      function updateTime(){ const m=Math.floor(state.remaining/60).toString().padStart(2,'0'); const s=Math.floor(state.remaining%60).toString().padStart(2,'0'); elTime.textContent=`${m}:${s}`; }
+      function updateRing(){ const total=durFor(state.mode); const progress=1-(state.remaining/total); const deg=Math.max(0,Math.min(360,progress*360)); elRing.style.setProperty('--pom-progress',`${deg}deg`); }
+      // FIX: Cycle math correctly computes "1/4" when pomodoros is 0
+      function updateMeta(){ elCount.textContent=state.pomodoros; elCycle.textContent=(state.pomodoros % settings.longEvery) + 1; }
+      function save(){
+        if(state.running){ state.endTime = Date.now() + (state.remaining * 1000); } else { state.endTime = 0; }
+        saveJSON(SKEY,state);
+      }
+
+      let ac;
+      function ensureAC(){ if(!ac){ ac = new (window.AudioContext||window.webkitAudioContext)(); } if(ac.state==='suspended'){ ac.resume(); } }
+      function speak(text){ if(!elVoice?.checked) return; if(!('speechSynthesis' in window)) return; const u=new SpeechSynthesisUtterance(text); u.rate=1.05; u.pitch=text.includes('Woo')?1.3:0.8; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }
+      function tone(freq,dur,type='triangle',vol=0.22,when=0){ if(!elSfx?.checked) return; ensureAC(); const t=ac.currentTime+when; const o=ac.createOscillator(); const g=ac.createGain(); o.type=type; o.frequency.setValueAtTime(freq,t); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); o.connect(g).connect(ac.destination); o.start(t); o.stop(t+dur+0.02); }
+      /* Homer audio clips - preloaded into AudioContext buffer for autoplay compliance */
+      var homerBuf = { woohoo: null, doh: null };
+      function preloadHomer() {
+        ensureAC();
+        [['woohoo','/sounds/woohoo.mp3'],['doh','/sounds/doh.mp3']].forEach(function(pair) {
+          fetch(pair[1]).then(function(r){ return r.arrayBuffer(); }).then(function(buf){ return ac.decodeAudioData(buf); }).then(function(decoded){ homerBuf[pair[0]] = decoded; }).catch(function(){});
+        });
+      }
+      function playBuf(key, vol) {
+        if(!elSfx || !elSfx.checked) return false;
+        if(!homerBuf[key]) return false;
+        ensureAC();
+        var src = ac.createBufferSource();
+        var g = ac.createGain();
+        src.buffer = homerBuf[key];
+        g.gain.value = vol || 0.7;
+        src.connect(g).connect(ac.destination);
+        src.start(0);
+        return true;
+      }
+      function sfxWooHoo(){ if(!playBuf('woohoo',0.7)){ speak("Woo-hoo!"); tone(880,0.12,'triangle',0.25,0); tone(1046.5,0.12,'triangle',0.22,0.10); tone(1318.5,0.18,'triangle',0.22,0.22); } }
+      function sfxDoh(){ if(!playBuf('doh',0.7)){ speak("D'oh!"); tone(196,0.18,'sawtooth',0.25,0); tone(147,0.18,'sawtooth',0.20,0.10); } }
+
+      ['click','keydown','touchstart'].forEach(evt=>{
+        window.addEventListener(evt,function(){ try{ ensureAC(); preloadHomer(); if('speechSynthesis' in window) speechSynthesis.resume(); }catch(_){ } },{once:true, passive:true});
+      });
+
+      let tick=null;
+      function start(){
+          if(tick) return; // FIX: Check interval engine instead of text state
+          state.running=true;
+          save();
+          if(elNotify?.checked && 'Notification' in window && Notification.permission!=='granted'){ Notification.requestPermission(); }
+          ensureAC();
+          tick=setInterval(()=>{
+              state.remaining--;
+              if(state.remaining<=0){ advance(false); }
+              updateTime(); updateRing(); save();
+              window.dispatchEvent(new Event('pom-tick'));
+          },1000);
+      }
+      function pause(){
+          state.running=false;
+          clearInterval(tick);
+          tick=null; // FIX: Destroy engine on pause
+          save();
+          window.dispatchEvent(new Event('pom-tick'));
+      }
+      function skip(){ pause(); advance(true); }
+      function reset(){
+          pause();
+          state.pomodoros = 0;
+          setMode('focus');
+          updateMeta();
+          updateTime();
+          updateRing();
+          save();
+          window.dispatchEvent(new Event('pom-tick'));
+      }
+
+      function advance(isSkip = false){
+        if(state.mode==='focus'){
+          state.pomodoros++;
+          const n=state.pomodoros % settings.longEvery;
+          setMode(n===0?'long':'short');
+
+          if(!isSkip) {
+            notify('Break time', n===0?`Long break (${settings.long}m)`:`Short break (${settings.short}m)`);
+            sfxWooHoo();
+          }
+        }else{
+          setMode('focus');
+          if(!isSkip) {
+            notify('Focus time', `${settings.focus} minutes Ã¢â‚¬â€ go!`);
+            sfxDoh();
+          }
+        }
+        updateMeta(); save(); if(state.running) start();
+      }
+      function notify(title,body){
+        if(!elNotify?.checked) return;
+        if('Notification' in window && Notification.permission==='granted'){
+          const n=new Notification(title,{body}); setTimeout(()=>n.close(),4000);
+        }
+      }
+
+      // Safe JS Event listeners that rely on CSS for the visual pop
+      btnStart.addEventListener('click',start);
+      btnPause.addEventListener('click',pause);
+      btnReset.addEventListener('click',reset);
+      btnSkip.addEventListener('click',skip);
+
+      [elSetFocus, elSetShort, elSetLong].forEach(inp=>{
+        inp.addEventListener('change',()=>{
+          settings.focus=Math.max(1,parseInt(elSetFocus.value||25));
+          settings.short=Math.max(1,parseInt(elSetShort.value||5));
+          settings.long=Math.max(1,parseInt(elSetLong.value||15));
+          saveJSON(PKEY,settings);
+          if(!state.running){ state.remaining=durFor(state.mode); updateTime(); updateRing(); save(); }
+        });
+      });
+
+      /* Tasks */
+      const taskInput=document.getElementById('task-input');
+      const taskAdd=document.getElementById('task-add');
+      const taskList=document.getElementById('task-list');
+      function loadTasks(){ return loadJSON(TKEY,[]); }
+      function saveTasks(list){ saveJSON(TKEY,list); }
+      function renderTasks(){
+        const list=loadTasks();
+        taskList.innerHTML='';
+        list.forEach((t,i)=>{
+          const li=document.createElement('li');
+          li.className = t.done?'done':'';
+          li.innerHTML= `<input type="checkbox" data-i="${i}" ${t.done?'checked':''}>
+            <span style="flex:1">${t.text}</span>
+            <button class="btn ghost" data-act="del" data-i="${i}">Delete</button>`;
+          taskList.appendChild(li);
+        });
+        window.dispatchEvent(new Event('tasks-changed'));
+      }
+      function addTask(){
+        const text=taskInput.value.trim(); if(!text) return;
+        const list=loadTasks(); list.unshift({text,done:false,ts:Date.now()});
+        saveTasks(list); taskInput.value=''; renderTasks();
+      }
+      taskAdd.addEventListener('click',addTask);
+      taskInput.addEventListener('keydown',e=>{ if(e.key==='Enter') addTask(); });
+      taskList.addEventListener('click',e=>{
+        const i=e.target.dataset.i; if(i==null) return;
+        const list=loadTasks();
+        if(e.target.matches('input[type="checkbox"]')){ list[i].done=e.target.checked; list[i].ts=Date.now(); }
+        if(e.target.dataset.act==='del'){ list.splice(i,1); }
+        saveTasks(list); renderTasks();
+      });
+
+      // Handle timer that expired while page was closed
+      if(state.running && state.remaining <= 0){
+        state.running = false;
+        advance(false);
+      } else if(state.running){
+        start();
+      }
+
+      // Re-sync timer when tab becomes visible (switching back from other device/tab)
+      document.addEventListener('visibilitychange', function(){
+        if(document.visibilityState !== 'visible') return;
+        var fresh = loadJSON(SKEY, null);
+        if(!fresh) return;
+        if(fresh.running && fresh.endTime){
+          var left = Math.floor((fresh.endTime - Date.now()) / 1000);
+          if(left <= 0){
+            state.mode = fresh.mode;
+            state.pomodoros = fresh.pomodoros;
+            state.running = false;
+            state.remaining = 0;
+            if(tick){ clearInterval(tick); tick=null; }
+            advance(false);
+          } else if(left !== state.remaining || fresh.mode !== state.mode){
+            state.mode = fresh.mode;
+            state.pomodoros = fresh.pomodoros;
+            state.remaining = left;
+            state.running = fresh.running;
+            elMode.textContent = cap(state.mode);
+            updateTime(); updateRing(); updateMeta();
+            if(state.running && !tick) start();
+          }
+        } else if(!fresh.running && state.running){
+          state.mode = fresh.mode;
+          state.pomodoros = fresh.pomodoros;
+          state.remaining = fresh.remaining;
+          state.running = false;
+          if(tick){ clearInterval(tick); tick=null; }
+          elMode.textContent = cap(state.mode);
+          updateTime(); updateRing(); updateMeta();
+        } else if(!fresh.running){
+          state.mode = fresh.mode;
+          state.pomodoros = fresh.pomodoros;
+          state.remaining = fresh.remaining;
+          elMode.textContent = cap(state.mode);
+          updateTime(); updateRing(); updateMeta();
+        }
+      });
+
+      // Listen for storage changes from other tabs on same device
+      window.addEventListener('storage', function(e){
+        if(e.key !== SKEY) return;
+        var fresh = loadJSON(SKEY, null);
+        if(!fresh) return;
+        if(fresh.running && fresh.endTime){
+          var left = Math.floor((fresh.endTime - Date.now()) / 1000);
+          if(left > 0){
+            state.mode = fresh.mode;
+            state.pomodoros = fresh.pomodoros;
+            state.remaining = left;
+            if(!state.running){ state.running = true; start(); }
+          }
+        } else if(!fresh.running){
+          state.mode = fresh.mode;
+          state.pomodoros = fresh.pomodoros;
+          state.remaining = fresh.remaining;
+          if(state.running){ state.running = false; if(tick){ clearInterval(tick); tick=null; } }
+        }
+        elMode.textContent = cap(state.mode);
+        updateTime(); updateRing(); updateMeta();
+      });
+
+      window._homerPomodoroAgent = {
+        getState: function(){
+          var total = durFor(state.mode);
+          var remaining = state.remaining;
+          if(state.running && state.endTime){
+            remaining = Math.max(0, Math.floor((state.endTime - Date.now()) / 1000));
+          }
+          var openTasks = loadTasks().filter(function(task){ return !task.done; });
+          return {
+            mode: state.mode,
+            running: !!state.running,
+            remaining: remaining,
+            remainingLabel: Math.floor(remaining / 60).toString().padStart(2, '0') + ':' + Math.floor(remaining % 60).toString().padStart(2, '0'),
+            totalSeconds: total,
+            pomodoros: state.pomodoros,
+            cycle: (state.pomodoros % settings.longEvery) + 1,
+            openTasks: openTasks.length,
+            activeTask: openTasks[0] ? openTasks[0].text : ''
+          };
+        },
+        start: start,
+        pause: pause,
+        reset: reset,
+        skip: skip,
+        addTask: function(text){
+          var taskText = String(text || '').trim();
+          if(!taskText) return false;
+          var list = loadTasks();
+          list.unshift({ text: taskText, done: false, ts: Date.now() });
+          saveTasks(list);
+          renderTasks();
+          return true;
+        }
+      };
+
+      renderTasks()
+    });
+
+function fmtMMSS(totalSeconds){ const s=Math.max(0,Math.floor(totalSeconds)); const m=Math.floor(s/60).toString().padStart(2,'0'); const ss=(s%60).toString().padStart(2,'0'); return `${m}:${ss}`; }
+    const LS='pom.state.v1', LS_SETTINGS='pom.settings.v1', LS_TASKS='pom.tasks.v1';
+    function ls(k,def){ try{return JSON.parse(localStorage.getItem(k)||JSON.stringify(def));}catch{return def;} }
+    function getOpenTasks(){ const tasks=ls(LS_TASKS,[]); return tasks.filter(t=>!t.done); }
+    function getDoneTop3(){ const tasks=ls(LS_TASKS,[]); return tasks.filter(t=>t.done).sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,3); }
+
+    function renderHomeFromPom(){
+      const state=ls(LS, null);
+      const settings=ls(LS_SETTINGS,{focus:25, short:5, long:15});
+      const openTasks=getOpenTasks();
+      const done=getDoneTop3();
+
+      const tasksCard=document.getElementById('home-tasks-card');
+      const tasksWrap=document.getElementById('home-tasks');
+      const tasksEmpty=document.getElementById('home-tasks-empty');
+      const doneCard=document.getElementById('home-done-card');
+      const doneList=document.getElementById('home-done-list');
+
+      tasksWrap.innerHTML='';
+      if(openTasks.length===0){
+        tasksCard.style.display='block'; tasksEmpty.style.display='block';
+      }else{
+        tasksCard.style.display='block'; tasksEmpty.style.display='none';
+
+        // FIX: Calculate total seconds correctly based on the current mode (Focus vs Break)
+        const mode = state ? state.mode : 'focus';
+        const isFocus = mode === 'focus';
+        const isRunning = state && state.running;
+
+        let totalSeconds = (settings.focus || 25) * 60;
+        if (mode === 'short') totalSeconds = (settings.short || 5) * 60;
+        if (mode === 'long') totalSeconds = (settings.long || 15) * 60;
+
+        // Use endTime for accurate cross-device remaining calculation
+        let remaining;
+        if(state && state.running && state.endTime){
+          remaining = Math.max(0, Math.floor((state.endTime - Date.now()) / 1000));
+        } else {
+          remaining = Math.max(0, (state && state.remaining != null ? state.remaining : totalSeconds));
+        }
+        const progressDeg = 360 * (1 - (remaining / totalSeconds));
+
+        openTasks.forEach((t,i)=>{
+          const card=document.createElement('div'); card.className='htask-card htask';
+          const circle=document.createElement('div'); circle.className='mini-circle';
+          const leftSpan=document.createElement('span');
+
+          /* SMART CLOCK LOGIC: Show time if running (Focus OR Break) */
+          let displayContent = 'Ã¢â€“Â¶';
+
+          if (isRunning) {
+             if (isFocus) {
+                 displayContent = fmtMMSS(remaining);
+             } else {
+                 // Break mode running: Mug + Timer perfectly centered in the circle
+                 displayContent = `<div style="display:flex; flex-direction:column; align-items:center; line-height:1.1; margin-top:-2px"><span style="font-size:0.75em;">Ã¢Ëœâ€¢</span><span style="font-size:0.85em;">${fmtMMSS(remaining)}</span></div>`;
+             }
+          } else {
+             displayContent = isFocus ? 'Ã¢â€“Â¶' : 'Ã¢Ëœâ€¢';
+          }
+
+          // Apply to first task only
+          if (i === 0) {
+              leftSpan.innerHTML = displayContent;
+          } else {
+              leftSpan.textContent = (i + 1);
+          }
+
+          circle.appendChild(leftSpan);
+          // Show progress bar if running (works for focus and breaks now)
+          circle.style.setProperty('--prog',(i===0 && isRunning) ? `${progressDeg}deg` : '0deg');
+
+          const meta=document.createElement('div'); meta.className='meta';
+          const name=document.createElement('div'); name.className='name'; name.textContent=t.text;
+          const sub=document.createElement('div'); sub.className='sub';
+
+          // Subtitle Logic
+          if(i===0) {
+             if(isFocus) {
+                sub.textContent = isRunning ? 'Focusing...' : 'Ready to Start';
+             } else {
+                sub.textContent = isRunning ? 'On Break Ã¢Ëœâ€¢' : 'Break Paused Ã¢Ëœâ€¢';
+             }
+          } else {
+             sub.textContent = 'Queued';
+          }
+
+          meta.appendChild(name); meta.appendChild(sub);
+          card.appendChild(circle); card.appendChild(meta);
+          tasksWrap.appendChild(card);
+        });
+      }
+
+      doneList.innerHTML='';
+      if(done.length===0) doneCard.style.display='none';
+      else{
+        doneCard.style.display='block';
+        done.forEach(t=>{ const row=document.createElement('div'); row.className='done-item'; row.innerHTML=`<span>${t.text}</span><span class="pill">${new Date(t.ts||Date.now()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>`; doneList.appendChild(row); });
+      }
+    }
+
+    renderHomeFromPom();
+    setInterval(renderHomeFromPom,1000);
+    window.addEventListener('pom-tick',renderHomeFromPom);
+    window.addEventListener('tasks-changed',renderHomeFromPom);
+
+(function(){
+      // Old inline service-worker caching trapped users on stale deployments.
+      // Keep the app network-fresh and proactively remove legacy Homer caches.
+      if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+        window.addEventListener('load', function(){
+          navigator.serviceWorker.getRegistrations()
+            .then(function(registrations){
+              return Promise.all(registrations.map(function(reg){ return reg.unregister(); }));
+            })
+            .catch(function(){});
+          if('caches' in window){
+            caches.keys()
+              .then(function(keys){
+                return Promise.all(
+                  keys
+                    .filter(function(key){ return /^homer-v/i.test(String(key || '')); })
+                    .map(function(key){ return caches.delete(key); })
+                );
+              })
+              .catch(function(){});
+          }
+        });
+      }
+    })();
+
+// Ã°Å¸â€Âµ AUDIO PLAYER WITH BULLETPROOF STATE TRACKING
+const tracks = {
+  ocean: { id:"WHPEKLQID4U", btn:"btn-ocean", vol:"vol-ocean", labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Ocean", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Ocean", holder:"yt-ocean", isPlaying: false },
+  fire:  { id:"UgHKb_7884o", btn:"btn-fire",  vol:"vol-fire",  labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Fireplace", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Fireplace", holder:"yt-fire", isPlaying: false },
+  rain:  { id:"mPZkdNFkNps", btn:"btn-rain",  vol:"vol-rain",  labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Rain", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Rain", holder:"yt-rain", isPlaying: false },
+  rainywindow: { id:"Dx5qFachd3A", btn:"btn-rainywindow", vol:"vol-rainywindow", labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Jazz", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Jazz", holder:"yt-rainywindow", isPlaying: false },
+  cafe:  { id:"uiMXGIG_DQo", btn:"btn-cafe",  vol:"vol-cafe",  labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play CafÃƒÂ©", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause CafÃƒÂ©", holder:"yt-cafe", isPlaying: false },
+  lofi:  { id:"Na0w3Mz46GA", btn:"btn-lofi",  vol:"vol-lofi",  labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Lo-Fi", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Lo-Fi", holder:"yt-lofi", isPlaying: false },
+  wind: { id:"jYu1-CxNqks", btn:"btn-wind", vol:"vol-wind", labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Wind", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Wind", holder:"yt-wind", isPlaying: false },
+  synthwave: { id:"4xDzrJKXOOY", btn:"btn-synthwave", vol:"vol-synthwave", labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Synthwave", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Synthwave", holder:"yt-synthwave", isPlaying: false },
+  weightless: { id:"vYIYIVmOo3Q", btn:null, vol:null, holder:"yt-weightless", isPlaying: false }
+};
+
+function createPlayer(k) {
+  const t = tracks[k];
+  if(t.player) return;
+  t.player = new YT.Player(t.holder, {
+    height: "0", width: "0",
+    videoId: t.id,
+    playerVars: { autoplay: 1, controls: 0, loop: 1, playlist: t.id, modestbranding: 1 },
+    events: {
+      onReady: e => {
+        const volEl = t.vol ? document.getElementById(t.vol) : null;
+        if(volEl) e.target.setVolume(+volEl.value);
+        // FIX: If the user toggled it off before it even finished loading, pause it immediately
+        if(!t.isPlaying) {
+            e.target.pauseVideo();
+        }
+      }
+    }
+  });
+}
+
+function togglePlay(k) {
+  const t = tracks[k];
+  const btn = document.getElementById(t.btn);
+
+  if (!t.player) {
+    createPlayer(k);
+    t.isPlaying = true;
+    if(btn) btn.textContent = t.labelPause;
+    return;
+  }
+
+  // FIX: Rely on our strict internal state, not YouTube's delayed API state
+  if (t.isPlaying) {
+    t.player.pauseVideo();
+    t.isPlaying = false;
+    if(btn) btn.textContent = t.labelPlay;
+  } else {
+    t.player.playVideo();
+    t.isPlaying = true;
+    if(btn) btn.textContent = t.labelPause;
+  }
+}
+
+function setVolume(k, v) {
+  const t = tracks[k];
+  if (t.player && typeof t.player.setVolume === "function") t.player.setVolume(v);
+}
+
+function stopAll() {
+  Object.keys(tracks).forEach(k => {
+    const t = tracks[k];
+    t.isPlaying = false;
+    if (t.player && typeof t.player.pauseVideo === 'function') t.player.pauseVideo();
+    if (t.btn) {
+        const btnEl = document.getElementById(t.btn);
+        if(btnEl) btnEl.textContent = t.labelPlay;
+    }
+  });
+}
+
+function playMix(list) {
+  stopAll();
+  list.forEach(item => {
+    const t = tracks[item.k];
+    t.isPlaying = true;
+
+    // Visually update the UI Slider to match the mix
+    const volEl = document.getElementById(t.vol);
+    if(volEl) volEl.value = item.vol;
+
+    // Visually update the UI Button to show it is playing
+    const btnEl = document.getElementById(t.btn);
+    if(btnEl) btnEl.textContent = t.labelPause;
+
+    if(!t.player) {
+        createPlayer(item.k);
+    } else {
+        setTimeout(() => {
+            if(typeof t.player.setVolume === 'function') {
+                t.player.setVolume(item.vol);
+                t.player.playVideo();
+            }
+        }, 100);
+    }
+  });
+}
+
+document.addEventListener("click", e => {
+  const id = e.target.id;
+  if (id === "stop-all") stopAll();
+  if (id === "mix-sleep") playMix([{k:'fire',vol:40}, {k:'rain',vol:60}]);
+  if (id === "mix-rainy") playMix([{k:'rain',vol:70}, {k:'ocean',vol:40}]);
+  if (id === "mix-reading") playMix([{k:'lofi',vol:50}, {k:'fire',vol:10}, {k:'wind',vol:10}, {k:'rain',vol:10}]);
+  if (id === "mix-cozy") playMix([{k:'fire',vol:40}, {k:'rain',vol:40}, {k:'rainywindow',vol:30}]);
+  Object.keys(tracks).forEach(k => {
+    if (id === tracks[k].btn) togglePlay(k);
+  });
+});
+
+document.addEventListener("input", e => {
+  Object.keys(tracks).forEach(k => {
+    if (e.target.id === tracks[k].vol) setVolume(k, +e.target.value);
+  });
+});
+
+const trackAliases = {
+  ocean: 'ocean',
+  fire: 'fire',
+  fireplace: 'fire',
+  rain: 'rain',
+  jazz: 'rainywindow',
+  rainywindow: 'rainywindow',
+  cafe: 'cafe',
+  caf: 'cafe',
+  lofi: 'lofi',
+  'lo-fi': 'lofi',
+  wind: 'wind',
+  synthwave: 'synthwave',
+  weightless: 'weightless'
+};
+const ambientMixes = {
+  sleep: [{k:'fire',vol:40}, {k:'rain',vol:60}],
+  rainy: [{k:'rain',vol:70}, {k:'ocean',vol:40}],
+  reading: [{k:'lofi',vol:50}, {k:'fire',vol:10}, {k:'wind',vol:10}, {k:'rain',vol:10}],
+  cozy: [{k:'fire',vol:40}, {k:'rain',vol:40}, {k:'rainywindow',vol:30}]
+};
+function resolveTrackKey(name) {
+  var normalized = String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  return trackAliases[normalized] || '';
+}
+function ensureTrackPlaying(key, volume) {
+  var t = tracks[key];
+  if(!t) return false;
+  t.isPlaying = true;
+  if(t.btn){
+    var btnEl = document.getElementById(t.btn);
+    if(btnEl) btnEl.textContent = t.labelPause;
+  }
+  if(t.vol && volume != null){
+    var volEl = document.getElementById(t.vol);
+    if(volEl) volEl.value = volume;
+  }
+  if(!t.player){
+    createPlayer(key);
+    return true;
+  }
+  if(typeof t.player.setVolume === 'function' && volume != null) t.player.setVolume(volume);
+  if(typeof t.player.playVideo === 'function') t.player.playVideo();
+  return true;
+}
+function stopTrackByKey(key) {
+  var t = tracks[key];
+  if(!t) return false;
+  t.isPlaying = false;
+  if(t.player && typeof t.player.pauseVideo === 'function') t.player.pauseVideo();
+  if(t.btn){
+    var btnEl = document.getElementById(t.btn);
+    if(btnEl) btnEl.textContent = t.labelPlay;
+  }
+  return true;
+}
+window._homerAmbientAudio = {
+  getState: function(){
+    var activeTracks = Object.keys(tracks).filter(function(key){ return tracks[key].isPlaying; }).map(function(key){
+      var track = tracks[key];
+      var volume = track.vol ? Number((document.getElementById(track.vol) || {}).value || 0) : 0;
+      return { key:key, volume:volume };
+    });
+    return {
+      activeTracks: activeTracks,
+      availableTracks: Object.keys(trackAliases).filter(function(key, index, list){ return list.indexOf(key) === index; }),
+      availableMixes: Object.keys(ambientMixes)
+    };
+  },
+  playTrack: function(name, volume){
+    var key = resolveTrackKey(name);
+    if(!key) return false;
+    return ensureTrackPlaying(key, volume == null ? null : Number(volume));
+  },
+  stopTrack: function(name){
+    var key = resolveTrackKey(name);
+    if(!key) return false;
+    return stopTrackByKey(key);
+  },
+  stopAll: stopAll,
+  playMix: function(name){
+    var key = String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    if(!ambientMixes[key]) return false;
+    playMix(ambientMixes[key]);
+    return true;
+  }
+};
+
+let noSleep = typeof NoSleep !== 'undefined' ? new NoSleep() : null;
+  let wakeLockSentinel = null;
+  let isKeepingAwake = false;
+  const btnWake = document.getElementById('btn-wake');
+
+  // FIX: Bulletproof Toggle for Keep Awake that won't conflict with background loops
+  async function acquireWakeLock() {
+      if ('wakeLock' in navigator) {
+          try {
+              wakeLockSentinel = await navigator.wakeLock.request('screen');
+              wakeLockSentinel.addEventListener('release', () => {
+                  wakeLockSentinel = null;
+              });
+          } catch (err) {}
+      }
+  }
+
+  async function toggleWakeLock() {
+      if (!isKeepingAwake) {
+          // Turn ON
+          isKeepingAwake = true;
+          try { if (noSleep) noSleep.enable(); } catch(_e){}
+          await acquireWakeLock();
+
+          if (btnWake) {
+              btnWake.textContent = 'Ã°Å¸â€˜â‚¬ Keeping Awake...';
+              btnWake.classList.remove('danger');
+              btnWake.classList.add('secondary');
+          }
+          if(typeof updateWakeDot==='function') updateWakeDot();
+      } else {
+          // Turn OFF
+          isKeepingAwake = false;
+          try { if (noSleep) noSleep.disable(); } catch(_e){}
+
+          if (wakeLockSentinel) {
+              try { await wakeLockSentinel.release(); } catch(e) {}
+              wakeLockSentinel = null;
+          }
+
+          if (btnWake) {
+              btnWake.textContent = 'Ã¢Ëœâ€¢ Keep Awake';
+              btnWake.classList.add('danger');
+              btnWake.classList.remove('secondary');
+          }
+          if(typeof updateWakeDot==='function') updateWakeDot();
+      }
+  }
+
+  if (btnWake) {
+      btnWake.addEventListener('click', toggleWakeLock);
+  }
+
+  // Restore wake lock only if the user actively wants it kept awake
+  document.addEventListener('visibilitychange', async () => {
+      if (isKeepingAwake && document.visibilityState === 'visible' && !wakeLockSentinel) {
+         await acquireWakeLock();
+      }
+  });
+
+  setInterval(async () => {
+      if (isKeepingAwake && document.visibilityState === 'visible' && !wakeLockSentinel) {
+          await acquireWakeLock();
+      }
+  }, 10000);
+
+  // FAB Keep Awake button - query DOM lazily since button is below this script
+  function updateWakeDot(){
+    var d = document.querySelector('#fab-wake .fab-dot');
+    if(d) d.className = 'fab-dot ' + (isKeepingAwake ? 'ok' : 'off');
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    var fabWake = document.getElementById('fab-wake');
+    if(fabWake){
+      fabWake.addEventListener('click', function(){
+        toggleWakeLock(); setTimeout(updateWakeDot, 150);
+      });
+    }
+    updateWakeDot();
+  });
+  if(btnWake){
+    btnWake.addEventListener('click', function(){ setTimeout(updateWakeDot, 100); });
+  }
+
+let tvWidgetCreated = false;
+    let tvRotxCreated = false;
+
+    // News sources by country
+    const newsSources = {
+      ro: [
+        {name:'Digi24 Economie', url:'https://www.digi24.ro/rss/economie'},
+        {name:'Ziarul Financiar', url:'https://www.zf.ro/rss'},
+        {name:'Bursa', url:'https://www.bursa.ro/titluri-bursa.xml'},
+        {name:'Economica.net', url:'https://www.economica.net/rss'},
+      ],
+      us: [
+        {name:'Reuters Business', url:'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en'},
+        {name:'CNBC', url:'https://www.cnbc.com/id/100003114/device/rss/rss.html'},
+        {name:'Bloomberg via Investing.com', url:'https://www.investing.com/rss/news_25.rss'},
+        {name:'MarketWatch', url:'https://feeds.marketwatch.com/marketwatch/topstories/'},
+        {name:'Yahoo Finance', url:'https://finance.yahoo.com/news/rssindex'},
+      ],
+      uk: [
+        {name:'BBC Business', url:'https://feeds.bbci.co.uk/news/business/rss.xml'},
+        {name:'Financial Times', url:'https://www.ft.com/rss/home/uk'},
+        {name:'The Guardian Business', url:'https://www.theguardian.com/uk/business/rss'},
+        {name:'Reuters UK', url:'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?hl=en-GB&gl=GB&ceid=GB:en'},
+      ],
+      de: [
+        {name:'Handelsblatt', url:'https://www.handelsblatt.com/contentexport/feed/top-themen'},
+        {name:'Reuters', url:'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?hl=de&gl=DE&ceid=DE:de'},
+      ],
+      fr: [
+        {name:'Les Echos', url:'https://www.lesechos.fr/rss/rss_en_continu.xml'},
+        {name:'Reuters', url:'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?hl=fr&gl=FR&ceid=FR:fr'},
+        {name:'France24 Business', url:'https://www.france24.com/en/business/rss'},
+      ],
+      eu: [
+        {name:'ECB Press', url:'https://www.ecb.europa.eu/rss/press.html'},
+        {name:'Reuters', url:'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en'},
+        {name:'Euronews Business', url:'https://www.euronews.com/rss?level=theme&name=business'},
+      ]
+    };
+
+    const countrySelect = document.getElementById('news-country');
+    const sourceSelect = document.getElementById('news-source');
+    const refreshBtn = document.getElementById('news-refresh');
+
+    function populateSources(){
+      var country = countrySelect.value;
+      var sources = newsSources[country] || [];
+      sourceSelect.innerHTML = '';
+      sources.forEach(function(s){
+        var opt = document.createElement('option');
+        opt.value = s.url;
+        opt.textContent = s.name;
+        sourceSelect.appendChild(opt);
+      });
+    }
+
+    function fetchNews(){
+      var rssUrl = sourceSelect.value;
+      if(!rssUrl) return;
+      var newsList = document.getElementById('investing-news-list');
+      newsList.innerHTML = '<p class="muted"><span class="spinner"></span> Loading news...</p>';
+      fetch('/api/rssfeed?url=' + encodeURIComponent(rssUrl))
+        .then(function(res){ return res.json(); })
+        .then(function(data){
+          newsList.innerHTML = '';
+          if(data.error){ newsList.innerHTML = '<p class="muted">Error: ' + data.error + '</p>'; return; }
+          if(!data.items || !data.items.length){
+            newsList.innerHTML = '<p class="muted">No articles found from this source.</p>';
+            return;
+          }
+          data.items.slice(0, 8).forEach(function(item){
+            var div = document.createElement('div');
+            div.className = 'saved-item fade-in';
+            var title = item.title || 'Untitled';
+            var link = item.link || '#';
+            var date = item.pubDate || '';
+            div.innerHTML =
+              '<div style="font-weight:800; margin-bottom:4px;">' +
+                '<a href="' + link.replace(/"/g,'&quot;') + '" target="_blank" style="color:var(--accent-2); text-decoration:none;">' + title.replace(/</g,'&lt;') + '</a>' +
+              '</div>' +
+              '<div class="saved-meta" style="margin-top:0;">' + date + '</div>';
+            newsList.appendChild(div);
+          });
+        })
+        .catch(function(){
+          newsList.innerHTML = '<p class="muted">Failed to load news. Try another source.</p>';
+        });
+    }
+
+    countrySelect.addEventListener('change', function(){ populateSources(); fetchNews(); });
+    sourceSelect.addEventListener('change', fetchNews);
+    refreshBtn.addEventListener('click', fetchNews);
+
+    // Initialize sources
+    populateSources();
+
+    function initInvestingTab() {
+      // S&P 500 Chart
+      if (!tvWidgetCreated && typeof TradingView !== 'undefined') {
+        new TradingView.widget({
+          "autosize": true,
+          "symbol": "AMEX:SPY",
+          "interval": "D",
+          "timezone": "Etc/UTC",
+          "theme": "dark",
+          "style": "1",
+          "locale": "en",
+          "enable_publishing": false,
+          "backgroundColor": "rgba(15, 23, 42, 1)",
+          "gridColor": "rgba(255, 255, 255, 0.06)",
+          "hide_top_toolbar": false,
+          "hide_legend": false,
+          "hide_side_toolbar": false,
+          "allow_symbol_change": true,
+          "save_image": false,
+          "container_id": "tv_chart_container",
+          "studies": [
+            "Volume@tv-basicstudies",
+            "MASimple@tv-basicstudies",
+            "RSI@tv-basicstudies"
+          ]
+        });
+        tvWidgetCreated = true;
+      }
+
+      // BET ROTX Chart
+      if (!tvRotxCreated && typeof TradingView !== 'undefined') {
+        new TradingView.widget({
+          "autosize": true,
+          "symbol": "BVB:BET",
+          "interval": "D",
+          "timezone": "Europe/Bucharest",
+          "theme": "dark",
+          "style": "1",
+          "locale": "en",
+          "enable_publishing": false,
+          "backgroundColor": "rgba(15, 23, 42, 1)",
+          "gridColor": "rgba(255, 255, 255, 0.06)",
+          "hide_top_toolbar": false,
+          "hide_legend": false,
+          "hide_side_toolbar": false,
+          "allow_symbol_change": true,
+          "save_image": false,
+          "container_id": "tv_chart_rotx",
+          "studies": [
+            "Volume@tv-basicstudies",
+            "MASimple@tv-basicstudies",
+            "RSI@tv-basicstudies"
+          ]
+        });
+        tvRotxCreated = true;
+      }
+
+      // Load news on first open
+      var newsList = document.getElementById('investing-news-list');
+      if (newsList && newsList.innerHTML.includes('spinner')) {
+        fetchNews();
+      }
+    }
+
+(function(){
+  const STORAGE_KEY = 'homer-links';
+  const grid = document.getElementById('links-grid');
+  const empty = document.getElementById('links-empty');
+  const btnAdd = document.getElementById('link-add');
+  const inEmoji = document.getElementById('link-emoji');
+  const emojiBtn = document.getElementById('link-emoji-btn');
+  const emojiPicker = document.getElementById('emoji-picker');
+  const emojiGrid = document.getElementById('emoji-grid');
+  const inName = document.getElementById('link-name');
+  const inUrl = document.getElementById('link-url');
+  const inCat = document.getElementById('link-cat');
+  const catList = document.getElementById('link-cat-list');
+  const useIcon = document.getElementById('link-use-icon');
+
+  // Emoji palette
+  var fixMojibake = window._homerFixMojibakeText || function(value){ return value; };
+  var emojis = ['Ã°Å¸â€â€”','Ã°Å¸Å’Â','Ã°Å¸â€™Â»','Ã°Å¸â€œÂ±','Ã°Å¸Å½Â®','Ã°Å¸Å½Âµ','Ã°Å¸Å½Â¬','Ã°Å¸â€œÂº','Ã°Å¸â€œÂ·','Ã°Å¸â€ºâ€™','Ã°Å¸â€™Â°','Ã°Å¸â€œÅ ','Ã°Å¸â€œË†','Ã°Å¸â€œÂ°','Ã°Å¸â€œÅ¡','Ã°Å¸â€œÂ','Ã°Å¸â€œÂ§','Ã°Å¸â€™Â¬','Ã°Å¸â€Â','Ã°Å¸â€Â§','Ã°Å¸â€ºÂ Ã¯Â¸Â','Ã¢Å¡â„¢Ã¯Â¸Â','Ã°Å¸ÂÂ ','Ã°Å¸Å¡â‚¬','Ã¢Â­Â','Ã¢ÂÂ¤Ã¯Â¸Â','Ã°Å¸â€Â¥','Ã¢Å¡Â¡','Ã°Å¸Å½Â¯','Ã°Å¸Â§Â©','Ã¢ËœÂÃ¯Â¸Â','Ã°Å¸â€”â€šÃ¯Â¸Â','Ã°Å¸â€œÂ','Ã°Å¸â€“Â¥Ã¯Â¸Â','Ã°Å¸Å½Â¨','Ã°Å¸Å½Â­','Ã°Å¸Ââ€¹Ã¯Â¸Â','Ã°Å¸Ââ€','Ã¢Ëœâ€¢','Ã°Å¸Å½â€œ','Ã°Å¸ÂÂ¦','Ã°Å¸ÂÂ¥','Ã¢Å“Ë†Ã¯Â¸Â','Ã°Å¸â€”ÂºÃ¯Â¸Â','Ã°Å¸â€œÂ¡','Ã°Å¸â€â€™','Ã°Å¸Â§Âª','Ã°Å¸Â¤â€“','Ã°Å¸â€˜Â¾','Ã°Å¸â€¢Â¹Ã¯Â¸Â','Ã°Å¸â€œÂ»','Ã°Å¸Å½Â§','Ã°Å¸Âªâ€ž','Ã°Å¸â€™Â¡','Ã°Å¸Å’Â','Ã°Å¸Å’â„¢','Ã¢Ëœâ‚¬Ã¯Â¸Â','Ã°Å¸Å’Ë†','Ã°Å¸ÂÂ¿','Ã°Å¸Â§Â '];
+
+  emojis = emojis.map(fixMojibake);
+
+  // Build emoji grid
+  emojis.forEach(function(e){
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = e;
+    btn.style.cssText = 'font-size:1.3rem;background:none;border:none;cursor:pointer;padding:6px;border-radius:8px;transition:background .15s;';
+    btn.addEventListener('mouseenter', function(){ btn.style.background='rgba(255,255,255,.12)'; });
+    btn.addEventListener('mouseleave', function(){ btn.style.background='none'; });
+    btn.addEventListener('click', function(){
+      inEmoji.value = fixMojibake(e);
+      emojiBtn.textContent = fixMojibake(e);
+      emojiPicker.style.display = 'none';
+    });
+    emojiGrid.appendChild(btn);
+  });
+
+  // Toggle picker
+  emojiBtn.addEventListener('click', function(ev){
+    ev.stopPropagation();
+    emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
+  });
+  document.addEventListener('click', function(){ emojiPicker.style.display = 'none'; });
+  emojiPicker.addEventListener('click', function(ev){ ev.stopPropagation(); });
+
+  function load(){ return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+  function save(links){ localStorage.setItem(STORAGE_KEY, JSON.stringify(links)); }
+  function addSavedLink(entry){
+    var next = entry && typeof entry === 'object' ? entry : {};
+    var name = String(next.name || next.title || '').trim();
+    var url = String(next.url || '').trim();
+    if(!name || !url) return { ok:false, error:'Missing name or url' };
+    if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    var links = load();
+    links.push({
+      emoji: String(next.emoji || '').trim() || 'ðŸ”—',
+      name: name,
+      url: url,
+      cat: String(next.category || next.cat || 'Uncategorized').trim() || 'Uncategorized',
+      useFavicon: next.useFavicon !== false
+    });
+    save(links);
+    render();
+    return { ok:true, name:name, url:url };
+  }
+  window._homerAddSavedLink = addSavedLink;
+
+  function getFavicon(url){
+    try {
+      var u = new URL(url);
+      return 'https://www.google.com/s2/favicons?domain=' + encodeURIComponent(u.hostname) + '&sz=64';
+    } catch(e){ return ''; }
+  }
+
+  function render(){
+    const links = load();
+    grid.innerHTML = '';
+    empty.style.display = links.length ? 'none' : 'block';
+
+    // update datalist with existing categories
+    var cats = [];
+    links.forEach(function(l){ if(l.cat && cats.indexOf(l.cat)===-1) cats.push(l.cat); });
+    catList.innerHTML = '';
+    cats.forEach(function(c){ var o=document.createElement('option'); o.value=c; catList.appendChild(o); });
+
+    // group by category
+    var groups = {};
+    links.forEach(function(lnk, i){
+      var key = lnk.cat || 'Uncategorized';
+      if(!groups[key]) groups[key] = [];
+      groups[key].push({lnk:lnk, idx:i});
+    });
+
+    Object.keys(groups).sort().forEach(function(cat){
+      var heading = document.createElement('h2');
+      heading.className = 'section';
+      heading.style.marginTop = '16px';
+      heading.textContent = cat;
+      grid.appendChild(heading);
+
+      groups[cat].forEach(function(item){
+        var lnk = item.lnk;
+        var div = document.createElement('div');
+        div.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin-bottom:8px;';
+
+        var showFavicon = lnk.useFavicon !== false;
+        var faviconUrl = getFavicon(lnk.url);
+        var iconHtml;
+        if(showFavicon && faviconUrl){
+          iconHtml = '<img src="' + escAttr(faviconUrl) + '" alt="" style="width:22px;height:22px;border-radius:4px;background:#fff;padding:1px;flex-shrink:0;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline\';">' +
+                     '<span style="display:none;font-size:1.2rem;flex-shrink:0;">' + (lnk.emoji || 'Ã°Å¸â€â€”') + '</span>';
+        } else {
+          iconHtml = '<span style="font-size:1.2rem;flex-shrink:0;">' + (lnk.emoji || 'Ã°Å¸â€â€”') + '</span>';
+        }
+
+        div.innerHTML =
+          iconHtml +
+          '<a href="' + escAttr(lnk.url) + '" target="_blank" rel="noopener" style="color:var(--accent-2);font-weight:700;text-decoration:none;flex:1;">' + escHtml(lnk.name) + '</a>' +
+          '<span style="color:var(--muted);font-size:.85rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(lnk.url) + '</span>' +
+          '<button class="link-copy btn ghost" data-url="' + escAttr(lnk.url) + '" style="padding:4px 10px;font-size:.8rem;flex-shrink:0;" title="Copy URL">Ã°Å¸â€œâ€¹</button>' +
+          '<button class="link-del btn" data-idx="' + item.idx + '" style="padding:4px 10px;font-size:.8rem;flex-shrink:0;">Ã¢Å“â€¢</button>';
+        grid.appendChild(div);
+      });
+    });
+
+    grid.querySelectorAll('.link-copy').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        navigator.clipboard.writeText(btn.dataset.url).then(function(){
+          btn.textContent = 'Ã¢Å“â€¦'; setTimeout(function(){ btn.textContent = 'Ã°Å¸â€œâ€¹'; }, 1200);
+        });
+      });
+    });
+
+    grid.querySelectorAll('.link-del').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var links = load();
+        links.splice(parseInt(btn.dataset.idx), 1);
+        save(links);
+        render();
+      });
+    });
+  }
+
+  function escHtml(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+  function escAttr(s){ return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  btnAdd.addEventListener('click', function(){
+    var name = inName.value.trim();
+    var url = inUrl.value.trim();
+    var cat = inCat.value.trim();
+    if(!name || !url) return;
+    if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    var links = load();
+    var chosenEmoji = inEmoji.value.trim() || 'Ã°Å¸â€â€”';
+    links.push({
+      emoji: chosenEmoji,
+      name: name,
+      url: url,
+      cat: cat || 'Uncategorized',
+      useFavicon: (chosenEmoji !== 'Ã°Å¸â€â€”') ? false : useIcon.checked
+    });
+    save(links);
+    inEmoji.value = ''; inName.value = ''; inUrl.value = ''; inCat.value = '';
+    emojiBtn.textContent = 'Ã°Å¸â€â€”';
+    render();
+  });
+
+  [inName, inUrl, inCat].forEach(function(el){
+    el.addEventListener('keydown', function(e){ if(e.key === 'Enter') btnAdd.click(); });
+  });
+
+  render();
+})();
+
+(function(){
+  // === IndexedDB Storage (replaces localStorage for vault Ã¢â‚¬â€ supports hundreds of MB) ===
+  var IDB_NAME = 'homer-vault-idb';
+  var IDB_STORE = 'kv';
+  var idbReady = new Promise(function(resolve, reject){
+    var req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = function(e){ e.target.result.createObjectStore(IDB_STORE); };
+    req.onsuccess = function(e){ resolve(e.target.result); };
+    req.onerror = function(e){ reject(e.target.error); };
+  });
+  var idb = {
+    get: function(key){
+      return idbReady.then(function(db){
+        return new Promise(function(resolve, reject){
+          var tx = db.transaction(IDB_STORE, 'readonly');
+          var req = tx.objectStore(IDB_STORE).get(key);
+          req.onsuccess = function(){ resolve(req.result !== undefined ? req.result : null); };
+          req.onerror = function(){ reject(req.error); };
+        });
+      });
+    },
+    set: function(key, value){
+      return idbReady.then(function(db){
+        return new Promise(function(resolve, reject){
+          var tx = db.transaction(IDB_STORE, 'readwrite');
+          tx.objectStore(IDB_STORE).put(value, key);
+          tx.oncomplete = function(){ resolve(); };
+          tx.onerror = function(){ reject(tx.error); };
+        });
+      });
+    },
+    del: function(key){
+      return idbReady.then(function(db){
+        return new Promise(function(resolve, reject){
+          var tx = db.transaction(IDB_STORE, 'readwrite');
+          tx.objectStore(IDB_STORE).delete(key);
+          tx.oncomplete = function(){ resolve(); };
+          tx.onerror = function(){ reject(tx.error); };
+        });
+      });
+    },
+    getAll: function(){
+      return idbReady.then(function(db){
+        return new Promise(function(resolve, reject){
+          var tx = db.transaction(IDB_STORE, 'readonly');
+          var store = tx.objectStore(IDB_STORE);
+          var keys = store.getAllKeys();
+          var vals = store.getAll();
+          tx.oncomplete = function(){
+            var d = {};
+            for(var i = 0; i < keys.result.length; i++) d[keys.result[i]] = vals.result[i];
+            resolve(d);
+          };
+          tx.onerror = function(){ reject(tx.error); };
+        });
+      });
+    },
+    clear: function(){
+      return idbReady.then(function(db){
+        return new Promise(function(resolve, reject){
+          var tx = db.transaction(IDB_STORE, 'readwrite');
+          tx.objectStore(IDB_STORE).clear();
+          tx.oncomplete = function(){ resolve(); };
+          tx.onerror = function(){ reject(tx.error); };
+        });
+      });
+    }
+  };
+
+  // Vault keys Ã¢â‚¬â€ stored in IndexedDB for large storage capacity
+  var SALT_KEY = 'homer-vault-salt';
+  var HASH_KEY = 'homer-vault-hash';
+  var DATA_KEY = 'homer-vault-data';
+  var IDB_KEYS = [SALT_KEY, HASH_KEY, DATA_KEY];
+
+  // Migrate existing localStorage vault data to IndexedDB (one-time)
+  function migrateToIdb(){
+    var tasks = [];
+    IDB_KEYS.forEach(function(k){
+      var v = localStorage.getItem(k);
+      if(v !== null){
+        tasks.push(idb.get(k).then(function(existing){
+          if(existing === null){
+            return idb.set(k, v).then(function(){ localStorage.removeItem(k); });
+          } else {
+            localStorage.removeItem(k);
+          }
+        }));
+      }
+    });
+    return Promise.all(tasks);
+  }
+
+  var cryptoKey = null;
+
+  // DOM refs
+  var lockScreen = document.getElementById('vault-lock');
+  var content = document.getElementById('vault-content');
+  var vaultUserInput = document.getElementById('vault-pw-user');
+  var pwInput = document.getElementById('vault-pw');
+  var vaultNoAccount = document.getElementById('vault-no-account');
+  var vaultLoginFields = document.getElementById('vault-login-fields');
+  var lockLabel = document.getElementById('vault-lock-label');
+  var vaultStatusLine = document.getElementById('vault-status-line');
+  var vaultModeMeta = document.getElementById('vault-mode-meta');
+  var vaultSyncBadge = document.getElementById('vault-sync-badge');
+  var vaultSyncStateChip = document.getElementById('vault-sync-state-chip');
+  var vaultSyncSummaryEl = document.getElementById('vault-sync-summary');
+  var vaultSyncDriftEl = document.getElementById('vault-sync-drift');
+  var vaultSyncLocalStampEl = document.getElementById('vault-sync-local-stamp');
+  var vaultSyncServerStampEl = document.getElementById('vault-sync-server-stamp');
+  var vaultSyncCloudStampEl = document.getElementById('vault-sync-cloud-stamp');
+  var vaultSyncFieldVersionEl = document.getElementById('vault-sync-field-version');
+  var vaultSyncNowBtn = document.getElementById('vault-sync-now');
+  var vaultOpenRecoveryBtn = document.getElementById('vault-open-recovery');
+  var vaultModePersonalBtn = document.getElementById('vault-mode-personal');
+  var vaultModeWorkBtn = document.getElementById('vault-mode-work');
+  var vdOpenKanban = document.getElementById('vd-open-kanban');
+  var vdKanbanTitle = document.getElementById('vd-kanban-title');
+  var vdKanbanDesc = document.getElementById('vd-kanban-desc');
+  var vdGoalsTitle = document.getElementById('vd-goals-title');
+  var vdGoalsDesc = document.getElementById('vd-goals-desc');
+  var projectsOverlayHost = document.getElementById('projects-overlay-host');
+  var projectsBoardTitle = document.getElementById('projects-board-title');
+  var projectsHub = document.querySelector('.projects-hub');
+  var projectDashboardGrid = document.getElementById('project-dashboard-grid');
+  var projectAddOpenBtn = document.getElementById('project-add-open');
+  var kanbanBoardTitle = document.getElementById('kanban-board-title');
+  var kanbanHeroTitle = document.getElementById('kanban-hero-title');
+  var kanbanHeroDesc = document.getElementById('kanban-hero-desc');
+  var kanbanHeroMetrics = document.getElementById('kanban-hero-metrics');
+  var unlockBtn = document.getElementById('vault-unlock');
+  var lockBtn = document.getElementById('vault-lock-btn');
+  var errorEl = document.getElementById('vault-error');
+  var notesArea = document.getElementById('vault-notes');
+  var notesWrap = document.getElementById('vault-notes-wrap');
+  var notesToggle = document.getElementById('vault-notes-toggle');
+  var notesStatus = document.getElementById('vault-notes-status');
+  var linkName = document.getElementById('vault-link-name');
+  var linkUrl = document.getElementById('vault-link-url');
+  var linkDesc = document.getElementById('vault-link-desc');
+  var linkAddBtn = document.getElementById('vault-link-add');
+  var linksList = document.getElementById('vault-links-list');
+  var linksEmpty = document.getElementById('vault-links-empty');
+  var credLabel = document.getElementById('vault-cred-label');
+  var credSite = document.getElementById('vault-cred-site');
+  var credUser = document.getElementById('vault-cred-user');
+  var credPass = document.getElementById('vault-cred-pass');
+  var credDetails = document.getElementById('vault-cred-details');
+  var credAddBtn = document.getElementById('vault-cred-add');
+  var credsList = document.getElementById('vault-creds-list');
+  var credsEmpty = document.getElementById('vault-creds-empty');
+  var goalAddBtn = document.getElementById('goal-add-btn');
+  var goalModalBg = document.getElementById('goal-modal-bg');
+  var goalModalClose = document.getElementById('goal-modal-close');
+  var goalSummary = document.getElementById('goal-summary');
+  var goalNotesInput = document.getElementById('goal-notes-input');
+  var goalReporter = document.getElementById('goal-reporter');
+  var goalAssignee = document.getElementById('goal-assignee');
+  var goalDue = document.getElementById('goal-due');
+  var goalPriority = document.getElementById('goal-priority');
+  var goalSubmit = document.getElementById('goal-submit');
+  var subModalBg = document.getElementById('subtask-modal-bg');
+  var subModalClose = document.getElementById('subtask-modal-close');
+  var subNameInput = document.getElementById('subtask-name');
+  var subEffortInput = document.getElementById('subtask-effort');
+  var subDueInput = document.getElementById('subtask-due');
+  var subNotesInput = document.getElementById('subtask-notes');
+  var subSubmitBtn = document.getElementById('subtask-submit');
+  var subModalGoalIdx = -1; // tracks which goal the subtask is for
+  var goalFilesInput = document.getElementById('goal-files');
+  var goalFilesPreview = document.getElementById('goal-files-preview');
+  var subFilesInput = document.getElementById('subtask-files');
+  var subFilesPreview = document.getElementById('subtask-files-preview');
+  var imgLightbox = document.getElementById('img-lightbox');
+  var goalLabelsWrap = document.getElementById('goal-labels-wrap');
+  var goalSearchInput = document.getElementById('goal-search');
+  var goalFilterProject = document.getElementById('goal-filter-project');
+  var goalFilterPriority = document.getElementById('goal-filter-priority');
+  var goalFilterLabel = document.getElementById('goal-filter-label');
+  var goalFilterDue = document.getElementById('goal-filter-due');
+  var goalProjectAddBtn = document.getElementById('goal-project-add');
+  var goalShowArchive = document.getElementById('goal-show-archive');
+  var goalArchiveSection = document.getElementById('goal-archive');
+  var goalArchiveList = document.getElementById('goal-archive-list');
+  var goalBacklogStrip = document.getElementById('goal-backlog-strip');
+  var goalBacklogToggle = document.getElementById('goal-backlog-toggle');
+  var goalBacklogCount = document.getElementById('goal-backlog-count');
+  var goalBacklogPeek = document.getElementById('goal-backlog-peek');
+  var goalBacklogItems = document.getElementById('goal-backlog-items');
+  var pendingGoalFiles = [];
+  var pendingSubFiles = [];
+  var selectedGoalLabels = [];
+  var draftGoalCustomFields = {};
+  var goalProjectSelect = document.getElementById('goal-project');
+  var goalCustomFieldsWrap = document.getElementById('goal-custom-fields-wrap');
+  var goalCustomFieldsHint = document.getElementById('goal-custom-fields-hint');
+  var goalCustomFieldsEl = document.getElementById('goal-custom-fields');
+  var projectModalBg = document.getElementById('project-modal-bg');
+  var projectModalClose = document.getElementById('project-modal-close');
+  var projectModalTitle = document.getElementById('project-modal-title');
+  var projectNameInput = document.getElementById('project-name');
+  var projectKeyInput = document.getElementById('project-key');
+  var projectDescInput = document.getElementById('project-desc');
+  var projectIconInput = document.getElementById('project-icon');
+  var projectColorInput = document.getElementById('project-color');
+  var projectSubmitBtn = document.getElementById('project-submit');
+  var projectFieldsModalBg = document.getElementById('project-fields-modal-bg');
+  var projectFieldsModalClose = document.getElementById('project-fields-modal-close');
+  var projectFieldsTitle = document.getElementById('project-fields-title');
+  var projectFieldsSubtitle = document.getElementById('project-fields-subtitle');
+  var projectFieldsList = document.getElementById('project-fields-list');
+  var projectFieldsAddRowBtn = document.getElementById('project-fields-add-row');
+  var projectFieldsSaveBtn = document.getElementById('project-fields-save');
+  var activeProjectFieldsProjectId = '';
+  var activeProjectModalId = '';
+  var showArchive = false;
+  var showBacklog = false;
+  var VAULT_MODE_KEY = 'homer-vault-mode';
+  var currentVaultMode = (localStorage.getItem(VAULT_MODE_KEY) || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal';
+
+  // Label definitions
+  var DEFAULT_LABELS = [
+    {name:'work', color:'#3b82f6', bg:'rgba(59,130,246,.15)'},
+    {name:'personal', color:'#8b5cf6', bg:'rgba(139,92,246,.15)'},
+    {name:'health', color:'#22c55e', bg:'rgba(34,197,94,.15)'},
+    {name:'learning', color:'#f59e0b', bg:'rgba(245,158,11,.15)'},
+    {name:'finance', color:'#06b6d4', bg:'rgba(6,182,212,.15)'},
+    {name:'urgent', color:'#ef4444', bg:'rgba(239,68,68,.15)'},
+    {name:'creative', color:'#ec4899', bg:'rgba(236,72,153,.15)'},
+    {name:'social', color:'#10b981', bg:'rgba(16,185,129,.15)'}
+  ];
+  // Color palette for custom labels
+  var LABEL_COLORS = ['#f97316','#14b8a6','#a855f7','#e11d48','#84cc16','#06b6d4','#f43f5e','#8b5cf6','#eab308','#6366f1'];
+  var DEFAULT_PROJECTS = [
+    {id:'organize-life', key:'ORG', name:'OrganizeLife', description:'Household systems, routines, planning, errands, and personal operating tasks.', color:'#60a5fa', icon:'OL', order:0},
+    {id:'apps', key:'APP', name:'Apps', description:'Product ideas, app builds, launches, fixes, and feature delivery.', color:'#22c55e', icon:'AP', order:1}
+  ];
+  function getModeProjectDefaults(mode){
+    var normalizedMode = normalizeVaultMode(mode);
+    return cloneProjects(DEFAULT_PROJECTS).map(function(project){
+      if(project.id !== 'organize-life') return project;
+      if(normalizedMode === 'work'){
+        project.name = 'OrganizeWork';
+        project.description = 'Core operating system for work planning, delivery, follow-ups, and team execution.';
+      } else {
+        project.name = 'OrganizeLife';
+        project.description = 'Household systems, routines, planning, errands, and personal operating tasks.';
+      }
+      return project;
+    });
+  }
+  var _cachedProjects = getModeProjectDefaults(currentVaultMode);
+
+  function cloneProjects(list){
+    return JSON.parse(JSON.stringify(list || []));
+  }
+  function applyModeProjectDefaults(project, mode){
+    var normalized = project && typeof project === 'object' ? Object.assign({}, project) : {};
+    if(normalized.id !== 'organize-life') return normalized;
+    var normalizedMode = normalizeVaultMode(mode);
+    var currentName = String(normalized.name || '').trim();
+    var aliases = {
+      '': true,
+      'organize-life': true,
+      'OrganizeLife': true,
+      'OrganizeWork': true,
+      'Personal Board': true
+    };
+    var hasCustomDescription = String(normalized.description || '').trim() &&
+      String(normalized.description || '').trim() !== 'Household systems, routines, planning, errands, and personal operating tasks.' &&
+      String(normalized.description || '').trim() !== 'Core operating system for work planning, delivery, follow-ups, and team execution.';
+    if(normalizedMode === 'work'){
+      if(aliases[currentName]) normalized.name = 'OrganizeWork';
+      if(!hasCustomDescription) normalized.description = 'Core operating system for work planning, delivery, follow-ups, and team execution.';
+    } else {
+      if(aliases[currentName]) normalized.name = 'OrganizeLife';
+      if(!hasCustomDescription) normalized.description = 'Household systems, routines, planning, errands, and personal operating tasks.';
+    }
+    return normalized;
+  }
+  function slugifyProjectId(value){
+    return String(value || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'project';
+  }
+  function deriveProjectKey(value){
+    var cleaned = String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if(cleaned.length >= 2) return cleaned.slice(0, 5);
+    var words = String(value || '').toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
+    var key = words.slice(0, 3).map(function(part){ return part.charAt(0); }).join('');
+    return (key || cleaned || 'PRJ').slice(0, 5);
+  }
+  function normalizeProjectFieldType(type){
+    var raw = String(type || '').trim().toLowerCase();
+    return ['text','number','date','select','toggle'].indexOf(raw) >= 0 ? raw : 'text';
+  }
+  function normalizeProjectField(field, index){
+    var raw = field && typeof field === 'object' ? field : {};
+    var name = String(raw.name || raw.label || raw.id || ('Field ' + (index + 1))).trim();
+    var type = normalizeProjectFieldType(raw.type);
+    var options = [];
+    if(type === 'select'){
+      if(Array.isArray(raw.options)){
+        options = raw.options.map(function(option){ return String(option || '').trim(); }).filter(Boolean);
+      } else {
+        options = String(raw.options || '').split(',').map(function(option){ return option.trim(); }).filter(Boolean);
+      }
+    }
+    return {
+      id: slugifyProjectId(raw.id || name || ('field-' + (index + 1))),
+      name: name || ('Field ' + (index + 1)),
+      type: type,
+      options: options
+    };
+  }
+  function normalizeProjectFields(fields){
+    var seen = {};
+    return (fields || []).map(function(field, index){
+      var normalized = normalizeProjectField(field, index);
+      var baseId = normalized.id || ('field-' + (index + 1));
+      var nextId = baseId;
+      var suffix = 2;
+      while(seen[nextId]){
+        nextId = baseId + '-' + suffix;
+        suffix++;
+      }
+      normalized.id = nextId;
+      seen[nextId] = true;
+      return normalized;
+    }).filter(function(field){ return !!field.name; });
+  }
+  function ensureProject(project, index){
+    var raw = project && typeof project === 'object' ? project : {};
+    var name = String(raw.name || raw.title || raw.id || ('Project ' + (index + 1))).trim();
+    var normalized = {
+      id: slugifyProjectId(raw.id || name),
+      key: deriveProjectKey(raw.key || name),
+      name: name,
+      description: typeof raw.description === 'string' ? raw.description : (typeof raw.desc === 'string' ? raw.desc : ''),
+      color: /^#[0-9a-f]{6}$/i.test(raw.color || '') ? raw.color : '#60a5fa',
+      icon: typeof raw.icon === 'string' ? raw.icon.trim().slice(0, 2) : '',
+      order: typeof raw.order === 'number' ? raw.order : index,
+      archived: !!raw.archived,
+      archivedAt: parseInt(raw.archivedAt || '0', 10) || 0,
+      deleted: !!raw.deleted,
+      deletedAt: parseInt(raw.deletedAt || '0', 10) || 0,
+      customFields: normalizeProjectFields(raw.customFields)
+    };
+    if(!normalized.icon) normalized.icon = normalized.key.slice(0, 2);
+    return normalized;
+  }
+  function ensureProjects(projects){
+    var map = {};
+    (projects || []).forEach(function(project, idx){
+      var normalized = ensureProject(project, idx);
+      if(map[normalized.id]) map[normalized.id] = Object.assign({}, map[normalized.id], normalized);
+      else map[normalized.id] = normalized;
+    });
+    var list = Object.keys(map).map(function(id){ return map[id]; }).filter(function(project){
+      return !project.deleted;
+    }).sort(function(a, b){
+      var archivedDelta = (a.archived ? 1 : 0) - (b.archived ? 1 : 0);
+      if(archivedDelta) return archivedDelta;
+      return (a.order || 0) - (b.order || 0) || a.name.localeCompare(b.name);
+    });
+    var seenKeys = {};
+    list.forEach(function(project, idx){
+      project.order = idx;
+      var base = deriveProjectKey(project.key || project.name);
+      var nextKey = base;
+      var suffix = 2;
+      while(seenKeys[nextKey]){
+        nextKey = (base.slice(0, Math.max(1, 5 - String(suffix).length)) + suffix).slice(0, 5);
+        suffix++;
+      }
+      project.key = nextKey;
+      seenKeys[nextKey] = true;
+    });
+    return list;
+  }
+  function getProjectById(projects, projectId){
+    var list = ensureProjects(projects || _cachedProjects);
+    return list.find(function(project){ return project.id === projectId; }) || list[0];
+  }
+  function getDefaultProjectId(projects, includeArchived){
+    var list = ensureProjects(projects || _cachedProjects);
+    var active = includeArchived ? list : list.filter(function(project){ return !project.archived; });
+    if(active.length) return active[0].id;
+    return list[0] ? list[0].id : '';
+  }
+  function isProjectArchived(projects, projectId){
+    var project = getProjectById(projects, projectId);
+    return !!(project && project.id === projectId && project.archived);
+  }
+  function activeProjectsOnly(projects){
+    return ensureProjects(projects || _cachedProjects).filter(function(project){ return !project.archived; });
+  }
+  function getProjectDeleteFallback(projects, projectId){
+    var active = activeProjectsOnly(projects).filter(function(project){ return project.id !== projectId; });
+    if(active.length) return active[0];
+    var anyOther = ensureProjects(projects || _cachedProjects).find(function(project){ return project.id !== projectId; });
+    return anyOther || null;
+  }
+  function normalizeProjectLookupKey(value){
+    return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+  }
+  function matchProject(projects, requestedProject, fallbackProjectId, strict){
+    var list = ensureProjects(projects || _cachedProjects);
+    var requested = String(requestedProject || '').trim();
+    var requestedLower = requested.toLowerCase();
+    var requestedKey = normalizeProjectLookupKey(requested);
+    var fallback = getProjectById(list, fallbackProjectId || getDefaultProjectId(list));
+    if(!requested) return fallback;
+    var exactMatch = list.find(function(project){
+      var displayProject = projectDisplay(project) || project;
+      return project.id === requestedLower ||
+        String(project.key || '').toLowerCase() === requestedLower ||
+        String(project.name || '').toLowerCase() === requestedLower ||
+        String(displayProject.name || '').toLowerCase() === requestedLower ||
+        normalizeProjectLookupKey(project.id) === requestedKey ||
+        normalizeProjectLookupKey(project.key) === requestedKey ||
+        normalizeProjectLookupKey(project.name) === requestedKey ||
+        normalizeProjectLookupKey(displayProject.name) === requestedKey;
+    });
+    if(exactMatch) return exactMatch;
+    var partialMatch = list.find(function(project){
+      var displayProject = projectDisplay(project) || project;
+      return normalizeProjectLookupKey(project.name).indexOf(requestedKey) >= 0 ||
+        normalizeProjectLookupKey(displayProject.name).indexOf(requestedKey) >= 0;
+    });
+    if(partialMatch) return partialMatch;
+    return strict ? null : fallback;
+  }
+  function issueKey(goal, projects){
+    var project = getProjectById(projects, goal && goal.projectId);
+    return (project ? project.key : 'TASK') + '-' + (goal && goal.id ? goal.id : '?');
+  }
+  function renderProjectChip(project){
+    if(!project) return '';
+    return '<span class="k-project-chip" style="color:'+project.color+';background:'+project.color+'16;border-color:'+project.color+'22;"><i></i>'+escHtml(project.name)+'</span>';
+  }
+  function issueProgress(goal){
+    if(!goal || goal.archived) return 0;
+    if(goal.col === 'done') return 100;
+    if(goal.subtasks && goal.subtasks.length){
+      var done = goal.subtasks.filter(function(sub){ return sub.done; }).length;
+      return Math.round((done / goal.subtasks.length) * 100);
+    }
+    if(goal.col === 'pending') return 82;
+    if(goal.col === 'progress') return 58;
+    return goal.col === 'backlog' ? 0 : 12;
+  }
+  function projectMetrics(goals){
+    var active = (goals || []).filter(function(goal){ return !goal.archived; });
+    var counts = {todo:0, progress:0, pending:0, backlog:0, done:0, overdue:0};
+    var progress = 0;
+    active.forEach(function(goal){
+      counts[goal.col] = (counts[goal.col] || 0) + 1;
+      progress += issueProgress(goal);
+      if(goal.col !== 'done' && dueDiffDays(goal.due) < 0) counts.overdue++;
+    });
+    return {
+      total: active.length,
+      progress: active.length ? Math.round(progress / active.length) : 0,
+      counts: counts
+    };
+  }
+  function getProjectCustomFields(projects, projectId){
+    var project = getProjectById(projects || _cachedProjects, projectId);
+    return project && Array.isArray(project.customFields) ? project.customFields : [];
+  }
+  function customFieldLabel(field){
+    return String(field && field.name || 'Field').trim() || 'Field';
+  }
+  function customFieldInputValue(field, value){
+    if(field.type === 'toggle') return !!value;
+    if(field.type === 'number') return value == null ? '' : String(value);
+    return String(value == null ? '' : value);
+  }
+  function renderCustomFieldInputsHtml(project, values, classPrefix){
+    var fields = getProjectCustomFields([project], project && project.id);
+    var fieldValues = values && typeof values === 'object' ? values : {};
+    if(!fields.length) return '';
+    var controlStyle = 'width:100%;padding:9px 10px;border-radius:10px;border:1px solid rgba(148,163,184,.14);background:rgba(15,23,42,.42);color:var(--text);font-size:.84rem;';
+    return fields.map(function(field){
+      var value = customFieldInputValue(field, fieldValues[field.id]);
+      var inputHtml = '';
+      if(field.type === 'select'){
+        inputHtml = '<select class="' + classPrefix + '-input" data-field-id="' + field.id + '" style="' + controlStyle + '">' +
+          '<option value="">Select ' + escHtml(customFieldLabel(field)) + '</option>' +
+          (field.options || []).map(function(option){
+            return '<option value="' + escAttr(option) + '"' + (value === option ? ' selected' : '') + '>' + escHtml(option) + '</option>';
+          }).join('') +
+        '</select>';
+      } else if(field.type === 'date'){
+        inputHtml = '<input type="date" class="' + classPrefix + '-input" data-field-id="' + field.id + '" value="' + escAttr(value) + '" style="' + controlStyle + '">';
+      } else if(field.type === 'number'){
+        inputHtml = '<input type="number" class="' + classPrefix + '-input" data-field-id="' + field.id + '" value="' + escAttr(value) + '" placeholder="' + escAttr(customFieldLabel(field)) + '" style="' + controlStyle + '">';
+      } else if(field.type === 'toggle'){
+        inputHtml = '<label style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;border:1px solid rgba(148,163,184,.14);background:rgba(15,23,42,.42);"><input type="checkbox" class="' + classPrefix + '-input" data-field-id="' + field.id + '"' + (value ? ' checked' : '') + '><span>' + escHtml(customFieldLabel(field)) + '</span></label>';
+      } else {
+        inputHtml = '<input type="text" class="' + classPrefix + '-input" data-field-id="' + field.id + '" value="' + escAttr(value) + '" placeholder="' + escAttr(customFieldLabel(field)) + '" style="' + controlStyle + '">';
+      }
+      return '<div class="project-custom-field" data-field-type="' + field.type + '" style="display:flex;flex-direction:column;gap:5px;">' +
+        (field.type === 'toggle' ? '' : '<label style="font-size:.72rem;font-weight:700;color:rgba(148,163,184,.88);">' + escHtml(customFieldLabel(field)) + '</label>') +
+        inputHtml +
+      '</div>';
+    }).join('');
+  }
+  function readCustomFieldInputs(container, classPrefix){
+    var next = {};
+    if(!container) return next;
+    container.querySelectorAll('.' + classPrefix + '-input[data-field-id]').forEach(function(input){
+      var fieldId = input.getAttribute('data-field-id');
+      if(!fieldId) return;
+      var value = input.type === 'checkbox' ? !!input.checked : String(input.value || '').trim();
+      if(input.type === 'checkbox'){
+        if(value) next[fieldId] = true;
+        return;
+      }
+      if(value !== '') next[fieldId] = value;
+    });
+    return next;
+  }
+  function renderGoalProjectCustomFields(projectId, values){
+    if(!goalCustomFieldsWrap || !goalCustomFieldsEl) return;
+    var project = getProjectById(_cachedProjects, projectId);
+    var fields = getProjectCustomFields(_cachedProjects, projectId);
+    if(!fields.length){
+      goalCustomFieldsWrap.style.display = 'none';
+      goalCustomFieldsEl.innerHTML = '';
+      return;
+    }
+    goalCustomFieldsWrap.style.display = 'block';
+    if(goalCustomFieldsHint) goalCustomFieldsHint.textContent = (projectDisplay(project) || project).name + ' issue metadata';
+    goalCustomFieldsEl.innerHTML = renderCustomFieldInputsHtml(project, values || {}, 'goal-cf');
+  }
+  function mapGoalCustomFieldsForProject(project, rawValues){
+    var next = {};
+    var values = rawValues && typeof rawValues === 'object' ? rawValues : {};
+    var fields = getProjectCustomFields([project], project && project.id);
+    fields.forEach(function(field){
+      var byId = values[field.id];
+      var byName = values[field.name];
+      var value = byId != null ? byId : byName;
+      if(value == null || value === '') return;
+      if(field.type === 'toggle'){
+        if(value === true || value === 'true' || value === 1 || value === '1') next[field.id] = true;
+        return;
+      }
+      next[field.id] = String(value).trim();
+    });
+    return next;
+  }
+  window._homerMapGoalCustomFieldsForProject = mapGoalCustomFieldsForProject;
+  function getLabelDef(name){
+    var found = DEFAULT_LABELS.find(function(l){ return l.name === name; });
+    if(found) return found;
+    // Generate color from name hash
+    var hash = 0;
+    for(var c = 0; c < name.length; c++) hash = name.charCodeAt(c) + ((hash << 5) - hash);
+    var color = LABEL_COLORS[Math.abs(hash) % LABEL_COLORS.length];
+    var r = parseInt(color.slice(1,3),16), gr = parseInt(color.slice(3,5),16), b = parseInt(color.slice(5,7),16);
+    return {name:name, color:color, bg:'rgba('+r+','+gr+','+b+',.15)'};
+  }
+  // All labels = defaults + any custom ones found across goals
+  function getAllLabels(goals){
+    var all = DEFAULT_LABELS.slice();
+    var names = {};
+    DEFAULT_LABELS.forEach(function(l){ names[l.name] = true; });
+    (goals || []).forEach(function(g){
+      (g.labels || []).forEach(function(name){
+        if(!names[name]){ names[name] = true; all.push(getLabelDef(name)); }
+      });
+    });
+    return all;
+  }
+  var EFFORT_POINTS = {s:1, m:2, l:3, xl:5};
+  var goalCustomLabelInput = document.getElementById('goal-custom-label');
+  var goalCustomLabelAdd = document.getElementById('goal-custom-label-add');
+
+  var isNew = true;
+
+  // Initialize: migrate localStorage Ã¢â€ â€™ IndexedDB, then check if vault exists
+  migrateToIdb().then(function(){
+    return idb.get(HASH_KEY);
+  }).then(function(hash){
+    isNew = !hash;
+    // Pre-fill username from account if logged in
+    var acctUser = localStorage.getItem('homer-auth-user');
+    if(acctUser){
+      vaultUserInput.value = acctUser;
+      vaultNoAccount.style.display = 'none';
+      vaultLoginFields.style.display = '';
+      unlockBtn.style.display = '';
+      if(isNew){
+        lockLabel.textContent = 'Create Vault';
+        unlockBtn.textContent = 'Create Vault';
+      }
+    } else {
+      vaultNoAccount.style.display = '';
+      vaultLoginFields.style.display = 'none';
+      unlockBtn.style.display = 'none';
+    }
+  });
+
+  // --- Crypto helpers ---
+  function getSalt(){
+    return idb.get(SALT_KEY).then(function(s){
+      if(s) return base64ToBytes(s);
+      var salt = crypto.getRandomValues(new Uint8Array(16));
+      return idb.set(SALT_KEY, bytesToBase64(salt)).then(function(){ return salt; });
+    });
+  }
+  function deriveKey(password, salt){
+    return crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey'])
+      .then(function(base){
+        return crypto.subtle.deriveKey({name:'PBKDF2', salt:salt, iterations:600000, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+      });
+  }
+  function hashPassword(password, salt){
+    return crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits'])
+      .then(function(base){ return crypto.subtle.deriveBits({name:'PBKDF2', salt:salt, iterations:600000, hash:'SHA-256'}, base, 256); })
+      .then(function(bits){ return bytesToBase64(new Uint8Array(bits)); });
+  }
+  function encrypt(key, plaintext){
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    return crypto.subtle.encrypt({name:'AES-GCM', iv:iv}, key, new TextEncoder().encode(plaintext))
+      .then(function(ct){ var c=new Uint8Array(iv.length+ct.byteLength); c.set(iv); c.set(new Uint8Array(ct),iv.length); return bytesToBase64(c); });
+  }
+  function decrypt(key, cipherB64){
+    var data = base64ToBytes(cipherB64);
+    return crypto.subtle.decrypt({name:'AES-GCM', iv:data.slice(0,12)}, key, data.slice(12))
+      .then(function(pt){ return new TextDecoder().decode(pt); });
+  }
+  function bytesToBase64(b){ var s=''; b.forEach(function(x){s+=String.fromCharCode(x);}); return btoa(s); }
+  function base64ToBytes(s){ var d=atob(s); var a=new Uint8Array(d.length); for(var i=0;i<d.length;i++) a[i]=d.charCodeAt(i); return a; }
+
+  // --- Vault data ---
+  function normalizeVaultMode(mode){
+    return mode === 'work' ? 'work' : 'personal';
+  }
+  function defaultData(mode){ return {notes:'', links:[], creds:[], goals:[], lifeGoals:[], projects:getModeProjectDefaults(mode), _nextId:1, _nextLgId:1, _nextSubId:1}; }
+  function defaultVaultRoot(){
+    return {
+      version: 2,
+      profiles: {
+        personal: defaultData('personal'),
+        work: defaultData('work')
+      }
+    };
+  }
+  function ensureProfileData(data, mode){
+    var next = data && typeof data === 'object' ? data : {};
+    if(typeof next.notes !== 'string') next.notes = '';
+    if(!Array.isArray(next.links)) next.links = [];
+    if(!Array.isArray(next.creds)) next.creds = [];
+    if(!Array.isArray(next.goals)) next.goals = [];
+    if(!Array.isArray(next.lifeGoals)) next.lifeGoals = [];
+    var rawProjects = Array.isArray(next.projects) ? next.projects : getModeProjectDefaults(mode);
+    rawProjects = rawProjects.map(function(project){ return applyModeProjectDefaults(project, mode); });
+    var visibleProjects = ensureProjects(rawProjects);
+    var visibleProjectIds = {};
+    visibleProjects.forEach(function(project){ visibleProjectIds[project.id] = true; });
+    var deletedProjects = rawProjects.map(function(project, index){
+      return ensureProject(project, index);
+    }).filter(function(project){
+      return project.deleted && !visibleProjectIds[project.id];
+    });
+    next.projects = visibleProjects.concat(deletedProjects);
+    var knownProjects = {};
+    visibleProjects.forEach(function(project){ knownProjects[project.id] = true; });
+    var defaultProjectId = getDefaultProjectId(visibleProjects, true);
+    next.goals = next.goals.map(function(goal){
+      if(!goal || typeof goal !== 'object') return goal;
+      if(!goal.projectId || !knownProjects[goal.projectId]) goal.projectId = defaultProjectId;
+      if(!goal.customFields || typeof goal.customFields !== 'object' || Array.isArray(goal.customFields)) goal.customFields = {};
+      return goal;
+    });
+    if(!next._nextId) next._nextId = next.goals.length + 1;
+    if(!next._nextLgId) next._nextLgId = next.lifeGoals.length + 1;
+    if(!next._nextSubId) next._nextSubId = 1;
+    return next;
+  }
+  function ensureVaultRoot(raw){
+    if(raw && raw.profiles && typeof raw.profiles === 'object'){
+      return {
+        version: 2,
+        profiles: {
+          personal: ensureProfileData(raw.profiles.personal, 'personal'),
+          work: ensureProfileData(raw.profiles.work, 'work')
+        }
+      };
+    }
+    return {
+      version: 2,
+      profiles: {
+        personal: ensureProfileData(raw, 'personal'),
+        work: defaultData('work')
+      }
+    };
+  }
+  var _vaultRootCache = null;
+  function loadVaultRoot(){
+    if(_vaultRootCache) return Promise.resolve(_vaultRootCache);
+    return idb.get(DATA_KEY).then(function(stored){
+      if(!stored){ _vaultRootCache = defaultVaultRoot(); return _vaultRootCache; }
+      return decrypt(cryptoKey, stored).then(function(json){
+        try{ _vaultRootCache = ensureVaultRoot(JSON.parse(json)); }catch(e){ _vaultRootCache = defaultVaultRoot(); }
+        return _vaultRootCache;
+      });
+    });
+  }
+  function getActiveVaultData(root){
+    var normalizedRoot = ensureVaultRoot(root);
+    var mode = normalizeVaultMode(currentVaultMode);
+    if(!normalizedRoot.profiles[mode]) normalizedRoot.profiles[mode] = defaultData(mode);
+    normalizedRoot.profiles[mode] = ensureProfileData(normalizedRoot.profiles[mode], mode);
+    return normalizedRoot.profiles[mode];
+  }
+  function getVaultDataForMode(root, mode){
+    var normalizedRoot = ensureVaultRoot(root);
+    var resolvedMode = normalizeVaultMode(mode);
+    if(!normalizedRoot.profiles[resolvedMode]) normalizedRoot.profiles[resolvedMode] = defaultData(resolvedMode);
+    normalizedRoot.profiles[resolvedMode] = ensureProfileData(normalizedRoot.profiles[resolvedMode], resolvedMode);
+    return normalizedRoot.profiles[resolvedMode];
+  }
+  function loadVaultForMode(mode){
+    return loadVaultRoot().then(function(root){
+      return getVaultDataForMode(root, mode);
+    });
+  }
+  function loadVault(){
+    return loadVaultForMode(currentVaultMode);
+  }
+  function saveVaultForMode(mode, data){
+    return loadVaultRoot().then(function(root){
+      var nextRoot = ensureVaultRoot(root);
+      var normalizedMode = normalizeVaultMode(mode);
+      nextRoot.profiles[normalizedMode] = ensureProfileData(data, normalizedMode);
+      _vaultRootCache = nextRoot;
+      return encrypt(cryptoKey, JSON.stringify(nextRoot)).then(function(enc){
+        return idb.set(DATA_KEY, enc).then(function(result){
+          if(typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-local-save-ts');
+          if(typeof window._homerScheduleDbBackup === 'function') window._homerScheduleDbBackup('vault-save');
+          if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('vault-save', 1800);
+          if(typeof window._homerMarkCloudDirty === 'function') window._homerMarkCloudDirty('vault-save');
+          try{
+            window.dispatchEvent(new CustomEvent('vault-goals-changed', {
+              detail:{
+                reason:'vault-save',
+                mode:normalizedMode,
+                data:nextRoot.profiles[normalizedMode]
+              }
+            }));
+          }catch(_e){}
+          return result;
+        });
+      });
+    });
+  }
+  function saveVault(data){
+    return saveVaultForMode(currentVaultMode, data);
+  }
+
+  // Expose vault functions globally for AI Agent chat and Goals page
+  window._homerLoadVault = loadVault;
+  window._homerLoadVaultForMode = loadVaultForMode;
+  window._homerSaveVault = function(data){ return saveVault(data); };
+  window._homerSaveVaultForMode = function(mode, data){ return saveVaultForMode(mode, data); };
+  window._homerOpenIssue = function(gi, si){ openIssueFullscreen(gi, si); };
+  window._homerGetVaultMode = function(){ return currentVaultMode; };
+  function getCachedVaultData(){
+    return getActiveVaultData(_vaultRootCache || defaultVaultRoot());
+  }
+  function isVaultOverlayOpen(id){
+    var el = document.getElementById(id);
+    if(!el) return false;
+    return el.classList.contains('open') || el.style.display !== 'none';
+  }
+  function shouldDeferKanbanRefresh(){
+    var active = document.activeElement;
+    if(!active || !active.closest) return false;
+    return !!(
+      active.closest('.kanban-card.expanded') ||
+      active.closest('#issue-overlay') ||
+      active.closest('#goal-modal-bg.open') ||
+      active.closest('#subtask-modal-bg.open')
+    );
+  }
+  var liveVaultUiTimer = null;
+  function scheduleVaultUiRefresh(data){
+    if(!window._homerVaultUnlocked) return;
+    var payload = ensureProfileData(data || getCachedVaultData(), currentVaultMode);
+    _cachedProjects = ensureProjects(payload.projects || _cachedProjects);
+    clearTimeout(liveVaultUiTimer);
+    liveVaultUiTimer = setTimeout(function(){
+      renderVault();
+      if(isVaultOverlayOpen('projects-overlay')) renderProjectDashboard(payload);
+      if(isVaultOverlayOpen('kanban-overlay') && !shouldDeferKanbanRefresh()){
+        populateProjectControls(payload.projects, payload.goals, {
+          preserveFilter:true,
+          selectedFilter:goalFilterProject ? goalFilterProject.value : '',
+          preferredTaskProject:(goalProjectSelect && goalProjectSelect.value) || getDefaultProjectId(payload.projects)
+        });
+        renderGoals(payload.goals || [], payload.projects || []);
+      }
+      if(isVaultOverlayOpen('goals-overlay') && typeof window._refreshLifeGoals === 'function') window._refreshLifeGoals();
+    }, 20);
+  }
+  window.addEventListener('vault-goals-changed', function(e){
+    var detail = e && e.detail || {};
+    if(detail.mode && detail.mode !== normalizeVaultMode(currentVaultMode)) return;
+    scheduleVaultUiRefresh(detail.data || null);
+  });
+
+  function modeLabel(mode){
+    return normalizeVaultMode(mode) === 'work' ? 'Work' : 'Personal';
+  }
+  var vaultMirrorStatusState = {
+    tone:'idle',
+    badgeTone:'idle',
+    label:'Checking',
+    summary:'Checking encrypted mirror status...',
+    localStamp:'Not yet',
+    serverStamp:'Not yet',
+    cloudStamp:'Not yet',
+    fieldVersion:'v0',
+    driftChips:[]
+  };
+  var vaultMirrorRefreshInFlight = null;
+  var vaultMirrorRefreshAt = 0;
+  function getVaultSyncPassphrase(){
+    return String(localStorage.getItem('homer-sync-pass') || '').trim();
+  }
+  function formatVaultSyncStamp(ts){
+    var num = parseInt(ts || '0', 10);
+    if(!num) return 'Not yet';
+    return new Date(num).toLocaleString();
+  }
+  function formatVaultSyncShortStamp(ts){
+    var num = parseInt(ts || '0', 10);
+    if(!num) return 'new';
+    var dt = new Date(num);
+    if(isNaN(dt.getTime())) return 'new';
+    var now = new Date();
+    var sameDay = dt.getFullYear() === now.getFullYear() && dt.getMonth() === now.getMonth() && dt.getDate() === now.getDate();
+    return sameDay
+      ? dt.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
+      : dt.toLocaleDateString([], { day:'2-digit', month:'short' });
+  }
+  function renderVaultMirrorStatus(){
+    var state = vaultMirrorStatusState || {};
+    if(vaultSyncStateChip){
+      vaultSyncStateChip.className = 'vault-sync-state-chip ' + (state.tone || 'idle');
+      vaultSyncStateChip.textContent = state.label || 'Checking';
+    }
+    if(vaultSyncSummaryEl) vaultSyncSummaryEl.textContent = state.summary || '';
+    if(vaultSyncLocalStampEl) vaultSyncLocalStampEl.textContent = state.localStamp || 'Not yet';
+    if(vaultSyncServerStampEl) vaultSyncServerStampEl.textContent = state.serverStamp || 'Not yet';
+    if(vaultSyncCloudStampEl) vaultSyncCloudStampEl.textContent = state.cloudStamp || 'Not yet';
+    if(vaultSyncFieldVersionEl) vaultSyncFieldVersionEl.textContent = state.fieldVersion || 'v0';
+    if(vaultSyncDriftEl){
+      vaultSyncDriftEl.innerHTML = (state.driftChips || []).map(function(chip){
+        return '<span class="vault-sync-drift-chip ' + escAttr(chip.tone || 'warn') + '">' + escHtml(chip.label || '') + '</span>';
+      }).join('');
+    }
+  }
+  function setVaultMirrorStatus(state){
+    vaultMirrorStatusState = Object.assign({}, vaultMirrorStatusState, state || {});
+    renderVaultMirrorStatus();
+    updateVaultSyncBadge();
+  }
+  window._homerSetVaultMirrorStatus = setVaultMirrorStatus;
+  function getVaultSyncBadgeState(){
+    var syncPass = getVaultSyncPassphrase();
+    var lastDbSync = parseInt(localStorage.getItem('homer-db-backup-ts') || '0', 10);
+    var lastSave = parseInt(localStorage.getItem('homer-local-save-ts') || '0', 10);
+    var compared = vaultMirrorStatusState || {};
+    if(compared.badgeTone === 'mismatch'){
+      return { tone:'alert', text:'drift', title:compared.summary || 'This device differs from the server mirror.' };
+    }
+    if(compared.badgeTone === 'match'){
+      return { tone:'synced', text:'match', title:compared.summary || ('Updated ' + formatVaultSyncStamp(lastDbSync)) };
+    }
+    if(lastSave && (!lastDbSync || lastSave > lastDbSync)){
+      return { tone:'pending', text:'save', title:'Local changes are waiting to sync.' };
+    }
+    if(!syncPass){
+      return { tone:'idle', text:'local', title:'Cloud sync is off on this device.' };
+    }
+    if(!lastDbSync){
+      return { tone:'idle', text:'new', title:'No database mirror has completed yet.' };
+    }
+    return {
+      tone:'synced',
+      text:formatVaultSyncShortStamp(lastDbSync),
+      title:'Updated ' + formatVaultSyncStamp(lastDbSync)
+    };
+  }
+  function updateVaultSyncBadge(){
+    if(!vaultSyncBadge) return;
+    if(!window._homerVaultUnlocked){
+      vaultSyncBadge.style.display = 'none';
+      return;
+    }
+    var state = getVaultSyncBadgeState();
+    vaultSyncBadge.className = 'vault-sync-badge ' + state.tone;
+    vaultSyncBadge.textContent = state.text;
+    vaultSyncBadge.title = state.title;
+    vaultSyncBadge.style.display = 'inline-flex';
+  }
+  window._homerUpdateVaultSyncBadge = function(){
+    try{ updateVaultSyncBadge(); }catch(_e){}
+  };
+  window._homerEscHtml = function(value){
+    try{ return escHtml(value); }catch(_e){ return String(value == null ? '' : value); }
+  };
+  function projectDisplay(project){
+    return project || null;
+  }
+  function renderVaultModeUi(){
+    var isWork = normalizeVaultMode(currentVaultMode) === 'work';
+    if(vaultModePersonalBtn) vaultModePersonalBtn.className = isWork ? 'personal' : 'active personal';
+    if(vaultModeWorkBtn) vaultModeWorkBtn.className = isWork ? 'active work' : 'work';
+    if(vaultStatusLine) vaultStatusLine.textContent = 'Ã°Å¸â€â€œ ' + modeLabel(currentVaultMode) + ' vault unlocked';
+    if(vaultModeMeta) vaultModeMeta.textContent = modeLabel(currentVaultMode) + ' profile is active. Tasks, notes, goals, and secrets stay separate from ' + (isWork ? 'Personal' : 'Work') + '.';
+    if(vdOpenKanban && vdOpenKanban.querySelector('.vd-icon')) vdOpenKanban.querySelector('.vd-icon').textContent = '\u{1F4CB}';
+    if(document.getElementById('vd-open-goals') && document.getElementById('vd-open-goals').querySelector('.vd-icon')) document.getElementById('vd-open-goals').querySelector('.vd-icon').textContent = '\u{1F3AF}';
+    if(document.getElementById('vd-open-secrets') && document.getElementById('vd-open-secrets').querySelector('.vd-icon')) document.getElementById('vd-open-secrets').querySelector('.vd-icon').textContent = '\u{1F511}';
+    if(document.getElementById('vd-open-notes') && document.getElementById('vd-open-notes').querySelector('.vd-icon')) document.getElementById('vd-open-notes').querySelector('.vd-icon').textContent = '\u{1F4DD}';
+    if(vdKanbanTitle) vdKanbanTitle.textContent = 'Project Command Center';
+    if(vdKanbanDesc) vdKanbanDesc.textContent = isWork ? 'Open work projects, progress, and agile flow' : 'Open personal projects, progress, and agile flow';
+    if(vdGoalsTitle) vdGoalsTitle.textContent = isWork ? 'Work Goals' : 'Life Goals';
+    if(vdGoalsDesc) vdGoalsDesc.textContent = isWork ? 'Track work outcomes and milestones' : 'Track your aspirations';
+    if(projectsBoardTitle) projectsBoardTitle.textContent = (isWork ? 'Work ' : 'Personal ') + 'Project Command Center';
+    if(kanbanBoardTitle) kanbanBoardTitle.textContent = 'Ã°Å¸â€œâ€¹ ' + modeLabel(currentVaultMode) + ' Board';
+    renderVaultMirrorStatus();
+    updateVaultSyncBadge();
+  }
+  function buildJoeyProjectInstruction(){
+    var projects = ensureProjects(_cachedProjects || DEFAULT_PROJECTS);
+    var activeProjects = projects.filter(function(project){ return !project.archived; });
+    var archivedProjects = projects.filter(function(project){ return project.archived; });
+    var activeLines = activeProjects.map(function(project){
+      var displayProject = projectDisplay(project) || project;
+      var fields = (project.customFields || []).map(function(field){ return field.name + ':' + field.type; }).join(', ');
+      return '- ' + displayProject.name + ' (' + project.key + ', id: ' + project.id + ')' + (fields ? ' | fields: ' + fields : '');
+    });
+    var archivedLines = archivedProjects.map(function(project){
+      var displayProject = projectDisplay(project) || project;
+      var fields = (project.customFields || []).map(function(field){ return field.name + ':' + field.type; }).join(', ');
+      return '- ' + displayProject.name + ' (' + project.key + ', id: ' + project.id + ')' + (fields ? ' | fields: ' + fields : '');
+    });
+    return '\n\n=== PROJECT STRUCTURE ===\n- Active ' + modeLabel(currentVaultMode).toLowerCase() + ' projects:\n' + (activeLines.length ? activeLines.join('\n') : '- None') + '\n' +
+      (archivedLines.length ? '- Archived projects:\n' + archivedLines.join('\n') + '\n' : '- Archived projects: none\n') +
+      '- When the user says "add a task in project X", output TASK JSON with "project":"X" or "projectId":"..." using the exact project name, display name, key, or id.\n' +
+      '- If the user names a project, never omit the project field and never silently fall back to another project.\n' +
+      '- If the user asks for relevant subtasks, include 2-6 concrete subtasks that fit that project instead of generic placeholders.\n' +
+      '- If a project has custom fields and the user provides values, include them in TASK JSON under "customFields" as an object keyed by field name or id.\n' +
+      '- Never place new tasks in archived projects. If the user names an archived project, restore it with a PROJECT action or ask them first.\n' +
+      '- If the user explicitly asks to create, rename, edit, archive, restore, or delete a project, append a PROJECT action.\n' +
+      '- For PROJECT update actions, use "project":"Current Project" to target the existing project, then send changed fields like "name", "description", "icon", "color", or "key".\n' +
+      '- If no project is specified, default to the currently selected project; if none is selected, use the first active project.';
+  }
+  window._homerBuildJoeyProjectInstruction = buildJoeyProjectInstruction;
+  function normalizeAgentUiSearch(value){
+    return String(value == null ? '' : value).toLowerCase().replace(/[^a-z0-9]+/g, '');
+  }
+  function getAgentUiSurface(el){
+    var node = el && el.closest ? el.closest('section[id], .vault-ov[id], .goals-overlay[id], .issue-overlay[id], .focus-overlay[id], [id]') : null;
+    if(!node) return 'global';
+    return String(node.id || node.getAttribute('data-tab') || node.tagName || 'global')
+      .replace(/^tab-/, '')
+      .replace(/-overlay$/, '')
+      .replace(/-/g, ' ');
+  }
+  function getAgentUiAssociatedLabel(el){
+    if(!el || !el.id) return '';
+    try{
+      var label = document.querySelector('label[for="' + CSS.escape(el.id) + '"]');
+      if(label) return String(label.textContent || '').replace(/\s+/g, ' ').trim();
+    }catch(_e){}
+    return '';
+  }
+  function getAgentUiControlLabel(el){
+    if(!el) return '';
+    var text = '';
+    var associatedLabel = getAgentUiAssociatedLabel(el);
+    if(el.tagName === 'SELECT'){
+      text = (associatedLabel || el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('placeholder') || el.id || el.name || '');
+    } else if(el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'){
+      text = associatedLabel || el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('placeholder') || el.id || el.name || '';
+    } else {
+      text = el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || el.id || '';
+    }
+    return String(text || '').replace(/\s+/g, ' ').trim();
+  }
+  function isAgentUiElementVisible(el){
+    if(!el || !el.getBoundingClientRect) return false;
+    var style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+    if(style && (style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none')) return false;
+    if(el.hidden) return false;
+    var rect = el.getBoundingClientRect();
+    return !!(rect.width || rect.height || el.getClientRects().length);
+  }
+  function shouldExposeAgentField(el){
+    if(!el || !el.matches) return false;
+    if(el.matches('input[type="hidden"], input[type="password"], input[type="file"], input[type="button"], input[type="submit"], input[type="reset"]')) return false;
+    if(el.disabled) return false;
+    return !!getAgentUiControlLabel(el);
+  }
+  function shouldExposeAgentButton(el){
+    if(!el || !el.matches) return false;
+    if(el.disabled) return false;
+    return !!getAgentUiControlLabel(el);
+  }
+  function collectAgentUiInventory(){
+    var seen = {};
+    var lines = [];
+    function pushLine(kind, el){
+      var label = getAgentUiControlLabel(el);
+      if(!label) return;
+      var surface = getAgentUiSurface(el);
+      var id = String(el.id || '').trim();
+      var key = kind + '|' + normalizeAgentUiSearch(label) + '|' + surface + '|' + id;
+      if(seen[key]) return;
+      seen[key] = true;
+      var type = '';
+      if(kind === 'field'){
+        if(el.tagName === 'SELECT') type = 'select';
+        else if(el.tagName === 'TEXTAREA') type = 'textarea';
+        else if(el.isContentEditable) type = 'contenteditable';
+        else type = String(el.type || 'input').toLowerCase();
+      }
+      lines.push('- [' + surface + '] ' + kind + ' "' + label + '"' + (id ? ' (#' + id + ')' : '') + (type ? ' {' + type + '}' : ''));
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('button, [role="button"], a.btn, .tab-btn, .sb-item, .mnav-btn'), function(el){
+      if(shouldExposeAgentButton(el)) pushLine('button', el);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('input, textarea, select, [contenteditable=""], [contenteditable="true"]'), function(el){
+      if(shouldExposeAgentField(el)) pushLine('field', el);
+    });
+    return lines.slice(0, 160);
+  }
+  function buildAgentElementTokens(el){
+    var tokens = [];
+    var label = getAgentUiControlLabel(el);
+    var attrs = [
+      label,
+      getAgentUiAssociatedLabel(el),
+      getAgentUiSurface(el),
+      el && el.id,
+      el && el.getAttribute && el.getAttribute('aria-label'),
+      el && el.getAttribute && el.getAttribute('title'),
+      el && el.getAttribute && el.getAttribute('placeholder'),
+      el && el.getAttribute && el.getAttribute('name'),
+      el && el.getAttribute && el.getAttribute('data-tab'),
+      el && el.value
+    ];
+    attrs.forEach(function(value){
+      var normalized = normalizeAgentUiSearch(value);
+      if(normalized && tokens.indexOf(normalized) < 0) tokens.push(normalized);
+    });
+    return tokens;
+  }
+  function scoreAgentElementMatch(el, rawTarget){
+    var target = normalizeAgentUiSearch(rawTarget);
+    if(!target) return 0;
+    var score = 0;
+    buildAgentElementTokens(el).forEach(function(token){
+      if(token === target) score = Math.max(score, 120);
+      else if(token.indexOf(target) >= 0) score = Math.max(score, 90);
+      else if(target.indexOf(token) >= 0) score = Math.max(score, 70);
+    });
+    if(score && isAgentUiElementVisible(el)) score += 5;
+    return score;
+  }
+  function findAgentUiElement(target, kind){
+    var selector = kind === 'field'
+      ? 'input, textarea, select, [contenteditable=""], [contenteditable="true"]'
+      : 'button, [role="button"], a.btn, .tab-btn, .sb-item, .mnav-btn';
+    var filter = kind === 'field' ? shouldExposeAgentField : shouldExposeAgentButton;
+    var bestVisible = null;
+    var bestVisibleScore = 0;
+    var bestHidden = null;
+    var bestHiddenScore = 0;
+    Array.prototype.forEach.call(document.querySelectorAll(selector), function(el){
+      if(!filter(el)) return;
+      var score = scoreAgentElementMatch(el, target);
+      if(!score) return;
+      if(isAgentUiElementVisible(el)){
+        if(score > bestVisibleScore){
+          bestVisible = el;
+          bestVisibleScore = score;
+        }
+      } else if(score > bestHiddenScore){
+        bestHidden = el;
+        bestHiddenScore = score;
+      }
+    });
+    return bestVisibleScore >= 70 ? bestVisible : (bestHiddenScore >= 70 ? bestHidden : null);
+  }
+  function setAgentFieldValue(el, value){
+    if(!el) return false;
+    var nextValue = String(value == null ? '' : value);
+    if(el.tagName === 'SELECT'){
+      var wanted = normalizeAgentUiSearch(nextValue);
+      var matched = false;
+      Array.prototype.forEach.call(el.options || [], function(option){
+        if(matched) return;
+        var optionValue = normalizeAgentUiSearch(option.value);
+        var optionText = normalizeAgentUiSearch(option.textContent);
+        if(optionValue === wanted || optionText === wanted || optionValue.indexOf(wanted) >= 0 || optionText.indexOf(wanted) >= 0){
+          el.value = option.value;
+          matched = true;
+        }
+      });
+      if(!matched) return false;
+    } else if(el.type === 'checkbox'){
+      el.checked = /^(1|true|yes|on|checked)$/i.test(nextValue);
+    } else if(el.type === 'radio'){
+      el.checked = /^(1|true|yes|on|checked)$/i.test(nextValue) || normalizeAgentUiSearch(el.value) === normalizeAgentUiSearch(nextValue);
+    } else if(el.isContentEditable || el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === ''){
+      el.textContent = nextValue;
+    } else if(typeof writePersistentFieldValue === 'function'){
+      writePersistentFieldValue(el, nextValue);
+    } else {
+      el.value = nextValue;
+    }
+    if(typeof dispatchPersistentFieldSyncEvents === 'function') dispatchPersistentFieldSyncEvents(el);
+    return true;
+  }
+  function buildJoeyWebsiteInstruction(){
+    var mode = (typeof currentContextMode !== 'undefined' && currentContextMode === 'work')
+      ? 'work'
+      : (((localStorage.getItem('homer-oc-mode') || localStorage.getItem('homer-vault-mode')) === 'work') ? 'work' : 'personal');
+    var vaultMode = typeof window._homerGetVaultMode === 'function' ? window._homerGetVaultMode() : mode;
+    var pomodoroState = typeof window._homerPomodoroAgent === 'object' && window._homerPomodoroAgent && typeof window._homerPomodoroAgent.getState === 'function'
+      ? window._homerPomodoroAgent.getState()
+      : null;
+    var soundState = typeof window._homerAmbientAudio === 'object' && window._homerAmbientAudio && typeof window._homerAmbientAudio.getState === 'function'
+      ? window._homerAmbientAudio.getState()
+      : null;
+    var focusState = typeof window._homerFocusLabAgent === 'object' && window._homerFocusLabAgent && typeof window._homerFocusLabAgent.getState === 'function'
+      ? window._homerFocusLabAgent.getState()
+      : null;
+    var pomodoroLine = pomodoroState
+      ? ('- Pomodoro live state: ' + (pomodoroState.running ? 'running ' : 'idle ') + pomodoroState.mode + ' | remaining ' + pomodoroState.remainingLabel + ' | active focus task: ' + (pomodoroState.activeTask || 'none') + ' | open quick tasks: ' + pomodoroState.openTasks + '.\n')
+      : '';
+    var soundLine = soundState
+      ? ('- Ambient sound live state: ' + (soundState.activeTracks.length ? soundState.activeTracks.map(function(track){ return track.key + ' ' + track.volume + '%'; }).join(', ') : 'nothing playing') + '.\n')
+      : '';
+    var focusLine = focusState
+      ? ('- Focus Lab live state: breathing ' + (focusState.breathingRunning ? ('running (' + focusState.breathingPhase + ')') : 'stopped') + ' | zen ' + (focusState.zenActive ? ('active with goal "' + focusState.zenGoal + '"') : 'inactive') + ' | brain dump chars: ' + focusState.brainDumpLength + '.\n')
+      : '';
+    var uiInventory = collectAgentUiInventory();
+    return '\n\n=== WEBSITE MAP ===\n' +
+      '- Tabs: home, pomodoro, focuslab, investing, tools, links, news, vault.\n' +
+      '- Focus Lab includes box breathing, zen mode, and brain dump.\n' +
+      '- Pomodoro stores quick focus tasks.\n' +
+      pomodoroLine +
+      soundLine +
+      focusLine +
+      '- Links tab stores non-secret saved links.\n' +
+      '- Vault contains projects/kanban, life goals, encrypted notes, private links, credentials, and sync/recovery.\n' +
+      '- Joey also controls memory commit, Drive backup, Drive compare/sync, and vault mirror status.\n' +
+      '- Current Joey mode: ' + mode + '. Current vault mode: ' + vaultMode + '.\n' +
+      '- Create and update tasks, projects, secrets, notes, and backups only inside the current mode. Personal writes go only to the Personal vault/profile and Personal Drive backup. Work writes go only to the Work vault/profile and Work Drive backup.\n' +
+      '\n=== EXECUTABLE ACTIONS ===\n' +
+      '- Supported action tags are TASK, GOAL, FOCUS, EVENT, REMEMBER, FORGET, PROJECT, NOTE, LINK, SECRET, and COMMAND.\n' +
+      '- Only output these exact action tags. Never invent unsupported tags.\n' +
+      '- If the user asks for something informational or conversational, answer normally without action tags.\n' +
+      '- If the user provides an existing issue key like APP-13, update that issue with TASK JSON using "key":"APP-13" instead of creating a new task.\n' +
+      '- Issue update format: [ACTION:TASK]{"op":"update","key":"APP-13","summary":"Updated title","notes":"Updated notes","status":"progress","priority":"high"}[/ACTION]\n' +
+      '\nNOTE:\n' +
+      '- Vault note format: [ACTION:NOTE]{"target":"vault","text":"Encrypted note text"}[/ACTION]\n' +
+      '- Brain dump format: [ACTION:NOTE]{"target":"brain-dump","text":"Raw thoughts"}[/ACTION]\n' +
+      '- Zen goal format: [ACTION:NOTE]{"target":"zen-goal","text":"One clear goal"}[/ACTION]\n' +
+      '\nLINK:\n' +
+      '- Saves a non-secret link to the Links tab.\n' +
+      '- Format: [ACTION:LINK]{"name":"Docs","url":"https://example.com","category":"Work","emoji":"ðŸ”—"}[/ACTION]\n' +
+      '\nSECRET:\n' +
+      '- Use type "link" for private links and type "credential" for passwords.\n' +
+      '- Secret link format: [ACTION:SECRET]{"type":"link","name":"Admin","url":"https://admin.example.com","description":"Internal panel"}[/ACTION]\n' +
+      '- Credential format: [ACTION:SECRET]{"type":"credential","label":"GitHub","site":"github.com","username":"user","password":"secret","details":"2FA enabled"}[/ACTION]\n' +
+      '\nCOMMAND:\n' +
+      '- Use COMMAND only when the user explicitly asks the app to do something operational.\n' +
+      '- Supported COMMAND ops:\n' +
+      '  [ACTION:COMMAND]{"op":"tab","target":"vault"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"mode","target":"work"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"open","target":"notes"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"drive-sync"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"drive-backup"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"memory-commit"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"vault-mirror"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"issue-open","key":"APP-13"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"pomodoro-start"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"pomodoro-pause"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"pomodoro-reset"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"pomodoro-skip"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"sound-play","target":"rain"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"sound-stop","target":"rain"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"sound-mix","target":"reading"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"zen-start","target":"Deep work"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"zen-stop"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"breathing-start"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"breathing-stop"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"click","target":"Play Jazz"}[/ACTION]\n' +
+      '  [ACTION:COMMAND]{"op":"set-field","target":"brain-dump","value":"Raw notes"}[/ACTION]\n' +
+      '- COMMAND target values for open: notes, secrets, projects, kanban, goals.\n' +
+      '- COMMAND target values for sound-play: ocean, fire, rain, jazz, cafe, lofi, wind, synthwave.\n' +
+      '- COMMAND target values for sound-mix: sleep, rainy, reading, cozy.\n' +
+      '- Generic COMMAND click can target a button by visible text, aria-label, or id.\n' +
+      '- Generic COMMAND set-field can target an input, textarea, select, or contenteditable by placeholder, label text, name, or id.\n' +
+      '\n=== UI INVENTORY ===\n' +
+      (uiInventory.length ? uiInventory.join('\n') + '\n' : '- No UI inventory available.\n') +
+      '- If a command requires the vault to be unlocked and it is locked, explain that instead of pretending it succeeded.\n';
+  }
+  window._homerBuildJoeyWebsiteInstruction = buildJoeyWebsiteInstruction;
+  function refreshVaultModeViews(){
+    if(!window._homerVaultUnlocked) return;
+    renderVault();
+    if(document.getElementById('kanban-overlay').style.display !== 'none'){
+      loadVault().then(function(data){ renderGoals(data.goals || [], data.projects || []); });
+    }
+    if(document.getElementById('projects-overlay').style.display !== 'none'){
+      loadVault().then(function(data){ renderProjectDashboard(data); });
+    }
+    if(document.getElementById('secrets-overlay').style.display !== 'none'){
+      loadVault().then(function(data){ renderLinks(data.links || []); renderCreds(data.creds || []); });
+    }
+    if(typeof window._refreshLifeGoals === 'function' && document.getElementById('goals-overlay').classList.contains('open')){
+      window._refreshLifeGoals();
+    }
+  }
+  function applyVaultMode(mode, options){
+    options = options || {};
+    currentVaultMode = normalizeVaultMode(mode);
+    localStorage.setItem(VAULT_MODE_KEY, currentVaultMode);
+    localStorage.setItem('homer-oc-mode', currentVaultMode);
+    renderVaultModeUi();
+    if(kanbanBoardTitle) kanbanBoardTitle.textContent = modeLabel(currentVaultMode) + ' Project Board';
+    if(!options.skipRender) refreshVaultModeViews();
+    if(!options.silent){
+      window.dispatchEvent(new CustomEvent('homer-context-mode-changed', { detail:{ mode: currentVaultMode, source: options.source || 'vault' } }));
+    }
+  }
+  renderVaultModeUi();
+  if(kanbanBoardTitle) kanbanBoardTitle.textContent = modeLabel(currentVaultMode) + ' Project Board';
+  if(projectsHub && projectsOverlayHost && projectsHub.parentNode !== projectsOverlayHost){
+    projectsOverlayHost.appendChild(projectsHub);
+  }
+  if(vaultModePersonalBtn) vaultModePersonalBtn.addEventListener('click', function(){ applyVaultMode('personal'); });
+  if(vaultModeWorkBtn) vaultModeWorkBtn.addEventListener('click', function(){ applyVaultMode('work'); });
+  window.addEventListener('homer-context-mode-changed', function(e){
+    var detail = e && e.detail || {};
+    if(detail.source === 'vault') return;
+    var nextMode = normalizeVaultMode(detail.mode);
+    if(nextMode === currentVaultMode) return;
+    applyVaultMode(nextMode, { silent:true, source:'joey' });
+  });
+
+  // --- R2 Attachment Cloud Sync ---
+  var R2_WORKER_URL = 'https://homer-attachments.it-network-drive.workers.dev';
+
+  function getSyncPass(){ return localStorage.getItem('homer-sync-pass') || ''; }
+
+  function encryptBlob(key, buffer){
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    return crypto.subtle.encrypt({name:'AES-GCM', iv:iv}, key, buffer).then(function(ct){
+      var combined = new Uint8Array(iv.byteLength + ct.byteLength);
+      combined.set(iv, 0);
+      combined.set(new Uint8Array(ct), iv.byteLength);
+      return combined.buffer;
+    });
+  }
+  function decryptBlob(key, encBuf){
+    var data = new Uint8Array(encBuf);
+    return crypto.subtle.decrypt({name:'AES-GCM', iv:data.slice(0,12)}, key, data.slice(12));
+  }
+  function dataUrlToBuffer(dataUrl){
+    var parts = dataUrl.split(','); var bin = atob(parts[1]);
+    var buf = new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++) buf[i]=bin.charCodeAt(i);
+    return buf.buffer;
+  }
+  function bufferToDataUrl(buf, mime){
+    var bytes = new Uint8Array(buf); var s='';
+    for(var i=0;i<bytes.length;i++) s+=String.fromCharCode(bytes[i]);
+    return 'data:'+mime+';base64,'+btoa(s);
+  }
+
+  function uploadToR2(attachment, goalIdx, subtaskIdx){
+    var pass = getSyncPass();
+    if(!pass || !cryptoKey || !R2_WORKER_URL) return Promise.resolve(null);
+    return encryptBlob(cryptoKey, dataUrlToBuffer(attachment.data)).then(function(enc){
+      return fetch(R2_WORKER_URL+'/upload',{
+        method:'POST',
+        headers:{
+          'X-Sync-Key':pass,
+          'X-Filename':attachment.name,
+          'X-Mimetype':attachment.type,
+          'X-Goal-Idx':String(goalIdx),
+          'X-Subtask-Idx':subtaskIdx!==undefined?String(subtaskIdx):'',
+        },
+        body:enc,
+      });
+    }).then(function(r){return r.json();})
+      .then(function(d){return d.ok?d.id:null;})
+      .catch(function(){return null;});
+  }
+
+  function downloadFromR2(id){
+    var pass = getSyncPass();
+    if(!pass || !cryptoKey || !R2_WORKER_URL) return Promise.resolve(null);
+    return fetch(R2_WORKER_URL+'/download/'+id,{headers:{'X-Sync-Key':pass}})
+      .then(function(r){
+        if(!r.ok) return null;
+        var fname = r.headers.get('X-Filename')||'file';
+        var mime = r.headers.get('X-Mimetype')||'application/octet-stream';
+        return r.arrayBuffer().then(function(enc){
+          return decryptBlob(cryptoKey, enc).then(function(dec){
+            return {name:fname, type:mime, data:bufferToDataUrl(dec, mime)};
+          });
+        });
+      }).catch(function(){return null;});
+  }
+
+  function deleteFromR2(id){
+    var pass = getSyncPass();
+    if(!pass || !R2_WORKER_URL) return Promise.resolve();
+    return fetch(R2_WORKER_URL+'/delete/'+id,{method:'DELETE',headers:{'X-Sync-Key':pass}}).catch(function(){});
+  }
+
+  // Upload all attachments for a goal (and its subtasks) to R2, save r2ids back
+  function syncGoalAttachmentsToR2(goalIdx){
+    if(!R2_WORKER_URL || !getSyncPass()) return Promise.resolve();
+    return loadVault().then(function(data){
+      var g = data.goals[goalIdx];
+      if(!g) return;
+      var tasks = [];
+      (g.attachments||[]).forEach(function(a, ai){
+        if(a.data && !a.r2id){
+          tasks.push(uploadToR2(a, goalIdx).then(function(id){ if(id) data.goals[goalIdx].attachments[ai].r2id = id; }));
+        }
+      });
+      (g.subtasks||[]).forEach(function(s, si){
+        (s.attachments||[]).forEach(function(a, ai){
+          if(a.data && !a.r2id){
+            tasks.push(uploadToR2(a, goalIdx, si).then(function(id){ if(id) data.goals[goalIdx].subtasks[si].attachments[ai].r2id = id; }));
+          }
+        });
+      });
+      if(!tasks.length) return;
+      return Promise.all(tasks).then(function(){ return saveVault(data); });
+    });
+  }
+
+  // Restore attachments from R2 for all goals (call after vault unlock)
+  function restoreAttachmentsFromR2(){
+    if(!R2_WORKER_URL || !getSyncPass() || !cryptoKey) return Promise.resolve();
+    return loadVault().then(function(data){
+      var downloads = [];
+      data.goals.forEach(function(g, gi){
+        (g.attachments||[]).forEach(function(a, ai){
+          if(a.r2id && !a.data){
+            downloads.push(downloadFromR2(a.r2id).then(function(full){
+              if(full){ full.r2id = a.r2id; data.goals[gi].attachments[ai] = full; }
+            }));
+          }
+        });
+        (g.subtasks||[]).forEach(function(s, si){
+          (s.attachments||[]).forEach(function(a, ai){
+            if(a.r2id && !a.data){
+              downloads.push(downloadFromR2(a.r2id).then(function(full){
+                if(full){ full.r2id = a.r2id; data.goals[gi].subtasks[si].attachments[ai] = full; }
+              }));
+            }
+          });
+        });
+      });
+      if(!downloads.length) return;
+      return Promise.all(downloads).then(function(){ return saveVault(data); });
+    });
+  }
+
+  // Cloud-safe vault: strip attachment data, keep r2id references
+  window._vaultCloudData = function(){
+    if(!cryptoKey) return idb.get(DATA_KEY);
+    return loadVaultRoot().then(function(root){
+      var cleanRoot = JSON.parse(JSON.stringify(ensureVaultRoot(root)));
+      ['personal','work'].forEach(function(mode){
+        var profile = ensureProfileData(cleanRoot.profiles[mode], mode);
+        if(profile.goals) profile.goals.forEach(function(g){
+          if(g.attachments) g.attachments = g.attachments.map(function(a){ return {name:a.name,type:a.type,r2id:a.r2id||''}; });
+          else g.attachments = [];
+          if(g.subtasks) g.subtasks.forEach(function(s){
+            if(s.attachments) s.attachments = s.attachments.map(function(a){ return {name:a.name,type:a.type,r2id:a.r2id||''}; });
+            else s.attachments = [];
+          });
+        });
+        cleanRoot.profiles[mode] = profile;
+      });
+      return encrypt(cryptoKey, JSON.stringify(cleanRoot));
+    });
+  };
+
+  // --- Notes autosave ---
+  var notesSaveTimer = null;
+  notesArea.addEventListener('input', function(){
+    clearTimeout(notesSaveTimer);
+    notesStatus.textContent = 'saving...';
+    notesSaveTimer = setTimeout(function(){
+      loadVault().then(function(data){
+        data.notes = notesArea.value;
+        saveVault(data).then(function(){
+          notesStatus.textContent = 'saved';
+          setTimeout(function(){ notesStatus.textContent=''; }, 2000);
+        });
+      });
+    }, 800);
+  });
+
+  // Notes toggle
+  var notesHidden = false;
+  notesToggle.addEventListener('click', function(){
+    notesHidden = !notesHidden;
+    notesWrap.style.display = notesHidden ? 'none' : 'block';
+    notesToggle.textContent = notesHidden ? 'Show' : 'Hide';
+  });
+
+  function renderProjectRing(pct, color, label){
+    var safePct = Math.max(0, Math.min(100, parseInt(pct || '0', 10) || 0));
+    var radius = 18;
+    var circumference = 2 * Math.PI * radius;
+    var offset = circumference - (safePct / 100) * circumference;
+    return '<div class="project-ring">' +
+      '<svg viewBox="0 0 48 48">' +
+        '<circle cx="24" cy="24" r="' + radius + '" class="ring-bg"></circle>' +
+        '<circle cx="24" cy="24" r="' + radius + '" class="ring-fg" stroke="' + color + '" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + offset + '"></circle>' +
+      '</svg>' +
+      '<div class="project-ring-label"><strong>' + safePct + '%</strong><span>' + escHtml(label || 'Done') + '</span></div>' +
+    '</div>';
+  }
+  function renderProjectStatRing(pct, color){
+    var safePct = Math.max(0, Math.min(100, parseInt(pct || '0', 10) || 0));
+    var radius = 20;
+    var circumference = 2 * Math.PI * radius;
+    var offset = circumference - (safePct / 100) * circumference;
+    return '<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="' + radius + '" class="ring-bg"></circle><circle cx="24" cy="24" r="' + radius + '" class="ring-fg" stroke="' + color + '" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + offset + '"></circle></svg><span class="ring-label">' + safePct + '%</span>';
+  }
+  function persistProjectMutation(data, reason, mode){
+    return saveVaultForMode(mode || currentVaultMode, data).then(function(){
+      var backupTask = typeof window._homerBackupEverythingToDb === 'function'
+        ? window._homerBackupEverythingToDb()
+        : flushDbBackupNow(reason || 'project-mutation');
+      return Promise.resolve(backupTask).catch(function(err){
+        console.warn('[Projects] Immediate DB mirror failed:', reason || 'project-mutation', err && err.message ? err.message : err);
+        return flushDbBackupNow((reason || 'project-mutation') + '-retry');
+      }).then(function(){ return data; });
+    });
+  }
+  function backupProjectsNow(btn){
+    var original = btn ? btn.textContent : '';
+    var syncPass = getVaultSyncPassphrase();
+    if(!syncPass){
+      if(btn){
+        btn.disabled = true;
+        btn.textContent = 'Sign In To Sync';
+        setTimeout(function(){
+          btn.disabled = false;
+          btn.textContent = original || 'Mirror Vault Now';
+        }, 1500);
+      }
+      return Promise.resolve({ ok:false, skipped:true, reason:'sync-off' });
+    }
+    if(btn){ btn.disabled = true; btn.textContent = 'Mirroring...'; }
+    var backupTask = typeof window._homerBackupEverythingToDb === 'function'
+      ? window._homerBackupEverythingToDb()
+      : flushDbBackupNow('project-dashboard-manual');
+    return Promise.resolve(backupTask).then(function(result){
+      var ok = !!(result && result.ok);
+      if(btn) btn.textContent = ok ? 'Mirrored' : 'Retry Mirror';
+      setTimeout(function(){
+        if(btn){
+          btn.disabled = false;
+          btn.textContent = original || 'Mirror Vault Now';
+        }
+      }, 1400);
+      updateVaultSyncBadge();
+      return result;
+    }).catch(function(err){
+      if(btn){
+        btn.textContent = 'Retry Mirror';
+        setTimeout(function(){
+          btn.disabled = false;
+          btn.textContent = original || 'Mirror Vault Now';
+        }, 1600);
+      }
+      console.warn('[Projects] Manual DB backup failed:', err && err.message ? err.message : err);
+      return { ok:false, error: err && err.message ? err.message : String(err) };
+    });
+  }
+  function createProjectEntry(projectData, options){
+    var mode = resolveAgentActionMode(options);
+    return loadVaultForMode(mode).then(function(data){
+      var projects = ensureProjects(data.projects || []);
+      var name = String(projectData && (projectData.name || projectData.title) || '').trim();
+      if(!name) return { ok:false, reason:'missing-name' };
+      var id = slugifyProjectId(projectData.id || name);
+      if(projects.some(function(project){
+        return project.id === id || String(project.name || '').toLowerCase() === name.toLowerCase();
+      })){
+        return { ok:false, reason:'exists', projectId:id };
+      }
+      var key = deriveProjectKey(projectData.key || name);
+      if(projects.some(function(project){ return project.key === key; })){
+        var suffix = 2;
+        var base = key;
+        while(projects.some(function(project){ return project.key === key; })){
+          key = (base.slice(0, Math.max(1, 5 - String(suffix).length)) + suffix).slice(0, 5);
+          suffix++;
+        }
+      }
+      data.projects = ensureProjects((data.projects || []).concat([{
+        id: id,
+        key: key,
+        name: name,
+        description: String(projectData.description || projectData.desc || '').trim(),
+        icon: String(projectData.icon || '').trim(),
+        color: /^#[0-9a-f]{6}$/i.test(projectData.color || '') ? projectData.color : '#60a5fa',
+        order: projects.length
+      }]));
+      return persistProjectMutation(data, 'project-create', mode).then(function(){
+        return { ok:true, projectId:id, name:name, key:key };
+      });
+    });
+  }
+  function updateProjectEntry(projectId, projectData, options){
+    var mode = resolveAgentActionMode(options);
+    return loadVaultForMode(mode).then(function(data){
+      var projects = ensureProjects(data.projects || []);
+      var project = projects.find(function(entry){ return entry && entry.id === projectId; });
+      if(!project) return { ok:false, reason:'missing' };
+      var nextName = String(projectData && (projectData.name || projectData.title) || project.name || '').trim();
+      if(!nextName) return { ok:false, reason:'missing-name' };
+      var nextKey = deriveProjectKey(projectData && (projectData.key || project.key || nextName) || nextName);
+      if(projects.some(function(entry){
+        return entry && entry.id !== projectId && (
+          String(entry.name || '').toLowerCase() === nextName.toLowerCase() ||
+          String(entry.key || '').toUpperCase() === nextKey
+        );
+      })){
+        return { ok:false, reason:'exists', projectId:projectId };
+      }
+      project.name = nextName;
+      project.key = nextKey;
+      project.description = String(projectData && (projectData.description || projectData.desc) || '').trim();
+      project.icon = String(projectData && projectData.icon || '').trim();
+      project.color = /^#[0-9a-f]{6}$/i.test(projectData && projectData.color || '') ? projectData.color : (project.color || '#60a5fa');
+      data.projects = ensureProjects(projects);
+      return persistProjectMutation(data, 'project-update', mode).then(function(){
+        return { ok:true, projectId:projectId, name:nextName, key:nextKey };
+      });
+    });
+  }
+  function archiveProjectById(projectId, options){
+    var mode = resolveAgentActionMode(options);
+    return loadVaultForMode(mode).then(function(data){
+      var projects = ensureProjects(data.projects || []);
+      var project = projects.find(function(entry){ return entry.id === projectId; });
+      if(!project) return { ok:false, reason:'missing' };
+      if(activeProjectsOnly(projects).length <= 1){
+        alert('Create or restore another project before archiving the last active one.');
+        return { ok:false, reason:'last-active' };
+      }
+      project.archived = true;
+      project.archivedAt = Date.now();
+      data.projects = ensureProjects(projects);
+      if(goalFilterProject && goalFilterProject.value === projectId) goalFilterProject.value = '';
+      return persistProjectMutation(data, 'project-archive', mode).then(function(){ return { ok:true, projectId:projectId }; });
+    });
+  }
+  function restoreProjectById(projectId, options){
+    var mode = resolveAgentActionMode(options);
+    return loadVaultForMode(mode).then(function(data){
+      var projects = ensureProjects(data.projects || []);
+      var project = projects.find(function(entry){ return entry.id === projectId; });
+      if(!project) return { ok:false, reason:'missing' };
+      project.archived = false;
+      project.archivedAt = 0;
+      data.projects = ensureProjects(projects);
+      return persistProjectMutation(data, 'project-restore', mode).then(function(){ return { ok:true, projectId:projectId }; });
+    });
+  }
+  function deleteProjectById(projectId, options){
+    var mode = resolveAgentActionMode(options);
+    return loadVaultForMode(mode).then(function(data){
+      var projects = ensureProjects(data.projects || []);
+      var project = projects.find(function(entry){ return entry.id === projectId; });
+      if(!project) return { ok:false, reason:'missing' };
+      var fallbackProject = getProjectDeleteFallback(projects, projectId);
+      var projectGoals = (data.goals || []).filter(function(goal){ return goal.projectId === projectId; });
+      if(!fallbackProject){
+        alert('Create or restore another project before deleting the last active one.');
+        return { ok:false, reason:'last-active' };
+      }
+      var movePrompt = projectGoals.length
+        ? '\n\n' + projectGoals.length + ' issue' + (projectGoals.length === 1 ? '' : 's') + ' will be moved to "' + (projectDisplay(fallbackProject) || fallbackProject).name + '" so no data is lost.'
+        : '';
+      if(!confirm('Delete project "' + project.name + '"?' + movePrompt)) return { ok:false, reason:'cancelled' };
+      if(projectGoals.length){
+        projectGoals.forEach(function(goal){
+          goal.projectId = fallbackProject.id;
+          addLogEntry(goal, 'Project deleted, moved to ' + (projectDisplay(fallbackProject) || fallbackProject).name);
+        });
+      }
+      var remainingEntries = (data.projects || []).filter(function(entry){ return entry && entry.id !== projectId; });
+      data.projects = remainingEntries.map(function(entry, idx){
+        if(entry && !entry.deleted) entry.order = idx;
+        return entry;
+      });
+      if(goalFilterProject && goalFilterProject.value === projectId) goalFilterProject.value = projectGoals.length ? fallbackProject.id : '';
+      return persistProjectMutation(data, 'project-delete', mode).then(function(){ return { ok:true, projectId:projectId }; });
+    });
+  }
+  function populateProjectControls(projects, goals, options){
+    options = options || {};
+    var allProjects = ensureProjects(projects || _cachedProjects);
+    var list = activeProjectsOnly(allProjects);
+    _cachedProjects = allProjects;
+    var currentFilter = goalFilterProject ? goalFilterProject.value : '';
+    var preferredTaskProject = options.preferredTaskProject || (goalProjectSelect ? goalProjectSelect.value : '') || currentFilter || getDefaultProjectId(allProjects);
+    if(goalFilterProject){
+      goalFilterProject.innerHTML = '<option value="">All Projects</option>';
+      list.forEach(function(project){
+        var displayProject = projectDisplay(project) || project;
+        var option = document.createElement('option');
+        option.value = project.id;
+        option.textContent = displayProject.name;
+        goalFilterProject.appendChild(option);
+      });
+      if(options.preserveFilter !== false && currentFilter && list.some(function(project){ return project.id === currentFilter; })){
+        goalFilterProject.value = currentFilter;
+      } else if(options.selectedFilter && list.some(function(project){ return project.id === options.selectedFilter; })){
+        goalFilterProject.value = options.selectedFilter;
+      } else if(!goalFilterProject.value){
+        goalFilterProject.value = '';
+      }
+    }
+    if(goalProjectSelect){
+      goalProjectSelect.innerHTML = '<option value="">Project *</option>';
+      list.forEach(function(project){
+        var displayProject = projectDisplay(project) || project;
+        var option = document.createElement('option');
+        option.value = project.id;
+        option.textContent = displayProject.name + ' (' + project.key + ')';
+        goalProjectSelect.appendChild(option);
+      });
+      if(list.some(function(project){ return project.id === preferredTaskProject; })){
+        goalProjectSelect.value = preferredTaskProject;
+      }
+    }
+  }
+
+  function openProjectBoard(projectId){
+    if(goalFilterProject) goalFilterProject.value = projectId || '';
+    var projectsOverlay = document.getElementById('projects-overlay');
+    if(projectsOverlay) projectsOverlay.style.display = 'none';
+    openVaultOverlay('kanban-overlay', function(){
+      loadVault().then(function(vaultData){
+        populateProjectControls(vaultData.projects, vaultData.goals, {selectedFilter:projectId, preferredTaskProject:projectId || getDefaultProjectId(vaultData.projects)});
+        renderGoals(vaultData.goals || [], vaultData.projects || []);
+      });
+    });
+  }
+
+  function renderProjectDashboard(data){
+    if(!projectDashboardGrid) return;
+    var projects = ensureProjects(data.projects || _cachedProjects);
+    var goals = data.goals || [];
+    var activeProjects = projects.filter(function(project){ return !project.archived; });
+    var archivedProjects = projects.filter(function(project){ return project.archived; });
+    var activeProjectIds = {};
+    activeProjects.forEach(function(project){ activeProjectIds[project.id] = true; });
+    var visibleGoals = goals.filter(function(goal){ return !!activeProjectIds[goal.projectId || getDefaultProjectId(projects, true)]; });
+    var html = '';
+    var summary = projectMetrics(visibleGoals);
+    var completedPct = summary.total ? Math.round((summary.counts.done / summary.total) * 100) : 0;
+    var backlogPct = summary.total ? Math.round((summary.counts.backlog / summary.total) * 100) : 0;
+    var healthPct = summary.total ? Math.max(0, 100 - Math.round((summary.counts.overdue / summary.total) * 100)) : 100;
+    var occupiedProjectCount = activeProjects.filter(function(project){
+      return goals.some(function(goal){ return (goal.projectId || getDefaultProjectId(projects, true)) === project.id && !goal.archived; });
+    }).length;
+    function statCard(pct, color, label, value, sub){
+      return '<div class="goals-stat-card"><div class="goals-stat-ring">' +
+        renderProjectStatRing(pct, color) +
+        '</div><div class="goals-stat-info"><h3>' + escHtml(label) + '</h3><div class="stat-value">' + escHtml(value) + '</div><div class="stat-sub">' + escHtml(sub) + '</div></div></div>';
+    }
+    html += '<div class="project-card project-summary-card">';
+    html += '<div class="project-summary-head">';
+    html += '<div class="project-summary-copy">';
+    html += '<span class="project-summary-kicker">Agile Command Center</span>';
+    html += '<h3>' + escHtml(modeLabel(currentVaultMode)) + ' projects at a glance</h3>';
+    html += '<p>Open a project to work its board, scan delivery health across the portfolio, or force a DB mirror before you leave.</p>';
+    html += '</div>';
+    html += '<div class="project-summary-actions"><div class="project-summary-badge">' + activeProjects.length + ' live projects / ' + occupiedProjectCount + ' with work</div><button class="project-action-btn backup" id="project-dashboard-backup" type="button">Mirror Vault Now</button></div>';
+    html += '</div>';
+    html += '<div class="project-summary-grid">';
+    html += '<div class="project-summary-metric"><strong>' + summary.total + '</strong><span>Total Issues</span></div>';
+    html += '<div class="project-summary-metric"><strong>' + (summary.total - summary.counts.done) + '</strong><span>Open Work</span></div>';
+    html += '<div class="project-summary-metric"><strong>' + summary.counts.backlog + '</strong><span>Backlog</span></div>';
+    html += '<div class="project-summary-metric"><strong>' + summary.counts.overdue + '</strong><span>Overdue</span></div>';
+    html += '</div>';
+    html += '<div class="project-dashboard-stats">';
+    html += statCard(summary.progress, '#60a5fa', 'Delivery', summary.progress + '%', 'average issue progress');
+    html += statCard(completedPct, '#22c55e', 'Completion', summary.counts.done + '/' + summary.total, 'issues closed');
+    html += statCard(backlogPct, '#fbbf24', 'Backlog', String(summary.counts.backlog), 'parked for later');
+    html += statCard(healthPct, '#a78bfa', 'Due Health', String(summary.counts.overdue), 'overdue issues');
+    html += '</div>';
+    html += '</div>';
+    activeProjects.forEach(function(project){
+      var displayProject = projectDisplay(project) || project;
+      var projectGoals = goals.filter(function(goal){ return (goal.projectId || getDefaultProjectId(projects, true)) === project.id; });
+      var metrics = projectMetrics(projectGoals);
+      var openCount = metrics.total - metrics.counts.done;
+      var donePct = metrics.total ? Math.round((metrics.counts.done / metrics.total) * 100) : 0;
+      var canDeleteProject = projects.length > 1;
+      html += '<div class="project-card" data-project-id="' + project.id + '" style="--project-color:' + displayProject.color + ';">';
+      html += '<div class="project-card-top">';
+      html += '<div class="project-avatar">' + escHtml(displayProject.icon || project.key.slice(0, 2)) + '</div>';
+      html += '<div style="min-width:0;">';
+      html += '<div class="project-key">' + escHtml(project.key) + '</div>';
+      html += '<div class="project-name">' + escHtml(displayProject.name) + '</div>';
+      html += '</div>';
+      html += '<div class="project-count">' + metrics.total + ' issues</div>';
+      html += '</div>';
+      html += '<div class="project-desc">' + escHtml(displayProject.description || 'No description yet. Add scope and outcomes so the board has context.') + '</div>';
+      html += '<div class="project-body">';
+      html += renderProjectRing(metrics.progress, displayProject.color, 'Flow');
+      html += '<div class="project-highlight-grid">';
+      html += '<div class="project-highlight"><strong>' + openCount + '</strong><span>Open</span></div>';
+      html += '<div class="project-highlight"><strong>' + donePct + '%</strong><span>Closed</span></div>';
+      html += '<div class="project-highlight"><strong>' + metrics.counts.backlog + '</strong><span>Backlog</span></div>';
+      html += '<div class="project-highlight"><strong>' + metrics.counts.overdue + '</strong><span>Overdue</span></div>';
+      html += '</div></div>';
+      html += '<div class="project-stats">';
+      html += '<div class="project-stat"><strong>' + metrics.counts.todo + '</strong><span>To Do</span></div>';
+      html += '<div class="project-stat"><strong>' + metrics.counts.progress + '</strong><span>In Progress</span></div>';
+      html += '<div class="project-stat"><strong>' + metrics.counts.pending + '</strong><span>Pending</span></div>';
+      html += '<div class="project-stat"><strong>' + metrics.counts.done + '</strong><span>Done</span></div>';
+      html += '</div>';
+      html += '<div class="project-footer">';
+      html += '<div class="project-meta-line">' + openCount + ' open / ' + metrics.counts.backlog + ' backlog / ' + metrics.counts.overdue + ' overdue</div>';
+      html += '<div class="project-card-actions">';
+      html += '<button class="project-open-btn" type="button" data-project-id="' + project.id + '">Open Board</button>';
+      html += '<button class="project-action-btn" type="button" data-project-edit="' + project.id + '">Edit</button>';
+      html += '<button class="project-action-btn" type="button" data-project-fields="' + project.id + '">Fields</button>';
+      html += '<button class="project-action-btn warn" type="button" data-project-archive="' + project.id + '"' + (activeProjects.length > 1 ? '' : ' disabled') + '>Archive</button>';
+      html += '<button class="project-action-btn danger" type="button" data-project-delete="' + project.id + '"' + (canDeleteProject ? '' : ' disabled') + '>Delete</button>';
+      html += '</div></div>';
+      html += '<div class="project-card-note">Archive keeps work inside the project. Delete safely moves issues into another live project so no data is lost.</div>';
+      html += '</div>';
+    });
+    if(archivedProjects.length){
+      html += '<div class="project-archived-section">';
+      html += '<div class="project-archived-head"><div><h4>Archived Projects</h4><p>Paused or completed work lives here without losing issue history.</p></div><div class="project-summary-badge">' + archivedProjects.length + ' archived</div></div>';
+      html += '<div class="project-archived-grid">';
+      archivedProjects.forEach(function(project){
+        var displayProject = projectDisplay(project) || project;
+        var projectGoals = goals.filter(function(goal){ return (goal.projectId || getDefaultProjectId(projects, true)) === project.id; });
+        var metrics = projectMetrics(projectGoals);
+        var canDeleteArchived = projects.length > 1;
+        html += '<div class="project-card archived-card" style="--project-color:' + displayProject.color + ';">';
+        html += '<div class="project-card-top">';
+        html += '<div class="project-avatar">' + escHtml(displayProject.icon || project.key.slice(0, 2)) + '</div>';
+        html += '<div style="min-width:0;"><div class="project-key">' + escHtml(project.key) + '</div><div class="project-name">' + escHtml(displayProject.name) + '</div></div>';
+        html += '<div class="project-count">' + metrics.total + ' issues</div>';
+        html += '</div>';
+        html += '<div class="project-desc">' + escHtml(displayProject.description || 'Archived project shell.') + '</div>';
+        html += '<div class="project-card-actions">';
+        html += '<button class="project-action-btn" type="button" data-project-edit="' + project.id + '">Edit</button>';
+        html += '<button class="project-action-btn" type="button" data-project-fields="' + project.id + '">Fields</button>';
+        html += '<button class="project-action-btn restore" type="button" data-project-restore="' + project.id + '">Restore</button>';
+        html += '<button class="project-action-btn danger" type="button" data-project-delete="' + project.id + '"' + (canDeleteArchived ? '' : ' disabled') + '>Delete</button>';
+        html += '</div>';
+        html += '<div class="project-card-note">' + (metrics.total ? 'Deleting will move archived issues into another live project before removing this shell.' : 'Empty archived projects can be removed cleanly.') + '</div>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+    }
+    html += '<button class="project-card add-card" id="project-dashboard-add" type="button"><span style="font-size:2rem;line-height:1;">+</span><strong style="font-size:.95rem;">Create another project</strong><span style="font-size:.78rem;">New product, team, initiative, or operating area</span></button>';
+    projectDashboardGrid.innerHTML = html;
+    projectDashboardGrid.querySelectorAll('.project-card[data-project-id]').forEach(function(card){
+      card.addEventListener('click', function(){
+        openProjectBoard(this.dataset.projectId);
+      });
+    });
+    projectDashboardGrid.querySelectorAll('.project-open-btn[data-project-id]').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        openProjectBoard(this.dataset.projectId);
+      });
+    });
+    projectDashboardGrid.querySelectorAll('[data-project-edit]').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        openProjectModal(this.getAttribute('data-project-edit'));
+      });
+    });
+    projectDashboardGrid.querySelectorAll('[data-project-archive]').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        archiveProjectById(this.getAttribute('data-project-archive')).then(function(){
+          return loadVault().then(function(nextData){ renderProjectDashboard(nextData); });
+        });
+      });
+    });
+    projectDashboardGrid.querySelectorAll('[data-project-restore]').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        restoreProjectById(this.getAttribute('data-project-restore')).then(function(){
+          return loadVault().then(function(nextData){ renderProjectDashboard(nextData); });
+        });
+      });
+    });
+    projectDashboardGrid.querySelectorAll('[data-project-delete]').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        deleteProjectById(this.getAttribute('data-project-delete')).then(function(){
+          return loadVault().then(function(nextData){ renderProjectDashboard(nextData); });
+        });
+      });
+    });
+    projectDashboardGrid.querySelectorAll('[data-project-fields]').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        openProjectFieldsModal(this.getAttribute('data-project-fields'));
+      });
+    });
+    var backupBtn = document.getElementById('project-dashboard-backup');
+    if(backupBtn) backupBtn.addEventListener('click', function(){ backupProjectsNow(this); });
+    var addCard = document.getElementById('project-dashboard-add');
+    if(addCard) addCard.addEventListener('click', openProjectModal);
+  }
+
+  function renderKanbanHero(goals, projects){
+    if(!kanbanHeroTitle || !kanbanHeroDesc || !kanbanHeroMetrics) return;
+    var projectId = goalFilterProject ? goalFilterProject.value : '';
+    var list = ensureProjects(projects || _cachedProjects);
+    var scopeGoals = (goals || []).filter(function(goal){
+      var goalProjectId = goal.projectId || getDefaultProjectId(list, true);
+      if(goal.archived) return false;
+      if(isProjectArchived(list, goalProjectId)) return false;
+      return !projectId || goalProjectId === projectId;
+    });
+    var metrics = projectMetrics(scopeGoals);
+    var activeProject = projectId ? projectDisplay(getProjectById(list, projectId)) : null;
+    kanbanHeroTitle.textContent = activeProject ? (activeProject.name + ' Board') : 'All Projects';
+    kanbanHeroDesc.textContent = activeProject
+      ? (activeProject.description || 'Focused delivery view for this project. Use backlog for parked work and drag cards across the flow.')
+      : 'Switch between projects, keep long-tail work in backlog, and move issues like a lightweight Jira board.';
+    kanbanHeroMetrics.innerHTML =
+      '<div class="kanban-hero-pill"><strong>'+metrics.total+'</strong><span>Active Issues</span></div>' +
+      '<div class="kanban-hero-pill"><strong>'+metrics.progress+'%</strong><span>Progress</span></div>' +
+      '<div class="kanban-hero-pill"><strong>'+metrics.counts.backlog+'</strong><span>Backlog</span></div>' +
+      '<div class="kanban-hero-pill"><strong>'+metrics.counts.overdue+'</strong><span>Overdue</span></div>';
+  }
+
+  function renderGoalsFromVaultData(data){
+    var vaultData = ensureProfileData(data, currentVaultMode);
+    populateProjectControls(vaultData.projects, vaultData.goals);
+    renderGoals(vaultData.goals || [], vaultData.projects || []);
+  }
+
+  function countMilestoneProgress(lifeGoals){
+    var total = 0;
+    var done = 0;
+    (lifeGoals || []).forEach(function(goal){
+      var milestones = Array.isArray(goal && goal.milestones) ? goal.milestones : [];
+      milestones.forEach(function(milestone){
+        total += 1;
+        if(milestone && milestone.done) done += 1;
+      });
+    });
+    if(!total) return 0;
+    return Math.round((done / total) * 100);
+  }
+
+  function countNoteWords(text){
+    return String(text || '').trim().split(/\s+/).filter(Boolean).length;
+  }
+
+  function getVaultDashboardStats(data){
+    var projects = ensureProjects((data && data.projects) || _cachedProjects);
+    var goals = (data && data.goals) || [];
+    var lifeGoals = (data && data.lifeGoals) || [];
+    var activeProjects = projects.filter(function(project){ return !project.archived; });
+    var activeIssues = goals.filter(function(goal){
+      var projectId = goal.projectId || getDefaultProjectId(projects, true);
+      return !goal.archived && !isProjectArchived(projects, projectId);
+    });
+    var openIssues = activeIssues.filter(function(goal){ return goal.col !== 'done'; });
+    return {
+      projects: activeProjects.length,
+      openIssues: openIssues.length,
+      goals: lifeGoals.length,
+      goalProgress: countMilestoneProgress(lifeGoals),
+      secrets: ((data && data.links) || []).length + ((data && data.creds) || []).length,
+      creds: ((data && data.creds) || []).length,
+      noteWords: countNoteWords(data && data.notes),
+      notesState: 'Encrypted'
+    };
+  }
+
+  // --- Render vault ---
+  function renderVault(){
+    renderVaultModeUi();
+    loadVault().then(function(data){
+      _cachedProjects = ensureProjects(data.projects);
+      var stats = getVaultDashboardStats(data);
+      var tcEl = document.getElementById('vd-task-count');
+      var pcEl = document.getElementById('vd-project-count');
+      var gcEl = document.getElementById('vd-goal-count');
+      var gpEl = document.getElementById('vd-goal-progress-count');
+      var scEl = document.getElementById('vd-secrets-count');
+      var ccEl = document.getElementById('vd-cred-count');
+      var ncEl = document.getElementById('vd-notes-count');
+      var nsEl = document.getElementById('vd-notes-status-pill');
+      if(pcEl) pcEl.textContent = String(stats.projects);
+      if(tcEl) tcEl.textContent = String(stats.openIssues);
+      if(gcEl) gcEl.textContent = String(stats.goals);
+      if(gpEl) gpEl.textContent = stats.goalProgress + '%';
+      if(scEl) scEl.textContent = String(stats.secrets);
+      if(ccEl) ccEl.textContent = String(stats.creds);
+      if(ncEl) ncEl.textContent = String(stats.noteWords);
+      if(nsEl) nsEl.textContent = stats.notesState;
+      populateProjectControls(data.projects, data.goals);
+      renderProjectDashboard(data);
+      // Pre-load notes
+      notesArea.value = data.notes || '';
+      if(typeof refreshVaultMirrorStatus === 'function') refreshVaultMirrorStatus({ reason:'render-vault' });
+      if(typeof ensureVaultServerMirror === 'function') ensureVaultServerMirror();
+      updateVaultSyncBadge();
+    });
+  }
+
+  function getFavicon(url){
+    try{ var h = new URL(url).hostname; return 'https://www.google.com/s2/favicons?domain='+h+'&sz=32'; }catch(e){ return ''; }
+  }
+  function renderLinks(links){
+    linksList.innerHTML = '';
+    linksEmpty.style.display = links.length ? 'none' : 'block';
+    links.forEach(function(l, i){
+      var div = document.createElement('div');
+      div.style.cssText = 'border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin-bottom:8px;overflow:hidden;';
+      var fav = getFavicon(l.url);
+      var favHtml = fav ? '<img src="'+fav+'" style="width:18px;height:18px;border-radius:3px;flex-shrink:0;" onerror="this.style.display=\'none\'">' : '';
+      var descHtml = l.desc ? '<div style="color:var(--muted);font-size:.8rem;padding:0 12px 10px;line-height:1.4;">'+escHtml(l.desc)+'</div>' : '';
+      div.innerHTML =
+        '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;">' +
+          favHtml +
+          '<a href="'+escAttr(l.url)+'" target="_blank" rel="noopener" style="color:var(--accent-2);font-weight:700;text-decoration:none;flex:1;">'+escHtml(l.name)+'</a>' +
+          '<span style="color:var(--muted);font-size:.8rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(l.url)+'</span>' +
+          '<button class="vault-link-del btn" data-idx="'+i+'" style="padding:4px 10px;font-size:.8rem;">Ã¢Å“â€¢</button>' +
+        '</div>' +
+        descHtml;
+      linksList.appendChild(div);
+    });
+    linksList.querySelectorAll('.vault-link-del').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        loadVault().then(function(data){
+          data.links.splice(parseInt(btn.dataset.idx),1);
+          saveVault(data).then(function(){ renderLinks(data.links); });
+        });
+      });
+    });
+  }
+
+  // --- Credentials with site, details, per-field toggle+copy ---
+  function renderCreds(creds){
+    credsList.innerHTML = '';
+    credsEmpty.style.display = creds.length ? 'none' : 'block';
+    creds.forEach(function(c, i){
+      var div = document.createElement('div');
+      div.style.cssText = 'border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin-bottom:8px;overflow:hidden;';
+      // Collapsed row: just label, click to expand
+      var faviconUrl = '';
+      if(c.site){
+        try{ var u = new URL(/^https?:\/\//i.test(c.site) ? c.site : 'https://'+c.site); faviconUrl = 'https://www.google.com/s2/favicons?domain='+u.hostname+'&sz=32'; }catch(e){}
+      }
+      var ico = faviconUrl ? '<img src="'+escAttr(faviconUrl)+'" style="width:20px;height:20px;border-radius:4px;flex-shrink:0;" onerror="this.style.display=\'none\'">' : '<span style="font-size:1.1rem;flex-shrink:0;">Ã°Å¸â€â€˜</span>';
+      var header = '<div class="cred-header" style="display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;">' +
+        ico +
+        '<span style="font-weight:800;font-size:.95rem;flex:1;">'+escHtml(c.label)+'</span>' +
+        '<span class="cred-arrow" style="color:var(--muted);font-size:.7rem;transition:transform .15s;">&#9660;</span>' +
+        '</div>';
+      // Expandable body
+      var fields = '';
+      var fieldData = [
+        {lbl:'Site', val:c.site||''},
+        {lbl:'User', val:c.user||''},
+        {lbl:'Password', val:c.pass||''},
+        {lbl:'Details', val:c.details||''}
+      ];
+      fieldData.forEach(function(f){
+        if(!f.val) return;
+        fields += '<div class="cred-field" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">' +
+          '<span style="color:var(--muted);font-size:.8rem;width:60px;flex-shrink:0;">'+f.lbl+'</span>' +
+          '<code class="cred-val" style="flex:1;color:var(--accent);font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:none;">'+escHtml(f.val)+'</code>' +
+          '<span class="cred-mask" style="flex:1;color:var(--muted);font-size:.85rem;">Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢</span>' +
+          '<button class="cred-toggle btn" style="padding:2px 6px;font-size:.75rem;background:none;border:1px solid rgba(255,255,255,.12);border-radius:6px;color:var(--muted);cursor:pointer;" title="Toggle">Ã°Å¸â€˜Â</button>' +
+          '<button class="cred-copy btn" style="padding:2px 6px;font-size:.75rem;background:none;border:1px solid rgba(255,255,255,.12);border-radius:6px;color:var(--muted);cursor:pointer;" data-val="'+escAttr(f.val)+'" title="Copy">Ã°Å¸â€œâ€¹</button>' +
+          '</div>';
+      });
+      var body = '<div class="cred-body" style="display:none;padding:0 12px 12px;border-top:1px solid rgba(255,255,255,.06);padding-top:10px;">' +
+        fields +
+        '<div style="text-align:right;margin-top:6px;"><button class="vault-cred-del btn" data-idx="'+i+'" style="padding:4px 10px;font-size:.8rem;color:#ef4444;">Ã¢Å“â€¢ Delete</button></div>' +
+        '</div>';
+      div.innerHTML = header + body;
+      credsList.appendChild(div);
+
+      // Expand/collapse on header click
+      var hdr = div.querySelector('.cred-header');
+      var bdy = div.querySelector('.cred-body');
+      var arrow = div.querySelector('.cred-arrow');
+      hdr.addEventListener('click', function(){
+        var open = bdy.style.display !== 'none';
+        bdy.style.display = open ? 'none' : 'block';
+        arrow.innerHTML = open ? '&#9660;' : '&#9650;';
+      });
+
+      // Toggle show/hide per field
+      div.querySelectorAll('.cred-field').forEach(function(row){
+        var val = row.querySelector('.cred-val');
+        var mask = row.querySelector('.cred-mask');
+        row.querySelector('.cred-toggle').addEventListener('click', function(e){
+          e.stopPropagation();
+          var showing = val.style.display !== 'none';
+          val.style.display = showing ? 'none' : 'inline';
+          mask.style.display = showing ? 'inline' : 'none';
+        });
+        row.querySelector('.cred-copy').addEventListener('click', function(e){
+          e.stopPropagation();
+          var btn = this;
+          navigator.clipboard.writeText(btn.dataset.val).then(function(){
+            btn.textContent = 'Ã¢Å“â€¦'; setTimeout(function(){ btn.textContent = 'Ã°Å¸â€œâ€¹'; }, 1200);
+          });
+        });
+      });
+
+      // Delete
+      div.querySelector('.vault-cred-del').addEventListener('click', function(e){
+        e.stopPropagation();
+        loadVault().then(function(data){
+          data.creds.splice(i,1);
+          saveVault(data).then(function(){ renderCreds(data.creds); });
+        });
+      });
+    });
+  }
+
+  // --- Attachment helpers ---
+  var MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+
+  function readFilesAsBase64(fileList){
+    var promises = [];
+    for(var f = 0; f < fileList.length; f++){
+      (function(file){
+        promises.push(new Promise(function(resolve){
+          if(file.size > MAX_FILE_SIZE){
+            alert(file.name + ' exceeds 25MB limit and was skipped.');
+            resolve(null);
+            return;
+          }
+          var reader = new FileReader();
+          reader.onload = function(){ resolve({name:file.name, type:file.type, data:reader.result}); };
+          reader.readAsDataURL(file);
+        }));
+      })(fileList[f]);
+    }
+    return Promise.all(promises).then(function(results){
+      return results.filter(function(r){ return r !== null; });
+    });
+  }
+
+  function renderFilePreview(container, files, onRemove){
+    container.innerHTML = '';
+    files.forEach(function(f, idx){
+      var el = document.createElement('div');
+      el.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;background:rgba(255,255,255,.06);font-size:.75rem;color:var(--muted);';
+      var isImg = f.type && f.type.startsWith('image/');
+      el.innerHTML = (isImg ? 'Ã°Å¸â€“Â¼' : 'Ã°Å¸â€œâ€ž') + ' ' + escHtml(f.name) +
+        '<button style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.7rem;padding:0 2px;">Ã¢Å“â€¢</button>';
+      el.querySelector('button').addEventListener('click', function(){ onRemove(idx); });
+      container.appendChild(el);
+    });
+  }
+
+  goalFilesInput.addEventListener('change', function(){
+    readFilesAsBase64(goalFilesInput.files).then(function(files){
+      pendingGoalFiles = pendingGoalFiles.concat(files);
+      renderFilePreview(goalFilesPreview, pendingGoalFiles, function(idx){
+        pendingGoalFiles.splice(idx, 1);
+        renderFilePreview(goalFilesPreview, pendingGoalFiles, arguments.callee);
+      });
+      goalFilesInput.value = '';
+    });
+  });
+
+  subFilesInput.addEventListener('change', function(){
+    readFilesAsBase64(subFilesInput.files).then(function(files){
+      pendingSubFiles = pendingSubFiles.concat(files);
+      renderFilePreview(subFilesPreview, pendingSubFiles, function(idx){
+        pendingSubFiles.splice(idx, 1);
+        renderFilePreview(subFilesPreview, pendingSubFiles, arguments.callee);
+      });
+      subFilesInput.value = '';
+    });
+  });
+
+  // Attachment data lookup Ã¢â‚¬â€ avoids embedding megabytes of base64 in DOM HTML
+  var _attachDataMap = {};
+  function _attachKey(gi, ai, si){ return gi+'-'+(si!==undefined?si:'g')+'-'+ai; }
+
+  function renderAttachments(attachments, container, goalIdx, subIdx){
+    if(!attachments || !attachments.length) return '';
+    var html = '<div class="k-attachments">';
+    attachments.forEach(function(a, ai){
+      var key = _attachKey(goalIdx, ai, subIdx);
+      _attachDataMap[key] = a.data || '';
+      var isImg = a.type && a.type.startsWith('image/');
+      if(isImg){
+        html += '<div class="k-attach-item">' +
+          '<img loading="lazy" src="'+(_attachDataMap[key]?_attachDataMap[key]:'')+'" alt="'+escAttr(a.name)+'" data-akey="'+key+'" class="k-attach-img" style="max-width:120px;max-height:80px;object-fit:cover;cursor:pointer;">' +
+          '<button class="k-attach-rm" data-ai="'+ai+'" data-gi="'+goalIdx+'"'+(subIdx !== undefined ? ' data-si="'+subIdx+'"' : '')+'>Ã¢Å“â€¢</button></div>';
+      } else {
+        html += '<div class="k-attach-item">' +
+          '<a class="k-attach-file" data-akey="'+key+'" data-fname="'+escAttr(a.name)+'">Ã°Å¸â€œâ€ž '+escHtml(a.name)+'</a>' +
+          '<button class="k-attach-rm" data-ai="'+ai+'" data-gi="'+goalIdx+'"'+(subIdx !== undefined ? ' data-si="'+subIdx+'"' : '')+'>Ã¢Å“â€¢</button></div>';
+      }
+    });
+    html += '</div>';
+    return html;
+  }
+
+  // --- Goal Tracker (Kanban) ---
+  function formatDue(d){
+    if(!d) return '';
+    var today = new Date(); today.setHours(0,0,0,0);
+    var due = new Date(d+'T00:00:00'); var diff = Math.ceil((due-today)/(1000*60*60*24));
+    var label = due.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+    var cls = 'k-due';
+    if(diff < 0) cls += ' overdue';
+    else if(diff <= 3) cls += ' due-soon';
+    return '<span class="'+cls+'">'+label+'</span>';
+  }
+
+  function formatStDue(d){
+    if(!d) return '';
+    var today = new Date(); today.setHours(0,0,0,0);
+    var due = new Date(d+'T00:00:00'); var diff = Math.ceil((due-today)/(1000*60*60*24));
+    var color = diff < 0 ? '#ef4444' : diff <= 3 ? '#fbbf24' : 'var(--muted)';
+    return '<span class="k-st-due" style="color:'+color+'">'+due.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</span>';
+  }
+
+  function dueDiffDays(d){
+    if(!d) return Infinity;
+    var today = new Date(); today.setHours(0,0,0,0);
+    return Math.ceil((new Date(d+'T00:00:00')-today)/(1000*60*60*24));
+  }
+
+  function priorityBadge(p){
+    if(!p) return '';
+    var labels = {high:'High',medium:'Med',low:'Low'};
+    return '<span class="k-priority p-'+p+'">'+labels[p]+'</span>';
+  }
+
+  function effortBadge(e){
+    if(!e) return '';
+    return '<span class="k-effort">'+e.toUpperCase()+'</span>';
+  }
+
+  function goalPoints(g){
+    if(!g.subtasks || !g.subtasks.length) return null;
+    var total = 0, done = 0;
+    g.subtasks.forEach(function(s){
+      var pts = EFFORT_POINTS[s.effort] || 0;
+      total += pts;
+      if(s.done) done += pts;
+    });
+    if(total === 0) return null;
+    return {done:done, total:total};
+  }
+
+  function subtaskProgress(subs){
+    if(!subs || !subs.length) return '';
+    var done = subs.filter(function(s){ return s.done; }).length;
+    var pct = Math.round((done/subs.length)*100);
+    var color = pct === 100 ? '#22c55e' : 'var(--accent)';
+    return '<div style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:.72rem;color:var(--muted);">' +
+      '<div class="k-progress" style="flex:1;"><div class="k-progress-fill" style="width:'+pct+'%;background:'+color+';"></div></div>' +
+      '<span>'+done+'/'+subs.length+'</span></div>';
+  }
+
+  function renderLabels(labels){
+    if(!labels || !labels.length) return '';
+    var html = '<div class="k-labels">';
+    labels.forEach(function(name){
+      var lbl = getLabelDef(name);
+      html += '<span class="k-label" style="background:'+lbl.bg+';color:'+lbl.color+';">'+lbl.name+'</span>';
+    });
+    return html + '</div>';
+  }
+
+  function renderLabelEditor(goalLabels, allLabels){
+    var html = '<div class="k-label-editor">';
+    html += '<div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:4px;">Labels</div>';
+    html += '<div class="k-le-chips">';
+    // Show all known labels as toggleable chips
+    allLabels.forEach(function(lbl){
+      var on = goalLabels.indexOf(lbl.name) >= 0;
+      html += '<span class="k-le-chip'+(on?' on':'')+'" data-label="'+escAttr(lbl.name)+'" style="background:'+lbl.bg+';color:'+lbl.color+';">'+escHtml(lbl.name)+'</span>';
+    });
+    html += '</div>';
+    html += '<div class="k-le-add"><input class="k-le-input" type="text" placeholder="New label..."><button class="k-le-btn">+</button></div>';
+    html += '</div>';
+    return html;
+  }
+
+  function renderActivityLog(log){
+    if(!log || !log.length) return '';
+    var html = '<div class="k-log">';
+    html += '<div class="k-log-title">Activity Log (' + log.length + ') &#9660;</div>';
+    html += '<div class="k-log-list">';
+    for(var li = log.length - 1; li >= 0; li--){
+      var e = log[li];
+      var t = new Date(e.ts);
+      var ts = t.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' ' + t.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+      html += '<div class="k-log-entry"><span class="k-log-time">'+ts+'</span><span>'+escHtml(e.action)+'</span></div>';
+    }
+    html += '</div></div>';
+    return html;
+  }
+
+  function addLogEntry(g, action){
+    if(!g.log) g.log = [];
+    g.log.push({action:action, ts:Date.now()});
+    if(g.log.length > 50) g.log = g.log.slice(-50);
+  }
+
+  function getInitials(name){
+    var parts = name.trim().split(/\s+/);
+    if(parts.length >= 2) return (parts[0][0]+parts[1][0]).toUpperCase();
+    return name.slice(0,2).toUpperCase();
+  }
+  function renderPeople(g){
+    if(!g.reporter && !g.assignee) return '';
+    var same = g.reporter && g.assignee && g.reporter.trim().toLowerCase() === g.assignee.trim().toLowerCase();
+    var html = '<div class="k-people">';
+    if(same){
+      html += '<span class="k-person assignee"><span class="k-avatar">'+getInitials(g.assignee)+'</span>Assignee: '+escHtml(g.assignee)+'</span>';
+    } else {
+      if(g.reporter) html += '<span class="k-person reporter"><span class="k-avatar">'+getInitials(g.reporter)+'</span>Reporter: '+escHtml(g.reporter)+'</span>';
+      if(g.assignee) html += '<span class="k-person assignee"><span class="k-avatar">'+getInitials(g.assignee)+'</span>Assignee: '+escHtml(g.assignee)+'</span>';
+    }
+    return html + '</div>';
+  }
+
+  function renderComments(comments, goalIdx){
+    var html = '<div class="k-comments">';
+    html += '<div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:6px;">Comments (' + (comments ? comments.length : 0) + ')</div>';
+    if(comments && comments.length){
+      comments.forEach(function(c, ci){
+        var t = new Date(c.ts);
+        var ts = t.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' ' + t.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+        var author = c.author ? escHtml(c.author) + ' Ã¢â‚¬â€ ' : '';
+        html += '<div class="k-comment" data-ci="'+ci+'">' +
+          '<div class="k-comment-meta">'+author+ts+'</div>' +
+          '<div class="k-comment-text">'+escHtml(c.text)+'</div>' +
+          '<button class="k-comment-del" data-ci="'+ci+'" title="Delete comment">Ã¢Å“â€¢</button>' +
+        '</div>';
+      });
+    }
+    html += '<div class="k-comment-form">' +
+      '<textarea class="k-comment-input" placeholder="Add a comment..." rows="1"></textarea>' +
+      '<button class="k-comment-add">Post</button>' +
+    '</div>';
+    html += '</div>';
+    return html;
+  }
+
+  // Auto-move goal based on subtask completion
+  function autoMoveGoal(g){
+    if(!g.subtasks || g.subtasks.length === 0) return;
+    if(g.col === 'backlog') return;
+    var doneCount = g.subtasks.filter(function(s){ return s.done; }).length;
+    var total = g.subtasks.length;
+    if(doneCount === total) g.col = 'pending';
+    else if(doneCount > 0) g.col = 'progress';
+    else g.col = 'todo';
+  }
+
+  // Filter goals
+  function filterGoals(goals){
+    var search = goalSearchInput.value.trim().toLowerCase();
+    var projectId = goalFilterProject ? goalFilterProject.value : '';
+    var prio = goalFilterPriority.value;
+    var label = goalFilterLabel.value;
+    var due = goalFilterDue.value;
+    var projects = ensureProjects(_cachedProjects);
+    return goals.filter(function(g, i){
+      if(g.archived && !showArchive) return false;
+      if(!g.archived && showArchive) return false;
+      if(isProjectArchived(projects, g.projectId || getDefaultProjectId(projects, true))) return false;
+      if(projectId && g.projectId !== projectId) return false;
+      if(search){
+        var haystack = ((g.summary||'')+(g.desc||'')+(g.notes||'')).toLowerCase();
+        var stText = (g.subtasks||[]).map(function(s){return s.text||'';}).join(' ').toLowerCase();
+        if(haystack.indexOf(search) < 0 && stText.indexOf(search) < 0) return false;
+      }
+      if(prio && g.priority !== prio) return false;
+      if(label && (!g.labels || g.labels.indexOf(label) < 0)) return false;
+      if(due){
+        var diff = dueDiffDays(g.due);
+        if(due === 'overdue' && diff >= 0) return false;
+        if(due === 'week' && (diff < 0 || diff > 7)) return false;
+        if(due === 'nodue' && g.due) return false;
+      }
+      return true;
+    });
+  }
+
+  // Populate label filter dropdown from existing goals
+  function updateLabelFilter(goals){
+    var used = {};
+    var projectId = goalFilterProject ? goalFilterProject.value : '';
+    var projects = ensureProjects(_cachedProjects);
+    goals.forEach(function(g){
+      if(isProjectArchived(projects, g.projectId || getDefaultProjectId(projects, true))) return;
+      if(projectId && g.projectId !== projectId) return;
+      (g.labels||[]).forEach(function(l){ used[l]=true; });
+    });
+    var val = goalFilterLabel.value;
+    goalFilterLabel.innerHTML = '<option value="">All Labels</option>';
+    Object.keys(used).sort().forEach(function(l){
+      var o = document.createElement('option');
+      o.value = l; o.textContent = l.charAt(0).toUpperCase()+l.slice(1);
+      goalFilterLabel.appendChild(o);
+    });
+    goalFilterLabel.value = val;
+  }
+
+  function reserveOutlookPopup(){
+    try{
+      return window.open('about:blank', '_blank');
+    }catch(e){
+      return null;
+    }
+  }
+  function openOutlookCompose(item, dateKey, popup){
+    if(typeof window.outlookComposeUrl !== 'function'){
+      if(popup && !popup.closed) popup.close();
+      console.error('[Calendar] outlookComposeUrl is unavailable');
+      alert('Calendar link is not ready yet. Please try again.');
+      return;
+    }
+    var url = window.outlookComposeUrl(item, dateKey);
+    if(popup && !popup.closed){
+      try{
+        popup.location.replace(url);
+        popup.focus();
+        return;
+      }catch(e){}
+    }
+    window.open(url, '_blank');
+  }
+
+  // --- Fullscreen Issue View ---
+  function openIssueFullscreen(goalIdx, subIdx){
+    var ov = document.getElementById('issue-overlay');
+    if(!ov) return;
+    loadVault().then(function(data){
+      var g = data.goals[goalIdx];
+      if(!g) return;
+      var projects = ensureProjects(data.projects || _cachedProjects);
+      var gKey = issueKey(g, projects);
+      var isSub = subIdx !== undefined && subIdx !== null;
+      var sub = isSub ? g.subtasks[subIdx] : null;
+      if(isSub && !sub) return;
+
+      var colLabels = {todo:'To Do',progress:'In Progress',pending:'Pending',backlog:'Backlog',done:'Done'};
+      var html = '<div class="issue-panel">';
+
+      // Header
+      html += '<div class="issue-header">';
+      if(isSub){
+        html += '<div class="issue-breadcrumb"><a class="issue-goto-parent" data-gi="'+goalIdx+'">'+gKey+'</a> <span style="opacity:.4;">/</span></div>';
+        html += '<span class="issue-key">SUBTASK-'+(sub.id||subIdx+1)+'</span>';
+      } else {
+        html += '<span class="issue-key">'+gKey+'</span>';
+        html += '<span class="issue-status-badge s-'+g.col+'">'+colLabels[g.col]+'</span>';
+      }
+      html += '<button class="issue-close" title="Close">&times; Close</button>';
+      html += '</div>';
+
+      html += '<div class="issue-layout">';
+
+      // === MAIN COLUMN ===
+      html += '<div class="issue-main">';
+
+      if(isSub){
+        // Subtask fullscreen
+        html += '<input class="issue-summary-input issue-sub-name" value="'+escAttr(sub.text)+'" placeholder="Subtask name">';
+        html += '<textarea class="issue-desc-area issue-sub-notes" placeholder="Notes..." rows="4">'+escHtml(sub.notes||'')+'</textarea>';
+
+        // Attachments
+        html += '<div class="issue-section">';
+        html += '<div class="issue-section-title">Attachments</div>';
+        html += renderAttachments(sub.attachments||[], null, goalIdx, subIdx);
+        html += '<label class="k-attach-btn" style="display:inline-flex;align-items:center;gap:4px;margin-top:8px;cursor:pointer;">+ Add file<input type="file" class="issue-sub-file-input" data-gi="'+goalIdx+'" data-si="'+subIdx+'" multiple style="display:none;"></label>';
+        html += '</div>';
+
+        // Parent task link
+        html += '<div class="issue-section">';
+        html += '<div class="issue-section-title">Parent Task</div>';
+        html += '<div class="issue-subtask-row issue-goto-parent" data-gi="'+goalIdx+'">';
+        html += '<span class="issue-st-key">'+gKey+'</span>';
+        html += '<span class="issue-st-name">'+escHtml(g.summary)+'</span>';
+        html += '<span class="issue-status-badge s-'+g.col+'">'+colLabels[g.col]+'</span>';
+        html += '</div></div>';
+
+      } else {
+        // Goal fullscreen
+        html += '<input class="issue-summary-input issue-goal-summary" value="'+escAttr(g.summary)+'" placeholder="Summary">';
+        html += '<textarea class="issue-desc-area issue-goal-notes" placeholder="Description..." rows="5">'+escHtml(g.notes||'')+'</textarea>';
+
+        // Subtasks
+        if(g.subtasks && g.subtasks.length){
+          html += '<div class="issue-section">';
+          html += '<div class="issue-section-title">Subtasks ('+g.subtasks.length+')</div>';
+          html += subtaskProgress(g.subtasks);
+          g.subtasks.forEach(function(s, si){
+            if(typeof s === 'string'){ s = {text:s, done:false}; g.subtasks[si] = s; }
+            var subKey = s.id ? 'SUBTASK-'+s.id : 'SUBTASK-'+(si+1);
+            html += '<div class="issue-subtask-row'+(s.done?' done-row':'')+'" data-gi="'+goalIdx+'" data-si="'+si+'">';
+            html += '<input type="checkbox" class="issue-st-check" data-si="'+si+'" '+(s.done?'checked':'')+' style="accent-color:var(--accent);cursor:pointer;flex-shrink:0;" onclick="event.stopPropagation()">';
+            html += '<span class="issue-st-key" data-gi="'+goalIdx+'" data-si="'+si+'">'+subKey+'</span>';
+            html += '<span class="issue-st-name">'+escHtml(s.text)+'</span>';
+            if(s.effort) html += effortBadge(s.effort);
+            if(s.due) html += formatStDue(s.due);
+            html += '<button class="issue-st-cal-btn" data-gi="'+goalIdx+'" data-si="'+si+'" title="Add to Outlook Calendar" style="background:none;border:none;color:#0078d4;cursor:pointer;padding:0 3px;display:inline-flex;align-items:center;opacity:.5;transition:opacity .15s;flex-shrink:0;" onclick="event.stopPropagation()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>';
+            html += '</div>';
+          });
+          html += '</div>';
+        }
+
+        // Attachments
+        html += '<div class="issue-section">';
+        html += '<div class="issue-section-title">Attachments</div>';
+        if(g.attachments && g.attachments.length) html += renderAttachments(g.attachments, null, goalIdx);
+        html += '<label class="k-attach-btn" style="display:inline-flex;align-items:center;gap:4px;margin-top:8px;cursor:pointer;">+ Add file<input type="file" class="issue-goal-file-input" data-gi="'+goalIdx+'" multiple style="display:none;"></label>';
+        html += '</div>';
+
+        // Comments
+        html += '<div class="issue-section">';
+        html += '<div class="issue-section-title">Comments ('+(g.comments?g.comments.length:0)+')</div>';
+        if(g.comments && g.comments.length){
+          g.comments.forEach(function(c, ci){
+            var t = new Date(c.ts);
+            var ts = t.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' '+t.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+            var author = c.author ? escHtml(c.author)+' Ã¢â‚¬â€ ' : '';
+            html += '<div class="issue-comment" data-ci="'+ci+'">' +
+              '<div class="issue-comment-meta">'+author+ts+'</div>' +
+              '<div class="issue-comment-text">'+escHtml(c.text)+'</div>' +
+              '<button class="issue-comment-del" data-ci="'+ci+'" title="Delete">Ã¢Å“â€¢</button></div>';
+          });
+        }
+        html += '<div class="issue-comment-form">' +
+          '<textarea class="issue-comment-input" placeholder="Add a comment..." rows="2"></textarea>' +
+          '<button class="issue-comment-add">Post</button></div>';
+        html += '</div>';
+
+        // Activity Log (collapsible)
+        if(g.log && g.log.length){
+          html += '<div class="issue-section">';
+          html += '<div class="issue-log-toggle" id="issue-log-toggle">';
+          html += '<span class="issue-log-chevron">&#9660;</span>';
+          html += '<span class="issue-section-title" style="margin:0;padding:0;border:0;flex:1;">Activity Log</span>';
+          html += '<span class="issue-log-count">'+g.log.length+'</span>';
+          html += '</div>';
+          html += '<div class="issue-log-body" id="issue-log-body">';
+          for(var li = g.log.length - 1; li >= 0; li--){
+            var e = g.log[li];
+            var t2 = new Date(e.ts);
+            var ts2 = t2.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' '+t2.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+            html += '<div class="issue-log-entry"><span class="issue-log-time">'+ts2+'</span><span>'+escHtml(e.action)+'</span></div>';
+          }
+          html += '</div>';
+          html += '</div>';
+        }
+      }
+      html += '</div>'; // end issue-main
+
+      // === SIDEBAR ===
+      html += '<div class="issue-sidebar">';
+
+      if(isSub){
+        // Subtask sidebar
+        html += '<div class="issue-sidebar-card"><h4>Details</h4>';
+        html += '<div class="issue-field-row"><span class="issue-field-label">Status</span><span class="issue-field-value">'+(sub.done?'<span class="issue-status-badge s-done">Done</span>':'<span class="issue-status-badge s-todo">Open</span>')+'</span></div>';
+        html += '<div class="issue-field-row"><span class="issue-field-label">Effort</span><span class="issue-field-value">';
+        html += '<select class="issue-edit-sub-effort" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;">';
+        html += '<option value=""'+(sub.effort?'':' selected')+'>None</option>';
+        html += '<option value="xs"'+(sub.effort==='xs'?' selected':'')+'>XS</option>';
+        html += '<option value="s"'+(sub.effort==='s'?' selected':'')+'>S (1pt)</option>';
+        html += '<option value="m"'+(sub.effort==='m'?' selected':'')+'>M (2pt)</option>';
+        html += '<option value="l"'+(sub.effort==='l'?' selected':'')+'>L (3pt)</option>';
+        html += '<option value="xl"'+(sub.effort==='xl'?' selected':'')+'>XL (5pt)</option>';
+        html += '</select></span></div>';
+        html += '<div class="issue-field-row"><span class="issue-field-label">Due Date</span><span class="issue-field-value">';
+        html += '<input type="date" class="issue-edit-sub-due" value="'+(sub.due||'')+'" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;max-width:150px;">';
+        html += '</span></div>';
+        html += '</div>';
+
+        html += '<div class="issue-sidebar-card"><h4>Actions</h4>';
+        html += '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem;color:var(--text);"><input type="checkbox" class="issue-sub-done-toggle" '+(sub.done?'checked':'')+' style="accent-color:var(--accent);"> Mark as Done</label>';
+        html += '<button class="issue-outlook-btn" data-gi="'+goalIdx+'" data-si="'+subIdx+'" style="display:flex;align-items:center;gap:6px;margin-top:8px;padding:6px 12px;border-radius:8px;border:1px solid rgba(0,120,212,.25);background:rgba(0,120,212,.1);color:#0078d4;cursor:pointer;font-size:.78rem;font-weight:700;transition:background .15s;width:100%;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Add to Outlook</button>';
+        html += '</div>';
+
+      } else {
+        // Goal sidebar Ã¢â‚¬â€ editable fields
+        html += '<div class="issue-sidebar-card"><h4>Details</h4>';
+        html += '<div class="issue-field-row"><span class="issue-field-label">Status</span><span class="issue-field-value"><span class="issue-status-badge s-'+g.col+'">'+colLabels[g.col]+'</span></span></div>';
+        html += '<div class="issue-field-row"><span class="issue-field-label">Project</span><span class="issue-field-value">';
+        html += '<select class="issue-edit-project" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;max-width:160px;">';
+        projects.forEach(function(project){
+          html += '<option value="'+escAttr(project.id)+'"'+(g.projectId === project.id ? ' selected' : '')+'>'+escHtml(project.name)+'</option>';
+        });
+        html += '</select></span></div>';
+        // Priority Ã¢â‚¬â€ editable select
+        html += '<div class="issue-field-row"><span class="issue-field-label">Priority</span><span class="issue-field-value">';
+        html += '<select class="issue-edit-priority" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;">';
+        html += '<option value=""'+(g.priority?'':' selected')+'>None</option>';
+        html += '<option value="high"'+(g.priority==='high'?' selected':'')+'>High</option>';
+        html += '<option value="medium"'+(g.priority==='medium'?' selected':'')+'>Medium</option>';
+        html += '<option value="low"'+(g.priority==='low'?' selected':'')+'>Low</option>';
+        html += '</select></span></div>';
+        // Due Date Ã¢â‚¬â€ editable input
+        html += '<div class="issue-field-row"><span class="issue-field-label">Due Date</span><span class="issue-field-value">';
+        html += '<input type="date" class="issue-edit-due" value="'+(g.due||'')+'" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;max-width:150px;">';
+        html += '</span></div>';
+        // Reporter Ã¢â‚¬â€ editable input
+        html += '<div class="issue-field-row"><span class="issue-field-label">Reporter</span><span class="issue-field-value">';
+        html += '<input type="text" class="issue-edit-reporter" value="'+escAttr(g.reporter||'')+'" placeholder="Ã¢â‚¬â€" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;width:100%;max-width:150px;">';
+        html += '</span></div>';
+        // Assignee Ã¢â‚¬â€ editable input
+        html += '<div class="issue-field-row"><span class="issue-field-label">Assignee</span><span class="issue-field-value">';
+        html += '<input type="text" class="issue-edit-assignee" value="'+escAttr(g.assignee||'')+'" placeholder="Ã¢â‚¬â€" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;width:100%;max-width:150px;">';
+        html += '</span></div>';
+        html += '</div>';
+
+        // Labels Ã¢â‚¬â€ editable with chip toggles + add new
+        var allLabels = getAllLabels(data.goals);
+        html += '<div class="issue-sidebar-card"><h4>Labels</h4>';
+        html += '<div class="issue-label-chips" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">';
+        allLabels.forEach(function(lbl){
+          var on = (g.labels||[]).indexOf(lbl.name) >= 0;
+          html += '<span class="issue-label-chip'+(on?' on':'')+'" data-label="'+escAttr(lbl.name)+'" style="font-size:.7rem;padding:3px 9px;border-radius:6px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:opacity .12s;user-select:none;background:'+lbl.bg+';color:'+lbl.color+';border:1.5px solid '+(on?'rgba(255,255,255,.45)':'transparent')+';opacity:'+(on?'1':'.35')+';">'+escHtml(lbl.name)+'</span>';
+        });
+        html += '</div>';
+        html += '<div style="display:flex;gap:4px;"><input type="text" class="issue-label-new" placeholder="New label..." style="flex:1;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.75rem;"><button class="issue-label-add" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(96,165,250,.25);background:none;color:#60a5fa;cursor:pointer;font-size:.7rem;font-weight:700;">+</button></div>';
+        html += '</div>';
+
+        // Effort points
+        var pts = goalPoints(g);
+        if(pts){
+          html += '<div class="issue-sidebar-card"><h4>Effort</h4>';
+          html += '<div style="font-size:1.1rem;font-weight:800;color:var(--accent);">'+pts.done+'<span style="color:var(--muted);font-weight:400;font-size:.85rem;"> / '+pts.total+' pts</span></div>';
+          html += subtaskProgress(g.subtasks);
+          html += '</div>';
+        }
+
+        // Move / Status
+        html += '<div class="issue-sidebar-card"><h4>Move To</h4>';
+        html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+        ['todo','progress','pending','backlog','done'].forEach(function(col){
+          var active = g.col === col;
+          html += '<button class="issue-move-btn" data-to="'+col+'" style="padding:6px 12px;border-radius:8px;border:1px solid '+(active?'var(--accent)':'rgba(255,255,255,.15)')+';background:'+(active?'rgba(96,165,250,.1)':'none')+';color:'+(active?'var(--accent)':'var(--muted)')+';cursor:pointer;font-size:.78rem;font-weight:700;transition:all .15s;">'+colLabels[col]+'</button>';
+        });
+        html += '</div></div>';
+
+        // Add to Outlook button
+        html += '<div class="issue-sidebar-card"><h4>Calendar</h4>';
+        html += '<button class="issue-outlook-btn" data-gi="'+goalIdx+'" style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:1px solid rgba(0,120,212,.25);background:rgba(0,120,212,.1);color:#0078d4;cursor:pointer;font-size:.78rem;font-weight:700;transition:background .15s;width:100%;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Add to Outlook</button>';
+        html += '</div>';
+      }
+
+      html += '</div>'; // end sidebar
+      html += '</div>'; // end layout
+      html += '</div>'; // end panel
+
+      ov.innerHTML = html;
+      ov.scrollTop = 0;
+      ov.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      if(typeof window._homerSyncPageScrollLock === 'function') window._homerSyncPageScrollLock();
+
+      // --- Wire fullscreen events ---
+
+      // Close
+      function closeIssue(){
+        ov.classList.remove('open');
+        window._homerCloseIssue = null;
+        if(typeof window._homerSyncPageScrollLock === 'function') window._homerSyncPageScrollLock();
+        else document.body.style.overflow = '';
+        if(typeof window._homerSyncMobileOverlayState === 'function') window._homerSyncMobileOverlayState();
+        loadVault().then(function(d){ renderGoals(d.goals, d.projects); });
+      }
+      window._homerCloseIssue = closeIssue;
+      ov.querySelector('.issue-close').addEventListener('click', closeIssue);
+      ov.addEventListener('click', function(ev){ if(ev.target === ov) closeIssue(); });
+      function onEsc(ev){ if(ev.key==='Escape'){ closeIssue(); document.removeEventListener('keydown',onEsc); } }
+      document.addEventListener('keydown', onEsc);
+
+      if(isSub){
+        // --- Subtask fullscreen events ---
+        var subNameTimer = null;
+        ov.querySelector('.issue-sub-name').addEventListener('input', function(){
+          var self = this;
+          clearTimeout(subNameTimer);
+          subNameTimer = setTimeout(function(){
+            loadVault().then(function(d){ if(d.goals[goalIdx] && d.goals[goalIdx].subtasks[subIdx]){ d.goals[goalIdx].subtasks[subIdx].text = self.value; saveVault(d); } });
+          }, 800);
+        });
+        var subNotesTimer = null;
+        ov.querySelector('.issue-sub-notes').addEventListener('input', function(){
+          var self = this;
+          clearTimeout(subNotesTimer);
+          subNotesTimer = setTimeout(function(){
+            loadVault().then(function(d){ if(d.goals[goalIdx] && d.goals[goalIdx].subtasks[subIdx]){ d.goals[goalIdx].subtasks[subIdx].notes = self.value; saveVault(d); } });
+          }, 800);
+        });
+        var doneToggle = ov.querySelector('.issue-sub-done-toggle');
+        if(doneToggle){
+          doneToggle.addEventListener('change', function(){
+            var checked = this.checked;
+            loadVault().then(function(d){
+              if(d.goals[goalIdx] && d.goals[goalIdx].subtasks[subIdx]){
+                d.goals[goalIdx].subtasks[subIdx].done = checked;
+                autoMoveGoal(d.goals[goalIdx]);
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx, subIdx); });
+              }
+            });
+          });
+        }
+        // Navigate to parent
+        ov.querySelectorAll('.issue-goto-parent').forEach(function(el){
+          el.addEventListener('click', function(ev){
+            ev.stopPropagation();
+            openIssueFullscreen(parseInt(this.dataset.gi));
+          });
+        });
+
+        // Subtask effort edit
+        var subEffortSel = ov.querySelector('.issue-edit-sub-effort');
+        if(subEffortSel){
+          subEffortSel.addEventListener('change', function(){
+            var val = this.value;
+            loadVault().then(function(d){
+              if(d.goals[goalIdx] && d.goals[goalIdx].subtasks[subIdx]){
+                d.goals[goalIdx].subtasks[subIdx].effort = val;
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx, subIdx); });
+              }
+            });
+          });
+        }
+        // Subtask due date edit
+        var subDueSel = ov.querySelector('.issue-edit-sub-due');
+        if(subDueSel){
+          subDueSel.addEventListener('change', function(){
+            var val = this.value;
+            loadVault().then(function(d){
+              if(d.goals[goalIdx] && d.goals[goalIdx].subtasks[subIdx]){
+                d.goals[goalIdx].subtasks[subIdx].due = val;
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx, subIdx); });
+              }
+            });
+          });
+        }
+
+        // Subtask Ã¢â€ â€™ Outlook calendar
+        var subOutlookBtn = ov.querySelector('.issue-outlook-btn');
+        if(subOutlookBtn){
+          subOutlookBtn.addEventListener('click', function(){
+            var popup = reserveOutlookPopup();
+            var gi = parseInt(this.dataset.gi), si = parseInt(this.dataset.si);
+            loadVault().then(function(d){
+              var goal = d.goals[gi];
+              if(!goal || !goal.subtasks[si]){
+                if(popup && !popup.closed) popup.close();
+                return;
+              }
+              var st = goal.subtasks[si];
+              var item = { summary: st.text || '', description: st.notes || '', location: '' };
+              var dateKey = st.due || goal.due || new Date().toISOString().slice(0,10);
+              openOutlookCompose(item, dateKey, popup);
+            });
+          });
+        }
+
+        // Subtask file upload in fullscreen
+        var subFileInput = ov.querySelector('.issue-sub-file-input');
+        if(subFileInput){
+          subFileInput.addEventListener('change', function(){
+            var inp = this;
+            var gi = parseInt(inp.dataset.gi), si = parseInt(inp.dataset.si);
+            readFilesAsBase64(inp.files).then(function(files){
+              loadVault().then(function(d){
+                if(d.goals[gi] && d.goals[gi].subtasks[si]){
+                  if(!d.goals[gi].subtasks[si].attachments) d.goals[gi].subtasks[si].attachments = [];
+                  d.goals[gi].subtasks[si].attachments = d.goals[gi].subtasks[si].attachments.concat(files);
+                }
+                saveVault(d).then(function(){ openIssueFullscreen(gi, si); });
+              });
+            });
+          });
+        }
+
+      } else {
+        // --- Goal fullscreen events ---
+        var summaryTimer = null;
+        ov.querySelector('.issue-goal-summary').addEventListener('input', function(){
+          var self = this;
+          clearTimeout(summaryTimer);
+          summaryTimer = setTimeout(function(){
+            loadVault().then(function(d){ if(d.goals[goalIdx]){ d.goals[goalIdx].summary = self.value; saveVault(d); } });
+          }, 800);
+        });
+        var notesTimer = null;
+        ov.querySelector('.issue-goal-notes').addEventListener('input', function(){
+          var self = this;
+          clearTimeout(notesTimer);
+          notesTimer = setTimeout(function(){
+            loadVault().then(function(d){ if(d.goals[goalIdx]){ d.goals[goalIdx].notes = self.value; saveVault(d); } });
+          }, 800);
+        });
+
+        // --- Editable sidebar fields ---
+        // Project
+        var projectSel = ov.querySelector('.issue-edit-project');
+        if(projectSel){
+          projectSel.addEventListener('change', function(){
+            var val = this.value || getDefaultProjectId(_cachedProjects);
+            loadVault().then(function(d){
+              if(d.goals[goalIdx]){
+                var previousProject = getProjectById(d.projects || _cachedProjects, d.goals[goalIdx].projectId || getDefaultProjectId(d.projects || _cachedProjects, true));
+                var nextProject = getProjectById(d.projects || _cachedProjects, val);
+                d.goals[goalIdx].projectId = val;
+                addLogEntry(d.goals[goalIdx], 'Moved from project ' + previousProject.name + ' to ' + nextProject.name);
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx); });
+              }
+            });
+          });
+        }
+        // Priority
+        var prioSel = ov.querySelector('.issue-edit-priority');
+        if(prioSel){
+          prioSel.addEventListener('change', function(){
+            var val = this.value;
+            loadVault().then(function(d){
+              if(d.goals[goalIdx]){
+                var old = d.goals[goalIdx].priority || 'none';
+                d.goals[goalIdx].priority = val;
+                addLogEntry(d.goals[goalIdx], 'Priority changed from '+old+' to '+(val||'none'));
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx); });
+              }
+            });
+          });
+        }
+        // Due date
+        var dueSel = ov.querySelector('.issue-edit-due');
+        if(dueSel){
+          dueSel.addEventListener('change', function(){
+            var val = this.value;
+            loadVault().then(function(d){
+              if(d.goals[goalIdx]){
+                d.goals[goalIdx].due = val;
+                addLogEntry(d.goals[goalIdx], val ? 'Due date set to '+val : 'Due date removed');
+                saveVault(d);
+              }
+            });
+          });
+        }
+        // Reporter
+        var reporterInp = ov.querySelector('.issue-edit-reporter');
+        if(reporterInp){
+          var reporterTimer = null;
+          reporterInp.addEventListener('input', function(){
+            var self = this;
+            clearTimeout(reporterTimer);
+            reporterTimer = setTimeout(function(){
+              loadVault().then(function(d){
+                if(d.goals[goalIdx]){
+                  d.goals[goalIdx].reporter = self.value.trim();
+                  saveVault(d);
+                }
+              });
+            }, 800);
+          });
+        }
+        // Assignee
+        var assigneeInp = ov.querySelector('.issue-edit-assignee');
+        if(assigneeInp){
+          var assigneeTimer = null;
+          assigneeInp.addEventListener('input', function(){
+            var self = this;
+            clearTimeout(assigneeTimer);
+            assigneeTimer = setTimeout(function(){
+              loadVault().then(function(d){
+                if(d.goals[goalIdx]){
+                  d.goals[goalIdx].assignee = self.value.trim();
+                  saveVault(d);
+                }
+              });
+            }, 800);
+          });
+        }
+        // Label chip toggles
+        ov.querySelectorAll('.issue-label-chip').forEach(function(chip){
+          chip.addEventListener('click', function(){
+            var labelName = this.getAttribute('data-label');
+            loadVault().then(function(d){
+              if(d.goals[goalIdx]){
+                if(!d.goals[goalIdx].labels) d.goals[goalIdx].labels = [];
+                var idx = d.goals[goalIdx].labels.indexOf(labelName);
+                if(idx >= 0){
+                  d.goals[goalIdx].labels.splice(idx, 1);
+                  addLogEntry(d.goals[goalIdx], 'Label "'+labelName+'" removed');
+                } else {
+                  d.goals[goalIdx].labels.push(labelName);
+                  addLogEntry(d.goals[goalIdx], 'Label "'+labelName+'" added');
+                }
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx); });
+              }
+            });
+          });
+        });
+        // Add new label
+        var labelAddBtn = ov.querySelector('.issue-label-add');
+        var labelNewInp = ov.querySelector('.issue-label-new');
+        if(labelAddBtn && labelNewInp){
+          function addNewLabel(){
+            var name = labelNewInp.value.trim().toLowerCase();
+            if(!name) return;
+            loadVault().then(function(d){
+              if(d.goals[goalIdx]){
+                if(!d.goals[goalIdx].labels) d.goals[goalIdx].labels = [];
+                if(d.goals[goalIdx].labels.indexOf(name) < 0){
+                  d.goals[goalIdx].labels.push(name);
+                  addLogEntry(d.goals[goalIdx], 'Label "'+name+'" added');
+                  saveVault(d).then(function(){ openIssueFullscreen(goalIdx); });
+                }
+              }
+            });
+          }
+          labelAddBtn.addEventListener('click', addNewLabel);
+          labelNewInp.addEventListener('keydown', function(e){ if(e.key==='Enter') addNewLabel(); });
+        }
+
+        // Subtask clicks Ã¢â€ â€™ open subtask fullscreen
+        ov.querySelectorAll('.issue-st-key').forEach(function(el){
+          el.addEventListener('click', function(ev){
+            ev.stopPropagation();
+            openIssueFullscreen(parseInt(this.dataset.gi), parseInt(this.dataset.si));
+          });
+        });
+        ov.querySelectorAll('.issue-subtask-row').forEach(function(row){
+          row.addEventListener('click', function(){
+            var gi = parseInt(this.dataset.gi), si = parseInt(this.dataset.si);
+            if(!isNaN(gi) && !isNaN(si)) openIssueFullscreen(gi, si);
+          });
+        });
+
+        // Subtask checkbox toggle
+        ov.querySelectorAll('.issue-st-check').forEach(function(cb){
+          cb.addEventListener('change', function(){
+            var si = parseInt(this.dataset.si), checked = this.checked;
+            loadVault().then(function(d){
+              if(d.goals[goalIdx] && d.goals[goalIdx].subtasks[si]){
+                d.goals[goalIdx].subtasks[si].done = checked;
+                autoMoveGoal(d.goals[goalIdx]);
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx); });
+              }
+            });
+          });
+        });
+
+        // Subtask Ã¢â€ â€™ Outlook calendar buttons in fullscreen list
+        ov.querySelectorAll('.issue-st-cal-btn').forEach(function(btn){
+          btn.addEventListener('mouseenter', function(){ this.style.opacity='1'; });
+          btn.addEventListener('mouseleave', function(){ this.style.opacity='.5'; });
+          btn.addEventListener('click', function(e){
+            e.stopPropagation();
+            var popup = reserveOutlookPopup();
+            var gi = parseInt(this.dataset.gi), si = parseInt(this.dataset.si);
+            loadVault().then(function(d){
+              var goal = d.goals[gi];
+              if(!goal || !goal.subtasks[si]){
+                if(popup && !popup.closed) popup.close();
+                return;
+              }
+              var st = goal.subtasks[si];
+              var item = { summary: st.text || '', description: st.notes || '', location: '' };
+              var dateKey = st.due || goal.due || new Date().toISOString().slice(0,10);
+              openOutlookCompose(item, dateKey, popup);
+            });
+          });
+        });
+
+        // Move buttons
+        ov.querySelectorAll('.issue-move-btn').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var newCol = this.dataset.to;
+            loadVault().then(function(d){
+              if(d.goals[goalIdx]){
+                var oldCol = d.goals[goalIdx].col;
+                d.goals[goalIdx].col = newCol;
+                if(newCol==='done' && oldCol!=='done') d.goals[goalIdx].completedAt = Date.now();
+                addLogEntry(d.goals[goalIdx], 'Moved to '+colLabels[newCol]);
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx); });
+              }
+            });
+          });
+        });
+
+        // Comments
+        var addBtn = ov.querySelector('.issue-comment-add');
+        if(addBtn){
+          addBtn.addEventListener('click', function(){
+            var input = ov.querySelector('.issue-comment-input');
+            var text = input.value.trim();
+            if(!text) return;
+            loadVault().then(function(d){
+              if(d.goals[goalIdx]){
+                if(!d.goals[goalIdx].comments) d.goals[goalIdx].comments = [];
+                d.goals[goalIdx].comments.push({text:text, ts:Date.now(), author:d.goals[goalIdx].assignee||''});
+                addLogEntry(d.goals[goalIdx], 'Comment added');
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx); });
+              }
+            });
+          });
+        }
+        ov.querySelectorAll('.issue-comment-del').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var ci = parseInt(this.dataset.ci);
+            loadVault().then(function(d){
+              if(d.goals[goalIdx] && d.goals[goalIdx].comments){
+                d.goals[goalIdx].comments.splice(ci, 1);
+                saveVault(d).then(function(){ openIssueFullscreen(goalIdx); });
+              }
+            });
+          });
+        });
+
+        // Activity log toggle
+        var logToggle = ov.querySelector('#issue-log-toggle');
+        if(logToggle){
+          logToggle.addEventListener('click', function(){
+            this.classList.toggle('open');
+            var body = ov.querySelector('#issue-log-body');
+            if(body) body.classList.toggle('open');
+          });
+        }
+
+        // Task Ã¢â€ â€™ Outlook calendar
+        var goalOutlookBtn = ov.querySelector('.issue-outlook-btn');
+        if(goalOutlookBtn){
+          goalOutlookBtn.addEventListener('click', function(){
+            var popup = reserveOutlookPopup();
+            var gi = parseInt(this.dataset.gi);
+            loadVault().then(function(d){
+              var goal = d.goals[gi];
+              if(!goal){
+                if(popup && !popup.closed) popup.close();
+                return;
+              }
+              var item = { summary: goal.summary || '', description: goal.notes || '', location: '' };
+              var dateKey = goal.due || new Date().toISOString().slice(0,10);
+              openOutlookCompose(item, dateKey, popup);
+            });
+          });
+        }
+
+        // Goal file upload in fullscreen
+        var goalFileInput = ov.querySelector('.issue-goal-file-input');
+        if(goalFileInput){
+          goalFileInput.addEventListener('change', function(){
+            var inp = this;
+            var gi = parseInt(inp.dataset.gi);
+            readFilesAsBase64(inp.files).then(function(files){
+              loadVault().then(function(d){
+                if(d.goals[gi]){
+                  if(!d.goals[gi].attachments) d.goals[gi].attachments = [];
+                  d.goals[gi].attachments = d.goals[gi].attachments.concat(files);
+                  addLogEntry(d.goals[gi], 'Added ' + files.length + ' attachment(s)');
+                }
+                saveVault(d).then(function(){ openIssueFullscreen(gi); });
+              });
+            });
+          });
+        }
+      }
+
+      // Attachment image clicks + file downloads (shared for goal & subtask fullscreen)
+      ov.querySelectorAll('.k-attach-img').forEach(function(img){
+        img.addEventListener('click', function(){
+          var lb = document.getElementById('img-lightbox');
+          lb.querySelector('img').src = _attachDataMap[this.dataset.akey] || this.src;
+          lb.classList.add('open');
+        });
+      });
+      ov.querySelectorAll('.k-attach-file').forEach(function(a){
+        a.addEventListener('click', function(){
+          var d64 = _attachDataMap[this.dataset.akey];
+          if(!d64) return;
+          var link = document.createElement('a');
+          link.href = d64; link.download = this.dataset.fname || 'file';
+          link.click();
+        });
+      });
+      // Attachment remove in fullscreen
+      ov.querySelectorAll('.k-attach-rm').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var ai = parseInt(this.dataset.ai);
+          var gi = parseInt(this.dataset.gi);
+          var si = this.dataset.si !== undefined ? parseInt(this.dataset.si) : -1;
+          loadVault().then(function(d){
+            if(si >= 0 && d.goals[gi] && d.goals[gi].subtasks[si]){
+              d.goals[gi].subtasks[si].attachments.splice(ai, 1);
+              saveVault(d).then(function(){ openIssueFullscreen(gi, si); });
+            } else if(d.goals[gi]){
+              d.goals[gi].attachments.splice(ai, 1);
+              saveVault(d).then(function(){ openIssueFullscreen(gi); });
+            }
+          });
+        });
+      });
+    });
+  }
+
+  var _renderGoalsTimer = null;
+  var _kanbanDropZonesBound = false;
+  function renderGoals(goals, projects){
+    // Debounce: batch rapid consecutive calls into one render
+    clearTimeout(_renderGoalsTimer);
+    _renderGoalsTimer = setTimeout(function(){ _renderGoalsNow(goals, projects); }, 16);
+  }
+  function _renderGoalsNow(goals, projects){
+    projects = ensureProjects(projects || _cachedProjects);
+    _cachedProjects = projects;
+    _attachDataMap = {}; // clear attachment data cache for fresh render
+    var colFragments = {
+      todo: document.createDocumentFragment(),
+      progress: document.createDocumentFragment(),
+      pending: document.createDocumentFragment(),
+      done: document.createDocumentFragment(),
+      backlog: document.createDocumentFragment()
+    };
+    var archiveFragment = document.createDocumentFragment();
+    ['todo','progress','pending','done','backlog'].forEach(function(col){
+      document.querySelector('.kanban-items[data-col="'+col+'"]').innerHTML = '';
+    });
+    if(goalBacklogItems) goalBacklogItems.innerHTML = '';
+    if(goalBacklogPeek) goalBacklogPeek.innerHTML = '';
+
+    // Update label filter and archive count
+    updateLabelFilter(goals);
+    renderKanbanHero(goals, projects);
+    var activeProjectId = goalFilterProject ? goalFilterProject.value : '';
+    var scopedGoals = goals.filter(function(goal){
+      var goalProjectId = goal.projectId || getDefaultProjectId(projects, true);
+      if(isProjectArchived(projects, goalProjectId)) return false;
+      return !activeProjectId || goalProjectId === activeProjectId;
+    });
+    var archivedCount = scopedGoals.filter(function(g){ return g.archived; }).length;
+    var backlogCount = scopedGoals.filter(function(g){ return !g.archived && g.col === 'backlog'; }).length;
+    goalShowArchive.textContent = 'Archive (' + archivedCount + ')';
+    if(goalBacklogCount) goalBacklogCount.textContent = backlogCount;
+    if(goalBacklogStrip){
+      goalBacklogStrip.style.display = backlogCount ? 'flex' : 'none';
+      goalBacklogStrip.classList.toggle('open', showBacklog && backlogCount > 0);
+    }
+    if(goalBacklogPeek){
+      var peekCount = Math.min(backlogCount, 3);
+      for(var p = 0; p < peekCount; p++){
+        var chip = document.createElement('div');
+        chip.className = 'goal-backlog-chip';
+        goalBacklogPeek.appendChild(chip);
+      }
+    }
+
+    // Filter
+    var filtered = filterGoals(goals);
+
+    // Sort: overdue goals first within each column
+    filtered.sort(function(a, b){
+      var da = dueDiffDays(a.due), db = dueDiffDays(b.due);
+      var aOver = da < 0 ? 0 : 1, bOver = db < 0 ? 0 : 1;
+      if(aOver !== bOver) return aOver - bOver;
+      return da - db;
+    });
+
+    // Archive view
+    if(showArchive){
+      goalArchiveSection.style.display = 'block';
+      goalArchiveList.innerHTML = '';
+      document.getElementById('kanban').style.display = 'none';
+    } else {
+      goalArchiveSection.style.display = 'none';
+      document.getElementById('kanban').style.display = 'grid';
+    }
+
+    filtered.forEach(function(g, fi){
+      // Find real index in goals array
+      var i = goals.indexOf(g);
+
+      // Migrate old format
+      if(g.title && !g.summary){ g.summary = g.title; delete g.title; }
+      if(!g.subtasks) g.subtasks = [];
+      if(!g.priority) g.priority = '';
+      if(!g.attachments) g.attachments = [];
+      if(!g.labels) g.labels = [];
+      if(!g.log) g.log = [];
+      if(!g.comments) g.comments = [];
+      if(!g.reporter) g.reporter = '';
+      if(!g.assignee) g.assignee = '';
+      if(!g.id) g.id = i + 1;
+      if(!g.projectId) g.projectId = getDefaultProjectId(projects, true);
+      var project = getProjectById(projects, g.projectId);
+      var gKey = issueKey(g, projects);
+
+      var card = document.createElement('div');
+      card.className = 'kanban-card' + (g.archived ? ' archived-card' : '');
+      card.draggable = !g.archived;
+      card.dataset.idx = i;
+
+      var idBadge = '<span class="k-id" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" data-gi="'+i+'" title="Open '+gKey+'">'+gKey+'</span>';
+
+      var statusBadge = '';
+      if(g.col==='pending') statusBadge = '<span style="font-size:.6rem;padding:1px 6px;border-radius:5px;background:rgba(139,92,246,.15);color:#a78bfa;font-weight:700;">PENDING</span>';
+      if(g.col==='done' && g.completedAt) statusBadge = '<span style="font-size:.6rem;padding:1px 6px;border-radius:5px;background:rgba(34,197,94,.15);color:#22c55e;font-weight:700;">Done '+new Date(g.completedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</span>';
+      if(g.col==='backlog') statusBadge = '<span style="font-size:.6rem;padding:1px 6px;border-radius:5px;background:rgba(148,163,184,.16);color:#cbd5e1;font-weight:700;">BACKLOG</span>';
+
+      var headerRow = '<div class="k-header">' + idBadge +
+        '<button class="k-cal-btn" data-gi="'+i+'" title="Add to Outlook Calendar" style="background:none;border:none;color:#0078d4;cursor:pointer;font-size:.8rem;padding:0 2px;display:inline-flex;align-items:center;opacity:.6;transition:opacity .15s;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>' +
+        '<span style="font-size:.7rem;cursor:pointer;" class="k-expand" title="Expand">&#9660;</span>' +
+        '</div>';
+      var nameRow = '<div class="k-name">' + escHtml(g.summary) + '</div>';
+      var metaRow = '';
+      var metaBadges = renderProjectChip(project) + statusBadge + priorityBadge(g.priority) + formatDue(g.due);
+      if(metaBadges) metaRow = '<div class="k-meta">' + metaBadges + '</div>';
+      var titleRow = headerRow + nameRow + metaRow;
+
+      // Labels row
+      var labelsHtml = renderLabels(g.labels);
+
+      // Collapsed: show subtask progress bar + effort points
+      var collapsedExtra = subtaskProgress(g.subtasks);
+      var pts = goalPoints(g);
+      if(pts) collapsedExtra += '<div class="k-points"><strong>'+pts.done+'</strong>/'+pts.total+' pts</div>';
+
+      // Expanded body (editable summary + description textarea only)
+
+      // Rich subtasks
+      var subtasksHtml = '<div class="k-subtasks">';
+      g.subtasks.forEach(function(s, si){
+        if(typeof s === 'string'){ s = {text:s, done:false}; g.subtasks[si] = s; }
+        if(!s.effort) s.effort = '';
+        if(!s.due) s.due = '';
+        if(!s.notes) s.notes = '';
+        if(!s.attachments) s.attachments = [];
+
+        var subIdBadge = s.id ? '<span class="k-id k-sub-id" style="font-size:.6rem;margin-right:4px;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" data-gi="'+i+'" data-si="'+si+'" title="Open SUBTASK-'+s.id+'">SUBTASK-'+s.id+'</span>' : '';
+
+        subtasksHtml += '<div class="k-subtask'+(s.done?' done-st':'')+'" data-si="'+si+'">' +
+          '<div class="k-st-header">' +
+            '<input type="checkbox" '+(s.done?'checked':'')+' data-si="'+si+'">' +
+            subIdBadge +
+            '<span class="k-st-name" style="flex:1;">'+escHtml(s.text)+'</span>' +
+            '<span class="k-st-badges">' +
+              effortBadge(s.effort) +
+              formatStDue(s.due) +
+              '<button class="k-st-cal" data-gi="'+i+'" data-si="'+si+'" title="Add to Outlook Calendar" style="background:none;border:none;color:#0078d4;cursor:pointer;font-size:.7rem;padding:0 2px;display:inline-flex;align-items:center;opacity:.6;transition:opacity .15s;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>' +
+              '<span class="k-st-toggle" style="font-size:.6rem;cursor:pointer;color:var(--muted);" title="Details">&#9660;</span>' +
+              '<button class="k-st-del" data-si="'+si+'" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.7rem;padding:0 2px;" title="Remove">Ã¢Å“â€¢</button>' +
+            '</span>' +
+          '</div>' +
+          '<div class="k-st-body">' +
+            '<div class="k-st-fields">' +
+              '<select class="k-st-effort" data-si="'+si+'" title="Effort">' +
+                '<option value="">Effort</option>' +
+                '<option value="s"'+(s.effort==='s'?' selected':'')+'>S (1pt)</option>' +
+                '<option value="m"'+(s.effort==='m'?' selected':'')+'>M (2pt)</option>' +
+                '<option value="l"'+(s.effort==='l'?' selected':'')+'>L (3pt)</option>' +
+                '<option value="xl"'+(s.effort==='xl'?' selected':'')+'>XL (5pt)</option>' +
+              '</select>' +
+              '<input type="date" class="k-st-due" data-si="'+si+'" value="'+(s.due||'')+'" title="Due date">' +
+            '</div>' +
+            '<textarea class="k-st-notes" data-si="'+si+'" placeholder="Subtask notes..." rows="2">'+escHtml(s.notes)+'</textarea>' +
+            renderAttachments(s.attachments, null, i, si) +
+            '<label class="k-attach-btn" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;">Add file<input type="file" class="k-st-file-input" data-si="'+si+'" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;"></label>' +
+          '</div>' +
+        '</div>';
+      });
+      subtasksHtml += '</div>';
+
+      var addSubHtml = g.archived ? '' : '<button class="k-sub-open" style="width:100%;padding:7px;border-radius:8px;border:1px dashed rgba(139,92,246,.3);background:none;color:#a78bfa;cursor:pointer;font-size:.8rem;font-weight:700;margin-top:8px;transition:background .15s;">+ Add Subtask</button>';
+
+      var goalAttachHtml = renderAttachments(g.attachments, null, i) +
+        (g.archived ? '' : '<label class="k-attach-btn" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;">Add file<input type="file" class="k-goal-file-input" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;"></label>');
+
+      // People
+      var peopleHtml = renderPeople(g);
+
+      // Comments
+      var commentsHtml = g.archived ? '' : renderComments(g.comments, i);
+
+      // Activity log
+      var logHtml = renderActivityLog(g.log);
+
+      // Move buttons + archive/restore
+      var moveHtml = '';
+      if(g.archived){
+        moveHtml = '<div class="k-move">' +
+          '<button class="k-restore" style="color:var(--accent);">Restore</button>' +
+          '<button class="k-del" style="margin-left:auto;color:#ef4444;border-color:rgba(239,68,68,.3);">Delete</button>' +
+        '</div>';
+      } else {
+        moveHtml = '<div class="k-move">' +
+          '<button data-to="todo" class="'+(g.col==='todo'?'active':'')+'">To Do</button>' +
+          '<button data-to="progress" class="'+(g.col==='progress'?'active':'')+'">In Progress</button>' +
+          '<button data-to="pending" class="'+(g.col==='pending'?'active':'')+'">Pending</button>' +
+          '<button data-to="backlog" class="'+(g.col==='backlog'?'active':'')+'">Not for now</button>' +
+          '<button data-to="done" class="'+(g.col==='done'?'active':'')+'">Done</button>' +
+          (g.col==='done' ? '<button class="k-archive" style="color:#f59e0b;border-color:rgba(245,158,11,.3);">Archive</button>' : '') +
+          '<button class="k-del" style="margin-left:auto;color:#ef4444;border-color:rgba(239,68,68,.3);">Delete</button>' +
+        '</div>';
+      }
+
+      // Inline label editor
+      var labelEditorHtml = g.archived ? '' : renderLabelEditor(g.labels, getAllLabels(goals));
+
+      card.innerHTML = titleRow + labelsHtml + peopleHtml + collapsedExtra +
+        '<div class="k-body">' +
+          '<input class="k-field k-summary" value="'+escAttr(g.summary||'')+'" placeholder="Summary" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.95rem;font-weight:700;margin-bottom:8px;">' +
+          '<textarea class="k-field k-notes" placeholder="Description..." rows="3">'+escHtml(g.notes||'')+'</textarea>' +
+          labelEditorHtml +
+          '<div style="display:flex;gap:6px;margin-top:8px;">' +
+            '<div style="flex:1;"><label style="font-size:.68rem;color:var(--muted);">Reporter</label><input class="k-field k-reporter" value="'+escAttr(g.reporter||'')+'" placeholder="Reporter" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.8rem;margin-top:2px;"></div>' +
+            '<div style="flex:1;"><label style="font-size:.68rem;color:var(--muted);">Assignee</label><input class="k-field k-assignee" value="'+escAttr(g.assignee||'')+'" placeholder="Assignee" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.8rem;margin-top:2px;"></div>' +
+          '</div>' +
+          (project && project.customFields && project.customFields.length
+            ? '<div style="margin-top:10px;"><div style="font-size:.72rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:rgba(148,163,184,.88);margin-bottom:6px;">Project Fields</div><div class="k-custom-fields" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;">' + renderCustomFieldInputsHtml(project, g.customFields || {}, 'k-cf') + '</div></div>'
+            : '') +
+          '<div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-top:10px;">Attachments</div>' +
+          goalAttachHtml +
+          '<div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-top:10px;">Subtasks</div>' +
+          subtasksHtml +
+          addSubHtml +
+          commentsHtml +
+          logHtml +
+          moveHtml +
+        '</div>';
+
+      if(g.archived){
+        archiveFragment.appendChild(card);
+      } else if(g.col === 'backlog') {
+        colFragments.backlog.appendChild(card);
+      } else {
+        if(colFragments[g.col]) colFragments[g.col].appendChild(card);
+      }
+
+      // --- Event wiring ---
+
+      // Issue key click Ã¢â€ â€™ open fullscreen
+      card.querySelector('.k-id').addEventListener('click', function(e){
+        e.stopPropagation();
+        openIssueFullscreen(parseInt(this.dataset.gi));
+      });
+      card.querySelectorAll('.k-sub-id').forEach(function(el){
+        el.addEventListener('click', function(e){
+          e.stopPropagation();
+          openIssueFullscreen(parseInt(this.dataset.gi), parseInt(this.dataset.si));
+        });
+      });
+
+      // Expand/collapse goal card
+      card.querySelector('.k-expand').addEventListener('click', function(e){
+        e.stopPropagation();
+        card.classList.toggle('expanded');
+        this.innerHTML = card.classList.contains('expanded') ? '&#9650;' : '&#9660;';
+      });
+      card.querySelector('.k-header').addEventListener('click', function(){
+        card.classList.toggle('expanded');
+        card.querySelector('.k-expand').innerHTML = card.classList.contains('expanded') ? '&#9650;' : '&#9660;';
+      });
+
+      // Add task to Outlook calendar
+      var calBtn = card.querySelector('.k-cal-btn');
+      if(calBtn){
+        calBtn.addEventListener('mouseenter', function(){ this.style.opacity='1'; });
+        calBtn.addEventListener('mouseleave', function(){ this.style.opacity='.6'; });
+        calBtn.addEventListener('click', function(e){
+          e.stopPropagation();
+          var popup = reserveOutlookPopup();
+          var gi = parseInt(this.dataset.gi);
+          loadVault().then(function(data){
+            var goal = data.goals[gi];
+            if(!goal){
+              if(popup && !popup.closed) popup.close();
+              return;
+            }
+            var item = { summary: goal.summary || '', description: goal.notes || '', location: '' };
+            var dateKey = goal.due || new Date().toISOString().slice(0,10);
+            openOutlookCompose(item, dateKey, popup);
+          });
+        });
+      }
+
+      // Add subtask to Outlook calendar
+      card.querySelectorAll('.k-st-cal').forEach(function(btn){
+        btn.addEventListener('mouseenter', function(){ this.style.opacity='1'; });
+        btn.addEventListener('mouseleave', function(){ this.style.opacity='.6'; });
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          var popup = reserveOutlookPopup();
+          var gi = parseInt(this.dataset.gi);
+          var si = parseInt(this.dataset.si);
+          loadVault().then(function(data){
+            var goal = data.goals[gi];
+            if(!goal || !goal.subtasks[si]){
+              if(popup && !popup.closed) popup.close();
+              return;
+            }
+            var st = goal.subtasks[si];
+            var item = { summary: st.text || '', description: st.notes || '', location: '' };
+            var dateKey = st.due || goal.due || new Date().toISOString().slice(0,10);
+            openOutlookCompose(item, dateKey, popup);
+          });
+        });
+      });
+
+      // Activity log toggle
+      var logTitle = card.querySelector('.k-log-title');
+      if(logTitle){
+        logTitle.addEventListener('click', function(){
+          var list = card.querySelector('.k-log-list');
+          list.classList.toggle('open');
+          this.innerHTML = 'Activity Log (' + g.log.length + ') ' + (list.classList.contains('open') ? '&#9650;' : '&#9660;');
+        });
+      }
+
+      // Autosave goal summary
+      var kst = null;
+      card.querySelector('.k-summary').addEventListener('input', function(){
+        var self = this;
+        clearTimeout(kst);
+        kst = setTimeout(function(){
+          loadVault().then(function(data){
+            if(data.goals[i]){
+              data.goals[i].summary = self.value;
+              // Update title text without full re-render to keep focus
+              var nameEl = card.querySelector('.k-name');
+              if(nameEl) nameEl.textContent = self.value;
+              saveVault(data);
+            }
+          });
+        }, 800);
+      });
+
+      // Autosave goal notes
+      var kt = null;
+      card.querySelector('.k-notes').addEventListener('input', function(){
+        var self = this;
+        clearTimeout(kt);
+        kt = setTimeout(function(){
+          loadVault().then(function(data){
+            if(data.goals[i]) data.goals[i].notes = self.value;
+            saveVault(data);
+          });
+        }, 800);
+      });
+
+      // Inline label toggle
+      card.querySelectorAll('.k-le-chip').forEach(function(chip){
+        chip.addEventListener('click', function(e){
+          e.stopPropagation();
+          var label = this.dataset.label;
+          loadVault().then(function(data){
+            if(data.goals[i]){
+              if(!data.goals[i].labels) data.goals[i].labels = [];
+              var idx = data.goals[i].labels.indexOf(label);
+              if(idx >= 0) data.goals[i].labels.splice(idx, 1);
+              else data.goals[i].labels.push(label);
+            }
+            saveVault(data).then(function(){ renderGoals(data.goals, data.projects); });
+          });
+        });
+      });
+
+      // Inline add custom label
+      var leBtn = card.querySelector('.k-le-btn');
+      var leInput = card.querySelector('.k-le-input');
+      if(leBtn) leBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var name = leInput.value.trim().toLowerCase().replace(/[^a-z0-9\-_ ]/g,'');
+        if(!name) return;
+        loadVault().then(function(data){
+          if(data.goals[i]){
+            if(!data.goals[i].labels) data.goals[i].labels = [];
+            if(data.goals[i].labels.indexOf(name) < 0) data.goals[i].labels.push(name);
+          }
+          saveVault(data).then(function(){ renderGoals(data.goals, data.projects); });
+        });
+      });
+      if(leInput) leInput.addEventListener('keydown', function(e){
+        if(e.key === 'Enter'){ e.preventDefault(); e.stopPropagation(); leBtn.click(); }
+      });
+
+      // Autosave reporter
+      var rTimer = null;
+      var repInput = card.querySelector('.k-reporter');
+      if(repInput) repInput.addEventListener('input', function(){
+        var self = this;
+        clearTimeout(rTimer);
+        rTimer = setTimeout(function(){
+          loadVault().then(function(data){
+            if(data.goals[i]) data.goals[i].reporter = self.value.trim();
+            saveVault(data);
+          });
+        }, 800);
+      });
+
+      // Autosave assignee
+      var aTimer = null;
+      var assInput = card.querySelector('.k-assignee');
+      if(assInput) assInput.addEventListener('input', function(){
+        var self = this;
+        clearTimeout(aTimer);
+        aTimer = setTimeout(function(){
+          loadVault().then(function(data){
+            if(data.goals[i]) data.goals[i].assignee = self.value.trim();
+            saveVault(data);
+          });
+        }, 800);
+      });
+
+      card.querySelectorAll('.k-cf-input[data-field-id]').forEach(function(input){
+        var cfTimer = null;
+        var persistCustomField = function(){
+          var fieldId = input.getAttribute('data-field-id');
+          if(!fieldId) return;
+          loadVault().then(function(data){
+            if(!data.goals[i]) return;
+            if(!data.goals[i].customFields || typeof data.goals[i].customFields !== 'object') data.goals[i].customFields = {};
+            if(input.type === 'checkbox'){
+              if(input.checked) data.goals[i].customFields[fieldId] = true;
+              else delete data.goals[i].customFields[fieldId];
+            } else {
+              var value = String(input.value || '').trim();
+              if(value) data.goals[i].customFields[fieldId] = value;
+              else delete data.goals[i].customFields[fieldId];
+            }
+            saveVault(data);
+          });
+        };
+        if(input.tagName === 'SELECT' || input.type === 'date' || input.type === 'checkbox' || input.type === 'number'){
+          input.addEventListener('change', persistCustomField);
+        } else {
+          input.addEventListener('input', function(){
+            clearTimeout(cfTimer);
+            cfTimer = setTimeout(persistCustomField, 450);
+          });
+        }
+      });
+
+      // Add comment
+      var commentAddBtn = card.querySelector('.k-comment-add');
+      if(commentAddBtn) commentAddBtn.addEventListener('click', function(){
+        var textarea = card.querySelector('.k-comment-input');
+        var text = textarea.value.trim();
+        if(!text) return;
+        loadVault().then(function(data){
+          if(data.goals[i]){
+            if(!data.goals[i].comments) data.goals[i].comments = [];
+            data.goals[i].comments.push({text:text, ts:Date.now(), author: data.goals[i].assignee || ''});
+            addLogEntry(data.goals[i], 'Comment added');
+          }
+          saveVault(data).then(function(){ renderGoals(data.goals, data.projects); });
+        });
+      });
+
+      // Delete comment
+      card.querySelectorAll('.k-comment-del').forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          var ci = parseInt(this.dataset.ci);
+          loadVault().then(function(data){
+            if(data.goals[i] && data.goals[i].comments){
+              data.goals[i].comments.splice(ci, 1);
+              addLogEntry(data.goals[i], 'Comment deleted');
+            }
+            saveVault(data).then(function(){ renderGoals(data.goals, data.projects); });
+          });
+        });
+      });
+
+      // Subtask toggle expand
+      card.querySelectorAll('.k-st-header').forEach(function(hdr){
+        var toggle = hdr.querySelector('.k-st-toggle');
+        if(toggle) toggle.addEventListener('click', function(e){
+          e.stopPropagation();
+          hdr.closest('.k-subtask').classList.toggle('st-expanded');
+          this.innerHTML = hdr.closest('.k-subtask').classList.contains('st-expanded') ? '&#9650;' : '&#9660;';
+        });
+      });
+
+      // Subtask checkboxes with auto-move + activity log
+      card.querySelectorAll('.k-st-header input[type=checkbox]').forEach(function(cb){
+        cb.addEventListener('change', function(e){
+          e.stopPropagation();
+          var si = parseInt(this.dataset.si);
+          loadVault().then(function(data){
+            if(data.goals[i] && data.goals[i].subtasks[si] !== undefined){
+              data.goals[i].subtasks[si].done = cb.checked;
+              addLogEntry(data.goals[i], (cb.checked ? 'Completed' : 'Reopened') + ' subtask: ' + data.goals[i].subtasks[si].text);
+              autoMoveGoal(data.goals[i]);
+            }
+            saveVault(data).then(function(){ renderGoals(data.goals, data.projects); });
+          });
+        });
+      });
+
+      // Subtask effort change
+      card.querySelectorAll('.k-st-effort').forEach(function(sel){
+        sel.addEventListener('change', function(){
+          var si = parseInt(this.dataset.si);
+          loadVault().then(function(data){
+            if(data.goals[i] && data.goals[i].subtasks[si]) data.goals[i].subtasks[si].effort = sel.value;
+            saveVault(data).then(function(){ renderGoals(data.goals, data.projects); });
+          });
+        });
+      });
+
+      // Subtask due date change
+      card.querySelectorAll('input.k-st-due').forEach(function(inp){
+        inp.addEventListener('change', function(){
+          var si = parseInt(this.dataset.si);
+          loadVault().then(function(data){
+            if(data.goals[i] && data.goals[i].subtasks[si]) data.goals[i].subtasks[si].due = inp.value;
+            saveVault(data);
+          });
+        });
+      });
+
+      // Subtask notes autosave
+      card.querySelectorAll('.k-st-notes').forEach(function(ta){
+        var stTimer = null;
+        ta.addEventListener('input', function(){
+          var self = this;
+          clearTimeout(stTimer);
+          stTimer = setTimeout(function(){
+            var si = parseInt(self.dataset.si);
+            loadVault().then(function(data){
+              if(data.goals[i] && data.goals[i].subtasks[si]) data.goals[i].subtasks[si].notes = self.value;
+              saveVault(data);
+            });
+          }, 800);
+        });
+      });
+
+      // Image lightbox
+      card.querySelectorAll('.k-attach-img').forEach(function(img){
+        img.addEventListener('click', function(e){
+          e.stopPropagation();
+          var data = _attachDataMap[this.dataset.akey] || this.src;
+          imgLightbox.querySelector('img').src = data;
+          imgLightbox.classList.add('open');
+        });
+      });
+
+      // File download via data map
+      card.querySelectorAll('.k-attach-file').forEach(function(link){
+        link.addEventListener('click', function(e){
+          e.preventDefault(); e.stopPropagation();
+          var data = _attachDataMap[this.dataset.akey];
+          if(!data) return;
+          var a = document.createElement('a');
+          a.href = data; a.download = this.dataset.fname || 'file';
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        });
+      });
+
+      // Remove attachment
+      card.querySelectorAll('.k-attach-rm').forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          var ai = parseInt(this.dataset.ai);
+          var gi = parseInt(this.dataset.gi);
+          var si = this.dataset.si !== undefined ? parseInt(this.dataset.si) : -1;
+          loadVault().then(function(data){
+            var removed;
+            if(si >= 0 && data.goals[gi] && data.goals[gi].subtasks[si]){
+              removed = data.goals[gi].subtasks[si].attachments.splice(ai, 1)[0];
+            } else if(data.goals[gi]){
+              removed = data.goals[gi].attachments.splice(ai, 1)[0];
+            }
+            if(removed && removed.r2id) deleteFromR2(removed.r2id);
+            saveVault(data).then(function(){ renderGoals(data.goals, data.projects); });
+          });
+        });
+      });
+
+      // Add file to goal (inline)
+      var goalFileInput = card.querySelector('.k-goal-file-input');
+      if(goalFileInput){
+        goalFileInput.addEventListener('change', function(){
+          var inp = this;
+          readFilesAsBase64(inp.files).then(function(files){
+            loadVault().then(function(data){
+              if(data.goals[i]){
+                if(!data.goals[i].attachments) data.goals[i].attachments = [];
+                data.goals[i].attachments = data.goals[i].attachments.concat(files);
+                addLogEntry(data.goals[i], 'Added ' + files.length + ' attachment(s)');
+              }
+              saveVault(data).then(function(){
+                renderGoals(data.goals, data.projects);
+                syncGoalAttachmentsToR2(i);
+              });
+            });
+          });
+        });
+      }
+
+      // Add file to subtask (inline)
+      card.querySelectorAll('.k-st-file-input').forEach(function(inp){
+        inp.addEventListener('change', function(){
+          var si = parseInt(this.dataset.si);
+          var el = this;
+          readFilesAsBase64(el.files).then(function(files){
+            loadVault().then(function(data){
+              if(data.goals[i] && data.goals[i].subtasks[si]){
+                if(!data.goals[i].subtasks[si].attachments) data.goals[i].subtasks[si].attachments = [];
+                data.goals[i].subtasks[si].attachments = data.goals[i].subtasks[si].attachments.concat(files);
+              }
+              saveVault(data).then(function(){
+                renderGoals(data.goals, data.projects);
+                syncGoalAttachmentsToR2(i);
+              });
+            });
+          });
+        });
+      });
+
+      // Remove subtask
+      card.querySelectorAll('.k-st-del').forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          var si = parseInt(this.dataset.si);
+          loadVault().then(function(data){
+            if(data.goals[i]){
+              addLogEntry(data.goals[i], 'Removed subtask: ' + data.goals[i].subtasks[si].text);
+              data.goals[i].subtasks.splice(si,1);
+              autoMoveGoal(data.goals[i]);
+            }
+            saveVault(data).then(function(){ renderGoals(data.goals, data.projects); });
+          });
+        });
+      });
+
+      // Add subtask Ã¢â‚¬â€ open modal
+      var subOpenBtn = card.querySelector('.k-sub-open');
+      if(subOpenBtn) subOpenBtn.addEventListener('click', function(){
+        subModalGoalIdx = i;
+        subNameInput.value = ''; subEffortInput.value = ''; subDueInput.value = ''; subNotesInput.value = '';
+        pendingSubFiles = []; subFilesPreview.innerHTML = ''; subFilesInput.value = '';
+        subModalBg.classList.add('open');
+        setTimeout(function(){ subNameInput.focus(); }, 100);
+      });
+
+      // Move buttons (manual override) with activity log
+      card.querySelectorAll('.k-move button[data-to]').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var newCol = btn.dataset.to;
+          loadVault().then(function(data){
+            if(data.goals[i]){
+              var oldCol = data.goals[i].col;
+              data.goals[i].col = newCol;
+              if(newCol === 'done' && !data.goals[i].completedAt) data.goals[i].completedAt = Date.now();
+              if(newCol !== 'done') delete data.goals[i].completedAt;
+              addLogEntry(data.goals[i], 'Moved from ' + oldCol + ' to ' + newCol);
+            }
+            saveVault(data).then(function(){ renderGoals(data.goals, data.projects); });
+          });
+        });
+      });
+
+      // Archive button
+      var archiveBtn = card.querySelector('.k-archive');
+      if(archiveBtn) archiveBtn.addEventListener('click', function(){
+        loadVault().then(function(data){
+          if(data.goals[i]){
+            data.goals[i].archived = true;
+            addLogEntry(data.goals[i], 'Archived');
+          }
+          saveVault(data).then(function(){ renderGoals(data.goals, data.projects); });
+        });
+      });
+
+      // Restore button
+      var restoreBtn = card.querySelector('.k-restore');
+      if(restoreBtn) restoreBtn.addEventListener('click', function(){
+        loadVault().then(function(data){
+          if(data.goals[i]){
+            delete data.goals[i].archived;
+            addLogEntry(data.goals[i], 'Restored from archive');
+          }
+          saveVault(data).then(function(){ renderGoals(data.goals, data.projects); });
+        });
+      });
+
+      // Delete
+      card.querySelector('.k-del').addEventListener('click', function(){
+        if(!confirm('Delete goal "' + g.summary + '"?')) return;
+        loadVault().then(function(data){
+          data.goals.splice(i,1);
+          saveVault(data).then(function(){ renderGoals(data.goals, data.projects); });
+        });
+      });
+
+      // Drag events
+      if(!g.archived){
+        card.addEventListener('dragstart', function(e){
+          card.classList.add('dragging');
+          e.dataTransfer.setData('text/plain', i);
+          e.dataTransfer.effectAllowed = 'move';
+        });
+        card.addEventListener('dragend', function(){ card.classList.remove('dragging'); });
+      }
+    });
+
+    ['todo','progress','pending','done'].forEach(function(col){
+      var container = document.querySelector('.kanban-items[data-col="'+col+'"]');
+      if(container) container.appendChild(colFragments[col]);
+    });
+    if(goalBacklogItems) goalBacklogItems.appendChild(colFragments.backlog);
+    if(goalArchiveList) goalArchiveList.appendChild(archiveFragment);
+
+    if(!_kanbanDropZonesBound){
+      _kanbanDropZonesBound = true;
+      document.querySelectorAll('.kanban-items').forEach(function(zone){
+        zone.addEventListener('dragover', function(e){ e.preventDefault(); zone.classList.add('drag-over'); });
+        zone.addEventListener('dragleave', function(){ zone.classList.remove('drag-over'); });
+        zone.addEventListener('drop', function(e){
+          e.preventDefault();
+          zone.classList.remove('drag-over');
+          var idx = parseInt(e.dataTransfer.getData('text/plain'));
+          var newCol = zone.dataset.col;
+          loadVault().then(function(data){
+            if(data.goals[idx]){
+              var oldCol = data.goals[idx].col;
+              data.goals[idx].col = newCol;
+              if(newCol === 'done' && !data.goals[idx].completedAt) data.goals[idx].completedAt = Date.now();
+              if(newCol !== 'done') delete data.goals[idx].completedAt;
+              addLogEntry(data.goals[idx], 'Moved from ' + oldCol + ' to ' + newCol);
+            }
+            saveVault(data);
+          });
+        });
+      });
+    }
+  }
+
+  // Filter event handlers
+  if(goalFilterProject) goalFilterProject.addEventListener('change', function(){
+    var data = getCachedVaultData();
+    populateProjectControls(data.projects, data.goals, {selectedFilter:goalFilterProject.value, preferredTaskProject:goalFilterProject.value || getDefaultProjectId(data.projects)});
+    renderGoals(data.goals, data.projects);
+  });
+  goalSearchInput.addEventListener('input', function(){
+    var data = getCachedVaultData();
+    renderGoals(data.goals, data.projects);
+  });
+  goalFilterPriority.addEventListener('change', function(){
+    var data = getCachedVaultData();
+    renderGoals(data.goals, data.projects);
+  });
+  goalFilterLabel.addEventListener('change', function(){
+    var data = getCachedVaultData();
+    renderGoals(data.goals, data.projects);
+  });
+  goalFilterDue.addEventListener('change', function(){
+    var data = getCachedVaultData();
+    renderGoals(data.goals, data.projects);
+  });
+  goalShowArchive.addEventListener('click', function(){
+    showArchive = !showArchive;
+    goalShowArchive.classList.toggle('active', showArchive);
+    var data = getCachedVaultData();
+    renderGoals(data.goals, data.projects);
+  });
+  if(goalBacklogToggle) goalBacklogToggle.addEventListener('click', function(){
+    showBacklog = !showBacklog;
+    var data = getCachedVaultData();
+    renderGoals(data.goals, data.projects);
+  });
+
+  // Render label chips in goal modal (defaults + custom from all goals)
+  var _cachedAllLabels = DEFAULT_LABELS.slice();
+  function renderLabelChips(){
+    goalLabelsWrap.innerHTML = '';
+    _cachedAllLabels.forEach(function(lbl){
+      var chip = document.createElement('span');
+      chip.className = 'goal-label-chip' + (selectedGoalLabels.indexOf(lbl.name) >= 0 ? ' selected' : '');
+      chip.style.background = lbl.bg;
+      chip.style.color = lbl.color;
+      chip.textContent = lbl.name;
+      chip.addEventListener('click', function(){
+        var idx = selectedGoalLabels.indexOf(lbl.name);
+        if(idx >= 0) selectedGoalLabels.splice(idx, 1);
+        else selectedGoalLabels.push(lbl.name);
+        renderLabelChips();
+      });
+      goalLabelsWrap.appendChild(chip);
+    });
+    // Also show any selected labels not in the list (edge case)
+    selectedGoalLabels.forEach(function(name){
+      if(!_cachedAllLabels.find(function(l){return l.name===name;})){
+        var lbl = getLabelDef(name);
+        var chip = document.createElement('span');
+        chip.className = 'goal-label-chip selected';
+        chip.style.background = lbl.bg;
+        chip.style.color = lbl.color;
+        chip.textContent = lbl.name;
+        chip.addEventListener('click', function(){
+          selectedGoalLabels.splice(selectedGoalLabels.indexOf(name), 1);
+          renderLabelChips();
+        });
+        goalLabelsWrap.appendChild(chip);
+      }
+    });
+  }
+
+  // Add custom label
+  goalCustomLabelAdd.addEventListener('click', function(){
+    var name = goalCustomLabelInput.value.trim().toLowerCase().replace(/[^a-z0-9\-_ ]/g,'');
+    if(!name) return;
+    goalCustomLabelInput.value = '';
+    // Add to cached labels if new
+    if(!_cachedAllLabels.find(function(l){return l.name===name;})){
+      _cachedAllLabels.push(getLabelDef(name));
+    }
+    // Auto-select it
+    if(selectedGoalLabels.indexOf(name) < 0) selectedGoalLabels.push(name);
+    renderLabelChips();
+  });
+  goalCustomLabelInput.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); goalCustomLabelAdd.click(); }
+  });
+
+  function setProjectModalState(mode){
+    if(projectModalTitle) projectModalTitle.textContent = mode === 'edit' ? 'Edit Project' : 'New Project';
+    if(projectSubmitBtn) projectSubmitBtn.textContent = mode === 'edit' ? 'Save Project' : 'Create Project';
+    if(projectNameInput) projectNameInput.style.borderColor = '';
+    if(mode !== 'edit') activeProjectModalId = '';
+  }
+  function openProjectModal(projectId){
+    if(!projectModalBg) return;
+    if(projectId){
+      loadVault().then(function(data){
+        var project = getProjectById(data.projects || _cachedProjects, projectId);
+        if(!project) return;
+        var displayProject = projectDisplay(project) || project;
+        activeProjectModalId = project.id;
+        setProjectModalState('edit');
+        projectNameInput.value = displayProject.name || project.name || '';
+        projectKeyInput.value = project.key || '';
+        projectKeyInput.dataset.manual = '1';
+        projectDescInput.value = displayProject.description || project.description || '';
+        projectIconInput.value = displayProject.icon || project.icon || '';
+        projectColorInput.value = displayProject.color || project.color || '#60a5fa';
+        projectModalBg.classList.add('open');
+        setTimeout(function(){ projectNameInput.focus(); }, 80);
+      });
+      return;
+    }
+    setProjectModalState('create');
+    projectNameInput.value = '';
+    projectKeyInput.value = '';
+    projectKeyInput.dataset.manual = '';
+    projectDescInput.value = '';
+    projectIconInput.value = '';
+    projectColorInput.value = '#60a5fa';
+    projectModalBg.classList.add('open');
+    setTimeout(function(){ projectNameInput.focus(); }, 80);
+  }
+  function closeProjectModal(){
+    activeProjectModalId = '';
+    setProjectModalState('create');
+    if(projectModalBg) projectModalBg.classList.remove('open');
+  }
+  function renderProjectFieldRows(fields){
+    if(!projectFieldsList) return;
+    var list = normalizeProjectFields(fields || []);
+    var compact = window.innerWidth <= 720;
+    if(!list.length){
+      projectFieldsList.innerHTML = '<div style="padding:12px;border-radius:12px;border:1px dashed rgba(148,163,184,.2);background:rgba(15,23,42,.42);color:var(--muted);font-size:.82rem;">No custom fields yet. Add status-like metadata such as squad, estimate, target release, customer, or QA signoff.</div>';
+      return;
+    }
+    projectFieldsList.innerHTML = list.map(function(field){
+      var optionsValue = (field.options || []).join(', ');
+      return '<div class="project-field-row" data-field-id="' + field.id + '" style="padding:12px;border-radius:14px;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.48);display:grid;grid-template-columns:' + (compact ? '1fr' : '1.5fr .9fr 1.4fr auto') + ';gap:8px;align-items:center;">' +
+        '<input class="project-field-name" type="text" value="' + escAttr(field.name) + '" placeholder="Field name" style="width:100%;padding:9px 10px;border-radius:10px;border:1px solid rgba(148,163,184,.14);background:rgba(2,6,23,.55);color:var(--text);">' +
+        '<select class="project-field-type" style="width:100%;padding:9px 10px;border-radius:10px;border:1px solid rgba(148,163,184,.14);background:rgba(2,6,23,.55);color:var(--text);">' +
+          '<option value="text"' + (field.type === 'text' ? ' selected' : '') + '>Text</option>' +
+          '<option value="number"' + (field.type === 'number' ? ' selected' : '') + '>Number</option>' +
+          '<option value="date"' + (field.type === 'date' ? ' selected' : '') + '>Date</option>' +
+          '<option value="select"' + (field.type === 'select' ? ' selected' : '') + '>Select</option>' +
+          '<option value="toggle"' + (field.type === 'toggle' ? ' selected' : '') + '>Toggle</option>' +
+        '</select>' +
+        '<input class="project-field-options" type="text" value="' + escAttr(optionsValue) + '" placeholder="Options, comma separated" style="width:100%;padding:9px 10px;border-radius:10px;border:1px solid rgba(148,163,184,.14);background:rgba(2,6,23,.55);color:var(--text);' + (field.type === 'select' ? '' : 'opacity:.55;') + '"' + (field.type === 'select' ? '' : ' disabled') + '>' +
+        '<button type="button" class="project-field-remove" style="padding:9px 12px;border-radius:10px;border:1px solid rgba(239,68,68,.24);background:rgba(127,29,29,.18);color:#fca5a5;cursor:pointer;">Remove</button>' +
+      '</div>';
+    }).join('');
+    projectFieldsList.querySelectorAll('.project-field-type').forEach(function(select){
+      select.addEventListener('change', function(){
+        var row = this.closest('.project-field-row');
+        var optionsInput = row ? row.querySelector('.project-field-options') : null;
+        if(!optionsInput) return;
+        var isSelect = this.value === 'select';
+        optionsInput.disabled = !isSelect;
+        optionsInput.style.opacity = isSelect ? '1' : '.55';
+      });
+    });
+    projectFieldsList.querySelectorAll('.project-field-remove').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var row = this.closest('.project-field-row');
+        if(row) row.remove();
+      });
+    });
+  }
+  function collectProjectFieldRows(){
+    var rows = [];
+    if(!projectFieldsList) return rows;
+    projectFieldsList.querySelectorAll('.project-field-row').forEach(function(row, index){
+      var name = String((row.querySelector('.project-field-name') || {}).value || '').trim();
+      if(!name) return;
+      rows.push({
+        id: row.getAttribute('data-field-id') || slugifyProjectId(name || ('field-' + (index + 1))),
+        name: name,
+        type: (row.querySelector('.project-field-type') || {}).value || 'text',
+        options: (row.querySelector('.project-field-options') || {}).value || ''
+      });
+    });
+    return normalizeProjectFields(rows);
+  }
+  function openProjectFieldsModal(projectId){
+    if(!projectFieldsModalBg) return;
+    loadVault().then(function(data){
+      var project = getProjectById(data.projects || _cachedProjects, projectId);
+      if(!project) return;
+      activeProjectFieldsProjectId = project.id;
+      var displayProject = projectDisplay(project) || project;
+      if(projectFieldsTitle) projectFieldsTitle.textContent = displayProject.name + ' Fields';
+      if(projectFieldsSubtitle) projectFieldsSubtitle.textContent = 'Define Jira-style fields for tasks in ' + displayProject.name + '.';
+      renderProjectFieldRows(project.customFields || []);
+      projectFieldsModalBg.classList.add('open');
+    });
+  }
+  function closeProjectFieldsModal(){
+    activeProjectFieldsProjectId = '';
+    if(projectFieldsModalBg) projectFieldsModalBg.classList.remove('open');
+  }
+
+  if(projectAddOpenBtn) projectAddOpenBtn.addEventListener('click', openProjectModal);
+  if(goalProjectAddBtn) goalProjectAddBtn.addEventListener('click', openProjectModal);
+  if(projectModalClose) projectModalClose.addEventListener('click', closeProjectModal);
+  if(projectModalBg) projectModalBg.addEventListener('click', function(e){ if(e.target === projectModalBg) closeProjectModal(); });
+  if(projectFieldsModalClose) projectFieldsModalClose.addEventListener('click', closeProjectFieldsModal);
+  if(projectFieldsModalBg) projectFieldsModalBg.addEventListener('click', function(e){ if(e.target === projectFieldsModalBg) closeProjectFieldsModal(); });
+  if(projectFieldsAddRowBtn) projectFieldsAddRowBtn.addEventListener('click', function(){
+    var fields = collectProjectFieldRows();
+    fields.push({ id:'field-' + Date.now(), name:'', type:'text', options:[] });
+    renderProjectFieldRows(fields);
+  });
+  if(projectFieldsSaveBtn) projectFieldsSaveBtn.addEventListener('click', function(){
+    if(!activeProjectFieldsProjectId) return;
+    loadVault().then(function(data){
+      var projects = ensureProjects(data.projects || []);
+      var project = projects.find(function(entry){ return entry && entry.id === activeProjectFieldsProjectId; });
+      if(!project) return;
+      project.customFields = collectProjectFieldRows();
+      data.projects = ensureProjects(projects);
+      persistProjectMutation(data, 'project-fields').then(function(){
+        closeProjectFieldsModal();
+      });
+    });
+  });
+  if(projectNameInput) projectNameInput.addEventListener('input', function(){
+    if(projectKeyInput && !projectKeyInput.dataset.manual){
+      projectKeyInput.value = deriveProjectKey(projectNameInput.value);
+    }
+  });
+  if(projectKeyInput) projectKeyInput.addEventListener('input', function(){
+    this.value = deriveProjectKey(this.value);
+    this.dataset.manual = this.value ? '1' : '';
+  });
+  if(projectSubmitBtn) projectSubmitBtn.addEventListener('click', function(){
+    var name = projectNameInput.value.trim();
+    if(!name){ projectNameInput.style.borderColor = '#ef4444'; return; }
+    projectNameInput.style.borderColor = '';
+    var projectPayload = {
+      name: name,
+      key: projectKeyInput.value || name,
+      description: projectDescInput.value.trim(),
+      icon: projectIconInput.value.trim(),
+      color: projectColorInput.value || '#60a5fa'
+    };
+    var submitPromise = activeProjectModalId
+      ? updateProjectEntry(activeProjectModalId, projectPayload)
+      : createProjectEntry(projectPayload);
+    submitPromise.then(function(result){
+      if(!result || !result.ok){
+        projectNameInput.style.borderColor = '#ef4444';
+        return;
+      }
+      loadVault().then(function(data){
+        populateProjectControls(data.projects, data.goals, {selectedFilter:result.projectId, preferredTaskProject:result.projectId});
+        renderProjectDashboard(data);
+        if(document.getElementById('kanban-overlay').style.display !== 'none'){
+          renderGoals(data.goals || [], data.projects || []);
+        }
+        closeProjectModal();
+      });
+    });
+  });
+
+  // Goal modal open/close
+  if(goalProjectSelect) goalProjectSelect.addEventListener('change', function(){
+    draftGoalCustomFields = readCustomFieldInputs(goalCustomFieldsEl, 'goal-cf');
+    renderGoalProjectCustomFields(this.value || getDefaultProjectId(_cachedProjects), draftGoalCustomFields);
+  });
+  goalAddBtn.addEventListener('click', function(){
+    goalModalBg.classList.add('open');
+    goalSummary.value = ''; goalNotesInput.value = ''; goalDue.value = ''; goalPriority.value = '';
+    goalReporter.value = ''; goalAssignee.value = '';
+    if(goalProjectSelect) goalProjectSelect.style.borderColor = '';
+    pendingGoalFiles = []; goalFilesPreview.innerHTML = ''; goalFilesInput.value = '';
+    goalCustomLabelInput.value = '';
+    selectedGoalLabels = [];
+    draftGoalCustomFields = {};
+    // Refresh cached labels from vault
+    loadVault().then(function(data){
+      populateProjectControls(data.projects, data.goals, {preferredTaskProject:(goalFilterProject && goalFilterProject.value) || getDefaultProjectId(data.projects)});
+      _cachedAllLabels = getAllLabels(data.goals);
+      renderLabelChips();
+      renderGoalProjectCustomFields(goalProjectSelect ? goalProjectSelect.value || getDefaultProjectId(data.projects) : getDefaultProjectId(data.projects), draftGoalCustomFields);
+    });
+    setTimeout(function(){ goalSummary.focus(); }, 100);
+  });
+  goalModalClose.addEventListener('click', function(){ goalModalBg.classList.remove('open'); });
+  goalModalBg.addEventListener('click', function(e){ if(e.target === goalModalBg) goalModalBg.classList.remove('open'); });
+
+  // Create goal
+  goalSubmit.addEventListener('click', function(){
+    var s = goalSummary.value.trim();
+    var projectId = goalProjectSelect ? goalProjectSelect.value : '';
+    if(!s){ goalSummary.style.borderColor='#ef4444'; return; }
+    if(!projectId && goalProjectSelect){ goalProjectSelect.style.borderColor='#ef4444'; return; }
+    goalSummary.style.borderColor='';
+    if(goalProjectSelect) goalProjectSelect.style.borderColor = '';
+    loadVault().then(function(data){
+      if(!data._nextId) data._nextId = data.goals.length + 1;
+      var fallbackProjectId = getDefaultProjectId(data.projects);
+      var resolvedProjectId = projectId || fallbackProjectId;
+      var customFieldValues = readCustomFieldInputs(goalCustomFieldsEl, 'goal-cf');
+      var goal = {
+        id: data._nextId++,
+        projectId: resolvedProjectId,
+        summary: s,
+        desc: '',
+        notes: goalNotesInput.value.trim(),
+        due: goalDue.value || '',
+        priority: goalPriority.value || '',
+        reporter: goalReporter.value.trim(),
+        assignee: goalAssignee.value.trim(),
+        labels: selectedGoalLabels.slice(),
+        col: 'todo',
+        subtasks: [],
+        attachments: pendingGoalFiles.slice(),
+        comments: [],
+        customFields: customFieldValues,
+        log: [{action:'Goal created in ' + getProjectById(data.projects || _cachedProjects, resolvedProjectId).name, ts:Date.now()}]
+      };
+      data.goals.push(goal);
+      var goalIdx = data.goals.length - 1;
+      saveVault(data).then(function(){
+        populateProjectControls(data.projects, data.goals, {selectedFilter:resolvedProjectId, preferredTaskProject:resolvedProjectId});
+        renderGoals(data.goals, data.projects);
+        goalModalBg.classList.remove('open');
+        pendingGoalFiles = [];
+        goalFilesPreview.innerHTML = '';
+        syncGoalAttachmentsToR2(goalIdx);
+      });
+    });
+  });
+
+  // Subtask modal open/close
+  subModalClose.addEventListener('click', function(){ subModalBg.classList.remove('open'); });
+  subModalBg.addEventListener('click', function(e){ if(e.target === subModalBg) subModalBg.classList.remove('open'); });
+
+  // Create subtask
+  subSubmitBtn.addEventListener('click', function(){
+    var name = subNameInput.value.trim();
+    if(!name){ subNameInput.style.borderColor='#ef4444'; return; }
+    subNameInput.style.borderColor='';
+    loadVault().then(function(data){
+      if(!data._nextSubId) data._nextSubId = 1;
+      var sub = {
+        id: data._nextSubId++,
+        text: name,
+        done: false,
+        effort: subEffortInput.value || '',
+        due: subDueInput.value || '',
+        notes: subNotesInput.value.trim(),
+        attachments: pendingSubFiles.slice()
+      };
+      if(data.goals[subModalGoalIdx]){
+        if(!data.goals[subModalGoalIdx].subtasks) data.goals[subModalGoalIdx].subtasks = [];
+        data.goals[subModalGoalIdx].subtasks.push(sub);
+        addLogEntry(data.goals[subModalGoalIdx], 'Added subtask: ' + name);
+        autoMoveGoal(data.goals[subModalGoalIdx]);
+      }
+      saveVault(data).then(function(){
+        renderGoals(data.goals, data.projects);
+        subModalBg.classList.remove('open');
+        pendingSubFiles = [];
+        subFilesPreview.innerHTML = '';
+        syncGoalAttachmentsToR2(subModalGoalIdx);
+      });
+    });
+  });
+
+  function escHtml(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+  function escAttr(s){ return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // --- Unlock / Create ---
+  function showError(msg){ errorEl.textContent=msg; errorEl.style.display='block'; }
+  function hideError(){ errorEl.style.display='none'; }
+
+  // Hash credentials the same way the Account system does (SHA-256)
+  function hashAccountCreds(user, pass){
+    var data = new TextEncoder().encode(user.toLowerCase() + ':' + pass);
+    return crypto.subtle.digest('SHA-256', data).then(function(buf){
+      return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+    });
+  }
+
+  unlockBtn.addEventListener('click', function(){
+    hideError();
+    var user = vaultUserInput.value.trim();
+    var pw = pwInput.value;
+    if(!user){ showError('Please enter your username.'); return; }
+    if(!pw){ showError('Please enter your password.'); return; }
+
+    // Verify against stored account credentials
+    var storedUser = localStorage.getItem('homer-auth-user');
+    var storedAcctHash = localStorage.getItem('homer-auth-hash');
+    if(!storedUser || !storedAcctHash){ showError('No account found. Create one first.'); return; }
+    if(storedUser.toLowerCase() !== user.toLowerCase()){ showError('Invalid username or password.'); return; }
+
+    hashAccountCreds(user, pw).then(function(acctHash){
+      if(acctHash !== storedAcctHash){ showError('Invalid username or password.'); return; }
+
+      // Account verified Ã¢â‚¬â€ use credentials to derive vault encryption key
+      var vaultPw = user.toLowerCase() + ':' + pw;
+      getSalt().then(function(salt){
+        if(isNew){
+          hashPassword(vaultPw, salt).then(function(h){
+            return idb.set(HASH_KEY, h).then(function(){ return deriveKey(vaultPw, salt); });
+          }).then(function(key){
+            cryptoKey = key;
+            return saveVault(defaultData(currentVaultMode));
+          }).then(function(){ unlock(); });
+        } else {
+          deriveKey(vaultPw, salt).then(function(key){ cryptoKey = key; unlock(); });
+        }
+      });
+    });
+  });
+  vaultUserInput.addEventListener('keydown', function(e){ if(e.key==='Enter') unlockBtn.click(); });
+  pwInput.addEventListener('keydown', function(e){ if(e.key==='Enter') unlockBtn.click(); });
+
+  function unlock(){
+    pwInput.value = '';
+    lockScreen.style.display = 'none';
+    content.style.display = 'block';
+    window._homerVaultUnlocked = true;
+    renderVault();
+    updateVaultSyncBadge();
+    window.dispatchEvent(new Event('homer-vault-state'));
+    // Silently restore any cloud-only attachments from R2
+    restoreAttachmentsFromR2().then(function(){ renderVault(); }).catch(function(){});
+  }
+
+  lockBtn.addEventListener('click', function(){
+    cryptoKey = null; _vaultRootCache = null;
+    content.style.display = 'none';
+    lockScreen.style.display = 'block';
+    window._homerVaultUnlocked = false;
+    updateVaultSyncBadge();
+    window.dispatchEvent(new Event('homer-vault-state'));
+    notesArea.value = '';
+    linksList.innerHTML = '';
+    credsList.innerHTML = '';
+    ['todo','progress','pending','backlog','done'].forEach(function(c){ var zone = document.querySelector('.kanban-items[data-col="'+c+'"]'); if(zone) zone.innerHTML=''; });
+    // Close all overlays on lock
+    ['kanban-overlay','projects-overlay','secrets-overlay','notes-overlay','goals-overlay'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el){ el.style.display='none'; el.classList.remove('open'); }
+    });
+    isNew = false;
+    lockLabel.textContent = 'Unlock Vault';
+    unlockBtn.textContent = 'Unlock';
+    // Re-fill username
+    var acctUser = localStorage.getItem('homer-auth-user');
+    if(acctUser) vaultUserInput.value = acctUser;
+    pwInput.value = '';
+  });
+
+  // --- Dashboard Card Handlers ---
+  function openVaultOverlay(id, onOpen){
+    var el = document.getElementById(id);
+    if(el){
+      el.style.display = 'block';
+      document.body.style.overflow = 'hidden';
+      if(typeof window._homerSyncPageScrollLock === 'function') window._homerSyncPageScrollLock();
+      if(typeof window._homerSyncMobileOverlayState === 'function') window._homerSyncMobileOverlayState();
+      if(onOpen) onOpen();
+    }
+  }
+  function closeVaultOverlay(id){
+    var el = document.getElementById(id);
+    if(el){ el.style.display = 'none'; }
+    if(typeof window._homerSyncPageScrollLock === 'function') window._homerSyncPageScrollLock();
+    else document.body.style.overflow = '';
+    if(typeof window._homerSyncMobileOverlayState === 'function') window._homerSyncMobileOverlayState();
+    renderVault(); // refresh badges
+  }
+  window._homerOpenVaultSurface = function(surface){
+    var target = String(surface || '').trim().toLowerCase();
+    if(!window._homerVaultUnlocked) return { ok:false, error:'Vault is locked' };
+    if(target === 'goals'){
+      if(typeof window._homerOpenGoalsOverlay === 'function') window._homerOpenGoalsOverlay();
+      return { ok:true, target:'goals' };
+    }
+    if(target === 'notes'){
+      openVaultOverlay('notes-overlay', function(){ if(notesArea) notesArea.focus(); });
+      return { ok:true, target:'notes' };
+    }
+    if(target === 'secrets'){
+      openVaultOverlay('secrets-overlay', function(){
+        loadVault().then(function(data){ renderLinks(data.links || []); renderCreds(data.creds || []); });
+      });
+      return { ok:true, target:'secrets' };
+    }
+    if(target === 'projects'){
+      openVaultOverlay('projects-overlay', function(){
+        loadVault().then(function(data){ renderProjectDashboard(data); });
+      });
+      return { ok:true, target:'projects' };
+    }
+    if(target === 'kanban'){
+      openVaultOverlay('kanban-overlay', function(){
+        loadVault().then(function(data){ renderGoals(data.goals || [], data.projects || []); });
+      });
+      return { ok:true, target:'kanban' };
+    }
+    return { ok:false, error:'Unknown vault surface: ' + surface };
+  };
+  window._homerUpdateVaultNote = function(text, mode){
+    if(!window._homerVaultUnlocked) return Promise.resolve({ ok:false, error:'Vault is locked' });
+    var targetMode = normalizeVaultMode(mode || currentVaultMode);
+    return loadVaultForMode(targetMode).then(function(data){
+      data.notes = String(text || '');
+      return saveVaultForMode(targetMode, data).then(function(){
+        if(notesArea) notesArea.value = data.notes;
+        if(notesStatus) notesStatus.textContent = 'saved';
+        refreshCanonicalFiles().catch(function(){});
+        return { ok:true, words: countNoteWords(data.notes) };
+      });
+    });
+  };
+  window._homerAddVaultSecretLink = function(payload, mode){
+    if(!window._homerVaultUnlocked) return Promise.resolve({ ok:false, error:'Vault is locked' });
+    var entry = payload && typeof payload === 'object' ? payload : {};
+    var name = String(entry.name || entry.title || '').trim();
+    var url = String(entry.url || '').trim();
+    if(!name || !url) return Promise.resolve({ ok:false, error:'Missing name or url' });
+    if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    var targetMode = normalizeVaultMode(mode || currentVaultMode);
+    return loadVaultForMode(targetMode).then(function(data){
+      if(!Array.isArray(data.links)) data.links = [];
+      data.links.push({ name:name, url:url, desc:String(entry.description || entry.desc || '').trim() });
+      return saveVaultForMode(targetMode, data).then(function(){
+        renderLinks(data.links || []);
+        refreshCanonicalFiles().catch(function(){});
+        return { ok:true, name:name, url:url };
+      });
+    });
+  };
+  window._homerAddVaultCredential = function(payload, mode){
+    if(!window._homerVaultUnlocked) return Promise.resolve({ ok:false, error:'Vault is locked' });
+    var entry = payload && typeof payload === 'object' ? payload : {};
+    var label = String(entry.label || entry.name || '').trim();
+    var passValue = String(entry.password || entry.pass || '').trim();
+    if(!label || !passValue) return Promise.resolve({ ok:false, error:'Missing label or password' });
+    var targetMode = normalizeVaultMode(mode || currentVaultMode);
+    return loadVaultForMode(targetMode).then(function(data){
+      if(!Array.isArray(data.creds)) data.creds = [];
+      data.creds.push({
+        label: label,
+        site: String(entry.site || entry.url || '').trim(),
+        user: String(entry.username || entry.user || '').trim(),
+        pass: passValue,
+        details: String(entry.details || entry.notes || '').trim()
+      });
+      return saveVaultForMode(targetMode, data).then(function(){
+        renderCreds(data.creds || []);
+        refreshCanonicalFiles().catch(function(){});
+        return { ok:true, label:label };
+      });
+    });
+  };
+  window._homerCloseVaultOverlay = closeVaultOverlay;
+  document.querySelectorAll('.vault-ov-close').forEach(function(btn){
+    btn.addEventListener('click', function(){ closeVaultOverlay(this.dataset.close); });
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      ['notes-overlay','secrets-overlay','kanban-overlay','projects-overlay'].forEach(function(id){
+        var el = document.getElementById(id);
+        if(el && el.style.display !== 'none'){ closeVaultOverlay(id); }
+      });
+    }
+  });
+  document.getElementById('vd-open-kanban').addEventListener('click', function(){
+    openVaultOverlay('projects-overlay', function(){
+      loadVault().then(function(data){ renderProjectDashboard(data); });
+    });
+  });
+  document.getElementById('vd-open-goals').addEventListener('click', function(){
+    if(typeof window._homerOpenGoalsOverlay === 'function') window._homerOpenGoalsOverlay();
+  });
+  document.getElementById('vd-open-secrets').addEventListener('click', function(){
+    openVaultOverlay('secrets-overlay', function(){
+      loadVault().then(function(data){ renderLinks(data.links || []); renderCreds(data.creds || []); });
+    });
+  });
+  document.getElementById('vd-open-notes').addEventListener('click', function(){
+    openVaultOverlay('notes-overlay', function(){ notesArea.focus(); });
+  });
+  if(vaultSyncNowBtn) vaultSyncNowBtn.addEventListener('click', function(){
+    var btn = this;
+    var original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Mirroring...';
+    ensureVaultServerMirror();
+    Promise.resolve(typeof window._homerBackupEverythingToDb === 'function' ? window._homerBackupEverythingToDb() : null)
+      .then(function(){
+        btn.textContent = 'Mirrored';
+        return refreshVaultMirrorStatus({ force:true, reason:'vault-sync-button' });
+      })
+      .catch(function(err){
+        btn.textContent = err && err.message ? 'Retry Mirror' : original;
+        setVaultMirrorStatus({
+          tone:'mismatch',
+          badgeTone:'mismatch',
+          label:'Mirror Failed',
+          summary:'Server mirror update failed: ' + (err && err.message ? err.message : 'unknown error'),
+          driftChips:[{ tone:'bad', label:'Mirror failed' }]
+        });
+      })
+      .finally(function(){
+        setTimeout(function(){
+          btn.disabled = false;
+          btn.textContent = original;
+        }, 900);
+      });
+  });
+  if(vaultOpenRecoveryBtn) vaultOpenRecoveryBtn.addEventListener('click', function(){
+    if(cloud) cloud.click();
+  });
+
+  // --- Add Link ---
+  linkAddBtn.addEventListener('click', function(){
+    var name = linkName.value.trim();
+    var url = linkUrl.value.trim();
+    if(!name || !url) return;
+    if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    var desc = linkDesc.value.trim();
+    loadVault().then(function(data){
+      data.links.push({name:name, url:url, desc:desc});
+      linkName.value=''; linkUrl.value=''; linkDesc.value='';
+      saveVault(data).then(function(){ renderLinks(data.links); });
+    });
+  });
+  [linkName, linkUrl].forEach(function(el){
+    el.addEventListener('keydown', function(e){ if(e.key==='Enter') linkAddBtn.click(); });
+  });
+
+  // --- Add Credential ---
+  credAddBtn.addEventListener('click', function(){
+    var label = credLabel.value.trim();
+    var site = credSite.value.trim();
+    var user = credUser.value.trim();
+    var pass = credPass.value.trim();
+    var details = credDetails.value.trim();
+    if(!label || !pass) return;
+    loadVault().then(function(data){
+      data.creds.push({label:label, site:site, user:user, pass:pass, details:details});
+      credLabel.value=''; credSite.value=''; credUser.value=''; credPass.value=''; credDetails.value='';
+      saveVault(data).then(function(){ renderCreds(data.creds); });
+    });
+  });
+  [credLabel, credSite, credUser, credPass].forEach(function(el){
+    el.addEventListener('keydown', function(e){ if(e.key==='Enter') credAddBtn.click(); });
+  });
+
+
+  window._calendarLoadVault = function(){ if(!cryptoKey) return Promise.resolve(null); return loadVault(); };
+})();
+
+(function(){
+  var calGrid = document.getElementById('cal-grid');
+  var calTitle = document.getElementById('cal-title');
+  var calCard = document.getElementById('homer-cal');
+  var calDayView = document.getElementById('cal-day-view');
+  var calDayAgenda = document.getElementById('cal-day-agenda');
+  var calDayTitle = document.getElementById('cal-day-title');
+  var calDaySubtitle = document.getElementById('cal-day-subtitle');
+  var calMonthHeader = document.getElementById('cal-month-header');
+  if(!calGrid || !calTitle) return;
+
+  var now = new Date();
+  var viewYear = now.getFullYear();
+  var viewMonth = now.getMonth();
+  var viewDay = now.getDate();
+  var viewMode = 'month'; // 'month' or 'day'
+  var activePop = null;
+  var lastDueMap = {};
+
+  var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  function pad2(n){ return n < 10 ? '0'+n : ''+n; }
+  function dk(y,m,d){ return y+'-'+pad2(m+1)+'-'+pad2(d); }
+
+  var CAL_CATEGORIES = {
+    meeting:  {label:'Meeting',  color:'#0ea5e9', bg:'rgba(14,165,233,.15)'},
+    deadline: {label:'Deadline', color:'#ef4444', bg:'rgba(239,68,68,.15)'},
+    reminder: {label:'Reminder', color:'#f59e0b', bg:'rgba(245,158,11,.15)'},
+    personal: {label:'Personal', color:'#a78bfa', bg:'rgba(167,139,250,.15)'},
+    work:     {label:'Work',     color:'#3b82f6', bg:'rgba(59,130,246,.15)'}
+  };
+
+  function pCls(p){
+    if(p==='high') return 'p-high';
+    if(p==='medium') return 'p-medium';
+    if(p==='low') return 'p-low';
+    if(CAL_CATEGORIES[p]) return 'p-cat-'+p;
+    return 'p-none';
+  }
+  function pColor(p){
+    if(p==='high') return '#ef4444';
+    if(p==='medium') return '#fbbf24';
+    if(p==='low') return '#22c55e';
+    if(p==='ext') return '#3b82f6';
+    if(p==='custom') return '#a78bfa';
+    if(CAL_CATEGORIES[p]) return CAL_CATEGORIES[p].color;
+    return '#94a3b8';
+  }
+  var colLbl = {todo:'To Do', progress:'In Progress', pending:'Pending', backlog:'Backlog', done:'Done'};
+
+  // Generate consistent color for a label name (hash-based)
+  var _labelPalette = ['#ef4444','#f97316','#f59e0b','#22c55e','#14b8a6','#0ea5e9','#3b82f6','#6366f1','#8b5cf6','#a855f7','#ec4899','#f43f5e'];
+  function calLabelColor(name){
+    var h = 0;
+    for(var i=0;i<name.length;i++) h = ((h<<5)-h)+name.charCodeAt(i);
+    var idx = Math.abs(h) % _labelPalette.length;
+    return _labelPalette[idx];
+  }
+
+  function buildMap(goals){
+    var m = {};
+    if(!goals) return m;
+    goals.forEach(function(g){
+      if(g.archived) return;
+      if(g.due){
+        if(!m[g.due]) m[g.due] = [];
+        m[g.due].push({summary:g.summary, priority:g.priority||'', col:g.col, type:'goal', labels:g.labels||[]});
+      }
+      (g.subtasks||[]).forEach(function(s){
+        if(s.due && !s.done){
+          if(!m[s.due]) m[s.due] = [];
+          m[s.due].push({summary:s.text, priority:g.priority||'', col:g.col, type:'subtask', labels:g.labels||[]});
+        }
+      });
+    });
+    return m;
+  }
+
+  function closePop(){ if(activePop){ activePop.remove(); activePop=null; } }
+
+  function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+  // === DRAGGABLE POPUP UTILITY ===
+  function makeDraggable(el){
+    el.classList.add('draggable');
+    var handle = document.createElement('div');
+    handle.className = 'cal-drag-handle';
+    handle.innerHTML = '<div class="drag-icon"><span></span><span></span><span></span></div><span class="cal-drag-hint">drag to move</span>';
+    el.insertBefore(handle, el.firstChild);
+
+    var startX, startY, startLeft, startTop, dragging = false;
+
+    function onDown(e){
+      if(e.target.closest('.cal-pop-close,.cal-detail-close,.cal-add-cancel')) return;
+      dragging = true;
+      var touch = e.touches ? e.touches[0] : e;
+      startX = touch.clientX;
+      startY = touch.clientY;
+      var rect = el.getBoundingClientRect();
+      var parentRect = el.offsetParent ? el.offsetParent.getBoundingClientRect() : {left:0, top:0};
+      startLeft = rect.left - parentRect.left;
+      startTop = rect.top - parentRect.top;
+      el.style.transform = 'none';
+      el.style.left = startLeft + 'px';
+      el.style.top = startTop + 'px';
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      document.addEventListener('touchmove', onMove, {passive:false});
+      document.addEventListener('touchend', onUp);
+      e.preventDefault();
+    }
+    function onMove(e){
+      if(!dragging) return;
+      var touch = e.touches ? e.touches[0] : e;
+      var dx = touch.clientX - startX;
+      var dy = touch.clientY - startY;
+      el.style.left = (startLeft + dx) + 'px';
+      el.style.top = (startTop + dy) + 'px';
+      if(e.cancelable) e.preventDefault();
+    }
+    function onUp(){
+      dragging = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onUp);
+    }
+    handle.addEventListener('mousedown', onDown);
+    handle.addEventListener('touchstart', onDown, {passive:false});
+  }
+
+  // === VIEW TOGGLE ===
+  var viewBtns = calCard.querySelectorAll('.cal-view-btn');
+  viewBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var mode = this.getAttribute('data-view');
+      if(mode === viewMode) return;
+      viewMode = mode;
+      viewBtns.forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-view') === mode); });
+      updateViewVisibility();
+      if(viewMode === 'day') renderDayView(lastDueMap);
+    });
+  });
+
+  function updateViewVisibility(){
+    if(viewMode === 'month'){
+      calGrid.style.display = 'grid';
+      calMonthHeader.style.display = 'flex';
+      calDayView.classList.remove('visible');
+    } else {
+      calGrid.style.display = 'none';
+      calMonthHeader.style.display = 'none';
+      calDayView.classList.add('visible');
+    }
+  }
+
+  // === MONTH VIEW RENDER ===
+  function showPop(dayEl, items, key){
+    closePop();
+    var pop = document.createElement('div');
+    pop.className = 'cal-popover';
+    var dt = new Date(key+'T00:00:00');
+    var lbl = dt.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    var h = '<button class="cal-pop-close">&times;</button>';
+    h += '<div class="cal-pop-date">'+lbl+'</div>';
+    items.forEach(function(it){
+      var badge = '<span class="cal-pop-badge s-'+it.col+'">'+colLbl[it.col]+'</span>';
+      var sub = it.type==='subtask' ? ' <span style="color:var(--muted);font-size:.72rem">(subtask)</span>' : '';
+      h += '<div class="cal-pop-item">';
+      h += '<div class="cal-pop-dot" style="background:'+pColor(it.priority)+'"></div>';
+      h += '<div>'+esc(it.summary)+sub+badge+'</div>';
+      h += '</div>';
+    });
+    pop.innerHTML = h;
+    pop.style.top = (dayEl.offsetTop + dayEl.offsetHeight + 6) + 'px';
+    pop.style.left = '50%';
+    pop.style.transform = 'translateX(-50%)';
+    calCard.appendChild(pop);
+    activePop = pop;
+    pop.querySelector('.cal-pop-close').addEventListener('click', closePop);
+  }
+
+  function render(dueMap){
+    calTitle.textContent = MONTHS[viewMonth] + ' ' + viewYear;
+    calGrid.innerHTML = '';
+    DAYS.forEach(function(d){
+      var el = document.createElement('div');
+      el.className = 'cal-dow';
+      el.textContent = d;
+      calGrid.appendChild(el);
+    });
+    var first = new Date(viewYear, viewMonth, 1);
+    var startDow = (first.getDay() + 6) % 7;
+    var dim = new Date(viewYear, viewMonth+1, 0).getDate();
+    var prevDim = new Date(viewYear, viewMonth, 0).getDate();
+    for(var i = startDow-1; i >= 0; i--){
+      var el = document.createElement('div');
+      el.className = 'cal-day other';
+      el.textContent = prevDim - i;
+      calGrid.appendChild(el);
+    }
+    var today = new Date();
+    for(var d = 1; d <= dim; d++){
+      var key = dk(viewYear, viewMonth, d);
+      var el = document.createElement('div');
+      el.className = 'cal-day';
+      el.textContent = d;
+      if(viewYear===today.getFullYear() && viewMonth===today.getMonth() && d===today.getDate()){
+        el.classList.add('today');
+      }
+      var items = dueMap[key];
+      if(items && items.length){
+        el.classList.add('has-goals');
+        var dots = document.createElement('div');
+        dots.className = 'cal-dots';
+        var cnt = 0;
+        items.forEach(function(it){
+          if(cnt >= 4) return;
+          var dot = document.createElement('div');
+          dot.className = 'cal-dot '+pCls(it.priority);
+          dots.appendChild(dot);
+          cnt++;
+        });
+        el.appendChild(dots);
+        (function(dayEl, dayItems, dayKey){
+          dayEl.addEventListener('click', function(e){ e.stopPropagation(); showPop(dayEl, dayItems, dayKey); });
+        })(el, items, key);
+      }
+      calGrid.appendChild(el);
+    }
+    var total = startDow + dim;
+    var rem = (7 - (total % 7)) % 7;
+    for(var i = 1; i <= rem; i++){
+      var el = document.createElement('div');
+      el.className = 'cal-day other';
+      el.textContent = i;
+      calGrid.appendChild(el);
+    }
+  }
+
+  // --- ICS Feed Integration ---
+  var ICS_KEY = 'homer-cal-ics';
+  var EVENTS_KEY = 'homer-cal-events';
+  var HEARTBEAT_KEY = 'homer-heartbeats';
+  var icsCache = { personal:null, work:null };
+  var icsCacheTs = { personal:0, work:0 };
+  var ICS_TTL = 5 * 60 * 1000;
+
+  var icsRow = document.getElementById('cal-ics-row');
+  var icsInput = document.getElementById('cal-ics-url');
+  var icsSaveBtn = document.getElementById('cal-ics-save');
+  var icsStatus = document.getElementById('cal-ics-status');
+  var icsToggle = document.getElementById('cal-ics-toggle');
+  var activeDetail = null;
+  var activeAddForm = null;
+
+  function getCalendarMode(){
+    if(typeof window._homerGetVaultMode === 'function') return window._homerGetVaultMode() === 'work' ? 'work' : 'personal';
+    return (localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal';
+  }
+  function calendarModeLabel(){
+    return getCalendarMode() === 'work' ? 'Work' : 'Personal';
+  }
+  function scopedCalendarKey(base){
+    return base + ':' + getCalendarMode();
+  }
+  function getSavedICS(){
+    var scoped = localStorage.getItem(scopedCalendarKey(ICS_KEY));
+    if(scoped) return scoped;
+    if(getCalendarMode() === 'personal') return localStorage.getItem(ICS_KEY) || '';
+    return '';
+  }
+  function setSavedICS(url){
+    var key = scopedCalendarKey(ICS_KEY);
+    if(url) localStorage.setItem(key, url);
+    else localStorage.removeItem(key);
+  }
+
+  // --- Custom Events Storage ---
+  function getCustomEvents(){
+    var scoped = localStorage.getItem(scopedCalendarKey(EVENTS_KEY));
+    if(!scoped && getCalendarMode() === 'personal') scoped = localStorage.getItem(EVENTS_KEY) || '[]';
+    try { return JSON.parse(scoped || '[]'); }
+    catch(e){ return []; }
+  }
+  function saveCustomEvents(evts){ localStorage.setItem(scopedCalendarKey(EVENTS_KEY), JSON.stringify(evts)); }
+  function addCustomEvent(evt){
+    var evts = getCustomEvents();
+    evt.id = Date.now() + '-' + Math.random().toString(36).substring(2, 8);
+    evts.push(evt);
+    saveCustomEvents(evts);
+    return evt;
+  }
+  function getHeartbeatRules(){
+    var scoped = localStorage.getItem(scopedCalendarKey(HEARTBEAT_KEY));
+    try { return JSON.parse(scoped || '[]'); }
+    catch(e){ return []; }
+  }
+  function saveHeartbeatRules(rules){
+    localStorage.setItem(scopedCalendarKey(HEARTBEAT_KEY), JSON.stringify(Array.isArray(rules) ? rules : []));
+  }
+  function addHeartbeatRule(rule){
+    var rules = getHeartbeatRules();
+    var nextRule = Object.assign({
+      id: Date.now() + '-' + Math.random().toString(36).substring(2, 8),
+      title: 'Reminder',
+      body: '',
+      intervalMinutes: 30,
+      createdAt: Date.now(),
+      nextAt: Date.now() + (30 * 60 * 1000),
+      enabled: true
+    }, rule || {});
+    rules.push(nextRule);
+    saveHeartbeatRules(rules);
+    return nextRule;
+  }
+  function deleteCustomEvent(id){
+    var evts = getCustomEvents().filter(function(e){ return e.id !== id; });
+    saveCustomEvents(evts);
+  }
+  window._calendarAddCustomEvent = addCustomEvent;
+  window._calendarAddHeartbeatRule = addHeartbeatRule;
+
+  function mergeCustomEvents(dueMap){
+    var evts = getCustomEvents();
+    evts.forEach(function(ev){
+      if(!ev.date) return;
+      if(!dueMap[ev.date]) dueMap[ev.date] = [];
+      dueMap[ev.date].push({
+        summary: ev.title || 'Event',
+        priority: ev.category || 'custom',
+        col: 'custom',
+        type: 'custom',
+        category: ev.category || '',
+        time: ev.time || '',
+        description: ev.description || '',
+        location: ev.location || '',
+        recurrence: ev.recurrence || null,
+        id: ev.id
+      });
+    });
+    return dueMap;
+  }
+  var heartbeatTickTimer = null;
+  function heartbeatNotify(title, body){
+    var safeTitle = String(title || 'Reminder').trim() || 'Reminder';
+    var safeBody = String(body || '').trim();
+    if('Notification' in window && Notification.permission === 'granted'){
+      try{
+        var n = new Notification(safeTitle, safeBody ? { body:safeBody } : {});
+        setTimeout(function(){ try{ n.close(); }catch(_e){} }, 5000);
+        return;
+      }catch(_e){}
+    }
+    try{ showJoeyStatusToast(safeBody ? (safeTitle + ': ' + safeBody) : safeTitle, 'warn'); }catch(_e){}
+  }
+  function runHeartbeatTick(){
+    var now = Date.now();
+    var rules = getHeartbeatRules();
+    var changed = false;
+    rules.forEach(function(rule){
+      if(!rule || rule.enabled === false) return;
+      var intervalMinutes = Math.max(1, parseInt(rule.intervalMinutes, 10) || 0);
+      if(!intervalMinutes) return;
+      var nextAt = Number(rule.nextAt || 0) || (now + intervalMinutes * 60 * 1000);
+      if(now < nextAt) return;
+      heartbeatNotify(rule.title || 'Reminder', rule.body || '');
+      rule.lastTriggeredAt = now;
+      rule.nextAt = now + (intervalMinutes * 60 * 1000);
+      changed = true;
+    });
+    if(changed) saveHeartbeatRules(rules);
+  }
+  function ensureHeartbeatScheduler(){
+    if(heartbeatTickTimer) return;
+    heartbeatTickTimer = setInterval(runHeartbeatTick, 30000);
+    setTimeout(runHeartbeatTick, 1200);
+  }
+  ensureHeartbeatScheduler();
+
+  // Toggle ICS settings row
+  if(icsToggle){
+    icsToggle.addEventListener('click', function(){
+      var show = icsRow.style.display === 'none';
+      icsRow.style.display = show ? 'flex' : 'none';
+      if(show){
+        icsInput.value = getSavedICS();
+        icsInput.placeholder = 'Paste ' + calendarModeLabel() + ' Google/Outlook ICS feed URL...';
+        updateIcsStatus();
+      }
+    });
+  }
+
+  function timeAgo(ts){
+    if(!ts) return '';
+    var diff = Math.floor((Date.now() - ts) / 1000);
+    if(diff < 60) return 'just now';
+    if(diff < 3600) return Math.floor(diff/60) + 'm ago';
+    if(diff < 86400) return Math.floor(diff/3600) + 'h ago';
+    return Math.floor(diff/86400) + 'd ago';
+  }
+
+  function updateIcsStatus(){
+    var url = getSavedICS();
+    var mode = getCalendarMode();
+    if(url){
+      var ago = icsCacheTs[mode] ? ' (synced ' + timeAgo(icsCacheTs[mode]) + ')' : '';
+      icsStatus.innerHTML = '';
+      icsStatus.className = 'cal-ics-status ok';
+      var txt = document.createTextNode(calendarModeLabel() + ' calendar syncing' + ago + ' ');
+      icsStatus.appendChild(txt);
+      if(!document.getElementById('cal-ics-rm-btn')){
+        var rm = document.createElement('button');
+        rm.className = 'cal-ics-rm';
+        rm.id = 'cal-ics-rm-btn';
+        rm.textContent = 'Disconnect';
+        rm.addEventListener('click', function(){
+          setSavedICS('');
+          icsCache[mode] = null;
+          icsCacheTs[mode] = 0;
+          icsInput.value = '';
+          updateIcsStatus();
+          refresh();
+        });
+        icsStatus.appendChild(rm);
+      }
+    } else {
+      icsStatus.textContent = '';
+      icsStatus.className = 'cal-ics-status';
+      var rmBtn = document.getElementById('cal-ics-rm-btn');
+      if(rmBtn) rmBtn.remove();
+    }
+  }
+
+  if(icsSaveBtn){
+    icsSaveBtn.addEventListener('click', function(){
+      var url = (icsInput.value || '').trim();
+      if(!url){
+        icsStatus.textContent = 'Please enter an ICS feed URL';
+        icsStatus.className = 'cal-ics-status err';
+        return;
+      }
+      if(!url.startsWith('https://')){
+        icsStatus.textContent = 'URL must start with https://';
+        icsStatus.className = 'cal-ics-status err';
+        return;
+      }
+      icsStatus.textContent = 'Connecting...';
+      icsStatus.className = 'cal-ics-status';
+      icsSaveBtn.disabled = true;
+      fetchICSEvents(url).then(function(events){
+        icsSaveBtn.disabled = false;
+        if(events === null){
+          icsStatus.textContent = 'Failed to fetch calendar. Check the URL.';
+          icsStatus.className = 'cal-ics-status err';
+          return;
+        }
+        setSavedICS(url);
+        icsCache[getCalendarMode()] = events;
+        icsCacheTs[getCalendarMode()] = Date.now();
+        icsRow.style.display = 'none';
+        updateIcsStatus();
+        refresh();
+      });
+    });
+  }
+
+  function fetchICSEvents(url){
+    return fetch('/api/ical?url=' + encodeURIComponent(url))
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d.error) return null;
+        return d.events || [];
+      })
+      .catch(function(){ return null; });
+  }
+
+  function getICSEvents(){
+    var url = getSavedICS();
+    var mode = getCalendarMode();
+    if(!url) return Promise.resolve([]);
+    if(icsCache[mode] && (Date.now() - icsCacheTs[mode]) < ICS_TTL){
+      return Promise.resolve(icsCache[mode]);
+    }
+    return fetchICSEvents(url).then(function(events){
+      if(events !== null){
+        icsCache[mode] = events;
+        icsCacheTs[mode] = Date.now();
+        updateIcsStatus();
+      }
+      return icsCache[mode] || [];
+    });
+  }
+
+  function mergeICSEvents(dueMap, icsEvents){
+    if(!icsEvents || !icsEvents.length) return dueMap;
+    icsEvents.forEach(function(ev){
+      if(!ev.start) return;
+      var dateKey = ev.start.substring(0, 10);
+      if(!dueMap[dateKey]) dueMap[dateKey] = [];
+      var time = ev.start.length > 10 ? ev.start.substring(11) : '';
+      var endTime = (ev.end && ev.end.length > 10) ? ev.end.substring(11) : '';
+      dueMap[dateKey].push({
+        summary: ev.summary || 'Event',
+        priority: 'ext',
+        col: 'ext',
+        type: 'outlook',
+        time: time,
+        endTime: endTime,
+        allDay: ev.allDay || false,
+        location: ev.location || '',
+        description: ev.description || '',
+        categories: ev.categories || [],
+        organizer: ev.organizer || null,
+        attendees: ev.attendees || [],
+        status: ev.status || '',
+        icsPriority: ev.icsPriority || 0,
+        url: ev.url || '',
+        transparency: ev.transparency || '',
+        classification: ev.classification || '',
+        recurrence: ev.recurrence || null,
+        created: ev.created || '',
+        lastModified: ev.lastModified || '',
+        uid: ev.uid || ''
+      });
+    });
+    return dueMap;
+  }
+
+  // --- Close helpers ---
+  function closeDetail(){ if(activeDetail){ activeDetail.remove(); activeDetail=null; } }
+  function closeAddForm(){ if(activeAddForm){ activeAddForm.remove(); activeAddForm=null; } }
+
+  // --- Outlook Deep Link ---
+  function outlookComposeUrl(item, dateKey){
+    var base = 'https://outlook.office365.com/calendar/0/deeplink/compose';
+    var p = [];
+    p.push('path=/calendar/action/compose');
+    p.push('rru=addevent');
+    p.push('subject=' + encodeURIComponent(item.summary || ''));
+    var startDt = dateKey || '';
+    if(item.time && startDt){
+      startDt += 'T' + item.time + ':00';
+    } else if(startDt){
+      startDt += 'T00:00:00';
+    }
+    if(startDt) p.push('startdt=' + encodeURIComponent(startDt));
+    if(startDt && item.time){
+      var parts = item.time.split(':');
+      var eh = (parseInt(parts[0]) + 1) % 24;
+      var endDt = dateKey + 'T' + (eh < 10 ? '0' : '') + eh + ':' + parts[1] + ':00';
+      p.push('enddt=' + encodeURIComponent(endDt));
+    }
+    if(item.location) p.push('location=' + encodeURIComponent(item.location));
+    if(item.description) p.push('body=' + encodeURIComponent(item.description));
+    return base + '?' + p.join('&');
+  }
+  window.outlookComposeUrl = outlookComposeUrl;
+
+  function generateICSFile(item, dateKey){
+    var lines = [];
+    lines.push('BEGIN:VCALENDAR');
+    lines.push('VERSION:2.0');
+    lines.push('PRODID:-//Homer-Home//Calendar//EN');
+    lines.push('BEGIN:VEVENT');
+    var now = new Date();
+    var stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+    lines.push('DTSTAMP:' + stamp);
+    lines.push('UID:homer-' + (item.id || Date.now()) + '@homer-home');
+    var dtVal = (dateKey || '').replace(/-/g, '');
+    if(item.time){
+      dtVal += 'T' + item.time.replace(/:/g, '') + '00';
+    }
+    lines.push('DTSTART:' + dtVal);
+    if(item.time){
+      var parts = item.time.split(':');
+      var eh = (parseInt(parts[0]) + 1) % 24;
+      var endVal = (dateKey || '').replace(/-/g, '') + 'T' + (eh < 10 ? '0' : '') + eh + parts[1] + '00';
+      lines.push('DTEND:' + endVal);
+    }
+    lines.push('SUMMARY:' + (item.summary || '').replace(/\n/g, '\\n'));
+    if(item.location) lines.push('LOCATION:' + item.location.replace(/\n/g, '\\n'));
+    if(item.description) lines.push('DESCRIPTION:' + item.description.replace(/\n/g, '\\n'));
+    lines.push('END:VEVENT');
+    lines.push('END:VCALENDAR');
+    return lines.join('\r\n');
+  }
+
+  function downloadICS(item, dateKey){
+    var content = generateICSFile(item, dateKey);
+    var blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = (item.summary || 'event').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30) + '.ics';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // --- Helper: format recurrence rule to human-readable ---
+  function formatRecurrence(r){
+    if(!r || !r.freq) return '';
+    var parts = [];
+    var freqMap = {DAILY:'Daily',WEEKLY:'Weekly',MONTHLY:'Monthly',YEARLY:'Yearly'};
+    var f = freqMap[r.freq] || r.freq;
+    if(r.interval && r.interval > 1) f = 'Every ' + r.interval + ' ' + f.toLowerCase().replace(/ly$/,'') + 's';
+    parts.push(f);
+    if(r.byDay) parts.push('on ' + r.byDay);
+    if(r.count) parts.push(r.count + ' times');
+    if(r.until) parts.push('until ' + r.until);
+    return parts.join(' ');
+  }
+
+  // --- Helper: attendee status color ---
+  function attStatusClass(s){
+    if(!s) return 'att-pending';
+    s = s.toUpperCase();
+    if(s === 'ACCEPTED') return 'att-accepted';
+    if(s === 'DECLINED') return 'att-declined';
+    if(s === 'TENTATIVE') return 'att-tentative';
+    return 'att-pending';
+  }
+  function attStatusLabel(s){
+    if(!s) return '';
+    s = s.toUpperCase();
+    var m = {ACCEPTED:'Accepted',DECLINED:'Declined',TENTATIVE:'Tentative','NEEDS-ACTION':'Pending'};
+    return m[s] || s;
+  }
+
+  // --- Detail View (click on event item in popover or day agenda) ---
+  function showDetail(item, refEl){
+    closeDetail(); closeAddForm();
+    var d = document.createElement('div');
+    d.className = 'cal-detail';
+    var h = '<button class="cal-detail-close">&times;</button>';
+    var detailCat = item.type === 'custom' && item.category && CAL_CATEGORIES[item.category];
+    var badgeClass = item.type === 'outlook' ? 's-ext' : detailCat ? 's-cat-'+item.category : item.type === 'custom' ? 's-custom' : 's-' + item.col;
+    var badgeLabel = item.type === 'outlook' ? 'Outlook' : detailCat ? CAL_CATEGORIES[item.category].label : item.type === 'custom' ? 'Event' : (colLbl[item.col] || '');
+    h += '<div class="cal-detail-title">' + esc(item.summary) + ' <span class="cal-pop-badge ' + badgeClass + '">' + badgeLabel + '</span></div>';
+    // Meta row
+    h += '<div class="cal-detail-meta">';
+    if(item.allDay){
+      h += '<span>All Day</span>';
+    } else if(item.time){
+      var timeDisplay = esc(item.time);
+      if(item.endTime) timeDisplay += ' - ' + esc(item.endTime);
+      h += '<span>&#128337; ' + timeDisplay + '</span>';
+    }
+    if(item.location) h += '<span>&#128205; ' + esc(item.location) + '</span>';
+    if(item.status){
+      var statusColors = {CONFIRMED:'#22c55e',TENTATIVE:'#fbbf24',CANCELLED:'#ef4444'};
+      h += '<span style="color:' + (statusColors[item.status] || 'var(--muted)') + '">' + esc(item.status.charAt(0).toUpperCase() + item.status.slice(1).toLowerCase()) + '</span>';
+    }
+    if(item.col && colLbl[item.col]) h += '<span>&#9679; ' + colLbl[item.col] + '</span>';
+    if(item.priority && item.priority !== 'ext' && item.priority !== 'custom'){
+      h += '<span style="color:' + pColor(item.priority) + '">&#9650; ' + item.priority + ' priority</span>';
+    }
+    if(item.transparency === 'TRANSPARENT') h += '<span style="opacity:.6">Free</span>';
+    if(item.classification === 'PRIVATE') h += '<span style="color:#ec4899">Private</span>';
+    if(item.classification === 'CONFIDENTIAL') h += '<span style="color:#ef4444">Confidential</span>';
+    h += '</div>';
+
+    // Organizer
+    if(item.organizer && (item.organizer.name || item.organizer.email)){
+      h += '<div style="font-size:.75rem;color:var(--muted);margin-top:4px;">Organized by <strong style="color:var(--text)">' + esc(item.organizer.name || item.organizer.email) + '</strong></div>';
+    }
+
+    // Categories (from iCal)
+    if(item.categories && item.categories.length){
+      h += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">';
+      item.categories.forEach(function(cat){
+        h += '<span class="cal-agenda-tag tag-cat">' + esc(cat) + '</span>';
+      });
+      h += '</div>';
+    }
+
+    // Labels (from kanban goals/subtasks)
+    if(item.labels && item.labels.length){
+      h += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">';
+      item.labels.forEach(function(l){
+        var c = calLabelColor(l);
+        h += '<span class="cal-label-chip" style="background:'+c+'22;color:'+c+';">'+esc(l)+'</span>';
+      });
+      h += '</div>';
+    }
+
+    // Recurrence
+    if(item.recurrence){
+      var recStr = formatRecurrence(item.recurrence);
+      if(recStr) h += '<div style="font-size:.72rem;color:#fbbf24;margin-top:6px;">&#128257; ' + esc(recStr) + '</div>';
+    }
+
+    // Description
+    if(item.description){
+      h += '<div class="cal-detail-desc">' + esc(item.description) + '</div>';
+    }
+
+    // Attendees section
+    if(item.attendees && item.attendees.length){
+      h += '<div class="cal-detail-section">';
+      h += '<div class="cal-detail-section-title">Attendees (' + item.attendees.length + ')</div>';
+      h += '<div class="cal-detail-attendee-list">';
+      item.attendees.forEach(function(att){
+        var name = att.name || att.email || 'Unknown';
+        var statusLbl = attStatusLabel(att.status);
+        var statusCls = attStatusClass(att.status);
+        h += '<div class="cal-detail-attendee"><span class="att-status ' + statusCls + '"></span>' + esc(name);
+        if(statusLbl) h += ' <span style="font-size:.68rem;opacity:.6">(' + esc(statusLbl) + ')</span>';
+        if(att.role === 'OPT-PARTICIPANT') h += ' <span style="font-size:.65rem;opacity:.4">optional</span>';
+        h += '</div>';
+      });
+      h += '</div></div>';
+    }
+
+    // URL
+    if(item.url){
+      h += '<div style="margin-top:8px;"><a href="' + esc(item.url) + '" target="_blank" style="color:#60a5fa;font-size:.78rem;text-decoration:none;word-break:break-all;">&#128279; Open link</a></div>';
+    }
+
+    // Action buttons
+    h += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;">';
+    if(item.type !== 'outlook'){
+      h += '<button class="cal-outlook-btn" data-action="outlook"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Add to Outlook</button>';
+      h += '<button class="cal-outlook-btn" data-action="ics" style="background:rgba(167,139,250,.12);color:#a78bfa;border-color:rgba(167,139,250,.25);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download .ics</button>';
+    }
+    if(item.type === 'custom' && item.id){
+      h += '<button class="cal-detail-del" data-del-id="' + esc(item.id) + '">Delete</button>';
+    }
+    h += '</div>';
+
+    // Last modified info
+    if(item.lastModified){
+      h += '<div style="font-size:.65rem;color:var(--muted);opacity:.5;margin-top:8px;">Last modified: ' + esc(item.lastModified) + '</div>';
+    }
+
+    d.innerHTML = h;
+    d.style.top = '50%';
+    d.style.left = '50%';
+    d.style.transform = 'translate(-50%, -50%)';
+    calCard.appendChild(d);
+    activeDetail = d;
+    makeDraggable(d);
+
+    d.querySelector('.cal-detail-close').addEventListener('click', function(){ closeDetail(); });
+    var delBtn = d.querySelector('.cal-detail-del');
+    if(delBtn){
+      delBtn.addEventListener('click', function(){
+        deleteCustomEvent(this.getAttribute('data-del-id'));
+        closeDetail(); closePop();
+        refresh();
+      });
+    }
+    var outlookBtn = d.querySelector('[data-action="outlook"]');
+    if(outlookBtn){
+      outlookBtn.addEventListener('click', function(){
+        var dateKey = item.date || '';
+        if(!dateKey && refEl){
+          var popDate = calCard.querySelector('.cal-pop-date');
+          if(popDate) dateKey = dk(viewYear, viewMonth, parseInt(refEl.textContent));
+        }
+        window.open(outlookComposeUrl(item, dateKey), '_blank');
+      });
+    }
+    var icsBtn = d.querySelector('[data-action="ics"]');
+    if(icsBtn){
+      icsBtn.addEventListener('click', function(){
+        var dateKey = item.date || dk(viewYear, viewMonth, 1);
+        downloadICS(item, dateKey);
+      });
+    }
+  }
+
+  // --- Add Event Form ---
+  function showAddForm(dateKey){
+    closePop(); closeDetail(); closeAddForm();
+    var af = document.createElement('div');
+    af.className = 'cal-add-form';
+    var mode = getCalendarMode();
+    var h = '<button class="cal-add-cancel">&times;</button>';
+    h += '<h4>Add ' + calendarModeLabel() + ' Event</h4>';
+    h += '<input type="text" id="cal-add-title" placeholder="Event title" maxlength="100" />';
+    h += '<div class="cal-add-row">';
+    h += '<input type="date" id="cal-add-date" value="' + dateKey + '" />';
+    h += '<input type="time" id="cal-add-time" placeholder="Time" />';
+    h += '</div>';
+    h += '<input type="text" id="cal-add-location" placeholder="Location (optional)" maxlength="100" />';
+    h += '<textarea id="cal-add-desc" placeholder="Description (optional)" maxlength="500" rows="2"></textarea>';
+    h += '<select id="cal-add-category"><option value="">Category (optional)</option><option value="meeting">Meeting</option><option value="deadline">Deadline</option><option value="reminder">Reminder</option><option value="personal"' + (mode === 'personal' ? ' selected' : '') + '>Personal</option><option value="work"' + (mode === 'work' ? ' selected' : '') + '>Work</option></select>';
+    h += '<label class="cal-add-outlook"><input type="checkbox" id="cal-add-to-outlook" checked /> Also add to Outlook calendar</label>';
+    h += '<button class="cal-add-submit">Add to Calendar</button>';
+    af.innerHTML = h;
+    af.style.top = '50%';
+    af.style.left = '50%';
+    af.style.transform = 'translate(-50%, -50%)';
+    calCard.appendChild(af);
+    activeAddForm = af;
+    makeDraggable(af);
+
+    af.querySelector('.cal-add-cancel').addEventListener('click', closeAddForm);
+    af.querySelector('#cal-add-title').focus();
+    af.querySelector('.cal-add-submit').addEventListener('click', function(){
+      var title = af.querySelector('#cal-add-title').value.trim();
+      var date = af.querySelector('#cal-add-date').value;
+      var time = af.querySelector('#cal-add-time').value;
+      var loc = af.querySelector('#cal-add-location').value.trim();
+      var desc = af.querySelector('#cal-add-desc').value.trim();
+      var cat = af.querySelector('#cal-add-category').value;
+      if(!title){ af.querySelector('#cal-add-title').style.borderColor = '#ef4444'; return; }
+      if(!date){ af.querySelector('#cal-add-date').style.borderColor = '#ef4444'; return; }
+      var evt = addCustomEvent({ title: title, date: date, time: time, location: loc, description: desc, category: cat });
+      var addToOutlook = af.querySelector('#cal-add-to-outlook').checked;
+      closeAddForm();
+      refresh();
+      if(addToOutlook){
+        var item = { summary: title, time: time, location: loc, description: desc, date: date, id: evt.id, category: cat };
+        window.open(outlookComposeUrl(item, date), '_blank');
+      }
+    });
+  }
+
+  // --- Enhanced showPop with clickable items + add button + draggable ---
+  showPop = function(dayEl, items, key){
+    closePop(); closeDetail(); closeAddForm();
+    var pop = document.createElement('div');
+    pop.className = 'cal-popover';
+    var dt = new Date(key+'T00:00:00');
+    var lbl = dt.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    var h = '<button class="cal-pop-close">&times;</button>';
+    h += '<div class="cal-pop-date">' + lbl + '</div>';
+    items.forEach(function(it, idx){
+      var hasCat = it.type === 'custom' && it.category && CAL_CATEGORIES[it.category];
+      var dotColor = it.type === 'outlook' ? '#3b82f6' : hasCat ? CAL_CATEGORIES[it.category].color : it.type === 'custom' ? '#a78bfa' : pColor(it.priority);
+      var badgeClass = it.type === 'outlook' ? 's-ext' : hasCat ? 's-cat-'+it.category : it.type === 'custom' ? 's-custom' : 's-' + it.col;
+      var badgeLabel = it.type === 'outlook' ? 'Outlook' : hasCat ? CAL_CATEGORIES[it.category].label : it.type === 'custom' ? 'Event' : (colLbl[it.col] || '');
+      var timeStr = '';
+      if(it.allDay){
+        timeStr = '<span style="color:' + dotColor + ';font-size:.72rem;font-weight:700;margin-right:4px;">All day</span>';
+      } else if(it.time){
+        var tDisp = esc(it.time);
+        if(it.endTime) tDisp += '-' + esc(it.endTime);
+        timeStr = '<span style="color:' + dotColor + ';font-size:.72rem;font-weight:700;margin-right:4px;">' + tDisp + '</span>';
+      }
+      var sub = it.type === 'subtask' ? ' <span style="color:var(--muted);font-size:.72rem">(subtask)</span>' : '';
+      // Labels from kanban goals/subtasks
+      var labelsHtml = '';
+      if(it.labels && it.labels.length){
+        it.labels.forEach(function(l){
+          var c = calLabelColor(l);
+          labelsHtml += '<span class="cal-label-chip" style="background:'+c+'22;color:'+c+';">'+esc(l)+'</span>';
+        });
+      }
+      h += '<div class="cal-pop-item" data-item-idx="' + idx + '" style="cursor:pointer;border-radius:8px;padding:6px 8px;margin:0 -8px;transition:background .12s;">';
+      h += '<div class="cal-pop-dot" style="background:' + dotColor + '"></div>';
+      h += '<div>' + timeStr + esc(it.summary) + sub + '<span class="cal-pop-badge ' + badgeClass + '">' + badgeLabel + '</span>';
+      if(labelsHtml) h += '<div style="margin-top:2px;">' + labelsHtml + '</div>';
+      if(it.location) h += '<div style="font-size:.68rem;color:var(--muted);margin-top:2px;">&#128205; ' + esc(it.location) + '</div>';
+      h += '</div>';
+      h += '</div>';
+    });
+    h += '<div style="text-align:center;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);">';
+    h += '<button class="cal-add-btn" style="position:static;width:auto;height:auto;border-radius:8px;padding:5px 14px;font-size:.78rem;display:inline-flex;align-items:center;gap:4px;">+ Add Event</button>';
+    h += '</div>';
+    pop.innerHTML = h;
+    pop.style.top = (dayEl.offsetTop + dayEl.offsetHeight + 6) + 'px';
+    pop.style.left = '50%';
+    pop.style.transform = 'translateX(-50%)';
+    calCard.appendChild(pop);
+    activePop = pop;
+    makeDraggable(pop);
+
+    pop.querySelector('.cal-pop-close').addEventListener('click', closePop);
+    pop.querySelectorAll('.cal-pop-item').forEach(function(el){
+      el.addEventListener('mouseenter', function(){ this.style.background = 'rgba(255,255,255,.06)'; });
+      el.addEventListener('mouseleave', function(){ this.style.background = 'transparent'; });
+      el.addEventListener('click', function(e){
+        e.stopPropagation();
+        var idx = parseInt(this.getAttribute('data-item-idx'));
+        if(items[idx]){
+          items[idx].date = items[idx].date || key;
+          showDetail(items[idx], this);
+        }
+      });
+    });
+    pop.querySelector('.cal-add-btn').addEventListener('click', function(e){
+      e.stopPropagation();
+      showAddForm(key);
+    });
+  };
+
+  // --- Enhanced Render: add "+" button on empty days ---
+  var origRender = render;
+  render = function(dueMap){
+    calTitle.textContent = MONTHS[viewMonth] + ' ' + viewYear;
+    calGrid.innerHTML = '';
+    DAYS.forEach(function(d){
+      var el = document.createElement('div');
+      el.className = 'cal-dow';
+      el.textContent = d;
+      calGrid.appendChild(el);
+    });
+    var first = new Date(viewYear, viewMonth, 1);
+    var startDow = (first.getDay() + 6) % 7;
+    var dim = new Date(viewYear, viewMonth+1, 0).getDate();
+    var prevDim = new Date(viewYear, viewMonth, 0).getDate();
+    for(var i = startDow-1; i >= 0; i--){
+      var el = document.createElement('div');
+      el.className = 'cal-day other';
+      el.textContent = prevDim - i;
+      calGrid.appendChild(el);
+    }
+    var today = new Date();
+    for(var d = 1; d <= dim; d++){
+      var key = dk(viewYear, viewMonth, d);
+      var el = document.createElement('div');
+      el.className = 'cal-day';
+      el.textContent = d;
+      if(viewYear===today.getFullYear() && viewMonth===today.getMonth() && d===today.getDate()){
+        el.classList.add('today');
+      }
+      var items = dueMap[key];
+      if(items && items.length){
+        el.classList.add('has-goals');
+        var dots = document.createElement('div');
+        dots.className = 'cal-dots';
+        var cnt = 0;
+        items.forEach(function(it){
+          if(cnt >= 4) return;
+          var dot = document.createElement('div');
+          var cls = it.priority === 'ext' ? 'p-ext' : it.priority === 'custom' ? 'p-custom' : pCls(it.priority);
+          dot.className = 'cal-dot ' + cls;
+          dots.appendChild(dot);
+          cnt++;
+        });
+        el.appendChild(dots);
+        (function(dayEl, dayItems, dayKey){
+          dayEl.addEventListener('click', function(e){
+            e.stopPropagation();
+            showPop(dayEl, dayItems, dayKey);
+          });
+          // Double-click switches to day view
+          dayEl.addEventListener('dblclick', function(e){
+            e.stopPropagation();
+            var parts = dayKey.split('-');
+            viewYear = parseInt(parts[0]);
+            viewMonth = parseInt(parts[1]) - 1;
+            viewDay = parseInt(parts[2]);
+            viewMode = 'day';
+            viewBtns.forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-view') === 'day'); });
+            updateViewVisibility();
+            renderDayView(lastDueMap);
+          });
+        })(el, items, key);
+      } else {
+        el.style.cursor = 'pointer';
+        (function(dayEl, dayKey){
+          dayEl.addEventListener('click', function(e){
+            e.stopPropagation();
+            showAddForm(dayKey);
+          });
+        })(el, key);
+      }
+      calGrid.appendChild(el);
+    }
+    var total = startDow + dim;
+    var rem = (7 - (total % 7)) % 7;
+    for(var i = 1; i <= rem; i++){
+      var el = document.createElement('div');
+      el.className = 'cal-day other';
+      el.textContent = i;
+      calGrid.appendChild(el);
+    }
+  };
+
+  // === DAY VIEW (AGENDA) ===
+  function renderDayView(dueMap){
+    var key = dk(viewYear, viewMonth, viewDay);
+    var dt = new Date(viewYear, viewMonth, viewDay);
+    var dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    calDayTitle.textContent = dayNames[dt.getDay()] + ', ' + MONTHS[viewMonth] + ' ' + viewDay;
+    calDaySubtitle.textContent = viewYear;
+
+    var today = new Date();
+    var isToday = (viewYear === today.getFullYear() && viewMonth === today.getMonth() && viewDay === today.getDate());
+    calDayTitle.style.color = isToday ? '#60a5fa' : 'var(--text)';
+
+    var items = dueMap[key] || [];
+    calDayAgenda.innerHTML = '';
+
+    if(!items.length){
+      calDayAgenda.innerHTML = '<div class="cal-agenda-empty"><div class="empty-icon">&#128197;</div>No events for this day<br><button class="cal-day-today-btn" style="margin-top:12px;" id="cal-day-add-empty">+ Add Event</button></div>';
+      var addBtn = calDayAgenda.querySelector('#cal-day-add-empty');
+      if(addBtn) addBtn.addEventListener('click', function(){ showAddForm(key); });
+      return;
+    }
+
+    // Sort items: all-day first, then by time
+    var sorted = items.slice().sort(function(a, b){
+      if(a.allDay && !b.allDay) return -1;
+      if(!a.allDay && b.allDay) return 1;
+      if(!a.time && b.time) return 1;
+      if(a.time && !b.time) return -1;
+      if(a.time && b.time) return a.time.localeCompare(b.time);
+      return 0;
+    });
+
+    // Group: all-day events, timed events
+    var allDay = sorted.filter(function(it){ return it.allDay; });
+    var timed = sorted.filter(function(it){ return !it.allDay && it.time; });
+    var untimed = sorted.filter(function(it){ return !it.allDay && !it.time; });
+
+    function renderAgendaItem(it){
+      var agendaCat = it.type === 'custom' && it.category && CAL_CATEGORIES[it.category];
+      var barColor = agendaCat ? CAL_CATEGORIES[it.category].color : pColor(it.priority);
+      var el = document.createElement('div');
+      el.className = 'cal-agenda-item';
+
+      var h = '<div class="cal-agenda-bar" style="background:' + barColor + '"></div>';
+      h += '<div class="cal-agenda-content">';
+
+      // Title row
+      h += '<div class="cal-agenda-title">';
+      h += esc(it.summary);
+      var badgeClass = it.type === 'outlook' ? 's-ext' : agendaCat ? 's-cat-'+it.category : it.type === 'custom' ? 's-custom' : 's-' + it.col;
+      var badgeLabel = it.type === 'outlook' ? 'Outlook' : agendaCat ? CAL_CATEGORIES[it.category].label : it.type === 'custom' ? 'Event' : (colLbl[it.col] || '');
+      h += ' <span class="cal-pop-badge ' + badgeClass + '">' + badgeLabel + '</span>';
+      if(it.status === 'CANCELLED') h += ' <span style="color:#ef4444;font-size:.72rem;font-weight:700">CANCELLED</span>';
+      h += '</div>';
+
+      // Time row
+      h += '<div class="cal-agenda-time" style="color:' + barColor + '">';
+      if(it.allDay){
+        h += 'All Day';
+      } else if(it.time){
+        h += '&#128337; ' + esc(it.time);
+        if(it.endTime) h += ' - ' + esc(it.endTime);
+      }
+      if(it.transparency === 'TRANSPARENT') h += ' <span style="color:var(--muted);font-size:.68rem">(Free)</span>';
+      h += '</div>';
+
+      // Meta row
+      h += '<div class="cal-agenda-meta">';
+      if(it.location) h += '<span>&#128205; ' + esc(it.location) + '</span>';
+      if(it.organizer && (it.organizer.name || it.organizer.email)){
+        h += '<span>&#128100; ' + esc(it.organizer.name || it.organizer.email) + '</span>';
+      }
+      if(it.attendees && it.attendees.length){
+        h += '<span>&#128101; ' + it.attendees.length + ' attendee' + (it.attendees.length > 1 ? 's' : '') + '</span>';
+      }
+      if(it.icsPriority && it.icsPriority > 0){
+        var pLabel = it.icsPriority <= 4 ? 'High' : it.icsPriority === 5 ? 'Medium' : 'Low';
+        h += '<span style="color:' + (it.icsPriority <= 4 ? '#ef4444' : it.icsPriority === 5 ? '#fbbf24' : '#22c55e') + '">&#9650; ' + pLabel + '</span>';
+      }
+      if(it.classification === 'PRIVATE') h += '<span style="color:#ec4899">&#128274; Private</span>';
+      h += '</div>';
+
+      // Description preview
+      if(it.description){
+        h += '<div class="cal-agenda-desc">' + esc(it.description) + '</div>';
+      }
+
+      // Tags row: categories + recurrence + kanban labels
+      var hasTags = (it.categories && it.categories.length) || it.recurrence || (it.labels && it.labels.length);
+      if(hasTags){
+        h += '<div class="cal-agenda-tags">';
+        if(it.recurrence){
+          var recStr = formatRecurrence(it.recurrence);
+          if(recStr) h += '<span class="cal-agenda-tag tag-recur">&#128257; ' + esc(recStr) + '</span>';
+        }
+        if(it.categories){
+          it.categories.forEach(function(cat){
+            h += '<span class="cal-agenda-tag tag-cat">' + esc(cat) + '</span>';
+          });
+        }
+        if(it.labels){
+          it.labels.forEach(function(l){
+            var c = calLabelColor(l);
+            h += '<span class="cal-label-chip" style="background:'+c+'22;color:'+c+';">'+esc(l)+'</span>';
+          });
+        }
+        h += '</div>';
+      }
+
+      // Attendees preview (max 5)
+      if(it.attendees && it.attendees.length){
+        h += '<div class="cal-agenda-attendees">';
+        var maxAtt = Math.min(it.attendees.length, 5);
+        for(var i = 0; i < maxAtt; i++){
+          var att = it.attendees[i];
+          var name = att.name || att.email || 'Unknown';
+          h += '<span class="cal-agenda-attendee"><span class="att-status ' + attStatusClass(att.status) + '"></span>' + esc(name) + '</span>';
+        }
+        if(it.attendees.length > 5){
+          h += '<span class="cal-agenda-attendee">+' + (it.attendees.length - 5) + ' more</span>';
+        }
+        h += '</div>';
+      }
+
+      h += '</div>';
+      el.innerHTML = h;
+
+      el.addEventListener('click', function(e){
+        e.stopPropagation();
+        it.date = it.date || key;
+        showDetail(it, el);
+      });
+
+      calDayAgenda.appendChild(el);
+    }
+
+    if(allDay.length){
+      var lbl = document.createElement('div');
+      lbl.className = 'cal-agenda-section-label';
+      lbl.textContent = 'All Day';
+      calDayAgenda.appendChild(lbl);
+      allDay.forEach(renderAgendaItem);
+    }
+    if(timed.length){
+      var lbl = document.createElement('div');
+      lbl.className = 'cal-agenda-section-label';
+      lbl.textContent = 'Scheduled';
+      calDayAgenda.appendChild(lbl);
+      timed.forEach(renderAgendaItem);
+    }
+    if(untimed.length){
+      var lbl = document.createElement('div');
+      lbl.className = 'cal-agenda-section-label';
+      lbl.textContent = 'Other';
+      calDayAgenda.appendChild(lbl);
+      untimed.forEach(renderAgendaItem);
+    }
+
+    // Add event button at bottom
+    var addRow = document.createElement('div');
+    addRow.style.cssText = 'text-align:center;margin-top:12px;';
+    addRow.innerHTML = '<button class="cal-add-btn" style="position:static;width:auto;height:auto;border-radius:8px;padding:6px 16px;font-size:.8rem;display:inline-flex;align-items:center;gap:4px;">+ Add Event</button>';
+    addRow.querySelector('.cal-add-btn').addEventListener('click', function(e){
+      e.stopPropagation();
+      showAddForm(key);
+    });
+    calDayAgenda.appendChild(addRow);
+  }
+
+  // Day view navigation
+  document.getElementById('cal-day-prev').addEventListener('click', function(){
+    var d = new Date(viewYear, viewMonth, viewDay - 1);
+    viewYear = d.getFullYear(); viewMonth = d.getMonth(); viewDay = d.getDate();
+    renderDayView(lastDueMap);
+  });
+  document.getElementById('cal-day-next').addEventListener('click', function(){
+    var d = new Date(viewYear, viewMonth, viewDay + 1);
+    viewYear = d.getFullYear(); viewMonth = d.getMonth(); viewDay = d.getDate();
+    renderDayView(lastDueMap);
+  });
+  document.getElementById('cal-day-today').addEventListener('click', function(){
+    var t = new Date();
+    viewYear = t.getFullYear(); viewMonth = t.getMonth(); viewDay = t.getDate();
+    renderDayView(lastDueMap);
+  });
+
+  function refresh(){
+    closePop(); closeDetail(); closeAddForm();
+    var vaultPromise;
+    if(typeof window._calendarLoadVault === 'function'){
+      vaultPromise = window._calendarLoadVault().then(function(data){
+        if(!data) return {};
+        return buildMap(data.goals);
+      }).catch(function(){ return {}; });
+    } else {
+      vaultPromise = Promise.resolve({});
+    }
+
+    Promise.all([vaultPromise, getICSEvents()]).then(function(results){
+      var dueMap = results[0];
+      var icsEvents = results[1];
+      mergeICSEvents(dueMap, icsEvents);
+      mergeCustomEvents(dueMap);
+      lastDueMap = dueMap;
+      render(dueMap);
+      if(viewMode === 'day') renderDayView(dueMap);
+    }).catch(function(){ render({}); });
+  }
+
+  document.getElementById('cal-prev').addEventListener('click', function(){
+    viewMonth--; if(viewMonth<0){viewMonth=11;viewYear--;} refresh();
+  });
+  document.getElementById('cal-next').addEventListener('click', function(){
+    viewMonth++; if(viewMonth>11){viewMonth=0;viewYear++;} refresh();
+  });
+  document.addEventListener('click', function(e){
+    if(activePop && !activePop.contains(e.target) && (!activeDetail || !activeDetail.contains(e.target))) closePop();
+    if(activeDetail && !activeDetail.contains(e.target)) closeDetail();
+    if(activeAddForm && !activeAddForm.contains(e.target)) closeAddForm();
+  });
+
+  updateIcsStatus();
+  refresh();
+  setInterval(refresh, 300000);
+  window.addEventListener('vault-goals-changed', refresh);
+  window.addEventListener('homer-context-mode-changed', function(){
+    closePop(); closeDetail(); closeAddForm();
+    icsInput.value = getSavedICS();
+    icsInput.placeholder = 'Paste ' + calendarModeLabel() + ' Google/Outlook ICS feed URL...';
+    updateIcsStatus();
+    refresh();
+  });
+  document.querySelectorAll('.tab-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){ setTimeout(refresh, 300); });
+  });
+})();
+
+(function(){
+  // === NEWS TAB ===
+  var newsTabSources = {
+    ro: [
+      {name:'Digi24', rss:'https://www.digi24.ro/rss'},
+      {name:'HotNews', rss:'https://www.hotnews.ro/rss'},
+      {name:'Mediafax', rss:'https://www.mediafax.ro/rss'},
+      {name:'Ziarul Financiar', rss:'https://www.zf.ro/rss'},
+      {name:'Adevarul', rss:'https://adevarul.ro/rss'},
+      {name:'Libertatea', rss:'https://www.libertatea.ro/rss'},
+      {name:'G4Media', rss:'https://www.g4media.ro/feed'},
+      {name:'Economica.net', rss:'https://www.economica.net/rss'},
+      {name:'Bursa', rss:'https://www.bursa.ro/titluri-bursa.xml'}
+    ],
+    int: [
+      {name:'BBC World', rss:'https://feeds.bbci.co.uk/news/world/rss.xml'},
+      {name:'Reuters', rss:'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en'},
+      {name:'CNN', rss:'http://rss.cnn.com/rss/edition.rss'},
+      {name:'Al Jazeera', rss:'https://www.aljazeera.com/xml/rss/all.xml'},
+      {name:'The Guardian', rss:'https://www.theguardian.com/world/rss'},
+      {name:'France24', rss:'https://www.france24.com/en/rss'},
+      {name:'NPR', rss:'https://feeds.npr.org/1001/rss.xml'},
+      {name:'TechCrunch', rss:'https://techcrunch.com/feed/'},
+      {name:'Ars Technica', rss:'https://feeds.arstechnica.com/arstechnica/index'}
+    ]
+  };
+
+  var regionSel = document.getElementById('news-tab-region');
+  var sourceSel = document.getElementById('news-tab-source');
+  var refreshBtn = document.getElementById('news-tab-refresh');
+  var newsList = document.getElementById('news-tab-list');
+
+  function populateNewsSources(){
+    var sources = newsTabSources[regionSel.value] || [];
+    sourceSel.innerHTML = '';
+    sources.forEach(function(s){
+      var o = document.createElement('option');
+      o.value = s.rss; o.textContent = s.name;
+      sourceSel.appendChild(o);
+    });
+  }
+
+  function fetchTabNews(){
+    var rss = sourceSel.value;
+    if(!rss) return;
+    newsList.innerHTML = '<p class="muted"><span class="spinner"></span> Loading news...</p>';
+    fetch('/api/rssfeed?url=' + encodeURIComponent(rss))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        newsList.innerHTML = '';
+        if(data.error){ newsList.innerHTML = '<p class="muted">Error: ' + data.error + '</p>'; return; }
+        if(!data.items || !data.items.length){
+          newsList.innerHTML = '<p class="muted">No articles found.</p>'; return;
+        }
+        data.items.slice(0,10).forEach(function(item){
+          var div = document.createElement('div');
+          div.className = 'saved-item fade-in';
+          var thumb = item.thumbnail || '';
+          div.innerHTML =
+            '<div style="display:flex;gap:12px;align-items:flex-start;">' +
+              (thumb ? '<img src="'+thumb.replace(/"/g,'&quot;')+'" alt="" style="width:80px;height:55px;object-fit:cover;border-radius:8px;flex-shrink:0;" onerror="this.style.display=\'none\'">' : '') +
+              '<div style="flex:1;min-width:0;">' +
+                '<div style="font-weight:800;margin-bottom:4px;">' +
+                  '<a href="'+(item.link||'#').replace(/"/g,'&quot;')+'" target="_blank" style="color:var(--accent-2);text-decoration:none;">'+(item.title||'Untitled').replace(/</g,'&lt;')+'</a>' +
+                '</div>' +
+                '<div style="color:var(--muted);font-size:.85rem;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">'+(item.description||'')+'</div>' +
+                '<div class="saved-meta" style="margin-top:4px;">'+(item.pubDate||'')+'</div>' +
+              '</div>' +
+            '</div>';
+          newsList.appendChild(div);
+        });
+      })
+      .catch(function(){
+        newsList.innerHTML = '<p class="muted">Failed to load news. Try another source.</p>';
+      });
+  }
+
+  regionSel.addEventListener('change', function(){ populateNewsSources(); });
+  sourceSel.addEventListener('change', function(){ fetchTabNews(); });
+  refreshBtn.addEventListener('click', fetchTabNews);
+  populateNewsSources();
+
+  // === YOUTUBE CAROUSEL ===
+  var ytChannels = {
+    ro: [
+      {name:'Digi24 HD', id:'UCbvKamSrJkwT6ed2BMMZXwg'},
+      {name:'Antena 3 CNN', id:'UCw9Hc3CD8hbqP-Y9XOJS--Q'},
+      {name:'Recorder', id:'UChDQ6nYN6XyRU-8IEgbym1g'},
+      {name:'HotNews', id:'UC9ipWt3PNhs6sZ_niPRoYLw'},
+      {name:'Stirile ProTV', id:'UCEJf5cGtkBdZS8Jh2uSW9xw'},
+      {name:'Zaiafet', id:'UC23FB2BshzRIreih7VgZ0Yw'}
+    ],
+    int: [
+      {name:'BBC News', id:'UC16niRr50-MSBwiO3YDb3RA'},
+      {name:'CNN', id:'UCupvZG-5ko_eiXAupbDfxWw'},
+      {name:'TED', id:'UCAuUUnT6oDeKwE6v1NGQxug'},
+      {name:'Veritasium', id:'UCHnyfMqiRRG1u-2MsSQLbXA'},
+      {name:'Kurzgesagt', id:'UCsXVk37bltHxD1rDPwtNM8Q'},
+      {name:'Fireship', id:'UCsBjURrPoezykLs9EqgamOA'},
+      {name:'MKBHD', id:'UCBJycsmduvYEL83R_U4JriQ'},
+      {name:'Linus Tech Tips', id:'UCXuqSBlHAE6Xw-yeJA0Tunw'},
+      {name:'Joe Rogan', id:'UCzQUP1qoWDoEbmsQxvdjxgQ'},
+      {name:'Lex Fridman', id:'UCSHZKyawb77ixDdsGog4iWA'}
+    ]
+  };
+
+  var ytRegion = document.getElementById('yt-region');
+  var ytChSel = document.getElementById('yt-channel');
+  var ytLoadBtn = document.getElementById('yt-load');
+  var ytTrack = document.getElementById('yt-carousel-track');
+  var ytEmpty = document.getElementById('yt-empty');
+
+  function populateYtChannels(){
+    var chs = ytChannels[ytRegion.value] || [];
+    ytChSel.innerHTML = '';
+    chs.forEach(function(c){
+      var o = document.createElement('option');
+      o.value = c.id; o.textContent = c.name;
+      ytChSel.appendChild(o);
+    });
+  }
+
+  function loadYtVideos(){
+    var channelId = ytChSel.value;
+    if(!channelId) return;
+    ytTrack.innerHTML = '';
+    ytEmpty.textContent = 'Loading videos...';
+    ytEmpty.style.display = 'block';
+
+    // Fetch YouTube feed via our own Vercel API proxy
+    var apiUrl = '/api/ytfeed?id=' + encodeURIComponent(channelId);
+    console.log('[YT] Fetching:', apiUrl, 'channelId:', channelId);
+    fetch(apiUrl)
+      .then(function(r){
+        console.log('[YT] Response status:', r.status, 'url:', r.url);
+        if(!r.ok) throw new Error('API returned ' + r.status);
+        return r.text();
+      })
+      .then(function(text){
+        console.log('[YT] Raw response:', text.slice(0, 500));
+        var data = JSON.parse(text);
+        if(data.error){ ytEmpty.textContent = 'API error: ' + data.error; return; }
+        var videos = data.videos || [];
+        if(!videos.length){
+          ytEmpty.textContent = 'No videos found. Debug: ' + text.slice(0, 200); return;
+        }
+        ytEmpty.style.display = 'none';
+
+        var count = Math.min(videos.length, 15);
+        for(var i = 0; i < count; i++){
+          var vidId = videos[i].vidId;
+          var title = videos[i].title || '';
+          var date = videos[i].date || '';
+
+          if(!vidId) continue;
+
+          var card = document.createElement('div');
+          card.style.cssText = 'flex:0 0 320px;scroll-snap-align:start;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);';
+          card.innerHTML =
+            '<div style="position:relative;cursor:pointer;" class="yt-thumb-wrap" data-vid="'+vidId+'">' +
+              '<img src="https://img.youtube.com/vi/'+vidId+'/mqdefault.jpg" alt="" style="width:100%;display:block;aspect-ratio:16/9;object-fit:cover;">' +
+              '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3);transition:background .2s;">' +
+                '<div style="width:50px;height:50px;background:rgba(255,0,0,.9);border-radius:12px;display:flex;align-items:center;justify-content:center;">' +
+                  '<div style="width:0;height:0;border-left:18px solid #fff;border-top:10px solid transparent;border-bottom:10px solid transparent;margin-left:4px;"></div>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="padding:10px 12px;">' +
+              '<div style="font-weight:700;font-size:.9rem;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">'+title.replace(/</g,'&lt;')+'</div>' +
+              '<div style="color:var(--muted);font-size:.8rem;margin-top:4px;">'+date+'</div>' +
+            '</div>';
+          ytTrack.appendChild(card);
+        }
+
+        // Click thumbnail to play inline
+        ytTrack.querySelectorAll('.yt-thumb-wrap').forEach(function(wrap){
+          wrap.addEventListener('click', function(){
+            var id = wrap.dataset.vid;
+            var iframe = document.createElement('iframe');
+            iframe.src = 'https://www.youtube.com/embed/'+id+'?autoplay=1';
+            iframe.style.cssText = 'width:100%;aspect-ratio:16/9;border:none;display:block;';
+            iframe.allow = 'autoplay;encrypted-media';
+            iframe.allowFullscreen = true;
+            wrap.parentNode.replaceChild(iframe, wrap);
+          });
+        });
+      })
+      .catch(function(err){
+        ytEmpty.textContent = 'Failed to load videos: ' + (err && err.message || 'Unknown error');
+      });
+  }
+
+  ytRegion.addEventListener('change', function(){ populateYtChannels(); });
+  ytLoadBtn.addEventListener('click', loadYtVideos);
+  populateYtChannels();
+})();
+
+/* ACCOUNT MANAGEMENT */
+(function(){
+  var R2_WORKER_URL = 'https://homer-attachments.it-network-drive.workers.dev';
+  var AUTH_USER_KEY = 'homer-auth-user';
+  var AUTH_HASH_KEY = 'homer-auth-hash';
+
+  var fabAcct = document.getElementById('fab-account');
+  var modalBg = document.getElementById('acct-modal-bg');
+  var form = document.getElementById('acct-form');
+  var info = document.getElementById('acct-info');
+  var userInput = document.getElementById('acct-user');
+  var passInput = document.getElementById('acct-pass');
+  var confirmWrap = document.getElementById('acct-confirm-wrap');
+  var confirmInput = document.getElementById('acct-confirm');
+  var submitBtn = document.getElementById('acct-submit');
+  var errorEl = document.getElementById('acct-error');
+  var modeToggle = document.getElementById('acct-mode-toggle');
+  var displayName = document.getElementById('acct-display-name');
+  var logoutBtn = document.getElementById('acct-logout');
+  var userDot = fabAcct.querySelector('.fab-user-dot');
+  var titleEl = document.getElementById('acct-title');
+  var isRegister = false;
+
+  async function hashCreds(user, pass){
+    var data = new TextEncoder().encode(user.toLowerCase() + ':' + pass);
+    var buf = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+  }
+
+  function updateUI(){
+    var user = localStorage.getItem(AUTH_USER_KEY);
+    var hash = localStorage.getItem(AUTH_HASH_KEY);
+    if(user && hash){
+      form.style.display = 'none';
+      info.style.display = 'block';
+      displayName.textContent = user;
+      userDot.className = 'fab-user-dot logged-in';
+      titleEl.innerHTML = 'Ã°Å¸â€˜Â¤ Account';
+      // Update sync passphrase
+      localStorage.setItem('homer-sync-pass', hash);
+      // Update fab-sync-user if exists
+      var su = document.getElementById('fab-sync-user');
+      if(su) su.textContent = user;
+    } else {
+      form.style.display = 'block';
+      info.style.display = 'none';
+      userDot.className = 'fab-user-dot';
+    }
+  }
+
+  // Open/close modal
+  fabAcct.addEventListener('click', function(){ modalBg.classList.add('open'); });
+  document.getElementById('acct-modal-close').addEventListener('click', function(){ modalBg.classList.remove('open'); });
+  modalBg.addEventListener('click', function(e){ if(e.target===modalBg) modalBg.classList.remove('open'); });
+
+  // Toggle register/sign-in
+  modeToggle.addEventListener('click', function(){
+    isRegister = !isRegister;
+    confirmWrap.style.display = isRegister ? 'block' : 'none';
+    submitBtn.textContent = isRegister ? 'Create Account' : 'Sign In';
+    modeToggle.textContent = isRegister ? 'Already have an account? Sign in' : "Don't have an account? Create one";
+    errorEl.textContent = '';
+  });
+
+  // Submit
+  submitBtn.addEventListener('click', async function(){
+    var user = userInput.value.trim();
+    var pass = passInput.value;
+    errorEl.textContent = '';
+
+    if(!user){ errorEl.textContent = 'Username is required'; return; }
+    if(user.length < 3){ errorEl.textContent = 'Username must be at least 3 characters'; return; }
+    if(!pass){ errorEl.textContent = 'Password is required'; return; }
+    if(pass.length < 4){ errorEl.textContent = 'Password must be at least 4 characters'; return; }
+
+    var hash = await hashCreds(user, pass);
+
+    if(isRegister){
+      if(pass !== confirmInput.value){ errorEl.textContent = 'Passwords do not match'; return; }
+      var existing = localStorage.getItem(AUTH_USER_KEY);
+      if(existing){ errorEl.textContent = 'An account already exists. Sign in or sign out first.'; return; }
+      localStorage.setItem(AUTH_USER_KEY, user);
+      localStorage.setItem(AUTH_HASH_KEY, hash);
+      localStorage.setItem('homer-sync-pass', hash);
+      localStorage.setItem('homer-sync-auto', 'true');
+      updateUI();
+      userInput.value = ''; passInput.value = ''; confirmInput.value = '';
+      modalBg.classList.remove('open');
+      // Backup current data to cloud immediately
+      window.dispatchEvent(new CustomEvent('homer-auth', {detail: {action: 'register'}}));
+    } else {
+      var storedUser = localStorage.getItem(AUTH_USER_KEY);
+      var storedHash = localStorage.getItem(AUTH_HASH_KEY);
+
+      if(storedUser && storedHash){
+        // Local account exists Ã¢â‚¬â€ verify against it
+        if(storedUser.toLowerCase() !== user.toLowerCase()){ errorEl.textContent = 'Invalid username or password'; return; }
+        if(storedHash !== hash){ errorEl.textContent = 'Invalid username or password'; return; }
+        localStorage.setItem('homer-sync-pass', hash);
+        localStorage.setItem('homer-sync-auto', 'true');
+        // Fetch user permissions from server
+        fetch('/api/admin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'getPermissions',username:user})})
+          .then(function(r){return r.json();})
+          .then(function(d){
+            if(d.ok && d.permissions){
+              localStorage.setItem('homer-user-permissions', JSON.stringify(d.permissions));
+            }
+          }).catch(function(){});
+        updateUI();
+        userInput.value = ''; passInput.value = '';
+        modalBg.classList.remove('open');
+        window.dispatchEvent(new CustomEvent('homer-auth', {detail: {action: 'signin'}}));
+      } else {
+        // No local account Ã¢â‚¬â€ try cloud backup with these credentials
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Checking cloud...';
+        fetch(R2_WORKER_URL+'/sync',{headers:{'X-Sync-Key':hash}})
+          .then(function(r){ return r.json(); })
+          .then(function(d){
+            if(d.data && d.data['homer-auth-user']){
+              // Cloud account found Ã¢â‚¬â€ verify username matches
+              if(d.data['homer-auth-user'].toLowerCase() !== user.toLowerCase()){
+                errorEl.textContent = 'Invalid username or password';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Sign In';
+                return;
+              }
+              // Restore ALL data from cloud directly (no second fetch needed)
+              var idbK = ['homer-vault-salt','homer-vault-hash','homer-vault-data'];
+              var rc = 0;
+              var idbW = [];
+              Object.keys(d.data).forEach(function(k){
+                rc++;
+                if(idbK.indexOf(k) >= 0){
+                  var iReq = indexedDB.open('homer-vault-idb', 1);
+                  iReq.onupgradeneeded = function(ev){ ev.target.result.createObjectStore('kv'); };
+                  idbW.push(new Promise(function(res){
+                    iReq.onsuccess = function(ev){
+                      var tx = ev.target.result.transaction('kv','readwrite');
+                      tx.objectStore('kv').put(d.data[k], k);
+                      tx.oncomplete = res;
+                      tx.onerror = res;
+                    };
+                    iReq.onerror = res;
+                  }));
+                } else {
+                  localStorage.setItem(k, d.data[k]);
+                }
+              });
+              // Ensure auth credentials are set (even if missing from cloud data)
+              localStorage.setItem(AUTH_USER_KEY, d.data[AUTH_USER_KEY] || user);
+              localStorage.setItem(AUTH_HASH_KEY, hash);
+              localStorage.setItem('homer-sync-pass', hash);
+              localStorage.setItem('homer-sync-auto', 'true');
+              updateUI();
+              userInput.value = ''; passInput.value = '';
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Sign In';
+              modalBg.classList.remove('open');
+              Promise.all(idbW).then(function(){
+                location.reload();
+              });
+            } else {
+              errorEl.textContent = 'No account found. Create one first.';
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Sign In';
+            }
+          })
+          .catch(function(){
+            errorEl.textContent = 'Could not reach cloud. Check your connection.';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Sign In';
+          });
+      }
+    }
+  });
+
+  // Enter key
+  [userInput, passInput, confirmInput].forEach(function(el){
+    el.addEventListener('keydown', function(e){ if(e.key === 'Enter') submitBtn.click(); });
+  });
+
+  // Logout Ã¢â‚¬â€ backup first, then clear credentials
+  logoutBtn.addEventListener('click', function(){
+    window.dispatchEvent(new CustomEvent('homer-auth', {detail: {action: 'logout'}}));
+    localStorage.removeItem(AUTH_USER_KEY);
+    localStorage.removeItem(AUTH_HASH_KEY);
+    localStorage.removeItem('homer-sync-pass');
+    localStorage.removeItem('homer-sync-auto');
+    updateUI();
+    modalBg.classList.remove('open');
+  });
+
+  // Init
+  updateUI();
+})();
+
+/* SUPER ADMIN */
+(function(){
+  var toggleBtn = document.getElementById('admin-toggle-btn');
+  var loginSection = document.getElementById('admin-login');
+  var panel = document.getElementById('admin-panel');
+  var userInput = document.getElementById('admin-user');
+  var passInput = document.getElementById('admin-pass');
+  var signinBtn = document.getElementById('admin-signin');
+  var errorEl = document.getElementById('admin-error');
+  var refreshBtn = document.getElementById('admin-refresh');
+  var listEl = document.getElementById('admin-list');
+  var statusEl = document.getElementById('admin-status');
+  var adminUser = '';
+  var adminPass = '';
+
+  toggleBtn.addEventListener('click', function(){
+    if(panel.style.display === 'block'){
+      // Close panel and reset
+      panel.style.display = 'none';
+      loginSection.style.display = 'none';
+      userInput.value = '';
+      passInput.value = '';
+      errorEl.textContent = '';
+      return;
+    }
+    loginSection.style.display = loginSection.style.display === 'none' ? 'block' : 'none';
+  });
+
+  function adminFetch(action, target){
+    return fetch('/api/admin', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({user: adminUser, pass: adminPass, action: action, target: target||undefined})
+    }).then(function(r){ return r.json(); });
+  }
+
+  function formatSize(bytes){
+    if(bytes < 1024) return bytes + ' B';
+    if(bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+    return (bytes/1048576).toFixed(1) + ' MB';
+  }
+
+  function loadEntries(){
+    statusEl.textContent = 'Loading...';
+    listEl.innerHTML = '';
+    adminFetch('list').then(function(d){
+      if(d.error){ statusEl.textContent = 'Error: ' + d.error; return; }
+      var entries = d.entries || [];
+      statusEl.textContent = entries.length + ' backup' + (entries.length !== 1 ? 's' : '') + ' in database';
+      if(!entries.length){ listEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:16px;font-size:.85rem;">No backups found</div>'; return; }
+      entries.forEach(function(e){
+        var card = document.createElement('div');
+        card.style.cssText = 'padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);';
+        var name = e.username || 'Unknown';
+        var shortKey = e.key.length > 18 ? e.key.substring(0,18) + '...' : e.key;
+        card.innerHTML =
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
+            '<div style="min-width:0;">' +
+              '<div style="font-weight:800;font-size:.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escH(name) + '</div>' +
+              '<div style="font-size:.7rem;color:rgba(255,255,255,.25);font-family:monospace;margin-top:2px;">' + escH(shortKey) + '</div>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
+              '<span style="font-size:.72rem;color:var(--muted);white-space:nowrap;">' + e.items + ' items &middot; ' + formatSize(e.size) + '</span>' +
+              '<button class="admin-restore-btn" data-key="' + escH(e.key) + '" data-name="' + escH(name) + '" style="background:none;border:1px solid rgba(34,197,94,.25);border-radius:6px;padding:3px 8px;color:#22c55e;cursor:pointer;font-size:.7rem;font-weight:700;">Restore</button>' +
+              '<button class="admin-inspect-btn" data-key="' + escH(e.key) + '" style="background:none;border:1px solid rgba(96,165,250,.25);border-radius:6px;padding:3px 8px;color:#60a5fa;cursor:pointer;font-size:.7rem;font-weight:700;">View</button>' +
+              '<button class="admin-del-btn" data-key="' + escH(e.key) + '" data-name="' + escH(name) + '" style="background:none;border:1px solid rgba(239,68,68,.25);border-radius:6px;padding:3px 8px;color:#ef4444;cursor:pointer;font-size:.7rem;font-weight:700;">Del</button>' +
+            '</div>' +
+          '</div>';
+        listEl.appendChild(card);
+      });
+    }).catch(function(err){ statusEl.textContent = 'Failed: ' + err.message; });
+  }
+
+  function escH(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+  signinBtn.addEventListener('click', function(){
+    adminUser = userInput.value.trim();
+    adminPass = passInput.value;
+    errorEl.textContent = '';
+    if(!adminUser || !adminPass){ errorEl.textContent = 'Enter admin credentials'; return; }
+    statusEl.textContent = 'Authenticating...';
+    adminFetch('list').then(function(d){
+      if(d.error){
+        errorEl.textContent = d.error === 'Unauthorized' ? 'Invalid admin credentials' : d.error;
+        panel.style.display = 'none';
+        return;
+      }
+      loginSection.style.display = 'none';
+      panel.style.display = 'block';
+      var entries = d.entries || [];
+      statusEl.textContent = entries.length + ' backup' + (entries.length !== 1 ? 's' : '') + ' in database';
+      // render
+      listEl.innerHTML = '';
+      if(!entries.length){ listEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:16px;font-size:.85rem;">No backups found</div>'; return; }
+      entries.forEach(function(e){
+        var card = document.createElement('div');
+        card.style.cssText = 'padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);';
+        var name = e.username || 'Unknown';
+        var shortKey = e.key.length > 18 ? e.key.substring(0,18) + '...' : e.key;
+        card.innerHTML =
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
+            '<div style="min-width:0;">' +
+              '<div style="font-weight:800;font-size:.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escH(name) + '</div>' +
+              '<div style="font-size:.7rem;color:rgba(255,255,255,.25);font-family:monospace;margin-top:2px;">' + escH(shortKey) + '</div>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
+              '<span style="font-size:.72rem;color:var(--muted);white-space:nowrap;">' + e.items + ' items &middot; ' + formatSize(e.size) + '</span>' +
+              '<button class="admin-inspect-btn" data-key="' + escH(e.key) + '" style="background:none;border:1px solid rgba(96,165,250,.25);border-radius:6px;padding:3px 8px;color:#60a5fa;cursor:pointer;font-size:.7rem;font-weight:700;">View</button>' +
+              '<button class="admin-del-btn" data-key="' + escH(e.key) + '" data-name="' + escH(name) + '" style="background:none;border:1px solid rgba(239,68,68,.25);border-radius:6px;padding:3px 8px;color:#ef4444;cursor:pointer;font-size:.7rem;font-weight:700;">Del</button>' +
+            '</div>' +
+          '</div>';
+        listEl.appendChild(card);
+      });
+    }).catch(function(err){ errorEl.textContent = 'Failed: ' + err.message; });
+  });
+
+  [userInput, passInput].forEach(function(el){
+    el.addEventListener('keydown', function(e){ if(e.key === 'Enter') signinBtn.click(); });
+  });
+
+  refreshBtn.addEventListener('click', loadEntries);
+
+  // Delegate clicks for restore/inspect/delete
+  listEl.addEventListener('click', function(ev){
+    var rbtn = ev.target.closest('.admin-restore-btn');
+    if(rbtn){
+      var key = rbtn.dataset.key;
+      var name = rbtn.dataset.name;
+      if(!confirm('Restore backup for "' + name + '" to this device?\nThis will overwrite local data.')) return;
+      rbtn.textContent = '...';
+      adminFetch('inspect', key).then(function(d){
+        if(d.error){ alert('Error: ' + d.error); rbtn.textContent = 'Restore'; return; }
+        // Restore to localStorage
+        var data = d.data || {};
+        Object.keys(data).forEach(function(k){
+          if(k !== 'homer-auth-hash' && k !== 'homer-sync-pass') {
+            localStorage.setItem(k, typeof data[k] === 'string' ? data[k] : JSON.stringify(data[k]));
+          }
+        });
+        alert('Backup restored successfully!\nReloading page...');
+        location.reload();
+      }).catch(function(){ rbtn.textContent = 'Restore'; });
+      return;
+    }
+    var btn = ev.target.closest('.admin-del-btn');
+    if(btn){
+      var key = btn.dataset.key;
+      var name = btn.dataset.name;
+      if(!confirm('Delete backup for "' + name + '"?\nThis cannot be undone.')) return;
+      btn.textContent = '...';
+      adminFetch('delete', key).then(function(d){
+        if(d.ok){ btn.closest('div[style]').remove(); loadEntries(); }
+        else { alert('Error: ' + (d.error || 'Unknown')); btn.textContent = 'Del'; }
+      }).catch(function(){ btn.textContent = 'Del'; });
+      return;
+    }
+    var ibtn = ev.target.closest('.admin-inspect-btn');
+    if(ibtn){
+      var ikey = ibtn.dataset.key;
+      ibtn.textContent = '...';
+      adminFetch('inspect', ikey).then(function(d){
+        ibtn.textContent = 'View';
+        if(d.error){ alert('Error: ' + d.error); return; }
+        var keys = Object.keys(d.data || {});
+        var info = keys.map(function(k){
+          var v = d.data[k];
+          var preview = typeof v === 'string' ? v.substring(0, 80) : JSON.stringify(v).substring(0, 80);
+          return k + ': ' + preview;
+        }).join('\n');
+        alert('Backup contents (' + keys.length + ' keys):\n\n' + info);
+      }).catch(function(){ ibtn.textContent = 'View'; });
+    }
+  });
+
+  // User Management
+  var backupsTab = document.getElementById('admin-tab-backups');
+  var usersTab = document.getElementById('admin-tab-users');
+  var backupsView = document.getElementById('admin-backups-view');
+  var usersView = document.getElementById('admin-users-view');
+  var usersListEl = document.getElementById('admin-users-list');
+  var usersStatusEl = document.getElementById('admin-users-status');
+  var createUserBtn = document.getElementById('admin-create-user');
+  var createErrorEl = document.getElementById('admin-create-error');
+  var newUserUsername = document.getElementById('new-user-username');
+  var newUserEmail = document.getElementById('new-user-email');
+  var newUserPassword = document.getElementById('new-user-password');
+  var newUserVault = document.getElementById('new-user-vault');
+  var newUserJoey = document.getElementById('new-user-joey');
+  var usersRefreshBtn = document.getElementById('admin-users-refresh');
+
+  function switchAdminTab(tab){
+    if(tab === 'backups'){
+      backupsView.style.display = 'block';
+      usersView.style.display = 'none';
+      backupsTab.style.background = 'linear-gradient(135deg,var(--accent),#16a34a)';
+      backupsTab.style.color = '#fff';
+      backupsTab.classList.remove('ghost');
+      usersTab.style.background = 'transparent';
+      usersTab.style.color = 'var(--muted)';
+      usersTab.classList.add('ghost');
+    } else {
+      backupsView.style.display = 'none';
+      usersView.style.display = 'block';
+      usersTab.style.background = 'linear-gradient(135deg,var(--accent),#16a34a)';
+      usersTab.style.color = '#fff';
+      usersTab.classList.remove('ghost');
+      backupsTab.style.background = 'transparent';
+      backupsTab.style.color = 'var(--muted)';
+      backupsTab.classList.add('ghost');
+      loadUsers();
+    }
+  }
+
+  backupsTab.addEventListener('click', function(){ switchAdminTab('backups'); });
+  usersTab.addEventListener('click', function(){ switchAdminTab('users'); });
+  usersRefreshBtn.addEventListener('click', loadUsers);
+
+  function loadUsers(){
+    usersStatusEl.textContent = 'Loading...';
+    adminFetch('listUsers').then(function(d){
+      if(d.error){ usersStatusEl.textContent = 'Error: ' + d.error; return; }
+      usersStatusEl.textContent = d.users.length + ' user' + (d.users.length !== 1 ? 's' : '');
+      usersListEl.innerHTML = '';
+      if(!d.users.length){ usersListEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:16px;font-size:.85rem;">No users found</div>'; return; }
+      d.users.forEach(function(u){
+        var card = document.createElement('div');
+        card.style.cssText = 'padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);';
+        var perms = [];
+        if(u.permissions.vault) perms.push('Vault');
+        if(u.permissions.joey) perms.push('Joey');
+        card.innerHTML =
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
+            '<div style="min-width:0;">' +
+              '<div style="font-weight:800;font-size:.9rem;color:var(--text);">' + escH(u.username) + '</div>' +
+              '<div style="font-size:.75rem;color:var(--muted);margin-top:2px;">' + escH(u.email) + '</div>' +
+              '<div style="font-size:.7rem;color:rgba(255,255,255,.35);margin-top:4px;">' + (perms.length ? perms.join(' &middot; ') : 'No permissions') + '</div>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
+              '<button class="admin-user-edit-btn" data-user="' + escH(u.username) + '" style="background:none;border:1px solid rgba(96,165,250,.25);border-radius:6px;padding:3px 8px;color:#60a5fa;cursor:pointer;font-size:.7rem;font-weight:700;">Edit</button>' +
+              '<button class="admin-user-del-btn" data-user="' + escH(u.username) + '" style="background:none;border:1px solid rgba(239,68,68,.25);border-radius:6px;padding:3px 8px;color:#ef4444;cursor:pointer;font-size:.7rem;font-weight:700;">Del</button>' +
+            '</div>' +
+          '</div>';
+        usersListEl.appendChild(card);
+      });
+    }).catch(function(err){ usersStatusEl.textContent = 'Failed: ' + err.message; });
+  }
+
+  createUserBtn.addEventListener('click', function(){
+    var username = newUserUsername.value.trim();
+    var email = newUserEmail.value.trim();
+    var password = newUserPassword.value;
+    createErrorEl.textContent = '';
+    if(!username || !email || !password){ createErrorEl.textContent = 'Fill all fields'; return; }
+    createUserBtn.textContent = 'Creating...';
+    adminFetch('createUser', {username: username, email: email, password: password, permissions: {vault: newUserVault.checked, joey: newUserJoey.checked}}).then(function(d){
+      createUserBtn.textContent = 'Create User';
+      if(d.error){ createErrorEl.textContent = d.error; return; }
+      newUserUsername.value = '';
+      newUserEmail.value = '';
+      newUserPassword.value = '';
+      newUserVault.checked = false;
+      newUserJoey.checked = false;
+      loadUsers();
+    }).catch(function(err){ createUserBtn.textContent = 'Create User'; createErrorEl.textContent = err.message; });
+  });
+
+  usersListEl.addEventListener('click', function(ev){
+    var delBtn = ev.target.closest('.admin-user-del-btn');
+    if(delBtn){
+      var username = delBtn.dataset.user;
+      if(!confirm('Delete user "' + username + '"?')) return;
+      delBtn.textContent = '...';
+      adminFetch('deleteUser', username).then(function(d){
+        if(d.ok){ loadUsers(); }
+        else { alert('Error: ' + (d.error || 'Unknown')); delBtn.textContent = 'Del'; }
+      }).catch(function(){ delBtn.textContent = 'Del'; });
+      return;
+    }
+    var editBtn = ev.target.closest('.admin-user-edit-btn');
+    if(editBtn){
+      var username = editBtn.dataset.user;
+      var vault = confirm('Grant "' + username + '" access to Vault?');
+      var joey = confirm('Grant "' + username + '" access to Joey?');
+      adminFetch('updateUser', {username: username, permissions: {vault: vault, joey: joey}}).then(function(d){
+        if(d.ok){ loadUsers(); }
+        else { alert('Error: ' + (d.error || 'Unknown')); }
+      });
+    }
+  });
+})();
+
+(function(){
+  var R2_WORKER_URL = 'https://homer-attachments.it-network-drive.workers.dev';
+  var DB_BACKUP_URL = '/api/sync';
+  var SYNC_PASS_KEY = 'homer-sync-pass';
+  var SYNC_AUTO_KEY = 'homer-sync-auto';
+  window._homerSyncPassKey = SYNC_PASS_KEY;
+  var setVaultMirrorStatus = window._homerSetVaultMirrorStatus || function(){};
+  var vaultMirrorRefreshInFlight = null;
+  var vaultMirrorRefreshAt = 0;
+  var LS_KEYS = [
+    'motivator.savedQuotes.v1',
+    'pom.settings.v1', 'pom.tasks.v1', 'pom.state.v1',
+    'homer-brain-dump', 'homer-links', 'homer-zen-goal',
+    'homer-vault-mode', 'homer-oc-mode', 'homer-oc-provider',
+    'homer-cal-ics', 'homer-cal-events', 'homer-heartbeats',
+    'homer-cal-ics:personal', 'homer-cal-ics:work',
+    'homer-cal-events:personal', 'homer-cal-events:work',
+    'homer-heartbeats:personal', 'homer-heartbeats:work'
+  ];
+  var IDB_KEYS = ['homer-vault-salt', 'homer-vault-hash', 'homer-vault-data'];
+  var ALL_KEYS = LS_KEYS.concat(IDB_KEYS);
+  var BACKUP_MANIFEST_KEY = 'homer-backup-manifest';
+  var BACKUP_LOCAL_SAVE_TS_KEY = 'homer-local-save-ts';
+  var BACKUP_DB_TS_KEY = 'homer-db-backup-ts';
+  var BACKUP_JOEY_TS_KEY = 'homer-joey-sync-ts';
+  var BACKUP_DRIVE_TS_KEY = 'homer-drive-backup-ts';
+  var BACKUP_EMERGENCY_DRIVE_TS_KEY = 'homer-drive-emergency-ts';
+  var BACKUP_LAST_RESTORE_TS_KEY = 'homer-last-restore-ts';
+  var BACKUP_LAST_RESTORE_SOURCE_KEY = 'homer-last-restore-source';
+  var BACKUP_RUNTIME_KEYS = [
+    'homer-backup-ts', 'homer-backup-keys', 'homer-backup-source',
+    BACKUP_MANIFEST_KEY,
+    BACKUP_LOCAL_SAVE_TS_KEY, BACKUP_DB_TS_KEY, BACKUP_JOEY_TS_KEY, BACKUP_DRIVE_TS_KEY, BACKUP_EMERGENCY_DRIVE_TS_KEY,
+    BACKUP_LAST_RESTORE_TS_KEY, BACKUP_LAST_RESTORE_SOURCE_KEY
+  ];
+  var LOCAL_ONLY_BACKUP_KEYS = ['homer-pre-restore-backup', 'homer-pre-restore-ts', 'homer-field-sync-version', 'homer-sync-device-id', 'homer-quotes-seen'];
+  var LOCAL_ONLY_BACKUP_PREFIXES = ['homer-oc-chat-cache:', 'homer-oc-chat-cleared:'];
+  var BACKUP_LOCALSTORAGE_KEYS = LS_KEYS.slice();
+  var BACKUP_LOCALSTORAGE_PREFIXES = ['homer-oc-config-'];
+  var BACKUP_SCHEMA_VERSION = 2;
+  var JOEY_BUNDLE_PREFIX = 'homer-joey-bundle:';
+  var JOEY_BUNDLE_MODES = ['personal', 'work'];
+
+  // Tab coordination keys (local only, never synced to cloud)
+  var LEADER_KEY = 'homer-tab-leader';
+  var LEADER_HB_KEY = 'homer-tab-leader-hb';
+  var TAB_COORD_KEYS = [LEADER_KEY, LEADER_HB_KEY];
+
+  // IndexedDB access for cloud sync
+  var IDB_NAME = 'homer-vault-idb';
+  var IDB_STORE = 'kv';
+  var syncIdbReady = new Promise(function(resolve, reject){
+    var req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = function(e){ e.target.result.createObjectStore(IDB_STORE); };
+    req.onsuccess = function(e){ resolve(e.target.result); };
+    req.onerror = function(e){ reject(e.target.error); };
+  });
+  function syncIdbGet(key){
+    return syncIdbReady.then(function(db){
+      return new Promise(function(resolve){
+        var tx = db.transaction(IDB_STORE,'readonly');
+        var req = tx.objectStore(IDB_STORE).get(key);
+        req.onsuccess = function(){ resolve(req.result !== undefined ? req.result : null); };
+        req.onerror = function(){ resolve(null); };
+      });
+    });
+  }
+  function syncIdbSet(key, value){
+    return syncIdbReady.then(function(db){
+      return new Promise(function(resolve){
+        var tx = db.transaction(IDB_STORE,'readwrite');
+        tx.objectStore(IDB_STORE).put(value, key);
+        tx.oncomplete = function(){ resolve(); };
+        tx.onerror = function(){ resolve(); };
+      });
+    });
+  }
+  function syncIdbDelete(key){
+    return syncIdbReady.then(function(db){
+      return new Promise(function(resolve){
+        var tx = db.transaction(IDB_STORE,'readwrite');
+        tx.objectStore(IDB_STORE).delete(key);
+        tx.oncomplete = function(){ resolve(); };
+        tx.onerror = function(){ resolve(); };
+      });
+    });
+  }
+  function syncIdbClear(){
+    return syncIdbReady.then(function(db){
+      return new Promise(function(resolve){
+        var tx = db.transaction(IDB_STORE,'readwrite');
+        tx.objectStore(IDB_STORE).clear();
+        tx.oncomplete = function(){ resolve(); };
+        tx.onerror = function(){ resolve(); };
+      });
+    });
+  }
+
+  // --- FAB Cloud ---
+  var cloud = document.getElementById('fab-cloud');
+  var dot = cloud.querySelector('.fab-dot');
+  var modalBg = document.getElementById('fab-modal-bg');
+  var pass = document.getElementById('fab-pass');
+  var statusEl = document.getElementById('fab-status');
+  var backupHealthEl = document.getElementById('fab-backup-health');
+  var autoChk = document.getElementById('fab-auto');
+  var restoreDbBtn = document.getElementById('fab-restore-db');
+  var restoreRedisBtn = document.getElementById('fab-restore-redis');
+  var restoreDriveBtn = document.getElementById('fab-restore-drive');
+  var backupAllDriveBtn = document.getElementById('fab-backup-all-drive');
+  var emergencyDriveBtn = document.getElementById('fab-backup-emergency-drive');
+  var inspectLatestBtn = document.getElementById('fab-inspect-latest');
+  var timer = null;
+
+  // Use login credentials as sync key
+  pass.value = localStorage.getItem(SYNC_PASS_KEY) || '';
+  autoChk.checked = localStorage.getItem(SYNC_AUTO_KEY) === 'true';
+
+  // Show username in sync modal or warning
+  var fabSyncUser = document.getElementById('fab-sync-user');
+  var fabSyncInfo = document.getElementById('fab-sync-info');
+  var fabSyncWarn = document.getElementById('fab-sync-warn');
+  var authName = localStorage.getItem('homer-auth-user');
+  if(authName){
+    if(fabSyncUser) fabSyncUser.textContent = authName;
+    if(fabSyncInfo) fabSyncInfo.style.display = '';
+    if(fabSyncWarn) fabSyncWarn.style.display = 'none';
+  } else {
+    if(fabSyncInfo) fabSyncInfo.style.display = 'none';
+    if(fabSyncWarn) fabSyncWarn.style.display = '';
+  }
+
+  cloud.addEventListener('click', function(){
+    modalBg.classList.add('open');
+    renderBackupHealth();
+  });
+  document.getElementById('fab-modal-close').addEventListener('click', function(){ modalBg.classList.remove('open'); });
+  modalBg.addEventListener('click', function(e){ if(e.target===modalBg) modalBg.classList.remove('open'); });
+
+  function st(m){ statusEl.textContent=m; }
+  function safeEscHtml(value){
+    if(typeof window._homerEscHtml === 'function') return window._homerEscHtml(value);
+    var str = String(value == null ? '' : value);
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function safeUpdateVaultSyncBadge(){
+    if(typeof window._homerUpdateVaultSyncBadge === 'function') window._homerUpdateVaultSyncBadge();
+  }
+  function safeJsonParse(raw, fallback){
+    if(raw == null || raw === '') return fallback;
+    try{ return JSON.parse(raw); }catch(e){ return fallback; }
+  }
+  function setRuntimeMarker(key, value){
+    try{
+      if(typeof origSetItem === 'function') origSetItem(key, String(value == null ? Date.now() : value));
+      else localStorage.setItem(key, String(value == null ? Date.now() : value));
+    }catch(e){}
+    safeUpdateVaultSyncBadge();
+    requestSyncFieldLabelUpdate();
+  }
+  function tryStoreSyncValue(key, value){
+    try{
+      origSetItem(key, value);
+      return true;
+    }catch(e){
+      var isQuota = e && (e.name === 'QuotaExceededError' || /quota/i.test(e.message || ''));
+      if(isQuota && String(key || '').indexOf(JOEY_BUNDLE_PREFIX) === 0){
+        try{ origRemoveItem(key); }catch(_){}
+        console.warn('[CloudSync] Skipped oversized Joey bundle cache for', key);
+        return false;
+      }
+      throw e;
+    }
+  }
+  function getJoeyBundleKey(mode){
+    return JOEY_BUNDLE_PREFIX + (mode === 'work' ? 'work' : 'personal');
+  }
+  function buildJoeyActionUrl(action, passphrase, mode){
+    var activeMode = mode === 'work' ? 'work' : 'personal';
+    var url = '/api/joey?action=' + encodeURIComponent(action) + '&mode=' + encodeURIComponent(activeMode);
+    if(passphrase) url += '&passphrase=' + encodeURIComponent(passphrase);
+    return url;
+  }
+  function fetchJson(url, options){
+    return fetch(url, options || {}).then(function(r){
+      return r.text().then(function(text){
+        var data = {};
+        try{ data = text ? JSON.parse(text) : {}; }catch(e){ data = { error:text || ('HTTP ' + r.status) }; }
+        if(!r.ok || (data && data.error && !data.ok)) throw new Error((data && (data.detail || data.error || data.reason)) || ('HTTP ' + r.status));
+        return data;
+      });
+    });
+  }
+  function formatBackupStamp(ts){
+    var num = parseInt(ts || '0', 10);
+    if(!num) return 'Not yet';
+    return new Date(num).toLocaleString();
+  }
+  var syncFieldLabelMap = new Map();
+  var syncFieldLabelFrame = 0;
+  var syncFieldObserver = null;
+  var FIELD_DRAFT_PREFIX = 'homer-field-draft:';
+  var FIELD_SYNC_CURSOR_KEY = 'homer-field-sync-version';
+  var FIELD_SYNC_DEVICE_KEY = 'homer-sync-device-id';
+  var FIELD_SYNC_CLIENT_SEQ_KEY = 'homer-field-sync-client-seq';
+  var FIELD_SYNC_PUSH_DELAY = 350;
+  var FIELD_SYNC_PULL_INTERVAL = 2000;
+  var fieldSyncPendingMap = new Map();
+  var fieldSyncPushTimer = null;
+  var fieldSyncPushInFlight = null;
+  var fieldSyncPullTimer = null;
+  var fieldSyncPullInFlight = false;
+  var applyingRemoteFieldSync = 0;
+  function formatBackupShortStamp(ts){
+    var num = parseInt(ts || '0', 10);
+    if(!num) return 'No sync';
+    return new Date(num).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  }
+  function getFieldSyncCursor(){
+    return Math.max(0, parseInt(localStorage.getItem(FIELD_SYNC_CURSOR_KEY) || '0', 10) || 0);
+  }
+  function setFieldSyncCursor(version){
+    try{
+      origSetItem(FIELD_SYNC_CURSOR_KEY, String(Math.max(0, parseInt(version || '0', 10) || 0)));
+    }catch(e){}
+  }
+  function getFieldSyncDeviceId(){
+    var existing = String(localStorage.getItem(FIELD_SYNC_DEVICE_KEY) || '').trim();
+    if(existing) return existing;
+    var next = 'device-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+    try{
+      origSetItem(FIELD_SYNC_DEVICE_KEY, next);
+    }catch(e){}
+    return next;
+  }
+  function nextFieldSyncClientSeq(){
+    var current = Math.max(0, parseInt(localStorage.getItem(FIELD_SYNC_CLIENT_SEQ_KEY) || '0', 10) || 0) + 1;
+    try{
+      origSetItem(FIELD_SYNC_CLIENT_SEQ_KEY, String(current));
+    }catch(e){
+      try{ localStorage.setItem(FIELD_SYNC_CLIENT_SEQ_KEY, String(current)); }catch(_e){}
+    }
+    return current;
+  }
+  function isSameFieldSyncAttempt(left, right){
+    return !!left && !!right &&
+      String(left.fieldId || '') === String(right.fieldId || '') &&
+      (Number(left.clientTs || 0) || 0) === (Number(right.clientTs || 0) || 0) &&
+      (Number(left.clientSeq || 0) || 0) === (Number(right.clientSeq || 0) || 0);
+  }
+  function isFieldSyncReady(){
+    return !!String(localStorage.getItem(SYNC_PASS_KEY) || pass.value || '').trim();
+  }
+  function getPersistentFieldKind(el){
+    if(!el) return 'text';
+    if(el.isContentEditable || el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === '') return 'contenteditable';
+    if(el.tagName === 'SELECT' && el.multiple) return 'select-multiple';
+    if(el.tagName === 'SELECT') return 'select';
+    var type = String(el.type || '').toLowerCase();
+    return type || 'text';
+  }
+  function shouldTreatFieldAsCleared(el, value){
+    var kind = getPersistentFieldKind(el);
+    if(kind === 'checkbox' || kind === 'radio') return false;
+    if(kind === 'select-multiple') return String(value || '') === '[]';
+    return String(value == null ? '' : value) === '';
+  }
+  function findPersistentFieldsByDraftKey(draftKey){
+    var matches = [];
+    document.querySelectorAll('input, textarea, select, [contenteditable=\"\"], [contenteditable=\"true\"]').forEach(function(el){
+      if(getPersistentFieldDraftKey(el) === draftKey) matches.push(el);
+    });
+    return matches;
+  }
+  var FOCUS_LAB_SYNC_FIELDS = {
+    'focus-lab:brain-dump': {
+      storageKey: 'homer-brain-dump',
+      elementId: 'brain-dump',
+      statusId: 'dump-status',
+      recentEditKey: 'homer-focuslab-brain-edit-ts'
+    },
+    'focus-lab:zen-goal': {
+      storageKey: 'homer-zen-goal',
+      elementId: 'zen-input',
+      recentEditKey: 'homer-focuslab-zen-edit-ts'
+    }
+  };
+  function getFocusLabSyncConfig(fieldId){
+    return fieldId ? (FOCUS_LAB_SYNC_FIELDS[fieldId] || null) : null;
+  }
+  function getFocusLabRecentEditTs(config){
+    if(!config || !config.recentEditKey) return 0;
+    try{
+      return Math.max(0, parseInt(sessionStorage.getItem(config.recentEditKey) || '0', 10) || 0);
+    }catch(_e){
+      return 0;
+    }
+  }
+  function markFocusLabRecentEdit(config){
+    if(!config || !config.recentEditKey) return;
+    try{ sessionStorage.setItem(config.recentEditKey, String(Date.now())); }catch(_e){}
+  }
+  function clearFocusLabRecentEdit(config){
+    if(!config || !config.recentEditKey) return;
+    try{ sessionStorage.removeItem(config.recentEditKey); }catch(_e){}
+  }
+  function applyFocusLabSyncedValue(config, value, opts){
+    opts = opts || {};
+    if(!config) return;
+    var nextValue = String(value == null ? '' : value);
+    var el = document.getElementById(config.elementId);
+    var localValue = String(localStorage.getItem(config.storageKey) || '');
+    var localEditTs = getFocusLabRecentEditTs(config);
+    var recentlyEdited = localEditTs && (Date.now() - localEditTs) < 30000;
+    if(!opts.force && recentlyEdited && localValue !== nextValue) return;
+    try{
+      origSetItem(config.storageKey, nextValue);
+    }catch(e){
+      try{ localStorage.setItem(config.storageKey, nextValue); }catch(_e){}
+    }
+    if(el && document.activeElement !== el){
+      if(typeof writePersistentFieldValue === 'function') writePersistentFieldValue(el, nextValue);
+      else el.value = nextValue;
+    }
+    if(config.statusId){
+      var statusEl = document.getElementById(config.statusId);
+      if(statusEl) statusEl.textContent = 'Saved';
+    }
+    if(!recentlyEdited || localValue === nextValue) clearFocusLabRecentEdit(config);
+  }
+  function dispatchPersistentFieldSyncEvents(el){
+    try{ el.dispatchEvent(new Event('input', { bubbles:true })); }catch(_e){}
+    try{ el.dispatchEvent(new Event('change', { bubbles:true })); }catch(_e){}
+  }
+  function applySyncedFieldValue(fieldId, value, opts){
+    opts = opts || {};
+    var nextValue = String(value == null ? '' : value);
+    var focusLabConfig = getFocusLabSyncConfig(fieldId);
+    if(focusLabConfig){
+      applyFocusLabSyncedValue(focusLabConfig, nextValue, opts);
+      return;
+    }
+    try{
+      origSetItem(fieldId, nextValue);
+    }catch(e){}
+    findPersistentFieldsByDraftKey(fieldId).forEach(function(el){
+      var localValue = readPersistentFieldValue(el);
+      var localEditTs = parseInt(el && el.dataset ? (el.dataset.dbSyncEditTs || '0') : '0', 10) || 0;
+      var recentlyEdited = localEditTs && (Date.now() - localEditTs) < 30000;
+      if(!opts.force && (document.activeElement === el || fieldSyncPendingMap.has(fieldId) || (recentlyEdited && localValue !== nextValue))) return;
+      applyingRemoteFieldSync += 1;
+      try{
+        writePersistentFieldValue(el, nextValue);
+        if(el.dataset && (!recentlyEdited || localValue === nextValue)) delete el.dataset.dbSyncEditTs;
+        if(!opts.silent) dispatchPersistentFieldSyncEvents(el);
+      } finally {
+        applyingRemoteFieldSync = Math.max(0, applyingRemoteFieldSync - 1);
+      }
+    });
+  }
+  function queuePersistentFieldOperation(el){
+    if(!el || !isFieldSyncReady()) return;
+    var draftKey = getPersistentFieldDraftKey(el);
+    if(!draftKey) return;
+    var value = readPersistentFieldValue(el);
+    fieldSyncPendingMap.set(draftKey, {
+      fieldId: draftKey,
+      kind: getPersistentFieldKind(el),
+      value: value,
+      deleted: shouldTreatFieldAsCleared(el, value),
+      source: 'autosave-input',
+      scope: getDbBackupMode(),
+      clientTs: Date.now(),
+      clientSeq: nextFieldSyncClientSeq(),
+      deviceId: getFieldSyncDeviceId()
+    });
+  }
+  function queueFocusLabFieldSync(fieldName, value, reason){
+    if(!isFieldSyncReady()) return false;
+    var fieldId = fieldName === 'zen-goal' ? 'focus-lab:zen-goal' : 'focus-lab:brain-dump';
+    var config = getFocusLabSyncConfig(fieldId);
+    if(config) markFocusLabRecentEdit(config);
+    fieldSyncPendingMap.set(fieldId, {
+      fieldId: fieldId,
+      kind: 'text',
+      value: String(value == null ? '' : value),
+      deleted: String(value == null ? '' : value) === '',
+      source: reason || 'focus-lab',
+      scope: getDbBackupMode(),
+      clientTs: Date.now(),
+      clientSeq: nextFieldSyncClientSeq(),
+      deviceId: getFieldSyncDeviceId()
+    });
+    if(fieldSyncPushTimer) clearTimeout(fieldSyncPushTimer);
+    if(/^agent-/.test(String(reason || ''))){
+      fieldSyncPushTimer = setTimeout(function(){
+        fieldSyncPushTimer = null;
+        flushFieldSyncOps(reason || 'focus-lab');
+      }, 80);
+    } else {
+      fieldSyncPushTimer = setTimeout(function(){
+        fieldSyncPushTimer = null;
+        flushFieldSyncOps(reason || 'focus-lab');
+      }, FIELD_SYNC_PUSH_DELAY);
+    }
+    return true;
+  }
+  window._homerQueueFocusLabFieldSync = queueFocusLabFieldSync;
+  function queuePersistentFieldGroupOperations(el){
+    var type = String(el && el.type || '').toLowerCase();
+    if(type === 'radio' && el.name){
+      Array.prototype.forEach.call(document.querySelectorAll('input[type="radio"]'), function(radio){
+        if(radio.name === el.name) queuePersistentFieldOperation(radio);
+      });
+    } else {
+      queuePersistentFieldOperation(el);
+    }
+    if(fieldSyncPushTimer) clearTimeout(fieldSyncPushTimer);
+    fieldSyncPushTimer = setTimeout(function(){
+      fieldSyncPushTimer = null;
+      flushFieldSyncOps('debounced-input');
+    }, FIELD_SYNC_PUSH_DELAY);
+  }
+  function flushFieldSyncOps(reason){
+    if(fieldSyncPushInFlight) return fieldSyncPushInFlight;
+    if(!fieldSyncPendingMap.size) return Promise.resolve({ ok:true, skipped:true, reason:'no-pending-field-ops' });
+    var p = String(localStorage.getItem(SYNC_PASS_KEY) || pass.value || '').trim();
+    if(!p) return Promise.resolve({ ok:false, skipped:true, reason:'nologin' });
+    var batch = Array.from(fieldSyncPendingMap.values()).slice(0, 50);
+    if(!batch.length) return Promise.resolve({ ok:true, skipped:true, reason:'empty-batch' });
+    var batchIds = batch.map(function(op){ return op.fieldId; });
+    fieldSyncPushInFlight = fetch(DB_BACKUP_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        action:'field-op',
+        key:p,
+        deviceId:getFieldSyncDeviceId(),
+        reason: reason || 'field-sync',
+        ops: batch
+      })
+    })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(!d || !d.ok) throw new Error((d && d.error) || 'Field sync failed');
+        var settled = [].concat(d.applied || [], d.rejected || [], d.duplicates || []);
+        batchIds.forEach(function(fieldId){
+          var current = fieldSyncPendingMap.get(fieldId);
+          if(current && batch.some(function(op){ return isSameFieldSyncAttempt(op, current); })){
+            fieldSyncPendingMap.delete(fieldId);
+          }
+        });
+        if(Array.isArray(d.rejected) && d.rejected.length){
+          d.rejected.forEach(function(entry){
+            if(entry && entry.current && entry.current.fieldId){
+              applySyncedFieldValue(entry.current.fieldId, entry.current.deleted ? '' : entry.current.value, { force:false, silent:false });
+            }
+          });
+        }
+        settled.forEach(function(entry){
+          var incoming = entry && entry.incoming;
+          if(!incoming || !incoming.fieldId) return;
+          var current = fieldSyncPendingMap.get(incoming.fieldId);
+          if(current && isSameFieldSyncAttempt(current, incoming)) fieldSyncPendingMap.delete(incoming.fieldId);
+        });
+        if(d.latestVersion) setFieldSyncCursor(d.latestVersion);
+        scheduleDbBackup('field-op-' + (reason || 'sync'));
+        requestSyncFieldLabelUpdate();
+        if(Array.isArray(d.rejected) && d.rejected.length){
+          setTimeout(function(){ hydrateFieldSyncState(false); }, 60);
+        }
+        if(fieldSyncPendingMap.size){
+          setTimeout(function(){ flushFieldSyncOps('follow-up'); }, 120);
+        }
+        return d;
+      })
+      .catch(function(err){
+        console.warn('[FieldSync] Push failed:', err && err.message ? err.message : err);
+        return { ok:false, error: err && err.message ? err.message : 'Field sync failed' };
+      })
+      .finally(function(){
+        fieldSyncPushInFlight = null;
+      });
+    return fieldSyncPushInFlight;
+  }
+  function hydrateFieldSyncState(force){
+    if(fieldSyncPullInFlight || !isFieldSyncReady()) return Promise.resolve({ ok:false, skipped:true, reason:'busy-or-off' });
+    fieldSyncPullInFlight = true;
+    var p = String(localStorage.getItem(SYNC_PASS_KEY) || pass.value || '').trim();
+    var since = force ? 0 : getFieldSyncCursor();
+    var action = force || !since ? 'field-state' : 'field-ops';
+    var url = DB_BACKUP_URL + '?action=' + encodeURIComponent(action) + '&key=' + encodeURIComponent(p);
+    if(action === 'field-ops') url += '&since=' + encodeURIComponent(String(since)) + '&limit=120';
+    return fetch(url, { cache:'no-store' })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(!d || !d.ok) throw new Error((d && d.error) || 'Field sync pull failed');
+        if(action === 'field-ops' && (d.resetToState || d.hasGap)){
+          setFieldSyncCursor(0);
+          setTimeout(function(){ hydrateFieldSyncState(true); }, 0);
+          return {
+            ok:true,
+            resetToState:true,
+            latestVersion: parseInt(d.latestVersion || '0', 10) || 0,
+            minRetainedVersion: parseInt(d.minRetainedVersion || '0', 10) || 0
+          };
+        }
+        if(action === 'field-state'){
+          Object.keys(d.state || {}).map(function(fieldId){
+            return d.state[fieldId];
+          }).sort(function(a, b){
+            return (a && a.version || 0) - (b && b.version || 0);
+          }).forEach(function(record){
+            if(record && record.fieldId) applySyncedFieldValue(record.fieldId, record.deleted ? '' : record.value, { force:false, silent:false });
+          });
+        } else {
+          (d.ops || []).forEach(function(op){
+            if(!op || !op.fieldId) return;
+            applySyncedFieldValue(op.fieldId, op.deleted ? '' : op.value, { force:false, silent:false });
+          });
+        }
+        if(d.latestVersion) setFieldSyncCursor(d.latestVersion);
+        requestSyncFieldLabelUpdate();
+        if(d.hasMore) setTimeout(function(){ hydrateFieldSyncState(false); }, 80);
+        return d;
+      })
+      .catch(function(err){
+        console.warn('[FieldSync] Pull failed:', err && err.message ? err.message : err);
+        return { ok:false, error: err && err.message ? err.message : 'Field sync pull failed' };
+      })
+      .finally(function(){
+        fieldSyncPullInFlight = false;
+      });
+  }
+  function startFieldSyncLoop(){
+    stopFieldSyncLoop();
+    if(!isFieldSyncReady()) return;
+    hydrateFieldSyncState(!getFieldSyncCursor());
+    fieldSyncPullTimer = setInterval(function(){
+      if(document.hidden || !isFieldSyncReady()) return;
+      hydrateFieldSyncState(false);
+    }, FIELD_SYNC_PULL_INTERVAL);
+  }
+  function stopFieldSyncLoop(){
+    if(fieldSyncPullTimer){ clearInterval(fieldSyncPullTimer); fieldSyncPullTimer = null; }
+    if(fieldSyncPushTimer){ clearTimeout(fieldSyncPushTimer); fieldSyncPushTimer = null; }
+  }
+  function sanitizePersistentFieldKeyPart(value){
+    return String(value == null ? '' : value)
+      .trim()
+      .replace(/\s+/g, ' ')
+      .replace(/[|><[\]#:"']/g, '_')
+      .slice(0, 80);
+  }
+  function isTransientUserField(el){
+    if(!el || !el.matches) return true;
+    if(el.closest('.goal-filters, .kanban-hero, .vault-mode-switch')) return true;
+    if(el.closest('#acct-modal-bg, #admin-login, #admin-panel, #fab-sync, #vault-login-fields')) return true;
+    if(el.closest('#admin-backups-view')) return true;
+    var id = String(el.id || '').toLowerCase();
+    var name = String(el.name || '').toLowerCase();
+    if(/^(acct-|admin-|fab-|news-|yt-)/.test(id)) return true;
+    if(/^goal-filter-/.test(id)) return true;
+    if(id === 'goal-search' || id === 'oc-chat-input' || id === 'vault-pw-user' || id === 'vault-pw' || id === 'vault-cred-pass') return true;
+    if(/\b(search|filter)\b/.test(id) || /\b(search|filter)\b/.test(name)) return true;
+    return false;
+  }
+  function isDedicatedSyncedUserField(el){
+    var id = String(el && el.id || '').toLowerCase();
+    return id === 'brain-dump' || id === 'zen-input';
+  }
+  function shouldBackupUserField(el){
+    if(!el || !el.matches) return false;
+    if(el.matches('input[type="hidden"], input[type="password"], input[type="file"], input[type="button"], input[type="submit"], input[type="reset"]')) return false;
+    if(el.classList && el.classList.contains('acct-field')) return false;
+    return !isTransientUserField(el);
+  }
+  function buildPersistentFieldPathKey(el){
+    var parts = [];
+    var node = el;
+    var guard = 0;
+    while(node && node.nodeType === 1 && guard < 8){
+      var tag = String(node.tagName || '').toLowerCase();
+      if(!tag) break;
+      var token = '';
+      var explicitKey = sanitizePersistentFieldKeyPart(node.getAttribute('data-draft-key') || node.getAttribute('data-sync-key') || '');
+      var nodeId = sanitizePersistentFieldKeyPart(node.id || '');
+      var nodeName = sanitizePersistentFieldKeyPart(node.getAttribute('name') || '');
+      var radioValue = sanitizePersistentFieldKeyPart(node.value || node.getAttribute('value') || '');
+      if(nodeId){
+        token = tag + '#' + nodeId;
+      } else if(explicitKey){
+        token = tag + '[key=' + explicitKey + ']';
+      } else if(nodeName){
+        token = tag + '[name=' + nodeName + ']';
+        if(tag === 'input' && /^(radio|checkbox)$/i.test(String(node.type || '')) && radioValue){
+          token += '[value=' + radioValue + ']';
+        }
+      } else {
+        var marker = sanitizePersistentFieldKeyPart(
+          node.getAttribute('data-gi') ||
+          node.getAttribute('data-si') ||
+          node.getAttribute('data-mode') ||
+          node.getAttribute('aria-label') ||
+          node.getAttribute('placeholder') ||
+          node.getAttribute('title') ||
+          ''
+        );
+        if(marker){
+          token = tag + '[marker=' + marker + ']';
+        } else {
+          var index = 1;
+          var sibling = node;
+          while((sibling = sibling.previousElementSibling)){
+            if(String(sibling.tagName || '').toLowerCase() === tag) index++;
+          }
+          token = tag + ':nth(' + index + ')';
+        }
+      }
+      parts.unshift(token);
+      if(nodeId && node !== el) break;
+      node = node.parentElement;
+      guard++;
+    }
+    return sanitizePersistentFieldKeyPart(parts.join('>'));
+  }
+  function shouldTrackPersistentField(el){
+    return shouldBackupUserField(el) && !isDedicatedSyncedUserField(el);
+  }
+  function getPersistentFieldDraftKey(el){
+    if(!shouldTrackPersistentField(el)) return '';
+    var explicitKey = String(el.getAttribute('data-draft-key') || '').trim();
+    var type = String(el.type || '').toLowerCase();
+    var name = String(el.name || '').trim();
+    var value = String(el.value || el.getAttribute('value') || '').trim();
+    var baseKey =
+      explicitKey ||
+      String(el.id || '').trim() ||
+      ((type === 'radio' || type === 'checkbox') && name ? (name + '::' + value) : '') ||
+      name ||
+      buildPersistentFieldPathKey(el);
+    if(!baseKey) return '';
+    return FIELD_DRAFT_PREFIX + sanitizePersistentFieldKeyPart(baseKey);
+  }
+  function readPersistentFieldValue(el){
+    if(!el) return '';
+    var type = String(el.type || '').toLowerCase();
+    if(type === 'checkbox' || type === 'radio'){
+      return el.checked ? '1' : '0';
+    }
+    if(el.tagName === 'SELECT' && el.multiple){
+      return JSON.stringify(Array.prototype.map.call(el.selectedOptions || [], function(option){
+        return option.value;
+      }));
+    }
+    if(el.isContentEditable || el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === ''){
+      return String(el.textContent || '');
+    }
+    return String(el.value == null ? '' : el.value);
+  }
+  function writePersistentFieldValue(el, value){
+    var nextValue = String(value == null ? '' : value);
+    var type = String(el.type || '').toLowerCase();
+    if(type === 'checkbox' || type === 'radio'){
+      var nextChecked = nextValue === '1' || nextValue === 'true';
+      if(Boolean(el.checked) !== nextChecked) el.checked = nextChecked;
+      return;
+    }
+    if(el.tagName === 'SELECT' && el.multiple){
+      var selectedValues = [];
+      try{
+        var parsed = JSON.parse(nextValue);
+        if(Array.isArray(parsed)) selectedValues = parsed.map(function(entry){ return String(entry); });
+      }catch(_err){}
+      Array.prototype.forEach.call(el.options || [], function(option){
+        option.selected = selectedValues.indexOf(String(option.value)) >= 0;
+      });
+      return;
+    }
+    if(el.isContentEditable || el.getAttribute('contenteditable') === 'true' || el.getAttribute('contenteditable') === ''){
+      if(String(el.textContent || '') !== nextValue) el.textContent = nextValue;
+      return;
+    }
+    if(String(el.value == null ? '' : el.value) !== nextValue) el.value = nextValue;
+  }
+  function savePersistentFieldDraft(el){
+    var draftKey = getPersistentFieldDraftKey(el);
+    if(!draftKey) return;
+    localStorage.setItem(draftKey, readPersistentFieldValue(el));
+  }
+  function savePersistentFieldGroupDrafts(el){
+    var type = String(el && el.type || '').toLowerCase();
+    if(type === 'radio' && el.name){
+      Array.prototype.forEach.call(document.querySelectorAll('input[type="radio"]'), function(radio){
+        if(radio.name === el.name) savePersistentFieldDraft(radio);
+      });
+      return;
+    }
+    savePersistentFieldDraft(el);
+  }
+  function applyPersistentFieldDraft(el){
+    var draftKey = getPersistentFieldDraftKey(el);
+    if(!draftKey) return;
+    if(document.activeElement === el) return;
+    var stored = localStorage.getItem(draftKey);
+    if(stored == null) return;
+    writePersistentFieldValue(el, stored);
+  }
+  function ensurePersistentFieldLabel(el){
+    if(!shouldTrackPersistentField(el) || syncFieldLabelMap.has(el)) return;
+    var markPending = function(){
+      if(applyingRemoteFieldSync){
+        safeUpdateVaultSyncBadge();
+        return;
+      }
+      el.dataset.dbSyncEditTs = String(Date.now());
+      savePersistentFieldGroupDrafts(el);
+      queuePersistentFieldGroupOperations(el);
+      safeUpdateVaultSyncBadge();
+    };
+    el.addEventListener('input', markPending);
+    el.addEventListener('change', markPending);
+    syncFieldLabelMap.set(el, { label:null });
+  }
+  function cleanupPersistentFieldLabels(){
+    syncFieldLabelMap.forEach(function(entry, el){
+      if(el && el.isConnected && shouldTrackPersistentField(el)) return;
+      if(entry && entry.label && entry.label.parentNode) entry.label.parentNode.removeChild(entry.label);
+      syncFieldLabelMap.delete(el);
+    });
+  }
+  function getPersistentFieldSyncState(el){
+    var syncPass = String(localStorage.getItem(SYNC_PASS_KEY) || '').trim();
+    var lastDbSync = parseInt(localStorage.getItem(BACKUP_DB_TS_KEY) || '0', 10);
+    var lastEdit = parseInt(el && el.dataset ? (el.dataset.dbSyncEditTs || '0') : '0', 10);
+    if(lastEdit && (!lastDbSync || lastEdit > lastDbSync)){
+      return { tone:'pending', text:'Pending', title:'DB sync pending for this field.' };
+    }
+    if(!syncPass){
+      return { tone:'idle', text:'Sync off', title:'Sign in to enable DB sync for this field.' };
+    }
+    if(!lastDbSync){
+      return { tone:'idle', text:'No sync', title:'This field has not been mirrored to the DB yet.' };
+    }
+    return {
+      tone:'synced',
+      text:formatBackupShortStamp(lastDbSync),
+      title:'Last DB sync: ' + formatBackupStamp(lastDbSync)
+    };
+  }
+  function updatePersistentFieldLabels(){
+    cleanupPersistentFieldLabels();
+    safeUpdateVaultSyncBadge();
+  }
+  function requestSyncFieldLabelUpdate(){
+    if(syncFieldLabelFrame) return;
+    syncFieldLabelFrame = requestAnimationFrame(function(){
+      syncFieldLabelFrame = 0;
+      updatePersistentFieldLabels();
+    });
+  }
+  function scanPersistentFieldLabels(root){
+    var target = root && root.querySelectorAll ? root : document;
+    var nodes = [];
+    if(root && root.matches && root.matches('input, textarea, select, [contenteditable=\"\"], [contenteditable=\"true\"]')){
+      nodes = [root];
+    } else {
+      nodes = target.querySelectorAll('input, textarea, select, [contenteditable=\"\"], [contenteditable=\"true\"]');
+    }
+    Array.prototype.forEach.call(nodes, function(el){
+      applyPersistentFieldDraft(el);
+      ensurePersistentFieldLabel(el);
+    });
+    requestSyncFieldLabelUpdate();
+  }
+  function renderHealthCard(label, ts, detail, accent){
+    var tone = accent || '#60a5fa';
+    return '<div style="padding:10px 12px;border-radius:12px;border:1px solid rgba(148,163,184,.18);background:linear-gradient(180deg,rgba(15,23,42,.88),rgba(2,6,23,.92));min-height:78px;">' +
+      '<div style="font-size:.68rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:' + tone + ';margin-bottom:6px;">' + label + '</div>' +
+      '<div style="font-size:.84rem;font-weight:700;color:var(--text);margin-bottom:4px;">' + formatBackupStamp(ts) + '</div>' +
+      '<div style="font-size:.72rem;color:var(--muted);line-height:1.45;">' + detail + '</div>' +
+    '</div>';
+  }
+  function renderBackupHealth(){
+    if(!backupHealthEl) return;
+    var source = localStorage.getItem('homer-backup-source') || 'cloud';
+    var restoreSource = localStorage.getItem(BACKUP_LAST_RESTORE_SOURCE_KEY) || 'none';
+    var backupCount = localStorage.getItem('homer-backup-keys') || '0';
+    backupHealthEl.innerHTML =
+      renderHealthCard('Local Vault Save', localStorage.getItem(BACKUP_LOCAL_SAVE_TS_KEY), 'Latest encrypted save on this device.', '#38bdf8') +
+      renderHealthCard('Cloud Snapshot', localStorage.getItem('homer-backup-ts'), backupCount + ' keys stored in cloud snapshot. Source: ' + source + '.', '#60a5fa') +
+      renderHealthCard('Server Mirror', localStorage.getItem(BACKUP_DB_TS_KEY), 'Fast full-vault mirror used for quick recovery.', '#34d399') +
+      renderHealthCard('Joey Memory (Redis)', localStorage.getItem(BACKUP_JOEY_TS_KEY), 'Agent chat, memory, and file index backup.', '#f59e0b') +
+      renderHealthCard('Joey Drive Context', localStorage.getItem(BACKUP_DRIVE_TS_KEY), 'Long-term Joey context export to Drive.', '#a78bfa') +
+      renderHealthCard('Emergency Drive Snapshot', localStorage.getItem(BACKUP_EMERGENCY_DRIVE_TS_KEY), 'Standalone whole-app snapshot for emergency recovery.', '#22c55e') +
+      renderHealthCard('Last Restore', localStorage.getItem(BACKUP_LAST_RESTORE_TS_KEY), 'Most recent recovery source: ' + restoreSource + '.', '#f87171');
+    safeUpdateVaultSyncBadge();
+  }
+  function initPersistentFieldLabels(){
+    scanPersistentFieldLabels(document);
+    if(syncFieldObserver) syncFieldObserver.disconnect();
+    syncFieldObserver = new MutationObserver(function(mutations){
+      mutations.forEach(function(mutation){
+        Array.prototype.forEach.call(mutation.addedNodes || [], function(node){
+          if(node && node.nodeType === 1) scanPersistentFieldLabels(node);
+        });
+      });
+      requestSyncFieldLabelUpdate();
+    });
+    syncFieldObserver.observe(document.body, { childList:true, subtree:true });
+    window.addEventListener('resize', requestSyncFieldLabelUpdate);
+    window.addEventListener('scroll', requestSyncFieldLabelUpdate, true);
+    document.addEventListener('visibilitychange', requestSyncFieldLabelUpdate);
+    window.addEventListener('homer-cloud-pull', function(){
+      scanPersistentFieldLabels(document);
+      requestSyncFieldLabelUpdate();
+    });
+    window.addEventListener('vault-goals-changed', function(){
+      scanPersistentFieldLabels(document);
+      requestSyncFieldLabelUpdate();
+    });
+  }
+  function saveEmergencyLocalBackup(){
+    try {
+      var localBackup = {};
+      for(var i=0; i<localStorage.length; i++){
+        var bk = localStorage.key(i);
+        localBackup[bk] = localStorage.getItem(bk);
+      }
+      localStorage.setItem('homer-pre-restore-backup', JSON.stringify(localBackup));
+      localStorage.setItem('homer-pre-restore-ts', Date.now().toString());
+    } catch(e){}
+  }
+  function isSnapshotLike(snapshot){
+    return !!(snapshot && typeof snapshot === 'object' && Object.keys(snapshot).length);
+  }
+  function analyzeBackupSnapshot(snapshot){
+    if(!isSnapshotLike(snapshot)){
+      return { ok:false, verified:false, legacy:false, reason:'Snapshot is empty or not an object' };
+    }
+    var manifest = parseBackupManifest(snapshot);
+    if(!manifest){
+      return {
+        ok:true,
+        verified:false,
+        legacy:true,
+        reason:'Snapshot has no backup manifest',
+        manifest:null,
+        keyCount:Object.keys(snapshot).length
+      };
+    }
+    var missingLocal = (manifest.localStorage || []).filter(function(key){ return !(key in snapshot); });
+    var missingIdb = (manifest.indexedDb || []).filter(function(key){ return !(key in snapshot); });
+    if(missingLocal.length || missingIdb.length){
+      return {
+        ok:false,
+        verified:false,
+        legacy:false,
+        reason:'Snapshot manifest does not match stored keys',
+        manifest:manifest,
+        missingLocal:missingLocal,
+        missingIdb:missingIdb,
+        keyCount:Object.keys(snapshot).length
+      };
+    }
+    return {
+      ok:true,
+      verified:true,
+      legacy:false,
+      manifest:manifest,
+      keyCount:Object.keys(snapshot).length
+    };
+  }
+  function extractJoeyBundles(snapshot){
+    var bundles = {};
+    JOEY_BUNDLE_MODES.forEach(function(mode){
+      var parsed = safeJsonParse(snapshot && snapshot[getJoeyBundleKey(mode)], null);
+      if(parsed && typeof parsed === 'object') bundles[mode] = parsed;
+    });
+    return bundles;
+  }
+  function cacheJoeyBundlesLocally(bundles){
+    Object.keys(bundles || {}).forEach(function(mode){
+      setRuntimeMarker(getJoeyBundleKey(mode), JSON.stringify(bundles[mode] || {}));
+    });
+  }
+  function summarizeJoeyBundles(bundles){
+    var parts = [];
+    Object.keys(bundles || {}).forEach(function(mode){
+      var bundle = bundles[mode] || {};
+      parts.push(mode + ': ' + [
+        (Array.isArray(bundle.history) ? bundle.history.length : 0) + ' msgs',
+        (Array.isArray(bundle.memories) ? bundle.memories.length : 0) + ' memories',
+        Object.keys(bundle.files || {}).length + ' files'
+      ].join(', '));
+    });
+    return parts.join(' | ');
+  }
+  function collectJoeyBundles(passphrase){
+    if(!passphrase) return Promise.resolve({ bundles:{}, errors:['Missing passphrase'] });
+    return Promise.all(JOEY_BUNDLE_MODES.map(function(mode){
+      return fetchJson(buildJoeyActionUrl('bundle', passphrase, mode), { cache:'no-store' })
+        .then(function(data){ return { mode:mode, bundle:data.bundle || null }; })
+        .catch(function(err){ return { mode:mode, error:err && err.message ? err.message : String(err) }; });
+    })).then(function(results){
+      var bundles = {};
+      var errors = [];
+      results.forEach(function(result){
+        if(result.bundle) bundles[result.mode] = result.bundle;
+        else errors.push(result.mode + ': ' + result.error);
+      });
+      return { bundles:bundles, errors:errors };
+    });
+  }
+  function restoreJoeyBundlesToRedis(passphrase, snapshotOrBundles){
+    var bundles = snapshotOrBundles && (snapshotOrBundles.personal || snapshotOrBundles.work)
+      ? snapshotOrBundles
+      : extractJoeyBundles(snapshotOrBundles);
+    var modes = Object.keys(bundles || {});
+    if(!passphrase || !modes.length) return Promise.resolve({ ok:true, restored:[] });
+    return Promise.all(modes.map(function(mode){
+      return fetchJson(buildJoeyActionUrl('bundle', '', mode), {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ passphrase:passphrase, mode:mode, bundle:bundles[mode] })
+      }).then(function(data){
+        return { ok:true, mode:mode, data:data };
+      }).catch(function(err){
+        return { ok:false, mode:mode, error:err && err.message ? err.message : String(err) };
+      });
+    })).then(function(results){
+      var failed = results.filter(function(item){ return !item.ok; });
+      if(failed.length) throw new Error('Joey restore failed for ' + failed.map(function(item){ return item.mode; }).join(', '));
+      if(results.length) setRuntimeMarker(BACKUP_JOEY_TS_KEY, Date.now());
+      return { ok:true, restored:results.map(function(item){ return item.mode; }) };
+    });
+  }
+  function fetchCloudSnapshot(passphrase){
+    return fetchJson(R2_WORKER_URL + '/sync', { headers:{'X-Sync-Key':passphrase}, cache:'no-store' });
+  }
+  function fetchDbSnapshot(passphrase){
+    return fetchJson(DB_BACKUP_URL + '?key=' + encodeURIComponent(passphrase), { cache:'no-store' });
+  }
+  function performSnapshotRestore(passphrase, snapshot, source, ts){
+    var analysis = analyzeBackupSnapshot(snapshot);
+    if(!analysis.ok){
+      return Promise.reject(new Error((source || 'snapshot') + ' is invalid: ' + analysis.reason));
+    }
+    saveEmergencyLocalBackup();
+    return applyCloudSnapshot(snapshot).then(function(result){
+      return restoreJoeyBundlesToRedis(passphrase, snapshot)
+        .catch(function(err){
+          console.warn('[Backup] Joey bundle restore warning:', err && err.message ? err.message : err);
+          return { ok:false, warning:err && err.message ? err.message : String(err) };
+        })
+        .then(function(joeyResult){
+          updateLocalBackupMarkers(snapshot, ts || Date.now(), source);
+          setRuntimeMarker(BACKUP_LAST_RESTORE_TS_KEY, Date.now());
+          setRuntimeMarker(BACKUP_LAST_RESTORE_SOURCE_KEY, source);
+          renderBackupHealth();
+          window.dispatchEvent(new CustomEvent('homer-cloud-pull', {
+            detail:{
+              count: result.applied + result.cleared,
+              keys: Object.keys(snapshot || {}),
+              joeyRestored: joeyResult && joeyResult.ok !== false
+            }
+          }));
+          return { source: source, applied: result.applied, cleared: result.cleared, joey: joeyResult, integrity: analysis };
+        });
+    });
+  }
+  function restoreCloudSnapshot(passphrase){
+    return fetchCloudSnapshot(passphrase).then(function(data){
+      return performSnapshotRestore(passphrase, data.data, 'cloud', data.ts || Date.now());
+    });
+  }
+  function restoreDbMirror(passphrase){
+    return fetchDbSnapshot(passphrase).then(function(data){
+      return performSnapshotRestore(passphrase, data.data, 'db', data.ts || Date.now());
+    });
+  }
+  function restoreRedisBundles(passphrase){
+    return collectJoeyBundles(passphrase).then(function(result){
+      if(!Object.keys(result.bundles || {}).length){
+        throw new Error(result.errors && result.errors.length ? result.errors.join('; ') : 'No Joey bundles available in Redis');
+      }
+      saveEmergencyLocalBackup();
+      cacheJoeyBundlesLocally(result.bundles);
+      setRuntimeMarker(BACKUP_LAST_RESTORE_TS_KEY, Date.now());
+      setRuntimeMarker(BACKUP_LAST_RESTORE_SOURCE_KEY, 'redis');
+      setRuntimeMarker(BACKUP_JOEY_TS_KEY, Date.now());
+      renderBackupHealth();
+      window.dispatchEvent(new CustomEvent('homer-cloud-pull', {
+        detail:{ count:0, keys:Object.keys(result.bundles), joeyRestored:true, joeyOnly:true }
+      }));
+      return { source:'redis', joey:result, summary:summarizeJoeyBundles(result.bundles) };
+    });
+  }
+  function restoreDriveBundles(passphrase){
+    return Promise.all(JOEY_BUNDLE_MODES.map(function(mode){
+      return fetchJson('/api/gdrive-restore', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ passphrase:passphrase, mode:mode })
+      }).then(function(data){
+        return { mode:mode, ok:true, data:data };
+      }).catch(function(err){
+        return { mode:mode, ok:false, error:err && err.message ? err.message : String(err) };
+      });
+    })).then(function(results){
+      var succeeded = results.filter(function(item){ return item.ok; });
+      if(!succeeded.length) throw new Error('Drive restore failed for personal and work');
+      setRuntimeMarker(BACKUP_DRIVE_TS_KEY, Date.now());
+      return restoreRedisBundles(passphrase).then(function(redisResult){
+        redisResult.source = 'drive';
+        redisResult.driveModes = succeeded.map(function(item){ return item.mode; });
+        setRuntimeMarker(BACKUP_LAST_RESTORE_SOURCE_KEY, 'drive');
+        setRuntimeMarker(BACKUP_LAST_RESTORE_TS_KEY, Date.now());
+        renderBackupHealth();
+        return redisResult;
+      });
+    });
+  }
+  function openBackupInspector(title, snapshot, meta){
+    var existing = document.getElementById('fab-backup-inspector');
+    if(existing) existing.remove();
+    var integrity = analyzeBackupSnapshot(snapshot);
+    var manifest = integrity.manifest || { localStorage:[], indexedDb:[] };
+    var bundles = extractJoeyBundles(snapshot);
+    var keys = Object.keys(snapshot || {}).filter(function(key){
+      return BACKUP_RUNTIME_KEYS.indexOf(key) < 0;
+    }).sort();
+    var overlay = document.createElement('div');
+    overlay.id = 'fab-backup-inspector';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10040;background:rgba(2,6,23,.78);display:flex;align-items:center;justify-content:center;padding:18px;';
+    var panel = document.createElement('div');
+    panel.style.cssText = 'width:min(1080px,96vw);max-height:88vh;overflow:auto;border-radius:18px;border:1px solid rgba(148,163,184,.24);background:#07111f;box-shadow:0 25px 70px rgba(0,0,0,.45);padding:18px;';
+    var lines = [
+      'Captured: ' + formatBackupStamp(meta && meta.ts),
+      'Source: ' + safeEscHtml(String((meta && meta.source) || 'unknown')),
+      'Keys: ' + keys.length,
+      'Integrity: ' + (integrity.ok ? (integrity.verified ? 'verified' : 'legacy') : 'invalid'),
+      'Manifest localStorage: ' + ((manifest.localStorage || []).length),
+      'Manifest IndexedDB: ' + ((manifest.indexedDb || []).length),
+      'Joey bundles: ' + (summarizeJoeyBundles(bundles) || 'none')
+    ];
+    panel.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">' +
+        '<div><div style="font-size:1rem;font-weight:800;color:#f8fafc;">' + safeEscHtml(title) + '</div><div style="font-size:.78rem;color:var(--muted);margin-top:4px;">' + lines.join(' | ') + '</div></div>' +
+        '<button type="button" style="padding:8px 12px;border-radius:10px;border:none;background:#1e293b;color:#fff;cursor:pointer;">Close</button>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+        '<div style="padding:12px;border-radius:14px;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.72);">' +
+          '<div style="font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#93c5fd;margin-bottom:8px;">Manifest</div>' +
+          '<pre style="margin:0;white-space:pre-wrap;word-break:break-word;color:#dbeafe;font-size:.78rem;line-height:1.5;">' + safeEscHtml(JSON.stringify(manifest, null, 2)) + '</pre>' +
+        '</div>' +
+        '<div style="padding:12px;border-radius:14px;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.72);">' +
+          '<div style="font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#fbbf24;margin-bottom:8px;">Integrity</div>' +
+          '<pre style="margin:0;white-space:pre-wrap;word-break:break-word;color:#e2e8f0;font-size:.78rem;line-height:1.5;">' + safeEscHtml(JSON.stringify(integrity, null, 2)) + '</pre>' +
+        '</div>' +
+      '</div>' +
+      '<div style="margin-top:12px;padding:12px;border-radius:14px;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.72);">' +
+        '<div style="font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#fbbf24;margin-bottom:8px;">Snapshot Keys</div>' +
+        '<pre style="margin:0;white-space:pre-wrap;word-break:break-word;color:#e2e8f0;font-size:.78rem;line-height:1.5;">' + safeEscHtml(keys.join('\n')) + '</pre>' +
+        '</div>' +
+      '';
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+    panel.querySelector('button').addEventListener('click', function(){ overlay.remove(); });
+    overlay.addEventListener('click', function(e){ if(e.target === overlay) overlay.remove(); });
+  }
+
+  function updDot(){
+    var hasPass = !!localStorage.getItem(SYNC_PASS_KEY);
+    var autoOn = localStorage.getItem(SYNC_AUTO_KEY) === 'true';
+    dot.className = 'fab-dot ' + (hasPass && autoOn ? 'ok' : 'off');
+    if(hasPass && autoOn){
+      cloud.title = lastSyncTs ? 'Auto-syncing (last: ' + new Date(lastSyncTs).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) + ')' : 'Auto-sync enabled';
+    } else if(hasPass){
+      cloud.title = 'Cloud sync (manual)';
+    } else {
+      cloud.title = 'Cloud sync (not signed in)';
+    }
+  }
+
+  function isLocalOnlyBackupKey(key){
+    if(TAB_COORD_KEYS.indexOf(key) >= 0 || LOCAL_ONLY_BACKUP_KEYS.indexOf(key) >= 0) return true;
+    if(key === 'homer-oc-window-state') return true;
+    for(var i = 0; i < LOCAL_ONLY_BACKUP_PREFIXES.length; i += 1){
+      if(String(key || '').indexOf(LOCAL_ONLY_BACKUP_PREFIXES[i]) === 0) return true;
+    }
+    return false;
+  }
+  function shouldBackupLocalStorageKey(key){
+    var safeKey = String(key || '').trim();
+    if(!safeKey) return false;
+    if(isLocalOnlyBackupKey(safeKey) || BACKUP_RUNTIME_KEYS.indexOf(safeKey) >= 0) return false;
+    if(BACKUP_LOCALSTORAGE_KEYS.indexOf(safeKey) >= 0) return true;
+    for(var i = 0; i < BACKUP_LOCALSTORAGE_PREFIXES.length; i += 1){
+      if(safeKey.indexOf(BACKUP_LOCALSTORAGE_PREFIXES[i]) === 0) return true;
+    }
+    return false;
+  }
+
+  function buildBackupManifest(data, idbKeys){
+    var lsKeys = Object.keys(data).filter(function(key){
+      return IDB_KEYS.indexOf(key) < 0 && shouldBackupLocalStorageKey(key);
+    }).sort();
+    return {
+      version: BACKUP_SCHEMA_VERSION,
+      generatedAt: Date.now(),
+      localStorage: lsKeys,
+      indexedDb: (idbKeys || []).slice().sort()
+    };
+  }
+
+  function parseBackupManifest(snapshot){
+    if(!snapshot || !snapshot[BACKUP_MANIFEST_KEY]) return null;
+    try{
+      var parsed = JSON.parse(snapshot[BACKUP_MANIFEST_KEY]);
+      if(parsed && Array.isArray(parsed.localStorage) && Array.isArray(parsed.indexedDb)) return parsed;
+    }catch(e){}
+    return null;
+  }
+
+  function getAll(){
+    var d={};
+    var syncedIdbKeys = [];
+    var syncPass = (localStorage.getItem(SYNC_PASS_KEY) || pass.value || '').trim();
+    // Backup only user-owned localStorage data; UI/cache/auth noise stays local.
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i);
+      if(!shouldBackupLocalStorageKey(k)) continue;
+      d[k]=localStorage.getItem(k);
+    }
+    // For vault data, use cloud-safe version (attachments stripped) to stay under size limits
+    var idbTasks = IDB_KEYS.map(function(k){
+      if(k === 'homer-vault-data' && window._vaultCloudData){
+        return window._vaultCloudData().then(function(v){
+          if(v!==null){ d[k]=v; syncedIdbKeys.push(k); }
+        });
+      }
+      return syncIdbGet(k).then(function(v){
+        if(v!==null){ d[k]=v; syncedIdbKeys.push(k); }
+      });
+    });
+    return Promise.all(idbTasks).then(function(){
+      if(!syncPass) return { bundles:{}, errors:[] };
+      return collectJoeyBundles(syncPass);
+    }).then(function(joeyState){
+      Object.keys((joeyState && joeyState.bundles) || {}).forEach(function(mode){
+        d[getJoeyBundleKey(mode)] = JSON.stringify(joeyState.bundles[mode]);
+      });
+      d[BACKUP_MANIFEST_KEY] = JSON.stringify(buildBackupManifest(d, syncedIdbKeys));
+      return d;
+    });
+  }
+
+  // Keys that represent real user data (not auth/sync metadata)
+  var DATA_KEYS = [
+    'motivator.savedQuotes.v1',
+    'pom.settings.v1', 'pom.tasks.v1', 'pom.state.v1',
+    'homer-brain-dump', 'homer-links', 'homer-zen-goal',
+    'homer-cal-events', 'homer-cal-ics',
+    'homer-cal-events:personal', 'homer-cal-events:work',
+    'homer-cal-ics:personal', 'homer-cal-ics:work',
+    'homer-heartbeats', 'homer-heartbeats:personal', 'homer-heartbeats:work',
+    'homer-oc-config-personal', 'homer-oc-config-work'
+  ];
+
+  // --- Content hash for change detection ---
+  function computeDataHash(data){
+    var str = JSON.stringify(data);
+    // Simple but fast hash (djb2)
+    var hash = 5381;
+    for(var i = 0; i < str.length; i++){
+      hash = ((hash << 5) + hash) + str.charCodeAt(i);
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return 'h' + Math.abs(hash).toString(36);
+  }
+  function sortValueForSyncHash(value){
+    if(Array.isArray(value)) return value.map(sortValueForSyncHash);
+    if(!value || typeof value !== 'object') return value;
+    var output = {};
+    Object.keys(value).sort().forEach(function(key){
+      output[key] = sortValueForSyncHash(value[key]);
+    });
+    return output;
+  }
+  function computeComparableDataHash(data){
+    var normalized = {};
+    Object.keys(data || {}).sort().forEach(function(key){
+      if(BACKUP_RUNTIME_KEYS.indexOf(key) >= 0) return;
+      normalized[key] = data[key];
+    });
+    return computeDataHash(normalized);
+  }
+  function computeComparableSyncHash(data){
+    var normalized = {};
+    Object.keys(data || {}).sort().forEach(function(key){
+      if(BACKUP_RUNTIME_KEYS.indexOf(key) >= 0) return;
+      normalized[key] = data[key];
+    });
+    if(!(window.crypto && window.crypto.subtle && window.TextEncoder)) return Promise.resolve('');
+    var encoded = new TextEncoder().encode(JSON.stringify(sortValueForSyncHash(normalized)));
+    return window.crypto.subtle.digest('SHA-256', encoded).then(function(buffer){
+      return Array.from(new Uint8Array(buffer)).map(function(byte){
+        return byte.toString(16).padStart(2, '0');
+      }).join('');
+    }).catch(function(){
+      return '';
+    });
+  }
+  function refreshVaultMirrorStatus(options){
+    options = options || {};
+    if(vaultMirrorRefreshInFlight && !options.force) return vaultMirrorRefreshInFlight;
+    if(!window._homerVaultUnlocked){
+      setVaultMirrorStatus({
+        tone:'idle',
+        badgeTone:'idle',
+        label:'Locked',
+        summary:'Unlock the vault to compare this device against the server mirror.',
+        localStamp:'Locked',
+        serverStamp:'Locked',
+        cloudStamp:'Locked',
+        fieldVersion:'v0',
+        driftChips:[]
+      });
+      return Promise.resolve({ ok:false, skipped:true, reason:'locked' });
+    }
+    var passphrase = String(localStorage.getItem(SYNC_PASS_KEY) || pass.value || '').trim();
+    var localSaveTs = parseInt(localStorage.getItem(BACKUP_LOCAL_SAVE_TS_KEY) || '0', 10) || 0;
+    var dbTs = parseInt(localStorage.getItem(BACKUP_DB_TS_KEY) || '0', 10) || 0;
+    var cloudTs = parseInt(localStorage.getItem('homer-backup-ts') || '0', 10) || 0;
+    if(!passphrase){
+      setVaultMirrorStatus({
+        tone:'idle',
+        badgeTone:'idle',
+        label:'Local Only',
+        summary:'Sign in to mirror encrypted data to the server and compare versions.',
+        localStamp:formatBackupStamp(localSaveTs),
+        serverStamp:'Sync off',
+        cloudStamp:formatBackupStamp(cloudTs),
+        fieldVersion:'v' + getFieldSyncCursor(),
+        driftChips:[{ tone:'warn', label:'Sync off on this device' }]
+      });
+      return Promise.resolve({ ok:false, skipped:true, reason:'nologin' });
+    }
+    vaultMirrorRefreshAt = Date.now();
+    vaultMirrorRefreshInFlight = getAll().then(function(allData){
+      var localFieldVersion = getFieldSyncCursor();
+      return computeComparableSyncHash(allData).then(function(localHash){
+      return fetchJson(DB_BACKUP_URL + '?action=status&key=' + encodeURIComponent(passphrase), { cache:'no-store' })
+        .then(function(server){
+          var serverHash = String(server && server.dataHash || '');
+          var serverTs = parseInt(server && server.ts || '0', 10) || 0;
+          var serverFieldVersion = parseInt(server && server.fieldVersion || '0', 10) || 0;
+          var hashesMatch = !!serverHash && serverHash === localHash;
+          var fieldsMatch = serverFieldVersion >= localFieldVersion;
+          var driftChips = [
+            { tone: hashesMatch ? 'good' : 'bad', label: hashesMatch ? 'Snapshot match' : 'Snapshot drift' },
+            { tone: fieldsMatch ? 'good' : 'warn', label:'Fields v' + localFieldVersion + ' / server v' + serverFieldVersion }
+          ];
+          if(!serverHash){
+            setVaultMirrorStatus({
+              tone:'pending',
+              badgeTone:'pending',
+              label:'Mirror Needed',
+              summary:'No verified server mirror exists yet. This device should push one now.',
+              localStamp:formatBackupStamp(localSaveTs),
+              serverStamp:'Not yet',
+              cloudStamp:formatBackupStamp(cloudTs),
+              fieldVersion:'v' + localFieldVersion,
+              driftChips:driftChips.concat([{ tone:'warn', label:'First mirror pending' }])
+            });
+            return { ok:true, status:'missing' };
+          }
+          if(hashesMatch && fieldsMatch){
+            setVaultMirrorStatus({
+              tone:'match',
+              badgeTone:'match',
+              label:'Mirror Current',
+              summary:'This device matches the encrypted server mirror.',
+              localStamp:formatBackupStamp(localSaveTs || dbTs),
+              serverStamp:formatBackupStamp(serverTs),
+              cloudStamp:formatBackupStamp(cloudTs),
+              fieldVersion:'v' + localFieldVersion,
+              driftChips:driftChips
+            });
+            return { ok:true, status:'match' };
+          }
+          var serverAhead = serverTs > localSaveTs && serverHash !== localHash;
+          setVaultMirrorStatus({
+            tone: serverAhead ? 'mismatch' : 'pending',
+            badgeTone:'mismatch',
+            label: serverAhead ? 'Server Ahead' : 'Local Ahead',
+            summary: serverAhead
+              ? 'The server mirror is newer than this device. Recover before overwriting from another session.'
+              : 'This device has changes that are not mirrored yet. Push a new mirror now.',
+            localStamp:formatBackupStamp(localSaveTs),
+            serverStamp:formatBackupStamp(serverTs),
+            cloudStamp:formatBackupStamp(cloudTs),
+            fieldVersion:'v' + localFieldVersion,
+            driftChips:driftChips
+          });
+          return { ok:true, status:serverAhead ? 'server-ahead' : 'local-ahead' };
+        })
+        .catch(function(err){
+          setVaultMirrorStatus({
+            tone:'idle',
+            badgeTone:'idle',
+            label:'Check Failed',
+            summary:'Could not compare against the server mirror right now: ' + (err && err.message ? err.message : 'unknown error'),
+            localStamp:formatBackupStamp(localSaveTs),
+            serverStamp:'Unavailable',
+            cloudStamp:formatBackupStamp(cloudTs),
+            fieldVersion:'v' + localFieldVersion,
+            driftChips:[{ tone:'warn', label:'Server check unavailable' }]
+          });
+          return { ok:false, error: err && err.message ? err.message : 'status-check-failed' };
+        });
+      });
+    }).finally(function(){
+      vaultMirrorRefreshInFlight = null;
+    });
+    return vaultMirrorRefreshInFlight;
+  }
+  function ensureVaultServerMirror(){
+    var syncPass = String(localStorage.getItem(SYNC_PASS_KEY) || pass.value || '').trim();
+    var localSaveTs = parseInt(localStorage.getItem(BACKUP_LOCAL_SAVE_TS_KEY) || '0', 10) || 0;
+    var lastDbSync = parseInt(localStorage.getItem(BACKUP_DB_TS_KEY) || '0', 10) || 0;
+    if(!syncPass || !localSaveTs) return;
+    if(!lastDbSync || localSaveTs > lastDbSync){
+      if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('vault-home-mirror', 900);
+    }
+  }
+  var lastBackupHash = '';
+
+  function countLocalData(){
+    var c = 0;
+    DATA_KEYS.forEach(function(k){ if(localStorage.getItem(k)) c++; });
+    return c;
+  }
+
+  function updateLocalBackupMarkers(snapshot, ts, source){
+    if(!snapshot) return;
+    origSetItem('homer-backup-ts', String(ts || Date.now()));
+    origSetItem('homer-backup-keys', String(Object.keys(snapshot).filter(function(key){
+      return BACKUP_RUNTIME_KEYS.indexOf(key) < 0;
+    }).length));
+    origSetItem('homer-backup-source', source || 'cloud');
+    if(snapshot[BACKUP_MANIFEST_KEY]) origSetItem(BACKUP_MANIFEST_KEY, snapshot[BACKUP_MANIFEST_KEY]);
+    renderBackupHealth();
+  }
+
+  function applyCloudSnapshot(snapshot, opts){
+    opts = opts || {};
+    if(!snapshot || typeof snapshot !== 'object') return Promise.resolve({ applied:0, cleared:0 });
+    var manifest = parseBackupManifest(snapshot);
+    var incomingLs = {};
+    var incomingIdb = {};
+    if(manifest){
+      (manifest.localStorage || []).forEach(function(key){ incomingLs[key] = true; });
+      (manifest.indexedDb || []).forEach(function(key){ incomingIdb[key] = true; });
+    }
+    var clearLocalKeys = [];
+    if(manifest){
+      for(var i = 0; i < localStorage.length; i++){
+        var key = localStorage.key(i);
+        if(!key) continue;
+        if(isLocalOnlyBackupKey(key) || syncMetaKeys.indexOf(key) >= 0) continue;
+        if(BACKUP_RUNTIME_KEYS.indexOf(key) >= 0) continue;
+        if((key === 'homer-brain-dump' || key === 'homer-zen-goal') && !opts.force){
+          var protectedFieldId = key === 'homer-brain-dump' ? 'focus-lab:brain-dump' : 'focus-lab:zen-goal';
+          var protectedConfig = getFocusLabSyncConfig(protectedFieldId);
+          var protectedRecentEditTs = getFocusLabRecentEditTs(protectedConfig);
+          if(protectedRecentEditTs && (Date.now() - protectedRecentEditTs) < 30000) continue;
+        }
+        if(!incomingLs[key]) clearLocalKeys.push(key);
+      }
+    }
+    clearLocalKeys.forEach(function(key){ origRemoveItem(key); });
+
+    var applied = 0;
+    var idbTasks = [];
+    if(manifest){
+      IDB_KEYS.forEach(function(key){
+        if(!incomingIdb[key]) idbTasks.push(syncIdbDelete(key));
+      });
+    }
+    Object.keys(snapshot).forEach(function(key){
+      if(isLocalOnlyBackupKey(key) || syncMetaKeys.indexOf(key) >= 0) return;
+      if(IDB_KEYS.indexOf(key) >= 0){
+        idbTasks.push(syncIdbSet(key, snapshot[key]));
+        applied++;
+      } else if((key === 'homer-brain-dump' || key === 'homer-zen-goal') && !opts.force){
+        var focusFieldId = key === 'homer-brain-dump' ? 'focus-lab:brain-dump' : 'focus-lab:zen-goal';
+        var focusConfig = getFocusLabSyncConfig(focusFieldId);
+        var focusRecentEditTs = getFocusLabRecentEditTs(focusConfig);
+        var currentLocalValue = String(localStorage.getItem(key) || '');
+        var incomingValue = String(snapshot[key] == null ? '' : snapshot[key]);
+        if(focusRecentEditTs && (Date.now() - focusRecentEditTs) < 30000 && currentLocalValue !== incomingValue){
+          return;
+        }
+        applyFocusLabSyncedValue(focusConfig, incomingValue, { force:false, silent:true });
+        applied++;
+      } else if(tryStoreSyncValue(key, snapshot[key])){
+        applied++;
+      }
+    });
+    return Promise.all(idbTasks).then(function(){
+      return { applied: applied, cleared: clearLocalKeys.length };
+    });
+  }
+
+  function doBackup(p, allData){
+    st('Backing up...');
+    var svg=cloud.querySelector('svg'); svg.classList.add('fab-spinning');
+    return fetch(R2_WORKER_URL+'/sync',{method:'POST',headers:{'Content-Type':'application/json','X-Sync-Key':p},body:JSON.stringify({data:allData})})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        svg.classList.remove('fab-spinning');
+        if(d.ok){
+          lastSyncTs = d.ts || Date.now();
+          lastBackupHash = computeComparableDataHash(allData);
+          dirty = false;
+          conflictBackoffUntil = 0;
+          updateLocalBackupMarkers(allData, d.ts || Date.now(), 'cloud');
+          var msg = 'Synced ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+          if(d.skipped) msg += ' (no changes)';
+          else if(d.versionCount) msg += ' (v' + d.versionCount + ')';
+          st(msg);
+          updDot();
+          return { ok:true, skipped:!!d.skipped };
+        }
+        st('Error: '+(d.error||'Unknown'));
+        updDot();
+        return { ok:false, error:d.error || 'Unknown' };
+      })
+      .catch(function(e){ svg.classList.remove('fab-spinning'); st('Failed: '+e.message); return { ok:false, error:e.message }; });
+  }
+
+  function doDbBackup(p, allData, opts){
+    opts = opts || {};
+    return fetch(DB_BACKUP_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      keepalive: !!opts.keepalive,
+      body:JSON.stringify({ key:p, data:allData })
+    })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d && d.ok){
+          if(d.verified === false){
+            return { ok:false, error:'DB mirror write did not pass integrity verification' };
+          }
+          setRuntimeMarker(BACKUP_DB_TS_KEY, d.ts || Date.now());
+          renderBackupHealth();
+          if(typeof refreshVaultMirrorStatus === 'function') refreshVaultMirrorStatus({ force:true, reason:'db-backup' });
+          return d;
+        }
+        return { ok:false, error:(d && d.error) || 'Unknown DB backup error' };
+      })
+      .catch(function(e){
+        return { ok:false, error:e.message || 'DB backup failed' };
+      });
+  }
+
+  var DB_BACKUP_DELAY_PERSONAL = 60000;
+  var DB_BACKUP_DELAY_WORK = 60000;
+  var DB_BACKUP_FAILURE_BACKOFF_MS = 2 * 60 * 60 * 1000;
+  var dbBackupTimers = { personal:null, work:null };
+  var dbBackupBackoffUntil = { personal:0, work:0 };
+  function getDbBackupMode(){
+    return (localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal';
+  }
+  function scheduleDbBackup(reason){
+    var mode = getDbBackupMode();
+    var delay = mode === 'work' ? DB_BACKUP_DELAY_WORK : DB_BACKUP_DELAY_PERSONAL;
+    if(dbBackupTimers[mode]) clearTimeout(dbBackupTimers[mode]);
+    dbBackupTimers[mode] = setTimeout(function(){
+      dbBackupTimers[mode] = null;
+      if(Date.now() < (dbBackupBackoffUntil[mode] || 0)) return;
+      var p = (localStorage.getItem(SYNC_PASS_KEY) || '').trim();
+      if(!p) return;
+      getAll()
+        .then(function(allData){ return doDbBackup(p, allData); })
+        .then(function(result){
+          if(!result || !result.ok){
+            dbBackupBackoffUntil[mode] = Date.now() + DB_BACKUP_FAILURE_BACKOFF_MS;
+            console.warn('[DB Backup] Deferred backup failed:', mode, reason || 'unspecified', result && result.error);
+          } else {
+            dbBackupBackoffUntil[mode] = 0;
+          }
+        })
+        .catch(function(err){
+          dbBackupBackoffUntil[mode] = Date.now() + DB_BACKUP_FAILURE_BACKOFF_MS;
+          console.warn('[DB Backup] Deferred backup exception:', mode, reason || 'unspecified', err && err.message);
+        });
+    }, delay);
+  }
+
+  window._homerScheduleDbBackup = scheduleDbBackup;
+  window._homerBackupEverythingToDb = function(){
+    var p = (localStorage.getItem(SYNC_PASS_KEY) || pass.value || '').trim();
+    if(!p) return Promise.reject(new Error('Log in first (unlock vault) to save.'));
+    localStorage.setItem(SYNC_PASS_KEY, p);
+    return getAll().then(function(allData){
+      return doDbBackup(p, allData).then(function(result){
+        if(result && result.ok) return result;
+        throw new Error((result && result.error) || 'DB backup failed');
+      });
+    });
+  };
+  function backupEmergencySnapshotToDrive(passphrase){
+    return getAll().then(function(allData){
+      var snapshot = Object.assign({}, allData || {});
+      var manifest = buildBackupManifest(snapshot, IDB_KEYS.filter(function(key){ return snapshot[key] != null; }));
+      snapshot[BACKUP_MANIFEST_KEY] = JSON.stringify(manifest);
+      return fetchJson('/api/gdrive-backup', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          passphrase: passphrase,
+          kind: 'vault-snapshot',
+          snapshot: snapshot,
+          manifest: manifest,
+          meta: {
+            source: 'vault-modal',
+            schemaVersion: BACKUP_SCHEMA_VERSION,
+            localSaveTs: parseInt(localStorage.getItem(BACKUP_LOCAL_SAVE_TS_KEY) || '0', 10) || 0,
+            mode: String(localStorage.getItem('homer-vault-mode') || 'personal').trim().toLowerCase() === 'work' ? 'work' : 'personal'
+          }
+        })
+      }).then(function(result){
+        setRuntimeMarker(BACKUP_EMERGENCY_DRIVE_TS_KEY, Date.now());
+        return result;
+      });
+    });
+  }
+
+  function backup(force){
+    var p=pass.value.trim();
+    if(!p){ st('Not logged in Ã¢â‚¬â€ please sign in first'); return Promise.resolve({ ok:false, skipped:true, reason:'nologin' }); }
+    localStorage.setItem(SYNC_PASS_KEY,p);
+
+    return getAll().then(function(allData){
+      var localTs = parseInt(localStorage.getItem('homer-backup-ts') || '0');
+      var localDataCount = 0;
+      DATA_KEYS.forEach(function(k){ if(allData[k]) localDataCount++; });
+      var essential = ['homer-cal-events', 'homer-cal-events:personal', 'homer-cal-events:work', 'homer-brain-dump', 'homer-links', 'pom.tasks.v1'];
+      var localEssentialCount = 0;
+      essential.forEach(function(k){ if(allData[k]) localEssentialCount++; });
+
+      // Quick check: skip if data hasn't changed since last backup (client-side)
+      if(!force && lastBackupHash){
+        var currentHash = computeComparableDataHash(allData);
+        if(currentHash === lastBackupHash){
+          if(lastSyncTs && (Date.now() - lastSyncTs) < 600000){
+            dirty = false;
+            return { ok:true, skipped:true, reason:'unchanged' };
+          }
+        }
+      }
+
+      // SAFETY: Compare against lightweight cloud metadata before overwriting
+      return fetch(R2_WORKER_URL+'/sync/ts',{headers:{'X-Sync-Key':p}})
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          var cloudTs = parseInt(d.ts || '0');
+          var cloudDataCount = parseInt(d.dataKeyCount || '0');
+          var cloudEssentialCount = parseInt(d.essentialCount || '0');
+          var cloudIsNewer = cloudTs > localTs;
+          var cloudLooksRicher = cloudDataCount > localDataCount || cloudEssentialCount > localEssentialCount;
+
+          // If cloud is newer or clearly richer, do not overwrite it silently.
+          if(cloudIsNewer || cloudLooksRicher){
+            if(force){
+              // Manual backup Ã¢â‚¬â€ show confirm dialog
+              var cloudDate = cloudTs ? new Date(cloudTs).toLocaleString() : 'unknown time';
+              var proceed = confirm(
+                'Warning: Cloud data looks newer or richer than this device.\n\n' +
+                'Cloud backup: ' + cloudDataCount + ' items, last updated ' + cloudDate + '.\n' +
+                'Local device: ' + localDataCount + ' items.\n\n' +
+                'This could overwrite data you have on other devices.\n\n' +
+                'Do you want to backup anyway?\n\n' +
+                'Click Cancel to keep the cloud data safe, or OK to overwrite.'
+              );
+              if(!proceed){
+                st('Backup cancelled Ã¢â‚¬â€ cloud data preserved (' + cloudDataCount + ' items).');
+                return { ok:false, skipped:true, reason:'cancelled' };
+              }
+            } else {
+              // Auto-backup Ã¢â‚¬â€ never overwrite silently, back off for a while.
+              conflictBackoffUntil = Date.now() + CONFLICT_BACKOFF_MS;
+              st('Auto-sync paused Ã¢â‚¬â€ cloud changed on another device. Open the app there or use Restore before pushing local changes.');
+              return { ok:false, skipped:true, reason:'conflict' };
+            }
+          }
+
+          // Check essential keys as extra safety
+          var localMissing = 0;
+          var cloudHasEssential = cloudEssentialCount;
+          essential.forEach(function(k){
+            if(!allData[k]) localMissing++;
+          });
+
+          if(localMissing >= essential.length && cloudHasEssential > 0){
+            if(force){
+              var proceed2 = confirm(
+                'Warning: Your local data is missing all essential items (events, notes, links, tasks) but the cloud has them.\n\n' +
+                'This looks like a fresh session. Did you mean to Restore instead?\n\n' +
+                'Click Cancel to keep cloud data, or OK to overwrite anyway.'
+              );
+              if(!proceed2){
+                st('Backup cancelled Ã¢â‚¬â€ cloud data preserved.');
+                return { ok:false, skipped:true, reason:'cancelled' };
+              }
+            } else {
+              st('Auto-backup skipped Ã¢â‚¬â€ local data appears incomplete. Cloud preserved.');
+              return { ok:false, skipped:true, reason:'incomplete-local' };
+            }
+          }
+
+          return doBackup(p, allData).then(function(result){
+            if(!force && (!result || !result.ok)){
+              autoBackupBackoffUntil = Date.now() + AUTO_BACKUP_FAILURE_BACKOFF_MS;
+              return result;
+            }
+            return doDbBackup(p, allData).then(function(dbResult){
+              if(result && result.ok) result.dbMirrored = !!(dbResult && dbResult.ok);
+              if(result && result.ok) autoBackupBackoffUntil = 0;
+              return result;
+            }).catch(function(){ return result; });
+          });
+        })
+        .catch(function(){
+          // Can't reach cloud Ã¢â‚¬â€ only backup if forced (manual)
+          if(force) return doBackup(p, allData).then(function(result){
+            return doDbBackup(p, allData).then(function(dbResult){
+              if(result && result.ok) result.dbMirrored = !!(dbResult && dbResult.ok);
+              return result;
+            }).catch(function(){ return result; });
+          });
+          st('Auto-backup skipped Ã¢â‚¬â€ could not verify cloud data');
+          autoBackupBackoffUntil = Date.now() + AUTO_BACKUP_FAILURE_BACKOFF_MS;
+          return { ok:false, skipped:true, reason:'preflight-failed' };
+        });
+    });
+  }
+
+  function restoreLegacyShadow(){
+    var p=pass.value.trim();
+    if(!p){ st('Not logged in Ã¢â‚¬â€ please sign in first'); return; }
+    localStorage.setItem(SYNC_PASS_KEY,p);
+    st('Restoring...');
+    fetch(R2_WORKER_URL+'/sync',{headers:{'X-Sync-Key':p}})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(d.error){ st(d.error); return; }
+
+        // SAFETY: Validate cloud data before restoring
+        if(!d.data || typeof d.data !== 'object'){
+          st('Error: Cloud data is empty or corrupted. Nothing restored.');
+          return;
+        }
+        var cloudKeys = Object.keys(d.data);
+        if(cloudKeys.length < 1){
+          st('Error: Cloud backup has no data. Nothing restored.');
+          return;
+        }
+
+        // SAFETY: Save current local data as emergency backup before overwriting
+        try {
+          var localBackup = {};
+          for(var i=0; i<localStorage.length; i++){
+            var bk = localStorage.key(i);
+            localBackup[bk] = localStorage.getItem(bk);
+          }
+          localStorage.setItem('homer-pre-restore-backup', JSON.stringify(localBackup));
+          localStorage.setItem('homer-pre-restore-ts', Date.now().toString());
+        } catch(e){}
+
+        return applyCloudSnapshot(d.data).then(function(result){
+          var tsInfo = d.ts ? ' (backed up ' + new Date(d.ts).toLocaleString() + ')' : '';
+          var vInfo = d.versionCount ? ' [' + d.versionCount + ' versions saved]' : '';
+          updateLocalBackupMarkers(d.data, d.ts || Date.now(), 'restore');
+          st('Restored ' + (result.applied + result.cleared) + ' changes' + tsInfo + vInfo + '. Reloading...');
+          updDot();
+          setTimeout(function(){ location.reload(); },1200);
+        });
+      })
+      .catch(function(e){ st('Failed: '+e.message); });
+  }
+
+  document.getElementById('fab-backup').addEventListener('click', function(){ backup(true); });
+  document.getElementById('fab-restore').addEventListener('click', restore);
+
+  // --- Version History UI ---
+  var versionsDiv = document.getElementById('fab-versions');
+  var versionsToggle = document.getElementById('fab-versions-toggle');
+  var versionsList = document.getElementById('fab-versions-list');
+
+  function loadVersionsLegacyShadow(){
+    var p = pass.value.trim();
+    if(!p) return;
+    versionsDiv.style.display = 'block';
+    fetch(R2_WORKER_URL+'/versions',{headers:{'X-Sync-Key':p}})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var versions = d.versions || [];
+        if(!versions.length){
+          versionsList.innerHTML = '<div style="font-size:.75rem;color:var(--muted);padding:6px 0;">No version history yet</div>';
+          return;
+        }
+        var h = '';
+        versions.slice().reverse().forEach(function(v, i){
+          var date = new Date(v.ts);
+          var timeStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+          var sizeKB = v.size ? (v.size / 1024).toFixed(1) + ' KB' : '';
+          h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.75rem;">';
+          h += '<div><span style="color:var(--text);font-weight:700;">' + timeStr + '</span>';
+          h += ' <span style="color:var(--muted);font-size:.68rem;">' + (v.keyCount || '?') + ' keys' + (sizeKB ? ' / ' + sizeKB : '') + '</span></div>';
+          h += '<button class="fab-restore-version" data-ts="' + v.ts + '" style="background:none;border:1px solid rgba(96,165,250,.25);border-radius:6px;padding:2px 8px;color:#60a5fa;cursor:pointer;font-size:.68rem;font-weight:700;">Restore</button>';
+          h += '</div>';
+        });
+        versionsList.innerHTML = h;
+
+        // Version restore click handler
+        versionsList.querySelectorAll('.fab-restore-version').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var ts = this.getAttribute('data-ts');
+            if(!confirm('Restore backup from ' + new Date(parseInt(ts)).toLocaleString() + '?\nThis will overwrite your current local data.')) return;
+            btn.textContent = '...';
+            fetch(R2_WORKER_URL+'/restore?ts=' + ts,{headers:{'X-Sync-Key':p}})
+              .then(function(r){ return r.json(); })
+              .then(function(d){
+                if(d.error){ st('Error: ' + d.error); btn.textContent = 'Restore'; return; }
+                // Save pre-restore backup
+                try {
+                  var localBackup = {};
+                  for(var i=0; i<localStorage.length; i++){
+                    var bk = localStorage.key(i);
+                    localBackup[bk] = localStorage.getItem(bk);
+                  }
+                  localStorage.setItem('homer-pre-restore-backup', JSON.stringify(localBackup));
+                  localStorage.setItem('homer-pre-restore-ts', Date.now().toString());
+                } catch(e){}
+                applyCloudSnapshot(d.data).then(function(result){
+                  updateLocalBackupMarkers(d.data, parseInt(ts), 'restore-version');
+                  st('Restored version from ' + new Date(parseInt(ts)).toLocaleString() + ' (' + (result.applied + result.cleared) + ' changes). Reloading...');
+                  setTimeout(function(){ location.reload(); }, 1200);
+                });
+              })
+              .catch(function(e){ st('Failed: ' + e.message); btn.textContent = 'Restore'; });
+          });
+        });
+      })
+      .catch(function(){ versionsList.innerHTML = '<div style="font-size:.75rem;color:var(--muted);">Could not load versions</div>'; });
+  }
+
+  function restore(){
+    var p = pass.value.trim();
+    if(!p){ st('Not logged in - please sign in first'); return Promise.resolve({ ok:false, skipped:true, reason:'nologin' }); }
+    localStorage.setItem(SYNC_PASS_KEY, p);
+    st('Restoring from cloud snapshot...');
+    return restoreCloudSnapshot(p)
+      .catch(function(cloudErr){
+        console.warn('[Backup] Cloud restore unavailable:', cloudErr && cloudErr.message ? cloudErr.message : cloudErr);
+        st('Cloud snapshot unavailable. Trying DB mirror...');
+        return restoreDbMirror(p).catch(function(dbErr){
+          console.warn('[Backup] DB restore unavailable:', dbErr && dbErr.message ? dbErr.message : dbErr);
+          st('DB mirror unavailable. Trying Redis Joey backup...');
+          return restoreRedisBundles(p).catch(function(redisErr){
+            console.warn('[Backup] Redis restore unavailable:', redisErr && redisErr.message ? redisErr.message : redisErr);
+            st('Redis fallback unavailable. Trying Drive backup...');
+            return restoreDriveBundles(p).catch(function(driveErr){
+              throw new Error([
+                'Cloud: ' + (cloudErr && cloudErr.message ? cloudErr.message : cloudErr),
+                'DB: ' + (dbErr && dbErr.message ? dbErr.message : dbErr),
+                'Redis: ' + (redisErr && redisErr.message ? redisErr.message : redisErr),
+                'Drive: ' + (driveErr && driveErr.message ? driveErr.message : driveErr)
+              ].join(' | '));
+            });
+          });
+        });
+      })
+      .then(function(result){
+        if(!result) return result;
+        var summary = result.applied != null
+          ? (result.applied + result.cleared) + ' local changes'
+          : (result.summary || 'Joey context recovered');
+        st('Restored from ' + result.source + ': ' + summary + '. Reloading...');
+        updDot();
+        setTimeout(function(){ location.reload(); }, 1200);
+        return result;
+      })
+      .catch(function(e){
+        st('Failed: ' + e.message);
+        return { ok:false, error:e.message };
+      });
+  }
+
+  function loadVersions(){
+    var p = pass.value.trim();
+    if(!p) return;
+    versionsDiv.style.display = 'block';
+    fetchJson(R2_WORKER_URL + '/versions', { headers:{'X-Sync-Key':p}, cache:'no-store' })
+      .then(function(d){
+        var versions = d.versions || [];
+        if(!versions.length){
+          versionsList.innerHTML = '<div style="font-size:.75rem;color:var(--muted);padding:6px 0;">No version history yet</div>';
+          return;
+        }
+        var h = '';
+        versions.slice().reverse().forEach(function(v){
+          var date = new Date(v.ts);
+          var timeStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+          var sizeKB = v.size ? (v.size / 1024).toFixed(1) + ' KB' : '';
+          h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.75rem;">';
+          h += '<div><span style="color:var(--text);font-weight:700;">' + timeStr + '</span>';
+          h += ' <span style="color:var(--muted);font-size:.68rem;">' + (v.keyCount || '?') + ' keys' + (sizeKB ? ' / ' + sizeKB : '') + '</span></div>';
+          h += '<div style="display:flex;gap:6px;">';
+          h += '<button class="fab-inspect-version" data-ts="' + v.ts + '" style="background:none;border:1px solid rgba(148,163,184,.22);border-radius:6px;padding:2px 8px;color:#cbd5e1;cursor:pointer;font-size:.68rem;font-weight:700;">Inspect</button>';
+          h += '<button class="fab-restore-version" data-ts="' + v.ts + '" style="background:none;border:1px solid rgba(96,165,250,.25);border-radius:6px;padding:2px 8px;color:#60a5fa;cursor:pointer;font-size:.68rem;font-weight:700;">Restore</button>';
+          h += '</div>';
+          h += '</div>';
+        });
+        versionsList.innerHTML = h;
+
+        versionsList.querySelectorAll('.fab-inspect-version').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var ts = this.getAttribute('data-ts');
+            var self = this;
+            self.textContent = '...';
+            fetchJson(R2_WORKER_URL + '/restore?ts=' + encodeURIComponent(ts), { headers:{'X-Sync-Key':p}, cache:'no-store' })
+              .then(function(data){
+                openBackupInspector('Backup Version ' + new Date(parseInt(ts, 10)).toLocaleString(), data.data || {}, { ts:parseInt(ts, 10), source:'version' });
+                self.textContent = 'Inspect';
+              })
+              .catch(function(err){
+                st('Inspect failed: ' + err.message);
+                self.textContent = 'Inspect';
+              });
+          });
+        });
+
+        versionsList.querySelectorAll('.fab-restore-version').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var ts = this.getAttribute('data-ts');
+            if(!confirm('Restore backup from ' + new Date(parseInt(ts, 10)).toLocaleString() + '?\nThis will overwrite your current local data.')) return;
+            btn.textContent = '...';
+            fetchJson(R2_WORKER_URL + '/restore?ts=' + encodeURIComponent(ts), { headers:{'X-Sync-Key':p}, cache:'no-store' })
+              .then(function(data){
+                return performSnapshotRestore(p, data.data, 'restore-version', parseInt(ts, 10));
+              })
+              .then(function(result){
+                st('Restored version from ' + new Date(parseInt(ts, 10)).toLocaleString() + ' (' + (result.applied + result.cleared) + ' changes). Reloading...');
+                setTimeout(function(){ location.reload(); }, 1200);
+              })
+              .catch(function(err){
+                st('Failed: ' + err.message);
+                btn.textContent = 'Restore';
+              });
+          });
+        });
+      })
+      .catch(function(){
+        versionsList.innerHTML = '<div style="font-size:.75rem;color:var(--muted);">Could not load versions</div>';
+      });
+  }
+
+  if(versionsToggle){
+    versionsToggle.addEventListener('click', function(){
+      var showing = versionsList.style.display !== 'none';
+      versionsList.style.display = showing ? 'none' : 'block';
+      versionsToggle.textContent = showing ? 'Show' : 'Hide';
+      if(!showing) loadVersions();
+    });
+  }
+
+  if(restoreDbBtn){
+    restoreDbBtn.addEventListener('click', function(){
+      var p = pass.value.trim();
+      if(!p){ st('Not logged in - please sign in first'); return; }
+      st('Recovering full vault from server mirror...');
+      restoreDbMirror(p).then(function(result){
+        st('Recovered full vault from server mirror (' + (result.applied + result.cleared) + ' changes). Reloading...');
+        setTimeout(function(){ location.reload(); }, 1200);
+      }).catch(function(err){
+        st('Server mirror recovery failed: ' + err.message);
+      });
+    });
+  }
+  if(restoreRedisBtn){
+    restoreRedisBtn.addEventListener('click', function(){
+      var p = pass.value.trim();
+      if(!p){ st('Not logged in - please sign in first'); return; }
+      st('Recovering Joey memory from Redis...');
+      restoreRedisBundles(p).then(function(result){
+        st('Joey memory recovered from Redis: ' + (result.summary || 'context recovered') + '. Reloading...');
+        setTimeout(function(){ location.reload(); }, 1200);
+      }).catch(function(err){
+        st('Joey Redis recovery failed: ' + err.message);
+      });
+    });
+  }
+  if(restoreDriveBtn){
+    restoreDriveBtn.addEventListener('click', function(){
+      var p = pass.value.trim();
+      if(!p){ st('Not logged in - please sign in first'); return; }
+      st('Recovering Joey context from Google Drive...');
+      restoreDriveBundles(p).then(function(result){
+        st('Google Drive recovery complete for ' + (result.driveModes || []).join(', ') + '. Reloading...');
+        setTimeout(function(){ location.reload(); }, 1200);
+      }).catch(function(err){
+        st('Google Drive recovery failed: ' + err.message);
+      });
+    });
+  }
+  if(inspectLatestBtn){
+    inspectLatestBtn.addEventListener('click', function(){
+      var p = pass.value.trim();
+      if(!p){ st('Not logged in - please sign in first'); return; }
+      st('Loading latest backup snapshot...');
+      fetchCloudSnapshot(p)
+        .then(function(data){
+          openBackupInspector('Latest Cloud Snapshot', data.data || {}, { ts:data.ts || Date.now(), source:'cloud' });
+          st('Loaded latest cloud snapshot.');
+        })
+        .catch(function(cloudErr){
+          fetchDbSnapshot(p).then(function(data){
+            openBackupInspector('Latest DB Mirror', data.data || {}, { ts:data.ts || Date.now(), source:'db' });
+            st('Loaded latest DB mirror.');
+          }).catch(function(dbErr){
+            st('Inspect latest failed: ' + cloudErr.message + ' | ' + dbErr.message);
+          });
+      });
+    });
+  }
+  if(backupAllDriveBtn){
+    backupAllDriveBtn.addEventListener('click', function(){
+      var p = pass.value.trim();
+      var btn = this;
+      if(!p){ st('Not logged in - please sign in first'); return; }
+      localStorage.setItem(SYNC_PASS_KEY, p);
+      btn.disabled = true;
+      btn.textContent = 'Running safety backup...';
+      st('Backing up vault, server mirror, and Joey memory...');
+      Promise.all([
+        backup(true).catch(function(err){ return { ok:false, error:err && err.message ? err.message : String(err), source:'vault' }; }),
+        (typeof window._homerCommitJoeyMemory === 'function'
+          ? window._homerCommitJoeyMemory({ silent:true, skipLearn:false, reason:'full-safety' }).catch(function(err){ return { ok:false, error:err && err.message ? err.message : String(err), source:'joey' }; })
+          : Promise.resolve({ ok:false, skipped:true, reason:'joey-unavailable' }))
+      ]).then(function(results){
+        var vaultResult = results[0] || {};
+        var joeyResult = results[1] || {};
+        var parts = [];
+        if(vaultResult.ok) parts.push('vault mirrored');
+        else parts.push('vault issue: ' + (vaultResult.error || vaultResult.reason || 'backup failed'));
+        if(joeyResult.ok || joeyResult.partial) parts.push('Joey saved');
+        else if(!joeyResult.skipped) parts.push('Joey issue: ' + (joeyResult.error || joeyResult.reason || 'save failed'));
+        renderBackupHealth();
+        if(typeof refreshVaultMirrorStatus === 'function') refreshVaultMirrorStatus({ force:true, reason:'full-safety' });
+        st(parts.join(' | '));
+      }).finally(function(){
+        btn.disabled = false;
+        btn.textContent = 'Full Safety Backup';
+      });
+    });
+  }
+  if(emergencyDriveBtn){
+    emergencyDriveBtn.addEventListener('click', function(){
+      var p = pass.value.trim();
+      var btn = this;
+      if(!p){ st('Not logged in - please sign in first'); return; }
+      localStorage.setItem(SYNC_PASS_KEY, p);
+      btn.disabled = true;
+      btn.textContent = 'Saving emergency snapshot...';
+      st('Saving a standalone emergency snapshot to Google Drive...');
+      backupEmergencySnapshotToDrive(p).then(function(result){
+        st('Emergency Drive snapshot saved' + (result && result.drive && result.drive.fileName ? ': ' + result.drive.fileName : '.'));
+        renderBackupHealth();
+      }).catch(function(err){
+        st('Emergency Drive snapshot failed: ' + (err && err.message ? err.message : String(err)));
+      }).finally(function(){
+        btn.disabled = false;
+        btn.textContent = 'Emergency Drive Snapshot';
+      });
+    });
+  }
+
+  autoChk.addEventListener('change', function(){
+    localStorage.setItem(SYNC_AUTO_KEY, autoChk.checked);
+    window.dispatchEvent(new CustomEvent('homer-sync-auto-changed', { detail:{ enabled: !!autoChk.checked } }));
+    if(autoChk.checked) startAuto(); else stopAuto();
+    updDot();
+  });
+
+  // --- Smart Auto-Sync: backup on every change, pull on focus ---
+  var SYNC_DEBOUNCE = 60000; // 1m after last change
+  var SYNC_INTERVAL = 4 * 60 * 60 * 1000; // 4h safety net for full snapshot backup
+  var AUTO_BACKUP_MIN_INTERVAL_MS = 4 * 60 * 60 * 1000;
+  var debounceTimer = null;
+  var lastSyncTs = 0;
+  var lastPullTs = 0;
+  var dirty = false;
+  var pullInProgress = false;
+  var PULL_COOLDOWN = 120000; // Don't pull more often than every 2m
+  var isLeader = false;
+  var CONFLICT_BACKOFF_MS = 300000; // Pause auto-sync for 5m when cloud is newer
+  var conflictBackoffUntil = 0;
+  var autoBackupBackoffUntil = 0;
+  var AUTO_BACKUP_FAILURE_BACKOFF_MS = 30 * 60 * 1000;
+
+  function markDirty(){
+    if(!pass.value.trim()) return;
+    if(localStorage.getItem(SYNC_AUTO_KEY) !== 'true') return;
+    dirty = true;
+    requestSyncFieldLabelUpdate();
+    scheduleDbBackup('global-change');
+    // Debounce: wait 5s after last change, then backup
+    if(debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function(){
+      debounceTimer = null;
+      if(dirty) autoBackup();
+    }, SYNC_DEBOUNCE);
+  }
+
+  function autoBackup(){
+    if(!isLeader) return; // Only leader tab syncs to cloud
+    if(!pass.value.trim()) return;
+    if(Date.now() < conflictBackoffUntil) return;
+    if(Date.now() < autoBackupBackoffUntil) return;
+    if(lastSyncTs && (Date.now() - lastSyncTs) < AUTO_BACKUP_MIN_INTERVAL_MS) return;
+    backup().then(function(){
+      updDot();
+    });
+  }
+
+  // --- Pull from cloud if newer (non-destructive merge) ---
+  function pullIfNewer(){
+    var p = pass.value.trim();
+    if(!p || pullInProgress) return Promise.resolve();
+    if(!isLeader) return Promise.resolve(); // Only leader pulls from cloud
+    if(Date.now() - lastPullTs < PULL_COOLDOWN) return Promise.resolve();
+    pullInProgress = true;
+    var localTs = parseInt(localStorage.getItem('homer-backup-ts') || '0');
+    return fetch(R2_WORKER_URL+'/sync/ts',{headers:{'X-Sync-Key':p}})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(!d.ts || d.ts <= localTs){
+          // Local is same or newer Ã¢â‚¬â€ nothing to pull
+          lastPullTs = Date.now();
+          pullInProgress = false;
+          conflictBackoffUntil = 0;
+          return;
+        }
+        // Cloud is newer Ã¢â‚¬â€ fetch full data and merge
+        console.log('[CloudSync] Cloud is newer (cloud:'+d.ts+' vs local:'+localTs+'), pulling...');
+        return fetch(R2_WORKER_URL+'/sync',{headers:{'X-Sync-Key':p}})
+          .then(function(r){ return r.json(); })
+          .then(function(cd){
+            if(!cd.data){ pullInProgress = false; return; }
+            return applyCloudSnapshot(cd.data).then(function(result){
+              lastPullTs = Date.now();
+              pullInProgress = false;
+              conflictBackoffUntil = 0;
+              updateLocalBackupMarkers(cd.data, cd.ts || Date.now(), 'pull');
+              var merged = result.applied + result.cleared;
+              if(merged > 0){
+                console.log('[CloudSync] Pulled ' + merged + ' updated items from cloud');
+                st('Pulled ' + merged + ' changes from cloud');
+                // Refresh app sections in place instead of forcing a full page reload.
+                window.dispatchEvent(new CustomEvent('homer-cloud-pull', {
+                  detail: {
+                    count: merged,
+                    keys: Object.keys(cd.data),
+                    hasIndexedDbData: IDB_KEYS.some(function(k){ return !!cd.data[k]; })
+                  }
+                }));
+                window.dispatchEvent(new Event('vault-goals-changed'));
+              }
+            });
+          });
+      })
+      .catch(function(e){
+        console.warn('[CloudSync] Pull check failed:', e.message || e);
+        pullInProgress = false;
+      });
+  }
+
+  // Intercept localStorage.setItem to detect changes
+  var origSetItem = localStorage.setItem.bind(localStorage);
+  var origRemoveItem = localStorage.removeItem.bind(localStorage);
+  var syncMetaKeys = [
+    'homer-sync-pass', 'homer-sync-auto', 'homer-auth-hash',
+    LEADER_KEY, LEADER_HB_KEY, FIELD_SYNC_CURSOR_KEY, FIELD_SYNC_DEVICE_KEY,
+    'motivator.savedQuotes.v1', 'motivator.savedQuotes.pendingSync'
+  ];
+  localStorage.setItem = function(key, value){
+    origSetItem(key, value);
+    if(syncMetaKeys.indexOf(key) >= 0 || isLocalOnlyBackupKey(key)) return;
+    markDirty();
+  };
+  localStorage.removeItem = function(key){
+    origRemoveItem(key);
+    if(syncMetaKeys.indexOf(key) >= 0 || isLocalOnlyBackupKey(key)) return;
+    markDirty();
+  };
+  window._homerMarkCloudDirty = function(){
+    markDirty();
+  };
+  window._homerRecordBackupMarker = function(key, value){
+    setRuntimeMarker(key, value == null ? Date.now() : value);
+    renderBackupHealth();
+  };
+
+  // Also detect vault changes
+  window.addEventListener('vault-goals-changed', function(){ markDirty(); });
+  renderBackupHealth();
+  initPersistentFieldLabels();
+
+  // Periodic safety-net sync
+  function startAuto(){
+    stopAuto();
+    startFieldSyncLoop();
+    // Pull first, then start backup cycle
+    pullIfNewer().then(function(){
+      timer = setInterval(function(){
+        if(pass.value.trim()){
+          if(dirty || (Date.now() - lastSyncTs) > SYNC_INTERVAL){
+            autoBackup();
+          }
+        }
+      }, SYNC_INTERVAL);
+      if(pass.value.trim() && dirty){ autoBackup(); }
+    });
+  }
+  function stopAuto(){
+    if(timer){ clearInterval(timer); timer=null; }
+    if(debounceTimer){ clearTimeout(debounceTimer); debounceTimer=null; }
+    stopFieldSyncLoop();
+  }
+  window.addEventListener('homer-sync-auto-changed', function(e){
+    var enabled = !!(e && e.detail && e.detail.enabled);
+    autoChk.checked = enabled;
+    if(enabled) startAuto();
+    else stopAuto();
+    updDot();
+  });
+
+  // --- Tab Coordination (leader election + BroadcastChannel) ---
+  var TAB_ID = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  var HEARTBEAT_MS = 3000;
+  var LEADER_TIMEOUT_MS = 10000;
+  var hbTimer = null;
+  var bc = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('homer-tabs') : null;
+
+  function leaderAlive(){
+    var hb = parseInt(localStorage.getItem(LEADER_HB_KEY) || '0');
+    return (Date.now() - hb) <= LEADER_TIMEOUT_MS;
+  }
+
+  function claimLeader(){
+    isLeader = true;
+    origSetItem(LEADER_KEY, TAB_ID);
+    origSetItem(LEADER_HB_KEY, Date.now().toString());
+    if(hbTimer) clearInterval(hbTimer);
+    hbTimer = setInterval(function(){
+      origSetItem(LEADER_HB_KEY, Date.now().toString());
+    }, HEARTBEAT_MS);
+    if(bc) bc.postMessage({ type: 'leader', id: TAB_ID });
+    console.log('[TabSync] Leader:', TAB_ID);
+  }
+
+  function tryLead(triggerSync){
+    var cur = localStorage.getItem(LEADER_KEY);
+    if(cur === TAB_ID && isLeader) return;
+    if(!cur || cur === TAB_ID || !leaderAlive()){
+      claimLeader();
+      if(triggerSync && pass.value.trim() && localStorage.getItem(SYNC_AUTO_KEY) === 'true'){
+        pullIfNewer().then(function(){ startAuto(); });
+      }
+    }
+  }
+
+  if(bc){
+    bc.onmessage = function(e){
+      var m = e.data;
+      if(m.type === 'leader' && m.id !== TAB_ID){
+        isLeader = false;
+        if(hbTimer){ clearInterval(hbTimer); hbTimer = null; }
+      }
+      if(m.type === 'leader-dying'){
+        setTimeout(function(){ tryLead(true); }, 50 + Math.random() * 200);
+      }
+      if(m.type === 'request-pull' && isLeader){
+        pullIfNewer();
+      }
+    };
+  }
+
+  // Periodic fallback: detect dead leader (covers crashed tabs, no-BroadcastChannel browsers)
+  setInterval(function(){
+    if(!isLeader && !leaderAlive()) tryLead(true);
+  }, LEADER_TIMEOUT_MS);
+
+  // Claim on load (no sync trigger Ã¢â‚¬â€ page-load section handles initial sync)
+  tryLead(false);
+
+  var criticalDbBackupTimer = null;
+  function scheduleCriticalDbBackup(reason, delay){
+    var wait = typeof delay === 'number' ? delay : 1600;
+    if(criticalDbBackupTimer) clearTimeout(criticalDbBackupTimer);
+    criticalDbBackupTimer = setTimeout(function(){
+      criticalDbBackupTimer = null;
+      var backupTask = typeof window._homerBackupEverythingToDb === 'function'
+        ? window._homerBackupEverythingToDb()
+        : flushDbBackupNow(reason || 'critical-save');
+      Promise.resolve(backupTask).catch(function(err){
+        console.warn('[DB Backup] Critical mirror failed:', reason || 'critical-save', err && err.message ? err.message : err);
+        return flushDbBackupNow((reason || 'critical-save') + '-retry');
+      }).then(function(){ safeUpdateVaultSyncBadge(); });
+    }, Math.max(250, wait));
+  }
+
+  function flushDbBackupNow(reason){
+    var p = pass.value.trim();
+    if(!p) return Promise.resolve({ ok:false, skipped:true, reason:'nologin' });
+    return getAll().then(function(allData){
+      return doDbBackup(p, allData, { keepalive:true }).then(function(result){
+        if(!result || !result.ok){
+          console.warn('[DB Backup] Flush failed:', reason || 'flush', result && result.error);
+        }
+        return result;
+      });
+    }).catch(function(err){
+      console.warn('[DB Backup] Flush exception:', reason || 'flush', err && err.message);
+      return { ok:false, error: err && err.message ? err.message : String(err) };
+    });
+  }
+
+  // Save before page close Ã¢â‚¬â€ only leader sends beacon (or fallback if leader is dead)
+  window.addEventListener('beforeunload', function(){
+    if(isLeader){
+      if(bc) bc.postMessage({ type: 'leader-dying' });
+      if(hbTimer){ clearInterval(hbTimer); hbTimer = null; }
+    }
+    if(!pass.value.trim()) return;
+    if(!dirty) return;
+    if(lastSyncTs && (Date.now() - lastSyncTs) < 60000) return;
+    if(Date.now() < conflictBackoffUntil) return;
+    // Non-leader skips beacon unless leader is dead (last-tab-standing fallback)
+    if(!isLeader && leaderAlive()) return;
+    try {
+      var p = pass.value.trim();
+      var d = {};
+      for(var i=0; i<localStorage.length; i++){
+        var k = localStorage.key(i);
+        if(isLocalOnlyBackupKey(k) || BACKUP_RUNTIME_KEYS.indexOf(k) >= 0) continue;
+        d[k] = localStorage.getItem(k);
+      }
+      d[BACKUP_MANIFEST_KEY] = JSON.stringify(buildBackupManifest(d, []));
+      d['homer-backup-ts'] = Date.now().toString();
+      d['homer-backup-keys'] = Object.keys(d).length.toString();
+      d['homer-backup-source'] = 'beforeunload';
+      var payload = JSON.stringify({ key: p, data: d });
+      navigator.sendBeacon(R2_WORKER_URL+'/sync', new Blob([payload], { type: 'application/json' }));
+    } catch(e){}
+  });
+
+  // --- Sync on tab focus + tab coordination ---
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'hidden'){
+      flushFieldSyncOps('visibility-hidden');
+      flushDbBackupNow('visibility-hidden');
+      return;
+    }
+    if(document.visibilityState === 'visible'){
+      hydrateFieldSyncState(false);
+      // Claim leadership if current leader is dead
+      if(!isLeader && !leaderAlive()) tryLead(true);
+      if(pass.value.trim() && localStorage.getItem(SYNC_AUTO_KEY) === 'true'){
+        if(isLeader){
+          pullIfNewer();
+        } else if(bc){
+          // Ask leader to pull (it will write to localStorage, triggering storage events here)
+          bc.postMessage({ type: 'request-pull' });
+        }
+      }
+    }
+  });
+  window.addEventListener('pagehide', function(){
+    flushFieldSyncOps('pagehide');
+    flushDbBackupNow('pagehide');
+  });
+
+  // Detect changes from other tabs + leadership handoff
+  window.addEventListener('storage', function(e){
+    if(!e.key) return;
+    // Track leadership changes
+    if(e.key === LEADER_KEY){
+      var cur = localStorage.getItem(LEADER_KEY);
+      if(isLeader && cur !== TAB_ID){
+        isLeader = false;
+        if(hbTimer){ clearInterval(hbTimer); hbTimer = null; }
+        console.log('[TabSync] Lost leadership to:', cur);
+      }
+      return;
+    }
+    if(syncMetaKeys.indexOf(e.key) >= 0 || isLocalOnlyBackupKey(e.key)) return;
+    markDirty();
+    scanPersistentFieldLabels(document);
+    requestSyncFieldLabelUpdate();
+  });
+
+    function updateSyncUI(){
+    pass.value = localStorage.getItem(SYNC_PASS_KEY) || '';
+    autoChk.checked = localStorage.getItem(SYNC_AUTO_KEY) === 'true';
+    var name = localStorage.getItem('homer-auth-user');
+    if(name){
+      if(fabSyncUser) fabSyncUser.textContent = name;
+      if(fabSyncInfo) fabSyncInfo.style.display = '';
+      if(fabSyncWarn) fabSyncWarn.style.display = 'none';
+    } else {
+      if(fabSyncInfo) fabSyncInfo.style.display = 'none';
+      if(fabSyncWarn) fabSyncWarn.style.display = '';
+    }
+    updDot();
+  }
+
+  // Listen for auth events from Account system
+  window.addEventListener('homer-auth', function(e){
+    var action = e.detail && e.detail.action;
+    updateSyncUI();
+    if(action === 'register'){
+      // New account Ã¢â‚¬â€ backup current data to cloud
+      backup(true).then(function(){
+        startAuto();
+      });
+    } else if(action === 'signin'){
+      // Existing account Ã¢â‚¬â€ restore from cloud, then enable auto-backup
+      var p = pass.value.trim();
+      if(!p) return;
+      st('Restoring your data...');
+      fetch(R2_WORKER_URL+'/sync',{headers:{'X-Sync-Key':p}})
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if(d.error || !d.data){
+            // No cloud data yet Ã¢â‚¬â€ just backup current data
+            st('No cloud data found Ã¢â‚¬â€ backing up...');
+            return backup().then(function(){ startAuto(); });
+          }
+          // Cloud data exists Ã¢â‚¬â€ restore it
+          var c = 0;
+          var idbWrites = [];
+          Object.keys(d.data).forEach(function(k){
+            c++;
+            if(IDB_KEYS.indexOf(k) >= 0){
+              idbWrites.push(syncIdbSet(k, d.data[k]));
+            } else {
+              tryStoreSyncValue(k, d.data[k]);
+            }
+          });
+          return Promise.all(idbWrites).then(function(){
+            st('Restored '+c+' items. Reloading...');
+            updDot();
+            startAuto();
+            setTimeout(function(){ location.reload(); }, 1000);
+          });
+        })
+        .catch(function(err){
+          st('Restore failed: ' + (err.message || 'network error'));
+          // Don't backup on restore failure Ã¢â‚¬â€ could overwrite cloud with empty data
+          startAuto();
+        });
+    } else if(action === 'logout'){
+      // Final backup before credentials are cleared
+      backup().then(function(){
+        stopAuto();
+        updateSyncUI();
+      });
+    }
+  });
+
+  // On page load: if logged in, pull cloud data first, then start auto-backup
+  if(pass.value.trim()){
+    autoChk.checked = true;
+    origSetItem(SYNC_AUTO_KEY, 'true'); // Use origSetItem to avoid triggering markDirty
+    // Pull newer cloud data before starting backup cycle
+    pullIfNewer().then(function(){ startAuto(); });
+    versionsDiv.style.display = 'block';
+  }
+  updDot();
+
+  // --- Clear Cache ---
+  var ccBg = document.getElementById('cc-bg');
+  document.getElementById('fab-clear').addEventListener('click', function(){ ccBg.classList.add('open'); });
+  document.getElementById('cc-cancel').addEventListener('click', function(){ ccBg.classList.remove('open'); });
+  ccBg.addEventListener('click', function(e){ if(e.target===ccBg) ccBg.classList.remove('open'); });
+  document.getElementById('cc-nuke').addEventListener('click', function(){
+    LS_KEYS.forEach(function(k){ localStorage.removeItem(k); });
+    localStorage.removeItem(SYNC_PASS_KEY);
+    localStorage.removeItem(SYNC_AUTO_KEY);
+    syncIdbClear().then(function(){
+      ccBg.classList.remove('open');
+      location.reload();
+    });
+  });
+})();
+
+window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='undefined')pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/build/pdf.worker.min.mjs';});
+
+(function(){
+  var MOJIBAKE_PATTERN = /[ÃÂâÅÐË]/;
+  var CP1252_INVERSE = {
+    '\u20ac': 0x80, '\u201a': 0x82, '\u0192': 0x83, '\u201e': 0x84, '\u2026': 0x85,
+    '\u2020': 0x86, '\u2021': 0x87, '\u02c6': 0x88, '\u2030': 0x89, '\u0160': 0x8a,
+    '\u2039': 0x8b, '\u0152': 0x8c, '\u017d': 0x8e, '\u2018': 0x91, '\u2019': 0x92,
+    '\u201c': 0x93, '\u201d': 0x94, '\u2022': 0x95, '\u2013': 0x96, '\u2014': 0x97,
+    '\u02dc': 0x98, '\u2122': 0x99, '\u0161': 0x9a, '\u203a': 0x9b, '\u0153': 0x9c,
+    '\u017e': 0x9e, '\u0178': 0x9f
+  };
+  function shouldRepairText(value){
+    return typeof value === 'string' && value && (MOJIBAKE_PATTERN.test(value) || value.indexOf('\u00e2\u2192') !== -1 || value.indexOf('open-mete\u043e.com') !== -1);
+  }
+  function decodeLatin1ishToUtf8(value){
+    var bytes = [];
+    for(var i = 0; i < value.length; i++){
+      var code = value.charCodeAt(i);
+      if(code <= 0xff){
+        bytes.push(code);
+      }else{
+        var ch = value.charAt(i);
+        if(!(ch in CP1252_INVERSE)) return value;
+        bytes.push(CP1252_INVERSE[ch]);
+      }
+    }
+    try{
+      return new TextDecoder('utf-8', { fatal:true }).decode(new Uint8Array(bytes));
+    }catch(_err){
+      return value;
+    }
+  }
+  function repairMojibakeText(value){
+    if(!shouldRepairText(value)) return value;
+    var current = value;
+    for(var i = 0; i < 3; i++){
+      var next = decodeLatin1ishToUtf8(current);
+      if(next === current) break;
+      current = next;
+    }
+    return current
+      .replace(/open-mete\u043e\.com/g, 'open-meteo.com')
+      .replace(/\u00e2\u2192/g, '\u2192');
+  }
+  function normalizeAttributes(el){
+    if(!el || el.nodeType !== 1) return;
+    ['title','placeholder','aria-label'].forEach(function(attr){
+      var value = el.getAttribute(attr);
+      if(!shouldRepairText(value)) return;
+      var fixed = repairMojibakeText(value);
+      if(fixed !== value) el.setAttribute(attr, fixed);
+    });
+    if(el.tagName === 'BUTTON' || (el.tagName === 'INPUT' && /^(button|submit|reset)$/i.test(el.type || ''))){
+      var buttonValue = el.getAttribute('value');
+      if(shouldRepairText(buttonValue)){
+        var fixedButtonValue = repairMojibakeText(buttonValue);
+        if(fixedButtonValue !== buttonValue){
+          el.setAttribute('value', fixedButtonValue);
+          if('value' in el) el.value = fixedButtonValue;
+        }
+      }
+    }
+  }
+  function normalizeTextNode(node){
+    if(!node || node.nodeType !== Node.TEXT_NODE || !shouldRepairText(node.nodeValue)) return;
+    var fixed = repairMojibakeText(node.nodeValue);
+    if(fixed !== node.nodeValue) node.nodeValue = fixed;
+  }
+  function normalizeSubtree(root){
+    if(!root) return;
+    if(root.nodeType === Node.TEXT_NODE){
+      normalizeTextNode(root);
+      return;
+    }
+    if(root.nodeType !== Node.ELEMENT_NODE) return;
+    if(/^(SCRIPT|STYLE|TEXTAREA)$/i.test(root.tagName)) return;
+    normalizeAttributes(root);
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var current;
+    while((current = walker.nextNode())){
+      if(current.parentNode && current.parentNode.nodeType === 1 && /^(SCRIPT|STYLE|TEXTAREA)$/i.test(current.parentNode.tagName)) continue;
+      normalizeTextNode(current);
+    }
+    root.querySelectorAll('[title],[placeholder],[aria-label],button[value],input[type="button"][value],input[type="submit"][value],input[type="reset"][value]').forEach(normalizeAttributes);
+  }
+  function startMojibakeRepair(){
+    if(!document.body) return;
+    normalizeSubtree(document.body);
+    var observer = new MutationObserver(function(records){
+      records.forEach(function(record){
+        if(record.type === 'characterData'){
+          normalizeTextNode(record.target);
+          return;
+        }
+        if(record.type === 'attributes'){
+          normalizeAttributes(record.target);
+          return;
+        }
+        record.addedNodes.forEach(normalizeSubtree);
+      });
+    });
+    observer.observe(document.body, {
+      childList:true,
+      subtree:true,
+      characterData:true,
+      attributes:true,
+      attributeFilter:['title','placeholder','aria-label','value']
+    });
+  }
+  window._homerRepairMojibakeText = repairMojibakeText;
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', startMojibakeRepair, { once:true });
+  }else{
+    startMojibakeRepair();
+  }
+})();
+
+(function(){
+  var OC_CONFIG_KEY = 'homer-oc-config';
+  var ALLOWED_USER = 'bogdan';
+  var fabBtn = document.getElementById('fab-openclaw');
+  var fabDot = fabBtn.querySelector('.fab-dot');
+  var panel = document.getElementById('oc-panel');
+  var messagesEl = document.getElementById('oc-chat-messages');
+  var inputEl = document.getElementById('oc-chat-input');
+  var sendBtn = document.getElementById('oc-send-btn');
+  var clearBtn = document.getElementById('oc-clear-btn');
+  var closeBtn = document.getElementById('oc-close-btn');
+  var settingsBtn = document.getElementById('oc-settings-btn');
+  var settingsRow = document.getElementById('oc-settings-row');
+  var syncStatusRefreshBtn = document.getElementById('oc-sync-status-refresh');
+  var syncStatusSummaryEl = document.getElementById('oc-sync-status-summary');
+  var syncStatusGridEl = document.getElementById('oc-sync-status-grid');
+  var syncStatusDriftEl = document.getElementById('oc-sync-status-drift');
+  var settingsSave = document.getElementById('oc-settings-save');
+  var settingsClear = document.getElementById('oc-settings-clear');
+  var settingsAdvancedToggle = document.getElementById('oc-settings-advanced-toggle');
+  var settingsAdvanced = document.getElementById('oc-settings-advanced');
+  var systemPromptInput = document.getElementById('oc-system-prompt');
+  var exportBtn = document.getElementById('oc-export-btn');
+  var voiceBtn = document.getElementById('oc-voice-btn');
+  var attachBtn = document.getElementById('oc-attach-btn');
+  var fileInput = document.getElementById('oc-file-input');
+  var filePreview = document.getElementById('oc-file-preview');
+  var uploadStatusEl = document.getElementById('oc-upload-status');
+  var emojiBtn = document.getElementById('oc-emoji-btn');
+  var emojiPicker = document.getElementById('oc-emoji-picker');
+  var libraryBtn = document.getElementById('oc-library-btn');
+  var libraryPanel = document.getElementById('oc-library-panel');
+  var libraryList = document.getElementById('oc-library-list');
+  var libraryMeta = document.getElementById('oc-library-meta');
+  var mobileMenu = document.getElementById('oc-mobile-menu');
+  var mobileProviderJoeyBtn = document.getElementById('oc-mobile-provider-joey');
+  var mobileProviderNemoclawBtn = document.getElementById('oc-mobile-provider-nemoclaw');
+  var mobileModePersonalBtn = document.getElementById('oc-mobile-mode-personal');
+  var mobileModeWorkBtn = document.getElementById('oc-mobile-mode-work');
+  var mobileEditPromptBtn = document.getElementById('oc-mobile-edit-prompt');
+  var mobileClearPromptBtn = document.getElementById('oc-mobile-clear-prompt');
+  var mobileSyncToggleBtn = document.getElementById('oc-mobile-sync-toggle');
+  var mobileCommitMemoryBtn = document.getElementById('oc-mobile-commit-memory');
+  var mobileSyncDriveBtn = document.getElementById('oc-mobile-sync-drive');
+  var mobileBackupDriveBtn = document.getElementById('oc-mobile-backup-drive');
+  var mobileClearChatBtn = document.getElementById('oc-mobile-clear-chat');
+  var syncToggleBtn = document.getElementById('oc-sync-toggle');
+  var saveDbBtn = document.getElementById('oc-save-db');
+  var redisRefreshBtn = document.getElementById('oc-redis-refresh');
+  var expandBtn = document.getElementById('oc-expand-btn');
+  var fullscreenBtn = document.getElementById('oc-fullscreen-btn');
+  var scrollLatestBtn = document.getElementById('oc-scroll-latest');
+  var resizeHandle = document.getElementById('oc-resize-handle');
+  var unreadBadge = document.getElementById('oc-unread-badge');
+  var CHAT_CACHE_PREFIX = 'homer-oc-chat-cache:';
+  var CHAT_CLEAR_PREFIX = 'homer-oc-chat-cleared:';
+  var chatHistory = [];
+  var chatLastLocalMutationAt = 0;
+  var chatLastRemoteHydrateAt = 0;
+  var streaming = false;
+  var panelOpen = false;
+  var pendingFiles = [];
+  var unreadCount = 0;
+  var autoStickToBottom = true;
+  var uploadStatusTimer = 0;
+  var fallbackStatusActive = false;
+  var autoLearnRequest = Promise.resolve(null);
+  var autoLearnQueuedPayload = null;
+  var autoLearnQueuedReason = '';
+  var autoLearnLastCommittedKey = '';
+  var autoLearnLastErrorKey = '';
+  var autoLearnFlushActive = false;
+  var joeyDriveBackupTimer = null;
+  var joeyDriveBackupInFlight = false;
+  var joeyDriveBackupDirty = false;
+  var joeyDriveBackupDirtyReason = '';
+  var joeyDriveBackupDirtyAt = 0;
+  var joeyAutoCommitTimer = null;
+  var joeyAutoLearnRetryTimer = null;
+  var joeyManualCommitInFlight = false;
+  var joeyBackgroundCommitInFlight = false;
+  var joeySyncStatusTimer = null;
+  var joeySyncStatusInFlight = null;
+  var joeyLastDriveReconcileAt = 0;
+  var JOEY_DRIVE_BACKUP_MIN_DIRTY_MS = 6 * 60 * 60 * 1000;
+  var mobileSuppressedFields = [];
+  var MediaRecorderCtor = window.MediaRecorder || null;
+  var SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  var voiceRecognition = null;
+  var voiceRecorder = null;
+  var voiceStream = null;
+  var voiceChunks = [];
+  var voiceListening = false;
+  var voiceComposerBase = '';
+  var voiceFinalTranscript = '';
+  var voiceInterimTranscript = '';
+  var voiceAutoSendPending = false;
+  var voiceTranscribeInFlight = false;
+  var voiceStopTimer = 0;
+  var voiceCaptureInput = null;
+  function markJoeyDriveBackupDirty(reason){
+    joeyDriveBackupDirty = true;
+    joeyDriveBackupDirtyReason = String(reason || joeyDriveBackupDirtyReason || 'context-change');
+    joeyDriveBackupDirtyAt = Date.now();
+  }
+  window._homerMarkJoeyDriveBackupDirty = markJoeyDriveBackupDirty;
+  function clearJoeyDriveBackupDirty(){
+    joeyDriveBackupDirty = false;
+    joeyDriveBackupDirtyReason = '';
+    joeyDriveBackupDirtyAt = 0;
+  }
+  function getChatCacheKey(mode){
+    return CHAT_CACHE_PREFIX + (mode === 'work' ? 'work' : 'personal');
+  }
+  function getChatClearKey(mode){
+    return CHAT_CLEAR_PREFIX + (mode === 'work' ? 'work' : 'personal');
+  }
+  function markChatCleared(mode, ts){
+    try{
+      localStorage.setItem(getChatClearKey(mode || currentContextMode), String(Number(ts || Date.now()) || Date.now()));
+    }catch(e){}
+  }
+  function clearChatClearedMark(mode){
+    try{
+      localStorage.removeItem(getChatClearKey(mode || currentContextMode));
+    }catch(e){}
+  }
+  function getChatClearedAt(mode){
+    try{
+      return Number(localStorage.getItem(getChatClearKey(mode || currentContextMode)) || 0) || 0;
+    }catch(e){
+      return 0;
+    }
+  }
+  function normalizeChatHistoryEntries(items){
+    return (Array.isArray(items) ? items : []).filter(function(item){
+      return item && (item.role === 'user' || item.role === 'assistant') && String(item.content || '').trim();
+    }).map(function(item){
+      var next = {
+        role:item.role,
+        content:String(item.content || '').slice(0, 2000)
+      };
+      if(item.displayText) next.displayText = String(item.displayText || '');
+      if(item.provider) next.provider = String(item.provider || '');
+      if(item.model) next.model = String(item.model || '');
+      if(item.mode) next.mode = item.mode === 'work' ? 'work' : 'personal';
+      if(Array.isArray(item.files) && item.files.length) next.files = item.files.slice(0, 12).map(function(name){ return String(name || '').trim(); }).filter(Boolean);
+      return next;
+    }).slice(-100);
+  }
+  function chatEntriesEqual(a, b){
+    return !!(a && b && a.role === b.role && String(a.content || '') === String(b.content || ''));
+  }
+  function chatHistoryEqual(a, b){
+    var left = normalizeChatHistoryEntries(a);
+    var right = normalizeChatHistoryEntries(b);
+    if(left.length !== right.length) return false;
+    for(var i = 0; i < left.length; i += 1){
+      if(!chatEntriesEqual(left[i], right[i])) return false;
+    }
+    return true;
+  }
+  function isChatHistoryPrefix(prefix, full){
+    var left = normalizeChatHistoryEntries(prefix);
+    var right = normalizeChatHistoryEntries(full);
+    if(left.length > right.length) return false;
+    for(var i = 0; i < left.length; i += 1){
+      if(!chatEntriesEqual(left[i], right[i])) return false;
+    }
+    return true;
+  }
+  function persistChatCache(mode, updatedAt){
+    try{
+      localStorage.setItem(getChatCacheKey(mode || currentContextMode), JSON.stringify({
+        updatedAt: Number(updatedAt || Date.now()) || Date.now(),
+        history: normalizeChatHistoryEntries(chatHistory)
+      }));
+    }catch(e){}
+  }
+  function loadChatCache(mode){
+    try{
+      var raw = localStorage.getItem(getChatCacheKey(mode || currentContextMode));
+      if(!raw) return null;
+      var parsed = JSON.parse(raw);
+      if(!parsed || !Array.isArray(parsed.history)) return null;
+      return {
+        updatedAt: Number(parsed.updatedAt || 0) || 0,
+        history: normalizeChatHistoryEntries(parsed.history)
+      };
+    }catch(e){
+      return null;
+    }
+  }
+  function replaceChatHistory(nextHistory, options){
+    options = options || {};
+    var normalizedNext = normalizeChatHistoryEntries(nextHistory);
+    var normalizedCurrent = normalizeChatHistoryEntries(chatHistory);
+    var source = String(options.source || 'unknown');
+    var force = !!options.force;
+    var allowRewrite = !!options.allowRewrite;
+    var updatedAt = Number(options.updatedAt || Date.now()) || Date.now();
+    if(!normalizedNext.length){
+      if(force){
+        chatHistory = [];
+        chatLastRemoteHydrateAt = updatedAt;
+        renderMessages();
+        saveChatToVault();
+        persistChatCache(currentContextMode, updatedAt);
+        return true;
+      }
+      return false;
+    }
+    if(!normalizedCurrent.length){
+      var clearedAt = getChatClearedAt(currentContextMode);
+      if(!force && clearedAt && (Date.now() - clearedAt) < (30 * 60 * 1000)){
+        console.log('[Joey] Ignored ' + source + ' history because chat was explicitly cleared recently.');
+        return false;
+      }
+      chatHistory = normalizedNext;
+      chatLastRemoteHydrateAt = updatedAt;
+      clearChatClearedMark(currentContextMode);
+      renderMessages();
+      saveChatToVault();
+      persistChatCache(currentContextMode, updatedAt);
+      return true;
+    }
+    if(chatHistoryEqual(normalizedCurrent, normalizedNext)){
+      chatLastRemoteHydrateAt = Math.max(chatLastRemoteHydrateAt, updatedAt);
+      persistChatCache(currentContextMode, updatedAt);
+      return false;
+    }
+    if(isChatHistoryPrefix(normalizedCurrent, normalizedNext)){
+      chatHistory = normalizedNext;
+      chatLastRemoteHydrateAt = updatedAt;
+      clearChatClearedMark(currentContextMode);
+      renderMessages();
+      saveChatToVault();
+      persistChatCache(currentContextMode, updatedAt);
+      return true;
+    }
+    if(isChatHistoryPrefix(normalizedNext, normalizedCurrent)){
+      console.log('[Joey] Ignored stale ' + source + ' history because current chat is newer.');
+      return false;
+    }
+    if(!allowRewrite && chatLastLocalMutationAt && (Date.now() - chatLastLocalMutationAt) < (15 * 60 * 1000)){
+      console.log('[Joey] Ignored conflicting ' + source + ' history to preserve recent local chat.');
+      return false;
+    }
+    if(force && normalizedNext.length > normalizedCurrent.length){
+      chatHistory = normalizedNext;
+      chatLastRemoteHydrateAt = updatedAt;
+      renderMessages();
+      saveChatToVault();
+      persistChatCache(currentContextMode, updatedAt);
+      return true;
+    }
+    console.log('[Joey] Kept current chat window instead of conflicting ' + source + ' history.');
+    return false;
+  }
+  function markLocalChatMutation(){
+    chatLastLocalMutationAt = Date.now();
+    persistChatCache(currentContextMode, chatLastLocalMutationAt);
+  }
+  function restoreChatFromCache(mode){
+    var cached = loadChatCache(mode);
+    chatHistory = cached && Array.isArray(cached.history) ? cached.history : [];
+    chatLastLocalMutationAt = cached && cached.updatedAt ? cached.updatedAt : 0;
+    renderMessages();
+  }
+  function isAutoSyncEnabled(){
+    return localStorage.getItem('homer-sync-auto') === 'true';
+  }
+  function setAutoSyncEnabled(enabled){
+    localStorage.setItem('homer-sync-auto', enabled ? 'true' : 'false');
+    window.dispatchEvent(new CustomEvent('homer-sync-auto-changed', { detail:{ enabled: !!enabled } }));
+  }
+  function refreshJoeySyncToggleUi(){
+    var enabled = isAutoSyncEnabled();
+    if(syncToggleBtn){
+      syncToggleBtn.textContent = enabled ? 'Auto Sync On' : 'Auto Sync Off';
+      syncToggleBtn.classList.toggle('warn', !enabled);
+    }
+    if(mobileSyncToggleBtn){
+      mobileSyncToggleBtn.textContent = enabled ? 'Auto Sync On' : 'Auto Sync Off';
+    }
+  }
+  function getJoeyAccessState(){
+    var rawUser = String(localStorage.getItem('homer-auth-user') || '').trim();
+    if(!rawUser){
+      return { ok:false, message:'This feature is available only for Bogdan. Log in as Bogdan to use Joey.' };
+    }
+    if(rawUser.toLowerCase() !== ALLOWED_USER){
+      return { ok:false, message:'This feature is available only for Bogdan.' };
+    }
+    var perms = localStorage.getItem('homer-user-permissions');
+    if(perms){
+      try{
+        var parsed = JSON.parse(perms);
+        if(parsed.joey !== true){
+          return { ok:false, message:'This feature is available only for Bogdan.' };
+        }
+      }catch(e){}
+    }
+    return {
+      ok:true,
+      user:rawUser,
+      memoryEnabled: !!String(localStorage.getItem('homer-sync-pass') || '').trim()
+    };
+  }
+  function notifyJoeyAccessDenied(message){
+    if(panelOpen && typeof showError === 'function'){
+      showError(message);
+      return;
+    }
+    alert(message);
+  }
+  function ensureJoeyAccess(showMessage){
+    var access = getJoeyAccessState();
+    if(access.ok) return true;
+    if(showMessage !== false) notifyJoeyAccessDenied(access.message);
+    return false;
+  }
+  var OC_WINDOW_STATE_KEY = 'homer-oc-window-state';
+  var desktopWindowState = loadDesktopWindowState();
+
+  // --- Provider toggle ---
+  var currentProvider = localStorage.getItem('homer-oc-provider') || 'joey';
+  var storedContextMode = localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode');
+  var currentContextMode = storedContextMode === 'work' ? 'work' : 'personal';
+  var toggleTrack = document.getElementById('oc-toggle-track');
+  var labelJoey = document.getElementById('oc-label-joey');
+  var labelNemoclaw = document.getElementById('oc-label-nemoclaw');
+  var modePersonalBtn = document.getElementById('oc-mode-personal');
+  var modeWorkBtn = document.getElementById('oc-mode-work');
+  var modeHint = document.getElementById('oc-mode-hint');
+  var providerIcon = document.getElementById('oc-provider-icon');
+  var providerName = document.getElementById('oc-provider-name');
+  var modelBadge = document.getElementById('oc-model-badge');
+  function getProviderDisplayName(provider, mode){
+    var activeMode = mode === 'work' ? 'work' : 'personal';
+    if(provider !== 'nemoclaw') return 'Joey Kilo';
+    return activeMode === 'work' ? 'Joey Max' : 'Joey Titan';
+  }
+  function getProviderFallbackLabel(provider, mode){
+    return getProviderDisplayName(provider, mode);
+  }
+  function getProviderDefaultModel(provider, mode){
+    if(provider !== 'nemoclaw') return 'MiMo-V2-Pro';
+    return mode === 'work' ? 'minimax-m2.7:cloud' : 'Nemotron 3 Super';
+  }
+  function normalizeModelLabel(raw){
+    var value = String(raw || '').trim();
+    if(!value) return '';
+    value = value.split('/').pop();
+    if(/mimo-v2-pro/i.test(value)) return 'MiMo-V2-Pro';
+    if(/nemotron-?3-?super(?::cloud)?/i.test(value)) return 'Nemotron 3 Super';
+    if(/minimax-m2\.7:cloud/i.test(value)) return 'minimax-m2.7:cloud';
+    value = value.replace(/:(cloud|free)$/i, '');
+    return value;
+  }
+  function getModelStorageKey(provider, mode){
+    return 'homer-oc-model-label-' + provider + '-' + (mode === 'work' ? 'work' : 'personal');
+  }
+  function getStoredModelLabel(provider, mode){
+    return normalizeModelLabel(localStorage.getItem(getModelStorageKey(provider, mode))) || getProviderDefaultModel(provider, mode);
+  }
+  function rememberModelLabel(provider, mode, label){
+    var normalized = normalizeModelLabel(label);
+    if(!normalized) return;
+    localStorage.setItem(getModelStorageKey(provider, mode), normalized);
+  }
+  function applyModelBadge(label){
+    var text = normalizeModelLabel(label) || getStoredModelLabel(currentProvider, currentContextMode);
+    if(modelBadge) modelBadge.textContent = text;
+  }
+  function closeMobileMenu(){
+    if(!mobileMenu) return;
+    mobileMenu.classList.remove('open');
+    mobileMenu.setAttribute('aria-hidden', 'true');
+  }
+  function toggleMobileMenu(forceOpen){
+    if(!mobileMenu) return;
+    var next = typeof forceOpen === 'boolean' ? forceOpen : !mobileMenu.classList.contains('open');
+    mobileMenu.classList.toggle('open', next);
+    mobileMenu.setAttribute('aria-hidden', next ? 'false' : 'true');
+  }
+  function syncMobileMenuUi(){
+    if(!mobileMenu) return;
+    if(mobileProviderJoeyBtn){
+      mobileProviderJoeyBtn.classList.toggle('active', currentProvider === 'joey');
+      mobileProviderJoeyBtn.textContent = 'MiMo-V2-Pro';
+    }
+    if(mobileProviderNemoclawBtn){
+      mobileProviderNemoclawBtn.classList.toggle('active', currentProvider === 'nemoclaw');
+      mobileProviderNemoclawBtn.textContent = getProviderDefaultModel('nemoclaw', currentContextMode);
+    }
+    if(mobileModePersonalBtn) mobileModePersonalBtn.classList.toggle('active', currentContextMode !== 'work');
+    if(mobileModeWorkBtn) mobileModeWorkBtn.classList.toggle('active', currentContextMode === 'work');
+  }
+  function syncProviderUi(){
+    var isNemo = currentProvider === 'nemoclaw';
+    var isWork = currentContextMode === 'work';
+    var providerLabel = getProviderDisplayName(currentProvider, currentContextMode);
+    var nemoLabel = getProviderDisplayName('nemoclaw', currentContextMode);
+    toggleTrack.classList.toggle('nemoclaw', isNemo);
+    labelJoey.className = isNemo ? '' : 'active joey-active';
+    labelNemoclaw.className = isNemo ? 'active nemo-active' : '';
+    labelNemoclaw.textContent = nemoLabel;
+    if(modePersonalBtn){
+      modePersonalBtn.style.background = isWork ? 'rgba(15,23,42,.82)' : 'linear-gradient(135deg,#2563eb,#1d4ed8)';
+      modePersonalBtn.style.color = isWork ? '#e2e8f0' : '#fff';
+      modePersonalBtn.style.borderColor = isWork ? 'rgba(148,163,184,.25)' : 'rgba(59,130,246,.55)';
+    }
+    if(modeWorkBtn){
+      modeWorkBtn.style.background = isWork ? 'linear-gradient(135deg,#0f766e,#0d9488)' : 'rgba(15,23,42,.82)';
+      modeWorkBtn.style.color = isWork ? '#fff' : '#e2e8f0';
+      modeWorkBtn.style.borderColor = isWork ? 'rgba(13,148,136,.55)' : 'rgba(148,163,184,.25)';
+    }
+    if(modeHint) modeHint.textContent = 'Memory';
+    providerIcon.textContent = isNemo ? '\u{1F7E2}' : '\u{1F355}';
+    providerName.textContent = providerLabel;
+    applyModelBadge();
+    syncMobileMenuUi();
+    inputEl.placeholder = isNemo
+      ? 'Message ' + providerLabel + '...'
+      : 'Message Joey Kilo...';
+    syncVoiceUi();
+  }
+  function applyProvider(p){
+    currentProvider = p;
+    localStorage.setItem('homer-oc-provider', p);
+    rememberModelLabel(currentProvider, currentContextMode, getProviderDefaultModel(currentProvider, currentContextMode));
+    syncProviderUi();
+    renderMessages();
+  }
+  applyProvider(currentProvider);
+  function applyContextMode(mode, options){
+    options = options || {};
+    currentContextMode = mode === 'work' ? 'work' : 'personal';
+    localStorage.setItem('homer-oc-mode', currentContextMode);
+    localStorage.setItem('homer-vault-mode', currentContextMode);
+    rememberModelLabel(currentProvider, currentContextMode, getProviderDefaultModel(currentProvider, currentContextMode));
+    restoreChatFromCache(currentContextMode);
+    syncSystemPromptEditor();
+    syncProviderUi();
+    if(!options.silent){
+      window.dispatchEvent(new CustomEvent('homer-context-mode-changed', { detail:{ mode: currentContextMode, source: options.source || 'joey' } }));
+    }
+    scheduleJoeySyncStatusRefresh(150);
+    if(options.skipReload) return;
+    loadChatFromVault();
+    if(panelOpen){
+      setTimeout(function(){
+        refreshJoeyBundleFromRedis({ mode:currentContextMode, source:'mode-switch' }).catch(function(){
+          loadHistoryFromRedis({ force:true, source:'mode-switch' });
+        });
+        fetchFileLibrary({ silent:true });
+      }, 20);
+    }
+  }
+  applyContextMode(currentContextMode, { skipReload:true });
+  window._homerApplyContextMode = function(mode, options){
+    applyContextMode(mode, options || {});
+  };
+  window.addEventListener('homer-context-mode-changed', function(e){
+    var detail = e && e.detail || {};
+    if(detail.source === 'joey') return;
+    var nextMode = detail.mode === 'work' ? 'work' : 'personal';
+    if(nextMode === currentContextMode) return;
+    applyContextMode(nextMode, { silent:true, source:'vault' });
+  });
+
+  toggleTrack.addEventListener('click', function(){
+    applyProvider(currentProvider === 'joey' ? 'nemoclaw' : 'joey');
+  });
+  labelJoey.addEventListener('click', function(){ applyProvider('joey'); });
+  labelNemoclaw.addEventListener('click', function(){ applyProvider('nemoclaw'); });
+  if(modePersonalBtn) modePersonalBtn.addEventListener('click', function(){ applyContextMode('personal'); });
+  if(modeWorkBtn) modeWorkBtn.addEventListener('click', function(){ applyContextMode('work'); });
+
+  function joeyActionUrl(action, passphrase, modeOverride){
+    var activeMode = modeOverride === 'work'
+      ? 'work'
+      : ((modeOverride === 'personal' ? 'personal' : currentContextMode) === 'work' ? 'work' : 'personal');
+    var url = '/api/joey?action=' + encodeURIComponent(action) + '&mode=' + encodeURIComponent(activeMode);
+    if(passphrase) url += '&passphrase=' + encodeURIComponent(passphrase);
+    return url;
+  }
+  function getJoeyDeviceLabel(){
+    var ua = navigator.userAgent || '';
+    var mobile = /Android|iPhone|iPad|Mobile/i.test(ua);
+    var platform = /iPhone|iPad|iPod/i.test(ua)
+      ? 'iPhone'
+      : (/Android/i.test(ua) ? 'Android' : (mobile ? 'Mobile' : 'Desktop'));
+    var browser = /CriOS|Chrome/i.test(ua)
+      ? 'Chrome'
+      : (/FxiOS|Firefox/i.test(ua) ? 'Firefox' : (/Safari/i.test(ua) && !/Chrome|CriOS|Edg/i.test(ua) ? 'Safari' : (/Edg/i.test(ua) ? 'Edge' : 'Browser')));
+    return platform + ' ' + browser;
+  }
+  function withContextMode(payload){
+    var body = payload && typeof payload === 'object' ? payload : {};
+    body.mode = currentContextMode;
+    if(typeof getFieldSyncDeviceId === 'function' && !body.deviceId) body.deviceId = getFieldSyncDeviceId();
+    if(!body.deviceLabel) body.deviceLabel = getJoeyDeviceLabel();
+    return body;
+  }
+  window._homerJoeyActionUrl = joeyActionUrl;
+  window._homerWithContextMode = withContextMode;
+
+  function formatJoeySyncTime(value){
+    if(!value) return 'Never';
+    var date = new Date(value);
+    if(isNaN(date.getTime())) return String(value);
+    return date.toLocaleString();
+  }
+  function renderJoeySyncStatusState(summary, cards, chips){
+    if(syncStatusSummaryEl) syncStatusSummaryEl.textContent = summary || '';
+    if(syncStatusGridEl){
+      syncStatusGridEl.innerHTML = (cards || []).map(function(card){
+        return '<div class="oc-sync-status-card"><strong>' + escHtml(String(card.label || '')) + '</strong><span>' + escHtml(String(card.value || '')) + '</span></div>';
+      }).join('');
+    }
+    if(syncStatusDriftEl){
+      syncStatusDriftEl.innerHTML = (chips || []).map(function(chip){
+        return '<span class="oc-sync-status-chip ' + escHtml(String(chip.tone || 'unknown')) + '">' + escHtml(String(chip.label || '')) + '</span>';
+      }).join('');
+    }
+  }
+  function formatJoeyBytes(value){
+    var bytes = Math.max(0, Number(value || 0) || 0);
+    if(bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    if(bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return bytes + ' B';
+  }
+  function scheduleJoeySyncStatusRefresh(delayMs){
+    if(!settingsRow || !settingsRow.classList.contains('open')) return;
+    if(joeySyncStatusTimer) clearTimeout(joeySyncStatusTimer);
+    joeySyncStatusTimer = setTimeout(function(){
+      joeySyncStatusTimer = null;
+      refreshJoeySyncStatus({ silent:true }).catch(function(){});
+    }, typeof delayMs === 'number' ? delayMs : 350);
+  }
+  function refreshJoeySyncStatus(opts){
+    opts = opts || {};
+    if(!syncStatusSummaryEl || !syncStatusGridEl || !syncStatusDriftEl){
+      return Promise.resolve(null);
+    }
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass){
+      renderJoeySyncStatusState('Unlock Joey memory to check sync status.', [], []);
+      return Promise.resolve(null);
+    }
+    if(joeySyncStatusInFlight && !opts.force){
+      return joeySyncStatusInFlight;
+    }
+    renderJoeySyncStatusState('Checking Redis and Google Drive for ' + (currentContextMode === 'work' ? 'Work' : 'Personal') + ' mode...', [], []);
+    joeySyncStatusInFlight = Promise.all([
+      fetchJson(joeyActionUrl('sync-meta', pass), { cache:'no-store' }),
+      fetch('/api/gdrive-reconcile', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(withContextMode({ passphrase: pass, compareOnly: true }))
+      }).then(parseJoeyJsonResponse)
+    ]).then(function(results){
+      var syncResp = results[0] || {};
+      var compareResp = results[1] || {};
+      compareResp = compareResp || {};
+      var modeLabel = compareResp.mode === 'work' ? 'Work' : 'Personal';
+      var syncMeta = syncResp.syncMeta || compareResp.syncMeta || {};
+      var stats = syncResp.stats || {};
+      var driveMeta = compareResp.driveMeta || {};
+      var drift = compareResp.drift && compareResp.drift.after ? compareResp.drift.after : { inSync:false, mismatchCount:0, buckets:{} };
+      var safeMergeAdds = compareResp.reconciled || {};
+      var mergeAdds = [
+        safeMergeAdds.memories && safeMergeAdds.memories.added ? safeMergeAdds.memories.added + ' memories' : '',
+        safeMergeAdds.history && safeMergeAdds.history.added ? safeMergeAdds.history.added + ' messages' : '',
+        safeMergeAdds.customFiles && safeMergeAdds.customFiles.added ? safeMergeAdds.customFiles.added + ' custom files' : '',
+        safeMergeAdds.files && safeMergeAdds.files.added ? safeMergeAdds.files.added + ' context files' : '',
+        safeMergeAdds.fileLibrary && safeMergeAdds.fileLibrary.added ? safeMergeAdds.fileLibrary.added + ' uploads' : ''
+      ].filter(Boolean).join(', ');
+      var summary = 'Redis is the live Joey DB for ' + modeLabel + ' mode. Drive is a scheduled markdown backup.';
+      var cards = [
+        { label:'Mode', value: modeLabel },
+        { label:'Redis Bundle', value: formatJoeyBytes(stats.bundleBytes) + ' (' + String(stats.planUtilizationPct || 0) + '% of 1 GB)' },
+        { label:'Last DB Write', value: formatJoeySyncTime(syncMeta.updatedAt) },
+        { label:'Last Device', value: syncMeta.lastDeviceLabel || syncMeta.lastDeviceId || 'Unknown' },
+        { label:'Last Commit', value: formatJoeySyncTime(syncMeta.lastCommittedAt) },
+        { label:'Last Drive Backup', value: formatJoeySyncTime(syncMeta.lastDriveBackupAt || driveMeta.driveExportedAt) },
+        { label:'Last Drive Compare', value: formatJoeySyncTime(syncMeta.lastDriveReconcileAt || compareResp.comparedAt) },
+        { label:'DB Payload', value: (stats.memoryCount || 0) + ' memories, ' + (stats.historyCount || 0) + ' msgs, ' + ((stats.fileCount || 0) + (stats.customFileCount || 0)) + ' md files' },
+        { label:'Drive Drift', value: drift.inSync ? 'In sync' : (drift.mismatchCount + ' bucket(s) differ') }
+      ];
+      var bucketLabels = {
+        profile: 'Profile',
+        memories: 'Memories',
+        history: 'History',
+        files: 'Files',
+        fileLibrary: 'Uploads',
+        customFiles: 'Custom Files',
+        journal: 'Journal'
+      };
+      var chips = Object.keys(bucketLabels).map(function(key){
+        var bucket = drift.buckets && drift.buckets[key] ? drift.buckets[key] : null;
+        var tone = !bucket || !bucket.available ? 'unknown' : (bucket.match ? 'match' : 'mismatch');
+        var suffix = !bucket || !bucket.available ? 'unknown' : (bucket.match ? 'match' : 'drift');
+        return { tone:tone, label: bucketLabels[key] + ': ' + suffix };
+      });
+      if(mergeAdds){
+        chips.unshift({ tone: compareResp.wouldChange ? 'mismatch' : 'match', label: 'Safe Merge Preview: ' + mergeAdds });
+      }
+      renderJoeySyncStatusState(summary, cards, chips);
+      return { syncMeta:syncMeta, driveMeta:driveMeta, drift:drift, compare:compareResp, stats:stats };
+    }).catch(function(err){
+      renderJoeySyncStatusState('Could not load Joey sync status. ' + (err && err.message ? err.message : String(err)), [], []);
+      if(!opts.silent) console.error('[Joey] Sync status error:', err);
+      throw err;
+    }).finally(function(){
+      joeySyncStatusInFlight = null;
+    });
+    return joeySyncStatusInFlight;
+  }
+
+  function getConfigStorageKey(mode){
+    return OC_CONFIG_KEY + '-' + (mode === 'work' ? 'work' : 'personal');
+  }
+  function getConfig(mode){
+    var activeMode = mode === 'work' ? 'work' : 'personal';
+    try{
+      var raw = localStorage.getItem(getConfigStorageKey(activeMode));
+      if(raw) return JSON.parse(raw) || {};
+      if(activeMode === 'personal'){
+        return JSON.parse(localStorage.getItem(OC_CONFIG_KEY)) || {};
+      }
+    }catch(e){}
+    return {};
+  }
+  function setConfig(c, mode){
+    var activeMode = mode === 'work' ? 'work' : 'personal';
+    localStorage.setItem(getConfigStorageKey(activeMode), JSON.stringify(c || {}));
+  }
+  function getSavedSystemPrompt(mode){
+    return String((getConfig(mode).system || '')).trim();
+  }
+  function syncSystemPromptEditor(){
+    if(systemPromptInput) systemPromptInput.value = getSavedSystemPrompt(currentContextMode);
+  }
+  function loadDesktopWindowState(){
+    try{
+      var parsed = JSON.parse(localStorage.getItem(OC_WINDOW_STATE_KEY) || '{}') || {};
+      return {
+        mode: /^(default|custom|expanded|fullscreen)$/.test(parsed.mode || '') ? parsed.mode : 'default',
+        bounds: parsed.bounds || null,
+        settingsOpen: !!parsed.settingsOpen
+      };
+    }catch(e){
+      return { mode:'default', bounds:null, settingsOpen:false };
+    }
+  }
+  function saveDesktopWindowState(){
+    try{ localStorage.setItem(OC_WINDOW_STATE_KEY, JSON.stringify(desktopWindowState)); }catch(e){}
+  }
+  function clamp(value, min, max){
+    return Math.min(max, Math.max(min, value));
+  }
+  function isMobileShell(){
+    var coarse = window.matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window);
+    var shortSide = Math.min(window.innerWidth, window.innerHeight);
+    var longSide = Math.max(window.innerWidth, window.innerHeight);
+    var ua = navigator.userAgent || '';
+    var phoneUa = /iPhone|Android.+Mobile|Mobile\/|CriOS|FxiOS/.test(ua);
+    return coarse && ((shortSide <= 600 && longSide <= 980) || phoneUa);
+  }
+  function clampDesktopBounds(bounds){
+    var margin = 12;
+    var maxWidth = Math.max(360, window.innerWidth - (margin * 2));
+    var maxHeight = Math.max(420, window.innerHeight - (margin * 2));
+    var width = clamp(Math.round((bounds && bounds.width) || 420), 360, maxWidth);
+    var height = clamp(Math.round((bounds && bounds.height) || 600), 420, maxHeight);
+    var left = Math.round(bounds && typeof bounds.left === 'number' ? bounds.left : (window.innerWidth - width - 80));
+    var top = Math.round(bounds && typeof bounds.top === 'number' ? bounds.top : (window.innerHeight - height - 96));
+    left = clamp(left, margin, Math.max(margin, window.innerWidth - width - margin));
+    top = clamp(top, margin, Math.max(margin, window.innerHeight - height - margin));
+    return { left:left, top:top, width:width, height:height };
+  }
+  function clearDesktopPanelBounds(){
+    panel.classList.remove('oc-customized');
+    panel.style.left = '';
+    panel.style.top = '';
+    panel.style.right = '';
+    panel.style.bottom = '';
+    panel.style.width = '';
+    panel.style.height = '';
+  }
+  function applyDesktopBounds(bounds, persist){
+    if(isMobileShell()) return null;
+    var next = clampDesktopBounds(bounds);
+    panel.classList.remove('oc-expanded');
+    panel.classList.add('oc-customized');
+    panel.style.left = next.left + 'px';
+    panel.style.top = next.top + 'px';
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+    panel.style.width = next.width + 'px';
+    panel.style.height = next.height + 'px';
+    if(persist !== false){
+      desktopWindowState.mode = 'custom';
+      desktopWindowState.bounds = next;
+      saveDesktopWindowState();
+    }
+    syncWindowButtons();
+    return next;
+  }
+  function captureCurrentDesktopBounds(){
+    if(isMobileShell()) return desktopWindowState.bounds;
+    var rect = panel.getBoundingClientRect();
+    if(!rect.width || !rect.height) return desktopWindowState.bounds;
+    var next = clampDesktopBounds({ left:rect.left, top:rect.top, width:rect.width, height:rect.height });
+    desktopWindowState.bounds = next;
+    saveDesktopWindowState();
+    return next;
+  }
+  function restoreDesktopLayout(){
+    panel.classList.remove('oc-fullscreen', 'oc-expanded');
+    if(desktopWindowState.bounds){
+      applyDesktopBounds(desktopWindowState.bounds, true);
+      return;
+    }
+    clearDesktopPanelBounds();
+    desktopWindowState.mode = 'default';
+    saveDesktopWindowState();
+    syncWindowButtons();
+  }
+  function syncWindowButtons(){
+    var isFullscreen = panel.classList.contains('oc-fullscreen');
+    var isExpanded = panel.classList.contains('oc-expanded');
+    expandBtn.title = isExpanded ? 'Restore window' : 'Expand';
+    fullscreenBtn.title = isFullscreen ? 'Exit fullscreen' : 'Fullscreen';
+    if(resizeHandle) resizeHandle.style.display = (!isMobileShell() && !isFullscreen) ? 'block' : 'none';
+  }
+  function applyDesktopWindowState(){
+    settingsRow.classList.toggle('open', !!desktopWindowState.settingsOpen);
+    if(isMobileShell()){
+      panel.classList.remove('oc-expanded', 'oc-fullscreen');
+      clearDesktopPanelBounds();
+      syncWindowButtons();
+      return;
+    }
+    panel.classList.remove('oc-expanded', 'oc-fullscreen');
+    clearDesktopPanelBounds();
+    if(desktopWindowState.mode === 'fullscreen'){
+      panel.classList.add('oc-fullscreen');
+    } else if(desktopWindowState.mode === 'expanded'){
+      panel.classList.add('oc-expanded');
+    } else if(desktopWindowState.mode === 'custom' && desktopWindowState.bounds){
+      applyDesktopBounds(desktopWindowState.bounds, false);
+      return;
+    }
+    syncWindowButtons();
+  }
+  function isNearBottom(){
+    return (messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight) < 36;
+  }
+  function updateScrollLatestButton(){
+    if(!scrollLatestBtn) return;
+    var show = panelOpen && !autoStickToBottom && messagesEl.scrollHeight > (messagesEl.clientHeight + 24);
+    scrollLatestBtn.classList.toggle('visible', show);
+  }
+  function scrollMessagesToBottom(force){
+    if(force || autoStickToBottom){
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      autoStickToBottom = true;
+    }
+    updateScrollLatestButton();
+  }
+  function setUnreadCount(count){
+    unreadCount = Math.max(0, count || 0);
+    fabBtn.classList.toggle('has-unread', unreadCount > 0);
+    if(unreadBadge) unreadBadge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+  }
+  function incrementUnread(){
+    if(panelOpen) return;
+    setUnreadCount(unreadCount + 1);
+  }
+  function formatUploadSize(size){
+    var value = Number(size) || 0;
+    if(!value) return '';
+    if(value >= 1024 * 1024) return (value / (1024 * 1024)).toFixed(1).replace(/\.0$/,'') + ' MB';
+    if(value >= 1024) return Math.round(value / 1024) + ' KB';
+    return value + ' B';
+  }
+  function formatUploadTime(value){
+    if(!value) return '';
+    var dt = new Date(value);
+    if(Number.isNaN(dt.getTime())) return String(value);
+    return dt.toLocaleString();
+  }
+  function setUploadStatus(message, tone, sticky){
+    if(!uploadStatusEl) return;
+    if(uploadStatusTimer){
+      clearTimeout(uploadStatusTimer);
+      uploadStatusTimer = 0;
+    }
+    if(!message){
+      uploadStatusEl.innerHTML = '';
+      uploadStatusEl.classList.remove('visible');
+      return;
+    }
+    uploadStatusEl.innerHTML = '<span class="oc-upload-pill ' + escHtml(tone || '') + '">' + escHtml(message) + '</span>';
+    uploadStatusEl.classList.add('visible');
+    if(!sticky){
+      uploadStatusTimer = window.setTimeout(function(){
+        uploadStatusEl.innerHTML = '';
+        uploadStatusEl.classList.remove('visible');
+        uploadStatusTimer = 0;
+      }, 4200);
+    }
+  }
+  function normalizeVoiceTranscript(value){
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+  function isIosVoiceFallbackPreferred(){
+    try{
+      var ua = String(navigator.userAgent || '');
+      var platform = String(navigator.platform || '');
+      var touchPoints = Number(navigator.maxTouchPoints || 0) || 0;
+      return /iPad|iPhone|iPod/i.test(ua) || (platform === 'MacIntel' && touchPoints > 1);
+    }catch(_){
+      return false;
+    }
+  }
+  function isMobileVoiceUploadPreferred(){
+    try{
+      if(isIosVoiceFallbackPreferred()) return true;
+      var ua = String(navigator.userAgent || '');
+      var touchPoints = Number(navigator.maxTouchPoints || 0) || 0;
+      if(/Android/i.test(ua)) return true;
+      if(/Mobile|Tablet/i.test(ua) && touchPoints > 0) return true;
+      return false;
+    }catch(_){
+      return false;
+    }
+  }
+  function clearVoiceStopTimer(){
+    if(voiceStopTimer){
+      clearTimeout(voiceStopTimer);
+      voiceStopTimer = 0;
+    }
+  }
+  function stopVoiceStream(){
+    try{
+      if(voiceStream && voiceStream.getTracks){
+        voiceStream.getTracks().forEach(function(track){
+          try{ track.stop(); }catch(_){}
+        });
+      }
+    }catch(_){}
+    voiceStream = null;
+  }
+  function blobToBase64(blob){
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onloadend = function(){
+        var result = String(reader.result || '');
+        var comma = result.indexOf(',');
+        resolve(comma >= 0 ? result.slice(comma + 1) : result);
+      };
+      reader.onerror = function(){ reject(new Error('Could not read recorded audio')); };
+      reader.readAsDataURL(blob);
+    });
+  }
+  function pickVoiceMimeType(){
+    if(!MediaRecorderCtor || typeof MediaRecorderCtor.isTypeSupported !== 'function') return '';
+    var preferred = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+      'audio/ogg;codecs=opus',
+      'audio/ogg',
+      'audio/mpeg'
+    ];
+    for(var i = 0; i < preferred.length; i += 1){
+      if(MediaRecorderCtor.isTypeSupported(preferred[i])) return preferred[i];
+    }
+    return '';
+  }
+  function transcribeVoiceBlob(blob, mimeType){
+    voiceTranscribeInFlight = true;
+    syncVoiceUi();
+    setUploadStatus('Transcribing voice command…', 'success', true);
+    return blobToBase64(blob).then(function(audioBase64){
+      return fetch('/api/openclaw?action=transcribe', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          audioBase64: audioBase64,
+          mimeType: String(mimeType || blob.type || 'audio/webm').trim(),
+          language: String((navigator && navigator.language) || '').trim()
+        })
+      });
+    }).then(function(response){
+      return response.json().catch(function(){ return {}; }).then(function(data){
+        if(!response.ok || !data || !data.ok){
+          var reason = (data && (data.error || data.detail)) || ('HTTP ' + response.status);
+          throw new Error(String(reason || 'Transcription failed'));
+        }
+        return normalizeVoiceTranscript(data.transcript || '');
+      });
+    }).finally(function(){
+      voiceTranscribeInFlight = false;
+      syncVoiceUi();
+    });
+  }
+  function ensureVoiceCaptureInput(){
+    if(voiceCaptureInput) return voiceCaptureInput;
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'audio/*,.m4a,.mp3,.wav,.webm,.ogg,.aac,.mp4';
+    input.setAttribute('data-mobile-voice-input', 'true');
+    input.style.display = 'none';
+    input.addEventListener('change', function(){
+      var file = input.files && input.files[0] ? input.files[0] : null;
+      input.value = '';
+      if(!file) return;
+      voiceComposerBase = inputEl.value || '';
+      finalizeRecordedVoice(file, file.type || 'audio/mp4');
+    });
+    (panel || document.body).appendChild(input);
+    voiceCaptureInput = input;
+    return input;
+  }
+  function openVoiceCaptureInput(){
+    if(streaming){
+      setUploadStatus('Wait for the current reply to finish before using voice.', 'warn', true);
+      return true;
+    }
+    if(voiceTranscribeInFlight){
+      setUploadStatus('Wait for the current recording to finish transcribing.', 'warn', true);
+      return true;
+    }
+    var input = ensureVoiceCaptureInput();
+    setUploadStatus('Choose or record an audio clip to send to Joey.', 'success', true);
+    try{
+      if(typeof input.showPicker === 'function'){
+        input.showPicker();
+      } else {
+        input.click();
+      }
+    }catch(_){
+      input.click();
+    }
+    return true;
+  }
+  function buildVoiceComposerText(){
+    var parts = [];
+    var base = normalizeVoiceTranscript(voiceComposerBase);
+    var finalText = normalizeVoiceTranscript(voiceFinalTranscript);
+    var interimText = normalizeVoiceTranscript(voiceInterimTranscript);
+    if(base) parts.push(base);
+    if(finalText) parts.push(finalText);
+    if(interimText) parts.push(interimText);
+    return parts.join(' ').trim();
+  }
+  function setComposerText(value){
+    inputEl.value = String(value || '');
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+  }
+  function syncVoiceUi(){
+    if(!voiceBtn) return;
+    var supported = !!isMobileVoiceUploadPreferred() || !!((navigator.mediaDevices && navigator.mediaDevices.getUserMedia && MediaRecorderCtor) || SpeechRecognitionCtor);
+    var listening = !!voiceListening;
+    var busy = !!voiceTranscribeInFlight;
+    voiceBtn.disabled = !supported || busy;
+    voiceBtn.classList.toggle('active', supported && !listening && !busy);
+    voiceBtn.classList.toggle('recording', listening);
+    voiceBtn.setAttribute('aria-pressed', listening ? 'true' : 'false');
+    voiceBtn.title = !supported
+      ? 'Voice input requires microphone support on HTTPS'
+      : (busy ? 'Transcribing voice command' : (listening ? 'Stop voice recording' : 'Start voice recording'));
+  }
+  function finalizeRecordedVoice(blob, mimeType){
+    if(!blob || !blob.size){
+      setComposerText(voiceComposerBase);
+      setUploadStatus('No audio was captured. Try again.', 'warn', true);
+      voiceComposerBase = '';
+      return;
+    }
+    transcribeVoiceBlob(blob, mimeType).then(function(transcript){
+      if(!transcript){
+        setComposerText(voiceComposerBase);
+        setUploadStatus('Could not detect speech in the recording.', 'warn', true);
+        voiceComposerBase = '';
+        return;
+      }
+      voiceFinalTranscript = transcript;
+      voiceInterimTranscript = '';
+      setComposerText(buildVoiceComposerText());
+      setUploadStatus('Voice command captured. Sending…', 'success');
+      voiceComposerBase = '';
+      voiceAutoSendPending = false;
+      window.setTimeout(function(){
+        if((inputEl.value || '').trim()) sendMessage();
+      }, 40);
+    }).catch(function(err){
+      setComposerText(voiceComposerBase);
+      setUploadStatus('Voice input failed: ' + (err && err.message ? err.message : String(err)), 'warn', true);
+      voiceComposerBase = '';
+    }).finally(function(){
+      voiceFinalTranscript = '';
+      voiceInterimTranscript = '';
+      voiceAutoSendPending = false;
+    });
+  }
+  function startRecordedVoiceInput(){
+    if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) || !MediaRecorderCtor) return false;
+    if(streaming){
+      setUploadStatus('Wait for the current reply to finish before using voice.', 'warn', true);
+      return true;
+    }
+    if(voiceTranscribeInFlight){
+      setUploadStatus('Wait for the current recording to finish transcribing.', 'warn', true);
+      return true;
+    }
+    navigator.mediaDevices.getUserMedia({
+      audio:{
+        echoCancellation:true,
+        noiseSuppression:true,
+        autoGainControl:true
+      }
+    }).then(function(stream){
+      voiceStream = stream;
+      voiceChunks = [];
+      voiceComposerBase = inputEl.value || '';
+      voiceFinalTranscript = '';
+      voiceInterimTranscript = '';
+      voiceAutoSendPending = false;
+      var mimeType = pickVoiceMimeType();
+      var recorder = mimeType ? new MediaRecorderCtor(stream, { mimeType:mimeType }) : new MediaRecorderCtor(stream);
+      voiceRecorder = recorder;
+      recorder.onstart = function(){
+        voiceListening = true;
+        syncVoiceUi();
+        setUploadStatus('Recording… tap again to stop.', 'success');
+        clearVoiceStopTimer();
+        voiceStopTimer = window.setTimeout(function(){
+          if(voiceRecorder && voiceRecorder.state === 'recording'){
+            try{ voiceRecorder.stop(); }catch(_){}
+          }
+        }, 45000);
+      };
+      recorder.ondataavailable = function(event){
+        if(event && event.data && event.data.size) voiceChunks.push(event.data);
+      };
+      recorder.onerror = function(event){
+        voiceListening = false;
+        clearVoiceStopTimer();
+        stopVoiceStream();
+        voiceRecorder = null;
+        syncVoiceUi();
+        var err = event && event.error;
+        setUploadStatus('Voice recording failed: ' + ((err && err.message) || (err && err.name) || 'unknown error'), 'warn', true);
+      };
+      recorder.onstop = function(){
+        var recordedType = recorder.mimeType || mimeType || 'audio/webm';
+        var blob = new Blob(voiceChunks, { type: recordedType });
+        voiceRecorder = null;
+        voiceChunks = [];
+        voiceListening = false;
+        clearVoiceStopTimer();
+        stopVoiceStream();
+        syncVoiceUi();
+        finalizeRecordedVoice(blob, recordedType);
+      };
+      recorder.start(250);
+    }).catch(function(err){
+      syncVoiceUi();
+      setUploadStatus('Microphone access failed: ' + (err && err.message ? err.message : String(err)), 'error', true);
+    });
+    return true;
+  }
+  function ensureVoiceRecognition(){
+    if(!SpeechRecognitionCtor) return null;
+    if(voiceRecognition) return voiceRecognition;
+    var rec = new SpeechRecognitionCtor();
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    rec.lang = String((navigator && navigator.language) || 'en-US');
+    rec.onstart = function(){
+      voiceListening = true;
+      voiceComposerBase = inputEl.value || '';
+      voiceFinalTranscript = '';
+      voiceInterimTranscript = '';
+      voiceAutoSendPending = false;
+      syncVoiceUi();
+      setUploadStatus('Listening… speak now.', 'success');
+    };
+    rec.onresult = function(event){
+      var finalText = '';
+      var interimText = '';
+      for(var i = event.resultIndex || 0; i < event.results.length; i += 1){
+        var result = event.results[i];
+        if(!result || !result[0]) continue;
+        var transcript = normalizeVoiceTranscript(result[0].transcript);
+        if(!transcript) continue;
+        if(result.isFinal){
+          finalText += (finalText ? ' ' : '') + transcript;
+        } else {
+          interimText += (interimText ? ' ' : '') + transcript;
+        }
+      }
+      if(finalText){
+        voiceFinalTranscript = normalizeVoiceTranscript((voiceFinalTranscript ? voiceFinalTranscript + ' ' : '') + finalText);
+        voiceAutoSendPending = true;
+      }
+      voiceInterimTranscript = interimText;
+      setComposerText(buildVoiceComposerText());
+    };
+    rec.onerror = function(event){
+      var code = String(event && event.error || '').trim();
+      voiceListening = false;
+      voiceInterimTranscript = '';
+      syncVoiceUi();
+      if(code === 'aborted') return;
+      if(code === 'no-speech'){
+        setComposerText(voiceComposerBase);
+        setUploadStatus('No speech detected. Try again.', 'warn', true);
+        return;
+      }
+      if(code === 'not-allowed' || code === 'service-not-allowed'){
+        setUploadStatus('Microphone permission was denied.', 'error', true);
+        return;
+      }
+      if(code === 'audio-capture'){
+        setUploadStatus('No microphone was found for voice input.', 'error', true);
+        return;
+      }
+      setUploadStatus('Voice input failed: ' + (code || 'unknown error'), 'warn', true);
+    };
+    rec.onend = function(){
+      var finalText = normalizeVoiceTranscript(voiceFinalTranscript);
+      voiceListening = false;
+      voiceInterimTranscript = '';
+      syncVoiceUi();
+      if(finalText){
+        setComposerText(buildVoiceComposerText());
+        setUploadStatus('Voice command captured. Sending…', 'success');
+        if(voiceAutoSendPending && !streaming){
+          window.setTimeout(function(){
+            if((inputEl.value || '').trim()) sendMessage();
+          }, 40);
+        }
+      } else {
+        setComposerText(voiceComposerBase);
+      }
+      voiceComposerBase = '';
+      voiceFinalTranscript = '';
+      voiceInterimTranscript = '';
+      voiceAutoSendPending = false;
+    };
+    voiceRecognition = rec;
+    return rec;
+  }
+  function startVoiceInput(){
+    if(isMobileVoiceUploadPreferred()){
+      openVoiceCaptureInput();
+      return;
+    }
+    if(startRecordedVoiceInput()) return;
+    if(!SpeechRecognitionCtor){
+      setUploadStatus('Voice input requires microphone support on HTTPS.', 'warn', true);
+      syncVoiceUi();
+      return;
+    }
+    if(streaming){
+      setUploadStatus('Wait for the current reply to finish before using voice.', 'warn', true);
+      return;
+    }
+    try{
+      ensureVoiceRecognition().start();
+    }catch(err){
+      setUploadStatus('Voice input could not start. ' + (err && err.message ? err.message : String(err)), 'warn', true);
+    }
+  }
+  function toggleVoiceInput(){
+    if(voiceListening){
+      if(voiceRecorder && voiceRecorder.state === 'recording'){
+        try{ voiceRecorder.stop(); }catch(_){}
+        return;
+      }
+      if(voiceRecognition){
+        voiceAutoSendPending = !!normalizeVoiceTranscript(voiceFinalTranscript);
+        try{ voiceRecognition.stop(); }catch(_){}
+        return;
+      }
+      return;
+    }
+    startVoiceInput();
+  }
+  function renderFileLibrary(items){
+    if(!libraryList || !libraryMeta) return;
+    var files = Array.isArray(items) ? items.slice() : [];
+    files.sort(function(a, b){
+      return String((b && b.uploadedAt) || '').localeCompare(String((a && a.uploadedAt) || ''));
+    });
+    libraryMeta.textContent = files.length ? (files.length + ' remembered file' + (files.length === 1 ? '' : 's')) : 'No remembered files yet';
+    if(!files.length){
+      libraryList.innerHTML = '<div class="oc-library-empty">Upload a file in chat and it will show up here with its Drive link.</div>';
+      return;
+    }
+    libraryList.innerHTML = files.map(function(file){
+      var name = file.name || file.fileName || 'Untitled upload';
+      var parts = [];
+      var stamp = formatUploadTime(file.uploadedAt);
+      var size = formatUploadSize(file.size);
+      if(stamp) parts.push(stamp);
+      if(size) parts.push(size);
+      if(file.mimeType) parts.push(file.mimeType);
+      var excerpt = file.excerpt || file.summary || '';
+      var links = '';
+      if(file.folderUrl) links += '<a href="' + escAttr(file.folderUrl) + '" target="_blank" rel="noopener noreferrer">Folder</a>';
+      if(file.driveUrl) links += '<a href="' + escAttr(file.driveUrl) + '" target="_blank" rel="noopener noreferrer">Drive link</a>';
+      if(file.downloadUrl) links += '<a href="' + escAttr(file.downloadUrl) + '" target="_blank" rel="noopener noreferrer">Download</a>';
+      return '<div class="oc-library-item">' +
+        '<strong>' + escHtml(name) + '</strong>' +
+        '<span>' + escHtml(parts.join(' Ã¢â‚¬Â¢ ') || 'Remembered upload') + '</span>' +
+        (excerpt ? '<span>' + escHtml(excerpt) + '</span>' : '') +
+        (links ? '<div class="oc-library-actions">' + links + '</div>' : '') +
+      '</div>';
+    }).join('');
+  }
+  function fetchFileLibrary(opts){
+    opts = opts || {};
+    if(!libraryList || !libraryMeta) return Promise.resolve([]);
+    if(!opts.silent){
+      libraryMeta.textContent = 'Loading...';
+      libraryList.innerHTML = '<div class="oc-library-empty">Loading remembered uploads...</div>';
+    }
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    return fetch(joeyActionUrl('file-library', pass), { cache:'no-store' })
+      .then(function(res){ return res.json().then(function(data){ return { ok:res.ok, data:data }; }); })
+      .then(function(result){
+        if(!result.ok || !result.data || !result.data.ok) throw new Error((result.data && (result.data.detail || result.data.error)) || 'Could not load uploads');
+        var files = Array.isArray(result.data.files) ? result.data.files : [];
+        renderFileLibrary(files);
+        return files;
+      })
+      .catch(function(err){
+        if(!opts.silent){
+          libraryMeta.textContent = 'Unavailable';
+          libraryList.innerHTML = '<div class="oc-library-empty">' + escHtml(err.message || 'Could not load uploads') + '</div>';
+        }
+        return [];
+      });
+  }
+  function toggleLibraryPanel(forceOpen){
+    if(!libraryPanel) return;
+    var shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !libraryPanel.classList.contains('open');
+    libraryPanel.classList.toggle('open', shouldOpen);
+    if(shouldOpen) fetchFileLibrary();
+  }
+  function updateMobileViewport(){
+    var mobile = isMobileShell();
+    document.body.classList.toggle('mobile-shell', mobile);
+    if(mobile) neutralizeMobilePasswordAssist();
+    setMobileInputIsolation(mobile && panelOpen);
+    if(!mobile){
+      document.body.classList.remove('mobile-keyboard-open');
+      document.documentElement.style.setProperty('--app-vh', window.innerHeight + 'px');
+      updateScrollLatestButton();
+      return;
+    }
+    var vv = window.visualViewport;
+    var height = vv ? vv.height : window.innerHeight;
+    var keyboardDelta = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
+    document.documentElement.style.setProperty('--app-vh', height + 'px');
+    document.body.classList.toggle('mobile-keyboard-open', keyboardDelta > 120);
+    if(panelOpen) scrollMessagesToBottom(true);
+  }
+  function syncPanelState(){
+    document.body.classList.toggle('oc-panel-open', panelOpen);
+    if(typeof window._homerSyncPageScrollLock === 'function') window._homerSyncPageScrollLock();
+    window.dispatchEvent(new CustomEvent('homer-joey-panel', { detail:{ open: panelOpen } }));
+  }
+  function closeMobileSheet(){
+    var sheet = document.getElementById('mobile-sheet');
+    if(sheet) sheet.classList.remove('open');
+  }
+  function setMobileInputIsolation(active){
+    if(!active){
+      mobileSuppressedFields.forEach(function(entry){
+        if(!entry || !entry.el || !entry.el.isConnected) return;
+        if('disabled' in entry.el) entry.el.disabled = entry.disabled;
+        if(entry.tabIndex === null) entry.el.removeAttribute('tabindex');
+        else entry.el.setAttribute('tabindex', entry.tabIndex);
+        if(entry.contentEditable !== null) entry.el.setAttribute('contenteditable', entry.contentEditable);
+        else if(entry.restoreContentEditable) entry.el.removeAttribute('contenteditable');
+      });
+      mobileSuppressedFields = [];
+      return;
+    }
+    if(mobileSuppressedFields.length) return;
+    Array.prototype.forEach.call(document.querySelectorAll('input, textarea, select, [contenteditable=\"\"], [contenteditable=\"true\"]'), function(el){
+      if(!el || panel.contains(el)) return;
+      if(el.hasAttribute && el.hasAttribute('data-mobile-voice-input')) return;
+      if(el.matches && el.matches('input[type=\"hidden\"], input[type=\"file\"], input[type=\"button\"], input[type=\"submit\"], input[type=\"reset\"]')) return;
+      var record = {
+        el: el,
+        hadDisabled: ('disabled' in el),
+        disabled: ('disabled' in el) ? !!el.disabled : false,
+        tabIndex: el.hasAttribute('tabindex') ? el.getAttribute('tabindex') : null,
+        contentEditable: el.hasAttribute('contenteditable') ? el.getAttribute('contenteditable') : null,
+        restoreContentEditable: !el.hasAttribute('contenteditable') && el.isContentEditable
+      };
+      if('disabled' in el) el.disabled = true;
+      el.setAttribute('tabindex', '-1');
+      if(el.isContentEditable || el.getAttribute('contenteditable') === '') el.setAttribute('contenteditable', 'false');
+      mobileSuppressedFields.push(record);
+    });
+  }
+  function neutralizeMobilePasswordAssist(){
+    if(!isMobileShell()) return;
+    Array.prototype.forEach.call(document.querySelectorAll('#vault-login-fields input, #acct-form input, #admin-login input, #admin-panel input, #vault-cred-pass'), function(el){
+      if(!el) return;
+      el.setAttribute('autocomplete', 'off');
+      el.setAttribute('autocorrect', 'off');
+      el.setAttribute('autocapitalize', 'none');
+      el.setAttribute('spellcheck', 'false');
+      el.setAttribute('data-lpignore', 'true');
+      el.setAttribute('data-1p-ignore', 'true');
+    });
+  }
+  function openPanel(){
+    if(!ensureJoeyAccess(true)) return;
+    applyDesktopWindowState();
+    panelOpen = true;
+    panel.classList.add('open');
+    closeMobileMenu();
+    setUnreadCount(0);
+    autoStickToBottom = true;
+    syncPanelState();
+    closeMobileSheet();
+    if(libraryPanel && libraryPanel.classList.contains('open')) fetchFileLibrary({ silent:true });
+    loadChatFromVault();
+    loadHistoryFromRedis({ force:false, source:'redis-poll' });
+    setTimeout(function(){
+      try{ inputEl.focus({ preventScroll:true }); }catch(e){ inputEl.focus(); }
+      updateMobileViewport();
+      scrollMessagesToBottom(true);
+    }, 100);
+  }
+  function closePanel(opts){
+    opts = opts || {};
+    if(!isMobileShell() && panelOpen && panel.classList.contains('oc-customized') && !panel.classList.contains('oc-fullscreen')){
+      captureCurrentDesktopBounds();
+    }
+    panelOpen = false;
+    panel.classList.remove('open');
+    closeMobileMenu();
+    if(opts.blur !== false && document.activeElement === inputEl) inputEl.blur();
+    syncPanelState();
+    updateMobileViewport();
+    updateScrollLatestButton();
+  }
+  window._homerToggleJoeyPanel = function(){ if(panelOpen) closePanel(); else openPanel(); };
+  window._homerCloseJoeyPanel = function(){ if(panelOpen) closePanel(); };
+  window._homerIsJoeyOpen = function(){ return panelOpen; };
+
+  // --- FAB visibility ---
+  function updateFabVisibility(){
+    var access = getJoeyAccessState();
+    var show = !!access.ok;
+    console.log('[Joey] Checking visibility - user:', (access.user || '').toLowerCase(), 'show:', show);
+    fabBtn.classList.toggle('visible', show);
+    var mnavJoey = document.getElementById('mnav-joey');
+    if(mnavJoey) mnavJoey.classList.toggle('visible', show);
+    if(!show && panelOpen) closePanel({ blur:true });
+  }
+  window.addEventListener('homer-auth', updateFabVisibility);
+  window.addEventListener('storage', function(e){
+    if(e.key === 'homer-auth-user' || e.key === 'homer-sync-pass' || e.key === 'homer-user-permissions') updateFabVisibility();
+  });
+  // Run on load after DOM is ready
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', updateFabVisibility);
+  } else {
+    updateFabVisibility();
+  }
+  applyDesktopWindowState();
+  setUnreadCount(0);
+  updateMobileViewport();
+  window.addEventListener('resize', function(){
+    updateMobileViewport();
+    if(!isMobileShell() && panel.classList.contains('oc-customized') && desktopWindowState.bounds){
+      desktopWindowState.bounds = applyDesktopBounds(desktopWindowState.bounds, false) || desktopWindowState.bounds;
+      saveDesktopWindowState();
+    } else {
+      applyDesktopWindowState();
+    }
+  });
+  window.addEventListener('orientationchange', function(){
+    setTimeout(function(){
+      updateMobileViewport();
+      applyDesktopWindowState();
+    }, 80);
+  });
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize', updateMobileViewport);
+    window.visualViewport.addEventListener('scroll', updateMobileViewport);
+  }
+  document.addEventListener('focusin', function(e){
+    if(!isMobileShell()) return;
+    var t = e.target;
+    if(t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) setTimeout(updateMobileViewport, 80);
+  });
+  document.addEventListener('focusout', function(){
+    if(!isMobileShell()) return;
+    setTimeout(updateMobileViewport, 120);
+  });
+  // --- Panel toggle ---
+  fabBtn.addEventListener('click', function(){
+    if(panelOpen) closePanel();
+    else openPanel();
+  });
+  panel.addEventListener('mousedown', function(e){
+    e.stopPropagation();
+  });
+  panel.addEventListener('click', function(e){
+    if(mobileMenu && mobileMenu.classList.contains('open') && !e.target.closest('#oc-mobile-menu') && !e.target.closest('#oc-settings-btn')){
+      closeMobileMenu();
+    }
+    e.stopPropagation();
+  });
+  messagesEl.addEventListener('scroll', function(){
+    autoStickToBottom = isNearBottom();
+    updateScrollLatestButton();
+  });
+  if(scrollLatestBtn){
+    scrollLatestBtn.addEventListener('click', function(){
+      scrollMessagesToBottom(true);
+    });
+  }
+  closeBtn.addEventListener('click', function(){
+    closePanel();
+  });
+  (function(){
+    var startY = 0;
+    var tracking = false;
+    var header = document.getElementById('oc-panel-header');
+    if(!header) return;
+    var dragState = null;
+    function stopDrag(){
+      if(!dragState) return;
+      panel.classList.remove('oc-dragging');
+      document.removeEventListener('mousemove', onDrag);
+      document.removeEventListener('mouseup', stopDrag);
+      desktopWindowState.mode = 'custom';
+      captureCurrentDesktopBounds();
+      saveDesktopWindowState();
+      dragState = null;
+    }
+    function onDrag(e){
+      if(!dragState) return;
+      applyDesktopBounds({
+        left: dragState.left + (e.clientX - dragState.startX),
+        top: dragState.top + (e.clientY - dragState.startY),
+        width: dragState.width,
+        height: dragState.height
+      }, false);
+      panel.classList.add('oc-dragging');
+    }
+    header.addEventListener('mousedown', function(e){
+      if(isMobileShell() || e.button !== 0) return;
+      if(e.target.closest('.oc-header-actions')) return;
+      if(panel.classList.contains('oc-fullscreen')) return;
+      e.preventDefault();
+      var rect = panel.getBoundingClientRect();
+      applyDesktopBounds({ left:rect.left, top:rect.top, width:rect.width, height:rect.height }, false);
+      dragState = { startX:e.clientX, startY:e.clientY, left:rect.left, top:rect.top, width:rect.width, height:rect.height };
+      document.addEventListener('mousemove', onDrag);
+      document.addEventListener('mouseup', stopDrag);
+    });
+    header.addEventListener('dblclick', function(e){
+      if(isMobileShell()) return;
+      if(e.target.closest('.oc-header-actions')) return;
+      expandBtn.click();
+    });
+    header.addEventListener('touchstart', function(e){
+      if(!isMobileShell()) return;
+      startY = e.touches[0].clientY;
+      tracking = true;
+    }, { passive:true });
+    header.addEventListener('touchmove', function(e){
+      if(!tracking || !isMobileShell()) return;
+      if(e.touches[0].clientY - startY > 72){
+        tracking = false;
+        closePanel();
+      }
+    }, { passive:true });
+    header.addEventListener('touchend', function(){ tracking = false; }, { passive:true });
+  })();
+  (function(){
+    if(!resizeHandle) return;
+    var resizeState = null;
+    function stopResize(){
+      if(!resizeState) return;
+      panel.classList.remove('oc-resizing');
+      document.removeEventListener('mousemove', onResize);
+      document.removeEventListener('mouseup', stopResize);
+      desktopWindowState.mode = 'custom';
+      captureCurrentDesktopBounds();
+      saveDesktopWindowState();
+      resizeState = null;
+    }
+    function onResize(e){
+      if(!resizeState) return;
+      applyDesktopBounds({
+        left: resizeState.left,
+        top: resizeState.top,
+        width: resizeState.width + (e.clientX - resizeState.startX),
+        height: resizeState.height + (e.clientY - resizeState.startY)
+      }, false);
+      panel.classList.add('oc-resizing');
+    }
+    resizeHandle.addEventListener('mousedown', function(e){
+      if(isMobileShell() || e.button !== 0) return;
+      if(panel.classList.contains('oc-fullscreen')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var rect = panel.getBoundingClientRect();
+      applyDesktopBounds({ left:rect.left, top:rect.top, width:rect.width, height:rect.height }, false);
+      resizeState = { startX:e.clientX, startY:e.clientY, left:rect.left, top:rect.top, width:rect.width, height:rect.height };
+      document.addEventListener('mousemove', onResize);
+      document.addEventListener('mouseup', stopResize);
+    });
+  })();
+
+  // --- Settings ---
+  var cfg = getConfig(currentContextMode);
+  systemPromptInput.value = cfg.system || '';
+  settingsBtn.addEventListener('click', function(){
+    if(isMobileShell()){
+      toggleMobileMenu();
+      return;
+    }
+    settingsRow.classList.toggle('open');
+    desktopWindowState.settingsOpen = settingsRow.classList.contains('open');
+    saveDesktopWindowState();
+    if(settingsRow.classList.contains('open')) scheduleJoeySyncStatusRefresh(50);
+  });
+  if(syncStatusRefreshBtn){
+    syncStatusRefreshBtn.addEventListener('click', function(){
+      refreshJoeySyncStatus({ force:true }).catch(function(){});
+    });
+  }
+  if(mobileProviderJoeyBtn){
+    mobileProviderJoeyBtn.addEventListener('click', function(){
+      applyProvider('joey');
+      closeMobileMenu();
+    });
+  }
+  if(mobileProviderNemoclawBtn){
+    mobileProviderNemoclawBtn.addEventListener('click', function(){
+      applyProvider('nemoclaw');
+      closeMobileMenu();
+    });
+  }
+  if(mobileModePersonalBtn){
+    mobileModePersonalBtn.addEventListener('click', function(){
+      applyContextMode('personal');
+      closeMobileMenu();
+    });
+  }
+  if(mobileModeWorkBtn){
+    mobileModeWorkBtn.addEventListener('click', function(){
+      applyContextMode('work');
+      closeMobileMenu();
+    });
+  }
+  if(mobileEditPromptBtn){
+    mobileEditPromptBtn.addEventListener('click', function(){
+      var current = getSavedSystemPrompt(currentContextMode);
+      var next = window.prompt('Set Joey system prompt / persona. Leave empty to use default Joey.', current);
+      if(next === null) return;
+      systemPromptInput.value = next;
+      var nextConfig = getConfig(currentContextMode);
+      var trimmed = String(next || '').trim();
+      if(trimmed) nextConfig.system = trimmed;
+      else delete nextConfig.system;
+      setConfig(nextConfig, currentContextMode);
+      renderMessages();
+      closeMobileMenu();
+    });
+  }
+  if(mobileClearPromptBtn){
+    mobileClearPromptBtn.addEventListener('click', function(){
+      systemPromptInput.value = '';
+      var nextConfig = getConfig(currentContextMode);
+      delete nextConfig.system;
+      setConfig(nextConfig, currentContextMode);
+      renderMessages();
+      closeMobileMenu();
+    });
+  }
+  if(mobileSyncDriveBtn){
+    mobileSyncDriveBtn.addEventListener('click', function(){
+      closeMobileMenu();
+      var desktopSyncBtn = document.getElementById('oc-gdrive-sync');
+      if(desktopSyncBtn) desktopSyncBtn.click();
+    });
+  }
+  if(mobileSyncToggleBtn){
+    mobileSyncToggleBtn.addEventListener('click', function(){
+      var nextEnabled = !isAutoSyncEnabled();
+      setAutoSyncEnabled(nextEnabled);
+      refreshJoeySyncToggleUi();
+      closeMobileMenu();
+      showJoeyStatusToast(nextEnabled ? 'Automatic sync enabled.' : 'Automatic sync paused.', nextEnabled ? 'success' : 'warn');
+    });
+  }
+  if(mobileBackupDriveBtn){
+    mobileBackupDriveBtn.addEventListener('click', function(){
+      closeMobileMenu();
+      var desktopBackupBtn = document.getElementById('oc-gdrive-backup');
+      if(desktopBackupBtn) desktopBackupBtn.click();
+    });
+  }
+  if(mobileCommitMemoryBtn){
+    mobileCommitMemoryBtn.addEventListener('click', function(){
+      closeMobileMenu();
+      commitJoeyMemory({ silent:false, skipLearn:false, skipDrive:true, reason:'manual-mobile' }).catch(function(){});
+    });
+  }
+  if(mobileClearChatBtn){
+    mobileClearChatBtn.addEventListener('click', function(){
+      closeMobileMenu();
+      clearChatWindow();
+    });
+  }
+  if(libraryBtn){
+    libraryBtn.addEventListener('click', function(){
+      toggleLibraryPanel();
+    });
+  }
+  if(syncToggleBtn){
+    syncToggleBtn.addEventListener('click', function(){
+      var nextEnabled = !isAutoSyncEnabled();
+      setAutoSyncEnabled(nextEnabled);
+      refreshJoeySyncToggleUi();
+      showJoeyStatusToast(nextEnabled ? 'Automatic sync enabled.' : 'Automatic sync paused.', nextEnabled ? 'success' : 'warn');
+    });
+  }
+  if(settingsAdvancedToggle && settingsAdvanced){
+    settingsAdvancedToggle.addEventListener('click', function(){
+      var nextOpen = !settingsAdvanced.classList.contains('open');
+      settingsAdvanced.classList.toggle('open', nextOpen);
+      settingsAdvancedToggle.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+    });
+  }
+  settingsSave.addEventListener('click', function(){
+    var nextConfig = getConfig(currentContextMode);
+    var nextPrompt = systemPromptInput.value.trim();
+    if(nextPrompt) nextConfig.system = nextPrompt;
+    else delete nextConfig.system;
+    setConfig(nextConfig, currentContextMode);
+    settingsRow.classList.remove('open');
+    desktopWindowState.settingsOpen = false;
+    saveDesktopWindowState();
+    renderMessages();
+  });
+  if(settingsClear){
+    settingsClear.addEventListener('click', function(){
+      systemPromptInput.value = '';
+      var nextConfig = getConfig(currentContextMode);
+      delete nextConfig.system;
+      setConfig(nextConfig, currentContextMode);
+      renderMessages();
+    });
+  }
+  refreshJoeySyncToggleUi();
+  window.addEventListener('storage', function(e){
+    if(e.key === 'homer-sync-auto') refreshJoeySyncToggleUi();
+  });
+  window.addEventListener('homer-sync-auto-changed', refreshJoeySyncToggleUi);
+
+  // --- Expand / Fullscreen toggles ---
+  expandBtn.addEventListener('click', function(){
+    if(isMobileShell()) return;
+    if(panel.classList.contains('oc-fullscreen')){
+      panel.classList.remove('oc-fullscreen');
+      clearDesktopPanelBounds();
+      panel.classList.add('oc-expanded');
+      desktopWindowState.mode = 'expanded';
+      saveDesktopWindowState();
+    } else if(panel.classList.contains('oc-expanded')){
+      restoreDesktopLayout();
+    } else {
+      captureCurrentDesktopBounds();
+      clearDesktopPanelBounds();
+      panel.classList.add('oc-expanded');
+      desktopWindowState.mode = 'expanded';
+      saveDesktopWindowState();
+    }
+    syncWindowButtons();
+    scrollMessagesToBottom(true);
+  });
+  fullscreenBtn.addEventListener('click', function(){
+    if(isMobileShell()) return;
+    var goFs = !panel.classList.contains('oc-fullscreen');
+    if(goFs){
+      captureCurrentDesktopBounds();
+      panel.classList.remove('oc-expanded');
+      panel.classList.add('oc-fullscreen');
+      desktopWindowState.mode = 'fullscreen';
+      saveDesktopWindowState();
+    } else {
+      restoreDesktopLayout();
+    }
+    syncWindowButtons();
+    scrollMessagesToBottom(true);
+  });
+  // Escape key exits fullscreen/expand or closes the panel
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      if(panel.classList.contains('oc-fullscreen')){
+        restoreDesktopLayout();
+      } else if(panel.classList.contains('oc-expanded')){
+        restoreDesktopLayout();
+      } else if(panelOpen){
+        closePanel();
+      }
+      syncWindowButtons();
+    }
+  });
+
+  // --- Manual memory commit (Redis + Drive) ---
+  function collectTaskSnapshot(){
+    if(typeof window._homerLoadVaultForMode !== 'function' || !window._homerVaultUnlocked) return Promise.resolve([]);
+    return window._homerLoadVaultForMode(currentContextMode).then(function(data){
+      return ((data && data.goals) || []).map(function(g){
+        var project = getProjectById((data && data.projects) || _cachedProjects, g.projectId || getDefaultProjectId((data && data.projects) || _cachedProjects, true));
+        return {
+          project: project ? project.name : '',
+          projectKey: project ? project.key : '',
+          summary: g.summary || '',
+          notes: g.notes || g.desc || '',
+          due: g.due || '',
+          priority: g.priority || '',
+          col: g.col || 'todo',
+          subtasks: (g.subtasks || []).map(function(s){
+            if(typeof s === 'string') return { text: s };
+            return { text: s.text || '', notes: s.notes || '', due: s.due || '', done: !!s.done };
+          })
+        };
+      });
+    }).catch(function(){ return []; });
+  }
+  function setManualCommitButtons(state){
+    if(state === 'busy'){
+      if(saveDbBtn){ saveDbBtn.disabled = true; saveDbBtn.textContent = 'Committing...'; }
+      if(mobileCommitMemoryBtn){ mobileCommitMemoryBtn.disabled = true; mobileCommitMemoryBtn.textContent = 'Committing...'; }
+      return;
+    }
+    if(state === 'success'){
+      if(saveDbBtn){ saveDbBtn.disabled = true; saveDbBtn.textContent = 'Committed!'; }
+      if(mobileCommitMemoryBtn){ mobileCommitMemoryBtn.disabled = true; mobileCommitMemoryBtn.textContent = 'Committed!'; }
+      setTimeout(function(){ setManualCommitButtons('idle'); }, 2200);
+      return;
+    }
+    if(state === 'partial'){
+      if(saveDbBtn){ saveDbBtn.disabled = true; saveDbBtn.textContent = 'Partial Save'; }
+      if(mobileCommitMemoryBtn){ mobileCommitMemoryBtn.disabled = true; mobileCommitMemoryBtn.textContent = 'Partial Save'; }
+      setTimeout(function(){ setManualCommitButtons('idle'); }, 2600);
+      return;
+    }
+    if(state === 'error'){
+      if(saveDbBtn){ saveDbBtn.disabled = true; saveDbBtn.textContent = 'Commit Failed'; }
+      if(mobileCommitMemoryBtn){ mobileCommitMemoryBtn.disabled = true; mobileCommitMemoryBtn.textContent = 'Commit Failed'; }
+      setTimeout(function(){ setManualCommitButtons('idle'); }, 2600);
+      return;
+    }
+    if(saveDbBtn){ saveDbBtn.disabled = false; saveDbBtn.innerHTML = '&#x1f4be; Commit Memory Now'; }
+    if(mobileCommitMemoryBtn){ mobileCommitMemoryBtn.disabled = false; mobileCommitMemoryBtn.textContent = 'Commit Memory'; }
+  }
+  function scheduleJoeyMemoryCommit(reason, delayMs){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return;
+    if(joeyAutoCommitTimer) clearTimeout(joeyAutoCommitTimer);
+    joeyAutoCommitTimer = setTimeout(function(){
+      joeyAutoCommitTimer = null;
+      commitJoeyMemory({ silent:true, skipLearn:true, skipDrive:true, reason:reason || 'auto' }).catch(function(){});
+    }, typeof delayMs === 'number' ? delayMs : 45000);
+  }
+  function scheduleJoeyLearningCommit(reason, delayMs){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return;
+    if(joeyAutoCommitTimer) clearTimeout(joeyAutoCommitTimer);
+    joeyAutoCommitTimer = setTimeout(function(){
+      joeyAutoCommitTimer = null;
+      commitJoeyMemory({ silent:true, skipLearn:false, skipDrive:true, reason:reason || 'auto-learn' }).catch(function(){});
+    }, typeof delayMs === 'number' ? delayMs : 45000);
+  }
+  function scheduleJoeyLearnRetry(reason, delayMs){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass || joeyAutoLearnRetryTimer) return;
+    joeyAutoLearnRetryTimer = setTimeout(function(){
+      joeyAutoLearnRetryTimer = null;
+      commitJoeyMemory({ silent:true, skipLearn:false, skipDrive:true, reason:reason || 'auto-learn-retry' }).catch(function(){});
+    }, typeof delayMs === 'number' ? delayMs : 15000);
+  }
+  function commitJoeyMemory(opts){
+    opts = opts || {};
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass){
+      if(!opts.silent) alert('Log in first (unlock vault) to commit memory.');
+      return Promise.reject(new Error('Missing passphrase'));
+    }
+    if(joeyManualCommitInFlight){
+      if(!opts.silent) showJoeyStatusToast('A memory commit is already running.', 'warn');
+      return Promise.resolve({ ok:false, skipped:true, reason:'in-flight' });
+    }
+    joeyManualCommitInFlight = true;
+    if(!opts.silent) setManualCommitButtons('busy');
+    return collectTaskSnapshot().then(function(tasks){
+      return fetch('/api/joey?action=commit', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        keepalive: !!opts.keepalive,
+        body: JSON.stringify(withContextMode({ passphrase:pass, messages:chatHistory, tasks:tasks, skipLearn:!!opts.skipLearn, skipDrive:!!opts.skipDrive }))
+      }).then(parseJoeyJsonResponse);
+    }).then(function(data){
+      if(data && data.steps && data.steps.history && data.steps.history.ok && typeof window._homerRecordBackupMarker === 'function'){
+        window._homerRecordBackupMarker('homer-joey-sync-ts', data.committedAt || Date.now());
+      }
+      if(data && data.steps && data.steps.drive && data.steps.drive.ok && typeof window._homerRecordBackupMarker === 'function'){
+        window._homerRecordBackupMarker('homer-drive-backup-ts', data.committedAt || Date.now());
+      }
+      if(data && data.ok){
+        console.log('[Joey] ' + (opts.silent ? 'Auto' : 'Manual') + ' memory commit successful' + (opts.reason ? ' (' + opts.reason + ')' : '') + ':', data);
+        scheduleJoeySyncStatusRefresh(200);
+        if(!opts.silent){
+          showJoeyStatusToast(data.message || 'Memory committed successfully.', 'success');
+          setManualCommitButtons('success');
+        }
+        return data;
+      }
+      if(data && data.partial){
+        console.warn('[Joey] ' + (opts.silent ? 'Auto' : 'Manual') + ' memory commit partial' + (opts.reason ? ' (' + opts.reason + ')' : '') + ':', data);
+        scheduleJoeySyncStatusRefresh(200);
+        if(!opts.silent){
+          showJoeyStatusToast(data.message || 'Memory saved with partial issues.', 'warn');
+          setManualCommitButtons('partial');
+        }
+        return data;
+      }
+      throw new Error((data && data.message) || 'Manual memory commit failed');
+    }).catch(function(err){
+      var message = err && err.message ? err.message : String(err);
+      console.error('[Joey] ' + (opts.silent ? 'Auto' : 'Manual') + ' memory commit failed' + (opts.reason ? ' (' + opts.reason + ')' : '') + ':', message);
+      if(!opts.silent){
+        showJoeyStatusToast('Memory commit failed. ' + message, 'error');
+        setManualCommitButtons('error');
+      }
+      throw err;
+    }).finally(function(){
+      joeyManualCommitInFlight = false;
+    });
+  }
+  window._homerCommitJoeyMemory = function(opts){
+    return commitJoeyMemory(opts || {});
+  };
+  if(saveDbBtn) saveDbBtn.addEventListener('click', function(){
+    commitJoeyMemory({ silent:false, skipLearn:false, skipDrive:true, reason:'manual' }).catch(function(){});
+    return;
+    var btn = this;
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass){ alert('Log in first (unlock vault) to save.'); return; }
+    btn.disabled = true;
+    btn.textContent = 'Ã¢ÂÂ³ Saving...';
+    // Save history to Redis
+    var historyPromise = chatHistory.length ? fetch(joeyActionUrl('history'), {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(withContextMode({ passphrase:pass, messages:chatHistory }))
+    }).then(function(r){ return r.json(); }) : Promise.resolve({ ok:true, count:0, skipped:true });
+    // Trigger learn cycle to extract memories + update profile
+    var learnPromise = chatHistory.length >= 2
+      ? triggerAutoLearn('manual-save').then(function(data){ return data || { learned:0 }; })
+      : Promise.resolve({ learned:0 });
+    var filesPromise = collectTaskSnapshot().then(function(tasks){
+      return fetch(joeyActionUrl('files'), {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(withContextMode({ passphrase:pass, tasks:tasks }))
+      }).then(function(r){ return r.json(); });
+    });
+    var backupAllPromise = typeof window._homerBackupEverythingToDb === 'function'
+      ? window._homerBackupEverythingToDb().then(function(result){ return result; }).catch(function(err){ return { ok:false, error: err.message }; })
+      : Promise.resolve({ ok:false, skipped:true, reason:'unavailable' });
+    Promise.all([historyPromise, learnPromise, filesPromise, backupAllPromise]).then(function(results){
+      var histResult = results[0];
+      var learnResult = results[1];
+      var backupResult = results[3];
+      btn.textContent = 'Ã¢Å“â€¦ Saved!';
+      var msg = 'History: ' + (histResult.count || 0) + ' msgs';
+      if(learnResult.learned > 0) msg += ', Learned: ' + learnResult.learned + ' facts';
+      if(learnResult.profileUpdated) msg += ', Profile updated';
+      if(backupResult && backupResult.ok) msg += ', Vault/app mirrored to DB';
+      else if(backupResult && backupResult.error) msg += ', Vault/app DB mirror failed';
+      console.log('[Joey] Manual DB save:', msg);
+      setTimeout(function(){ btn.innerHTML = '&#x1f4be; Commit Memory Now'; btn.disabled = false; }, 2000);
+    }).catch(function(e){
+      btn.textContent = 'Ã¢ÂÅ’ Error';
+      console.error('[Joey] DB save error:', e);
+      setTimeout(function(){ btn.innerHTML = '&#x1f4be; Commit Memory Now'; btn.disabled = false; }, 2000);
+    });
+  });
+  if(redisRefreshBtn){
+    redisRefreshBtn.addEventListener('click', function(){
+      var btn = this;
+      var pass = localStorage.getItem('homer-sync-pass') || '';
+      if(!pass){ alert('Log in first (unlock vault) to refresh from Redis.'); return; }
+      btn.disabled = true;
+      btn.textContent = 'Refreshing...';
+      Promise.resolve(saveHistoryToRedis({ keepalive:false })).catch(function(){})
+        .then(function(){
+          return refreshJoeyBundleFromRedis({ source:'manual-redis-refresh' });
+        })
+        .then(function(){
+          scheduleJoeySyncStatusRefresh(200);
+          showJoeyStatusToast('Redis bundle refreshed.', 'success');
+        })
+        .catch(function(err){
+          showJoeyStatusToast('Redis refresh failed: ' + (err && err.message ? err.message : err), 'warn');
+        })
+        .finally(function(){
+          setTimeout(function(){
+            btn.innerHTML = '&#x21bb; Refresh from Redis';
+            btn.disabled = false;
+          }, 1400);
+        });
+    });
+  }
+
+  // --- Google Drive context backup ---
+  var gdriveBackupBtn = document.getElementById('oc-gdrive-backup');
+  if(gdriveBackupBtn) gdriveBackupBtn.addEventListener('click', function(){
+    var btn = this;
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass){ alert('Log in first (unlock vault) to backup.'); return; }
+    btn.disabled = true;
+    btn.textContent = 'Ã¢ÂÂ³ Backing up...';
+    Promise.resolve(primeJoeyRedisForBackup('manual-backup', { keepalive:false })).catch(function(){ return null; }).then(function(){
+      return fetch('/api/gdrive-backup', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(withContextMode({ passphrase: pass, redisOnly:true }))
+      });
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if(d.ok){
+        clearJoeyDriveBackupDirty();
+        if(typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-drive-backup-ts');
+        scheduleJoeySyncStatusRefresh(200);
+        btn.textContent = 'Ã¢Å“â€¦ Backed up!';
+        setTimeout(function(){ btn.innerHTML = '&#x2601; Backup to Drive'; btn.disabled = false; }, 3000);
+      } else {
+        btn.textContent = 'Ã¢ÂÅ’ Failed';
+        console.error('[GDrive Backup]', d);
+        // Show full error details
+        alert('BACKUP ERROR:\n\n' + JSON.stringify(d, null, 2).substring(0, 800));
+        setTimeout(function(){ btn.innerHTML = '&#x2601; Backup to Drive'; btn.disabled = false; }, 2000);
+      }
+    }).catch(function(e){
+      btn.textContent = 'Ã¢ÂÅ’ Error';
+      console.error('[GDrive Backup]', e);
+      alert('Network error: ' + e.message);
+      setTimeout(function(){ btn.innerHTML = '&#x2601; Backup to Drive'; btn.disabled = false; }, 2000);
+    });
+  });
+
+  // --- Google Drive context restore ---
+  var gdriveRestoreBtn = document.getElementById('oc-gdrive-restore');
+  if(gdriveRestoreBtn) gdriveRestoreBtn.addEventListener('click', function(){
+    var btn = this;
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass){ alert('Log in first (unlock vault) to restore.'); return; }
+    if(!confirm('Restore ' + currentContextMode + ' context from Google Drive? This will overwrite current memories for this mode.')) return;
+    btn.disabled = true;
+    btn.textContent = 'Ã¢ÂÂ³ Restoring...';
+    fetch('/api/gdrive-restore', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(withContextMode({ passphrase: pass }))
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if(d.ok){
+        btn.textContent = 'Ã¢Å“â€¦ Restored!';
+        // Reload chat history if restored
+        if(d.restored && d.restored.history) loadHistoryFromRedis({ force:true, allowRewrite:true, source:'drive-restore' });
+        refreshCanonicalFiles().catch(function(){});
+        if(libraryPanel && libraryPanel.classList.contains('open')) fetchFileLibrary({ silent:true });
+        scheduleJoeySyncStatusRefresh(250);
+        setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore from Drive'; btn.disabled = false; }, 3000);
+      } else {
+        btn.textContent = 'Ã¢ÂÅ’ Failed';
+        console.error('[GDrive Restore]', d);
+        alert('ERROR:\n' + JSON.stringify(d, null, 2).slice(0, 500));
+        setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore from Drive'; btn.disabled = false; }, 2000);
+      }
+    }).catch(function(e){
+      btn.textContent = 'Ã¢ÂÅ’ Error';
+      console.error('[GDrive Restore]', e);
+      alert('Network error: ' + e.message);
+      setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore from Drive'; btn.disabled = false; }, 2000);
+    });
+  });
+
+  // --- Vault integration ---
+  function loadChatFromVault(){
+    if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
+      window._homerLoadVault().then(function(data){
+        var scopes = data && data.ocChatScopes && typeof data.ocChatScopes === 'object' ? data.ocChatScopes : {};
+        var next = scopes[currentContextMode];
+        if(!Array.isArray(next) && currentContextMode === 'personal' && data && Array.isArray(data.ocChat)) next = data.ocChat;
+        replaceChatHistory(next, { source:'vault', updatedAt: Date.now() });
+      });
+    }
+  }
+  function saveChatToVault(){
+    if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
+      window._homerLoadVault().then(function(data){
+        if(data){
+          if(!data.ocChatScopes || typeof data.ocChatScopes !== 'object') data.ocChatScopes = {};
+          data.ocChatScopes[currentContextMode] = chatHistory;
+          if(currentContextMode === 'personal') data.ocChat = chatHistory;
+          window._homerSaveVault(data);
+        }
+      });
+    }
+    persistChatCache(currentContextMode, chatLastLocalMutationAt || Date.now());
+  }
+
+  var joeyBundleStampByMode = { personal:0, work:0 };
+  function parseJoeyBundleStamp(value){
+    if(!value) return 0;
+    var date = new Date(value);
+    var stamp = date.getTime();
+    return isNaN(stamp) ? 0 : stamp;
+  }
+  function rememberJoeyBundleStamp(mode, value){
+    var activeMode = mode === 'work' ? 'work' : 'personal';
+    joeyBundleStampByMode[activeMode] = Math.max(joeyBundleStampByMode[activeMode] || 0, parseJoeyBundleStamp(value));
+  }
+  function getJoeyBundleStamp(mode){
+    var activeMode = mode === 'work' ? 'work' : 'personal';
+    return joeyBundleStampByMode[activeMode] || 0;
+  }
+  function hydrateJoeyBundle(bundle, opts){
+    opts = opts || {};
+    if(!bundle || typeof bundle !== 'object') return false;
+    var bundleMode = bundle.mode === 'work' ? 'work' : 'personal';
+    rememberJoeyBundleStamp(bundleMode, bundle.syncMeta && bundle.syncMeta.updatedAt ? bundle.syncMeta.updatedAt : bundle.exportedAt);
+    if(bundleMode !== currentContextMode && !opts.forceMode) return false;
+    if(Array.isArray(bundle.history)){
+      replaceChatHistory(bundle.history, {
+        force:true,
+        allowRewrite:true,
+        source: opts.source || 'redis-bundle',
+        updatedAt: Date.now()
+      });
+    }
+    scheduleJoeySyncStatusRefresh(200);
+    return true;
+  }
+  function refreshJoeyBundleFromRedis(opts){
+    opts = opts || {};
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return Promise.reject(new Error('Missing passphrase'));
+    return fetchJson(joeyActionUrl('bundle', pass, opts.mode || currentContextMode), { cache:'no-store' }).then(function(data){
+      var bundle = data && data.bundle && typeof data.bundle === 'object' ? data.bundle : null;
+      if(!bundle) throw new Error('Missing Redis bundle');
+      hydrateJoeyBundle(bundle, opts);
+      return data;
+    });
+  }
+  function maybeRefreshJoeyBundleFromRedis(opts){
+    opts = opts || {};
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass || streaming || document.visibilityState === 'hidden') return Promise.resolve(null);
+    return fetchJson(joeyActionUrl('sync-meta', pass, opts.mode || currentContextMode), { cache:'no-store' }).then(function(data){
+      var syncMeta = data && data.syncMeta ? data.syncMeta : {};
+      var remoteStamp = parseJoeyBundleStamp(syncMeta.updatedAt);
+      var localStamp = getJoeyBundleStamp(opts.mode || currentContextMode);
+      if(remoteStamp && remoteStamp > localStamp + 500){
+        return refreshJoeyBundleFromRedis({
+          mode: opts.mode || currentContextMode,
+          source: opts.source || 'redis-auto-refresh'
+        });
+      }
+      rememberJoeyBundleStamp(opts.mode || currentContextMode, syncMeta.updatedAt);
+      return data;
+    }).catch(function(){ return null; });
+  }
+
+  // --- Redis conversation persistence ---
+  function saveHistoryToRedis(opts){
+    opts = opts || {};
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass || !chatHistory.length) return Promise.resolve({ ok:false, skipped:true, reason:'unavailable' });
+    return fetch(joeyActionUrl('history'), {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      keepalive: !!opts.keepalive,
+      body: JSON.stringify(withContextMode({ passphrase:pass, messages:chatHistory }))
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if(d && d.updatedAt) rememberJoeyBundleStamp(currentContextMode, d.updatedAt);
+      if(d && d.ok && typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-joey-sync-ts');
+      return d;
+    }).catch(function(err){
+      if(!opts.silent) console.warn('[Joey] Failed to save history to Redis:', err && err.message ? err.message : err);
+      return { ok:false, error:err && err.message ? err.message : String(err) };
+    });
+  }
+  function flushJoeyStateForHandoff(reason){
+    if(joeyBackgroundCommitInFlight) return;
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass || !chatHistory.length) return;
+    joeyBackgroundCommitInFlight = true;
+    Promise.resolve(saveHistoryToRedis({ keepalive:true, silent:true })).catch(function(){ return null; })
+      .then(function(){
+        if(chatHistory.length < 2) return null;
+        return commitJoeyMemory({ silent:true, skipLearn:false, skipDrive:true, keepalive:true, reason:reason || 'handoff' }).catch(function(){ return null; });
+      })
+      .finally(function(){
+        joeyBackgroundCommitInFlight = false;
+      });
+  }
+  function primeJoeyRedisForBackup(reason, opts){
+    opts = opts || {};
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return Promise.resolve({ ok:false, skipped:true, reason:'missing-passphrase' });
+    return Promise.resolve(ensureSavedQuotesContext('gdrive-backup-prime')).catch(function(){ return false; })
+      .then(function(){
+        return Promise.resolve(saveHistoryToRedis({ keepalive: !!opts.keepalive, silent:true })).catch(function(){ return null; });
+      })
+      .then(function(){
+        if(chatHistory.length >= 2){
+          return commitJoeyMemory({
+            silent:true,
+            skipLearn:false,
+            skipDrive:true,
+            keepalive: !!opts.keepalive,
+            reason: reason || 'gdrive-backup-prime'
+          }).catch(function(){ return null; });
+        }
+        return Promise.resolve(refreshCanonicalFiles({ skipQuoteSync:true })).catch(function(){ return null; });
+      });
+  }
+  function runJoeyDriveBackup(reason){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass || joeyDriveBackupInFlight) return Promise.resolve({ ok:false, skipped:true, reason:'unavailable' });
+    var forceBackup = /^(manual|agent-action|command-action|quote-memory)$/i.test(String(reason || ''));
+    if(!forceBackup && !isAutoSyncEnabled()) return Promise.resolve({ ok:true, skipped:true, reason:'sync-disabled' });
+    if(!forceBackup && !joeyDriveBackupDirty) return Promise.resolve({ ok:true, skipped:true, reason:'clean' });
+    if(!forceBackup && joeyDriveBackupDirtyAt && (Date.now() - joeyDriveBackupDirtyAt) < JOEY_DRIVE_BACKUP_MIN_DIRTY_MS){
+      return Promise.resolve({ ok:true, skipped:true, reason:'dirty-too-recent' });
+    }
+    joeyDriveBackupInFlight = true;
+    return Promise.resolve(primeJoeyRedisForBackup(reason || 'auto-backup', { keepalive:false })).catch(function(){ return null; }).then(function(){
+      return fetch('/api/gdrive-backup', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(withContextMode({ passphrase: pass, redisOnly:true }))
+      });
+    }).then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d && d.ok){
+          clearJoeyDriveBackupDirty();
+          if(typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-drive-backup-ts');
+          scheduleJoeySyncStatusRefresh(250);
+          console.log('[Joey] Auto-backup to Drive successful' + (reason ? ' (' + reason + ')' : ''));
+        }
+        else console.warn('[Joey] Auto-backup to Drive failed' + (reason ? ' (' + reason + ')' : '') + ':', d);
+        return d;
+      }).catch(function(e){
+        console.warn('[Joey] Auto-backup to Drive error' + (reason ? ' (' + reason + ')' : '') + ':', e && e.message ? e.message : e);
+        return { ok:false, error:e && e.message ? e.message : String(e) };
+      }).finally(function(){
+        joeyDriveBackupInFlight = false;
+      });
+  }
+  function scheduleJoeyDriveBackup(reason, delayMs){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return;
+    markJoeyDriveBackupDirty(reason || 'auto');
+    if(joeyDriveBackupTimer) clearTimeout(joeyDriveBackupTimer);
+    joeyDriveBackupTimer = setTimeout(function(){
+      joeyDriveBackupTimer = null;
+      runJoeyDriveBackup(reason || 'auto');
+    }, typeof delayMs === 'number' ? delayMs : 90000);
+  }
+  window._homerBackupJoeyToDrive = function(reason){
+    return runJoeyDriveBackup(reason || 'agent-action');
+  };
+  window._homerSyncContextFromDrive = function(showConfirmation, silent){
+    return syncContextFromDrive(!!showConfirmation, !!silent);
+  };
+  function clearChatWindow(){
+    chatHistory = [];
+    chatLastLocalMutationAt = Date.now();
+    markChatCleared(currentContextMode, chatLastLocalMutationAt);
+    renderMessages();
+    saveChatToVault();
+    persistChatCache(currentContextMode, chatLastLocalMutationAt);
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(pass){
+      fetch(joeyActionUrl('history'), {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(withContextMode({ passphrase:pass, messages:[] }))
+      }).catch(function(){});
+    }
+  }
+
+  function refreshCanonicalFiles(opts){
+    opts = opts || {};
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return Promise.resolve();
+    var preflight = opts.skipQuoteSync ? Promise.resolve(false) : ensureSavedQuotesContext('context-refresh');
+    return Promise.resolve(preflight).then(function(){
+      return collectTaskSnapshot();
+    }).then(function(tasks){
+      var savedQuotesContent = buildSavedQuotesMarkdown(loadSaved());
+      return fetch(joeyActionUrl('files'), {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(withContextMode({ passphrase:pass, tasks:tasks, savedQuotesContent:savedQuotesContent }))
+      }).then(function(r){ return r.json(); }).catch(function(){});
+    });
+  }
+  function rebuildRememberedFilesContext(){
+    return refreshCanonicalFiles().then(function(data){
+      if(!data || !data.ok) throw new Error((data && (data.error || data.reason)) || 'Rebuild failed');
+      return fetchFileLibrary({ silent:true }).then(function(){
+        scheduleJoeySyncStatusRefresh(250);
+        if(typeof setUploadStatus === 'function'){
+          setUploadStatus('Remembered uploads and file-backed context rebuilt.', 'success');
+        }
+        return data;
+      });
+      });
+  }
+
+  function mergeContextCustomFiles(files, customFiles){
+    var merged = Object.assign({}, (files && typeof files === 'object') ? files : {});
+    var custom = (customFiles && typeof customFiles === 'object') ? customFiles : {};
+    Object.keys(custom).forEach(function(name){
+      var safeName = String(name || '').trim();
+      var content = custom[safeName];
+      if(!safeName || typeof content !== 'string' || !content.trim()) return;
+      if(/^Uploads\//i.test(safeName) || /^Preserved\//i.test(safeName)) return;
+      merged[safeName] = content.trim();
+    });
+    var savedQuotesMd = buildSavedQuotesMarkdown(loadSaved());
+    if(savedQuotesMd){
+      var remoteQuotesMd = String(merged[SAVED_QUOTES_FILE_NAME] || '');
+      var localLatestTs = getLatestSavedQuoteTimestampFromMarkdown(savedQuotesMd);
+      var remoteLatestTs = getLatestSavedQuoteTimestampFromMarkdown(remoteQuotesMd);
+      var localLatestQuote = getLatestSavedQuoteTextFromList(loadSaved()).toLowerCase();
+      var remoteHasLatestQuote = !localLatestQuote || remoteQuotesMd.toLowerCase().indexOf(localLatestQuote) >= 0;
+      if(!remoteQuotesMd || localLatestTs > remoteLatestTs || !remoteHasLatestQuote){
+        merged[SAVED_QUOTES_FILE_NAME] = savedQuotesMd;
+      }
+    }
+    return merged;
+  }
+
+  function fetchJoeyJson(url, opts){
+    return fetch(url, opts || {}).then(function(r){
+      return r.text().then(function(text){
+        var data = {};
+        try { data = text ? JSON.parse(text) : {}; }
+        catch(_err){
+          throw new Error(r.ok ? 'Non-JSON response from Joey API.' : ('Joey API returned ' + r.status + '.'));
+        }
+        if(!r.ok) throw new Error((data && data.error) || ('Joey API returned ' + r.status + '.'));
+        return data;
+      });
+    });
+  }
+
+  function fetchContextFiles(){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return Promise.reject(new Error('Log in first (unlock vault) to access context files.'));
+    return refreshCanonicalFiles().catch(function(){ return null; }).then(function(){
+      return Promise.all([
+        fetchJoeyJson(joeyActionUrl('files', pass), { cache:'no-store' }).catch(function(err){ return { __error: err }; }),
+        fetchJoeyJson(joeyActionUrl('custom-files', pass), { cache:'no-store' }).catch(function(){ return { customFiles:{} }; })
+      ]);
+    }).then(function(results){
+      var data = results[0] && !results[0].__error ? results[0] : {};
+      var custom = results[1] && results[1].customFiles ? results[1].customFiles : {};
+      var files = mergeContextCustomFiles(data.files, custom);
+      if(Object.keys(files).length) return files;
+      return refreshCanonicalFiles({ skipQuoteSync:true }).then(function(rebuild){
+        if(!rebuild || rebuild.error) throw new Error((rebuild && (rebuild.error || rebuild.reason)) || 'No files returned');
+        return Promise.all([
+          fetchJoeyJson(joeyActionUrl('files', pass), { cache:'no-store' }).catch(function(err){ return { __error: err }; }),
+          fetchJoeyJson(joeyActionUrl('custom-files', pass), { cache:'no-store' }).catch(function(){ return { customFiles:{} }; })
+        ]);
+      }).then(function(retryResults){
+        var retryData = retryResults[0] && !retryResults[0].__error ? retryResults[0] : {};
+        var retryCustom = retryResults[1] && retryResults[1].customFiles ? retryResults[1].customFiles : {};
+        var retryFiles = mergeContextCustomFiles(retryData.files, retryCustom);
+        if(Object.keys(retryFiles).length) return retryFiles;
+        if(results[0] && results[0].__error) throw results[0].__error;
+        throw new Error('No context files returned.');
+      });
+    });
+  }
+
+  function showContextFilesModal(files){
+    var existing = document.getElementById('oc-context-files-modal');
+    if(existing) existing.remove();
+    var names = Object.keys(files || {}).sort();
+    var modal = document.createElement('div');
+    modal.id = 'oc-context-files-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,.78);z-index:10030;display:flex;align-items:center;justify-content:center;padding:18px;';
+    var panel = document.createElement('div');
+    panel.style.cssText = 'width:min(1100px,96vw);height:min(86vh,900px);background:#07111f;border:1px solid rgba(148,163,184,.28);border-radius:18px;box-shadow:0 25px 70px rgba(0,0,0,.45);display:grid;grid-template-columns:260px 1fr;overflow:hidden;';
+    var sidebar = document.createElement('div');
+    sidebar.style.cssText = 'border-right:1px solid rgba(148,163,184,.18);padding:16px;overflow:auto;background:linear-gradient(180deg,rgba(15,23,42,.96),rgba(2,6,23,.96));';
+    var content = document.createElement('div');
+    content.style.cssText = 'padding:18px;overflow:auto;color:#e5eefb;';
+    var title = document.createElement('div');
+    title.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;color:#f8fafc;font-weight:800;';
+    title.innerHTML = '<span>Canonical Context Files</span><button type="button" style="padding:6px 10px;border-radius:10px;border:none;background:#1e293b;color:#fff;cursor:pointer;">Close</button>';
+    title.querySelector('button').addEventListener('click', function(){ modal.remove(); });
+    sidebar.appendChild(title);
+    names.forEach(function(name, idx){
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = name;
+      btn.style.cssText = 'display:block;width:100%;text-align:left;margin:0 0 8px;padding:10px 12px;border-radius:12px;border:1px solid rgba(148,163,184,.16);background:rgba(15,23,42,.78);color:#dbeafe;cursor:pointer;font-weight:700;';
+      btn.addEventListener('click', function(){
+        content.innerHTML = '<div style="font-size:1rem;font-weight:800;margin-bottom:10px;color:#f8fafc;">' + escHtml(name) + '</div><pre style="white-space:pre-wrap;word-break:break-word;background:rgba(15,23,42,.72);border-radius:14px;padding:16px;border:1px solid rgba(148,163,184,.18);line-height:1.5;font-size:.87rem;">' + escHtml(files[name] || '') + '</pre>';
+        Array.from(sidebar.querySelectorAll('button')).forEach(function(el){ if(el !== title.querySelector('button')) el.style.background = 'rgba(15,23,42,.78)'; });
+        btn.style.background = 'rgba(37,99,235,.35)';
+      });
+      sidebar.appendChild(btn);
+      if(idx === 0) setTimeout(function(){ btn.click(); }, 0);
+    });
+    panel.appendChild(sidebar);
+    panel.appendChild(content);
+    modal.appendChild(panel);
+    modal.addEventListener('click', function(e){ if(e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+  }
+
+  var rebuildFilesBtn = document.getElementById('oc-rebuild-files');
+  if(rebuildFilesBtn) rebuildFilesBtn.addEventListener('click', function(){
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = 'Ã¢ÂÂ³ Rebuilding...';
+    refreshCanonicalFiles().then(function(data){
+      if(data && data.ok){
+        btn.textContent = 'Ã¢Å“â€¦ Rebuilt!';
+      } else {
+        btn.textContent = 'Ã¢ÂÅ’ Failed';
+        alert('Rebuild failed: ' + JSON.stringify(data || {}).slice(0, 400));
+      }
+    }).catch(function(err){
+      btn.textContent = 'Ã¢ÂÅ’ Failed';
+      alert('Rebuild failed: ' + err.message);
+    }).finally(function(){
+      setTimeout(function(){ btn.innerHTML = '&#x21bb; Rebuild Context'; btn.disabled = false; }, 2200);
+    });
+  });
+
+  var rebuildLibraryBtn = document.getElementById('oc-rebuild-library');
+  if(rebuildLibraryBtn) rebuildLibraryBtn.addEventListener('click', function(){
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = 'ÃƒÂ¢Ã‚ÂÃ‚Â³ Rebuilding...';
+    rebuildRememberedFilesContext().then(function(){
+      btn.textContent = 'ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Rebuilt!';
+    }).catch(function(err){
+      btn.textContent = 'ÃƒÂ¢Ã‚ÂÃ…â€™ Failed';
+      if(typeof setUploadStatus === 'function'){
+        setUploadStatus('File rebuild failed: ' + (err && err.message ? err.message : String(err)), 'warn', true);
+      }
+      alert('File rebuild failed: ' + (err && err.message ? err.message : String(err)));
+    }).finally(function(){
+      setTimeout(function(){ btn.innerHTML = '&#x1f4ce; Rebuild Files'; btn.disabled = false; }, 2200);
+    });
+  });
+
+  var viewFilesBtn = document.getElementById('oc-view-files');
+  if(viewFilesBtn) viewFilesBtn.addEventListener('click', function(){
+    fetchContextFiles().then(showContextFilesModal).catch(function(err){
+      alert(err.message);
+    });
+  });
+
+  var exportFilesBtn = document.getElementById('oc-export-files');
+  if(exportFilesBtn) exportFilesBtn.addEventListener('click', function(){
+    fetchContextFiles().then(function(files){
+      var bundle = {
+        exportedAt: new Date().toISOString(),
+        files: files
+      };
+      var blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'joey-' + currentContextMode + '-context-files.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+    }).catch(function(err){
+      alert(err.message);
+    });
+  });
+
+  function loadHistoryFromRedis(force){
+    var options = (force && typeof force === 'object') ? force : { force: !!force };
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass){ console.warn('[Joey] No passphrase Ã¢â‚¬â€ cannot load history from Redis'); return; }
+    fetch(joeyActionUrl('history', pass))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data.error){ console.error('[Joey] Redis history error:', data.error); return; }
+        if(data.history && data.history.length){
+          var applied = replaceChatHistory(data.history, {
+            source: options.source || 'redis',
+            force: !!options.force,
+            allowRewrite: !!options.allowRewrite,
+            updatedAt: Date.now()
+          });
+          if(applied || !chatHistory.length){
+            console.log('[Joey] Loaded ' + data.history.length + ' messages from Redis' + (options.force ? ' (forced)' : ''));
+          }
+        } else if((!data.history || !data.history.length) && options.force){
+          chatHistory = [];
+          chatLastRemoteHydrateAt = Date.now();
+          renderMessages();
+          saveChatToVault();
+          persistChatCache(currentContextMode, chatLastRemoteHydrateAt);
+          console.warn('[Joey] Redis history is empty for mode ' + currentContextMode);
+        } else if(!data.history || !data.history.length){
+          console.warn('[Joey] Redis history is empty');
+        }
+      }).catch(function(e){ console.error('[Joey] Failed to load history from Redis:', e.message || e); });
+  }
+
+  // --- Auto-learning: extract memories after each exchange ---
+  function buildAutoLearnPayload(){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass || chatHistory.length < 2) return null;
+    return withContextMode({
+      passphrase: pass,
+      messages: chatHistory.slice(-8).map(function(m){ return { role:m.role, content:m.content }; })
+    });
+  }
+  function getAutoLearnKey(payload){
+    if(!payload) return '';
+    return JSON.stringify({ mode: payload.mode, messages: payload.messages || [] });
+  }
+  function parseJoeyJsonResponse(r){
+    return r.text().then(function(text){
+      var data = {};
+      try{ data = text ? JSON.parse(text) : {}; }catch(e){ data = { error: text || ('HTTP ' + r.status) }; }
+      if(!r.ok){
+        throw new Error((data && (data.error || data.reason)) || ('HTTP ' + r.status));
+      }
+      return data;
+    });
+  }
+  function reportAutoLearnFailure(key, message){
+    if(!key || autoLearnLastErrorKey === key) return;
+    if(/unparseable response/i.test(String(message || ''))){
+      console.warn('[Joey] Auto-learn skipped:', message);
+      return;
+    }
+    autoLearnLastErrorKey = key;
+    console.error('[Joey] Auto-learn failed:', message);
+    if(panelOpen && document.visibilityState !== 'hidden'){
+      showError('Joey could not save this chat to memory. ' + message);
+    }
+  }
+  function runAutoLearnPayload(payload, reason){
+    var key = getAutoLearnKey(payload);
+    if(!payload || !key || key === autoLearnLastCommittedKey) return Promise.resolve(null);
+    return fetch(joeyActionUrl('learn', '', payload.mode), {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      keepalive: true,
+      credentials: 'same-origin',
+      body: JSON.stringify(payload)
+    }).then(parseJoeyJsonResponse)
+      .then(function(data){
+        if(data && data.error) throw new Error(data.error);
+        var shouldRetry = !!(data && data.reason && /unparseable response/i.test(String(data.reason)));
+        autoLearnLastCommittedKey = key;
+        autoLearnLastErrorKey = '';
+        if(joeyAutoLearnRetryTimer){
+          clearTimeout(joeyAutoLearnRetryTimer);
+          joeyAutoLearnRetryTimer = null;
+        }
+        if(shouldRetry) scheduleJoeyLearnRetry('auto-learn-retry', 15000);
+        if(data && data.learned > 0) console.log('[Joey] Auto-learned ' + data.learned + ' new fact(s):', data.facts);
+        else if(data && data.reason) console.warn('[Joey] Auto-learn skipped (' + (reason || 'auto') + '): ' + data.reason);
+        if(data && data.profileUpdated) console.log('[Joey] Profile updated');
+        if(data && data.consolidated) console.log('[Joey] Memories consolidated');
+        refreshCanonicalFiles().catch(function(){});
+        if((data && data.learned > 0) || (data && data.profileUpdated)){
+          scheduleJoeyMemoryCommit('memory-update', 60000);
+        }
+        return data;
+      }).catch(function(err){
+        reportAutoLearnFailure(key, err && err.message ? err.message : String(err));
+        scheduleJoeyLearnRetry('auto-learn-retry', 15000);
+        throw err;
+      });
+  }
+  function flushQueuedAutoLearn(){
+    if(autoLearnFlushActive) return autoLearnRequest || Promise.resolve(null);
+    if(!autoLearnQueuedPayload) return Promise.resolve(null);
+    var payload = autoLearnQueuedPayload;
+    autoLearnQueuedPayload = null;
+    var reason = autoLearnQueuedReason || 'auto';
+    autoLearnQueuedReason = '';
+    autoLearnFlushActive = true;
+    autoLearnRequest = runAutoLearnPayload(payload, reason)
+      .catch(function(){ return null; })
+      .then(function(){
+        autoLearnFlushActive = false;
+        autoLearnRequest = null;
+        return autoLearnQueuedPayload ? flushQueuedAutoLearn() : null;
+      }, function(){
+        autoLearnFlushActive = false;
+        autoLearnRequest = null;
+        return autoLearnQueuedPayload ? flushQueuedAutoLearn() : null;
+      });
+    return autoLearnRequest;
+  }
+  function triggerAutoLearn(reason){
+    var payload = buildAutoLearnPayload();
+    if(!payload){
+      if(chatHistory.length >= 2 && !localStorage.getItem('homer-sync-pass')){
+        reportAutoLearnFailure('missing-passphrase:' + currentContextMode, 'Missing sync passphrase');
+      }
+      return Promise.resolve(null);
+    }
+    autoLearnQueuedPayload = payload;
+    autoLearnQueuedReason = reason || 'auto';
+    return flushQueuedAutoLearn();
+  }
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'hidden'){
+      flushJoeyStateForHandoff('visibility-hidden');
+      triggerAutoLearn('visibility-hidden');
+    }
+  });
+  window.addEventListener('pagehide', function(){
+    flushJoeyStateForHandoff('pagehide');
+    triggerAutoLearn('pagehide');
+  });
+  window.addEventListener('homer-vault-state', function(){
+    if(window._homerVaultUnlocked) loadChatFromVault();
+  });
+  window.addEventListener('homer-cloud-pull', function(){
+    if(window._homerVaultUnlocked) loadChatFromVault();
+    if(panelOpen){
+      setTimeout(function(){
+        loadHistoryFromRedis({ force:false, source:'cloud-pull' });
+      }, 300);
+    }
+  });
+
+  // Load conversation from Redis as fallback (cross-device continuity)
+  setTimeout(function(){
+    maybeRefreshJoeyBundleFromRedis({ source:'initial-redis-sync' }).then(function(result){
+      if(!result) loadHistoryFromRedis({ force:false, source:'initial-redis-sync' });
+    });
+  }, 1500);
+  setInterval(function(){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass || !panelOpen || streaming) return;
+    maybeRefreshJoeyBundleFromRedis({ source:'redis-poll' });
+    if(libraryPanel && libraryPanel.classList.contains('open')) fetchFileLibrary({ silent:true });
+  }, 60 * 1000);
+
+  // --- Sync context from Google Drive (safe reconcile) ---
+  function syncContextFromDrive(showConfirmation, silent){
+    var userFacingSyncConfirmation = !!showConfirmation;
+    showConfirmation = false;
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return Promise.reject('No passphrase');
+
+    console.log('[Joey] Reconciling context from Google Drive...');
+    return fetch('/api/gdrive-reconcile', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(withContextMode({ passphrase: pass }))
+    }).then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d.ok){
+          joeyLastDriveReconcileAt = Date.now();
+          console.log('[Joey] Drive reconcile complete:', d.reconciled);
+          if(d.reconciled && d.reconciled.history) loadHistoryFromRedis({ force:false, source:'drive-reconcile' });
+          if(d.changed){
+            refreshCanonicalFiles().catch(function(){});
+            if(libraryPanel && libraryPanel.classList.contains('open')) fetchFileLibrary({ silent:true });
+          }
+          scheduleJoeySyncStatusRefresh(250);
+          if(userFacingSyncConfirmation){
+            addAgentMessage(d.changed
+              ? 'I compared Google Drive with Redis and merged in missing context. Nothing got overwritten.'
+              : 'I compared Google Drive with Redis. Redis already had the current context.');
+          }
+          // Add agent acknowledgment message
+          if(showConfirmation){
+            addAgentMessage('Context loaded from Google Drive. I\'m up to date! Ã°Å¸Â§Â Ã¢Å“â€¦');
+          }
+          return d;
+        } else {
+          console.log('[Joey] Drive reconcile failed:', d);
+          if(userFacingSyncConfirmation && !silent){
+            addAgentMessage('Sorry, could not compare context from Drive.');
+          }
+          if(showConfirmation){
+            addAgentMessage('Sorry, couldn\'t sync context from Drive. Ã¢ÂÅ’');
+          }
+          throw new Error(d.error || 'Sync failed');
+        }
+      });
+  }
+
+  // Helper to add agent message to chat
+  function addAgentMessage(text){
+    chatHistory.push({
+      role: 'assistant',
+      content: text,
+      timestamp: Date.now(),
+      provider: currentProvider,
+      model: getStoredModelLabel(currentProvider, currentContextMode),
+      mode: currentContextMode
+    });
+    markLocalChatMutation();
+    renderMessages();
+    saveHistoryToRedis();
+    incrementUnread();
+  }
+
+  // --- Force sync button handler ---
+  var gdriveSyncBtn = document.getElementById('oc-gdrive-sync');
+  if(gdriveSyncBtn) gdriveSyncBtn.addEventListener('click', function(){
+    var btn = this;
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass){ alert('Log in first (unlock vault) to sync.'); return; }
+    btn.disabled = true;
+    btn.textContent = 'Ã¢ÂÂ³ Syncing...';
+    syncContextFromDrive(true).then(function(){
+      btn.textContent = 'Ã¢Å“â€¦ Synced!';
+      setTimeout(function(){ btn.innerHTML = '&#x27f3; Sync from Drive'; btn.disabled = false; }, 2000);
+    }).catch(function(e){
+      btn.textContent = 'Ã¢ÂÅ’ Failed';
+      setTimeout(function(){ btn.innerHTML = '&#x27f3; Sync from Drive'; btn.disabled = false; }, 2000);
+    });
+  });
+
+  // --- Safe periodic reconcile from Google Drive ---
+  function autoReconcileFromDrive(){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return;
+    if(!isAutoSyncEnabled()) return;
+    if(streaming) return;
+    syncContextFromDrive(false, true).then(function(d){
+      console.log('[Joey] Auto-reconciled from Drive' + (d && d.changed ? ' (merged changes)' : ' (no changes)'));
+    }).catch(function(e){
+      console.log('[Joey] Auto-reconcile error:', e && e.message ? e.message : e);
+    });
+  }
+  var JOEY_DRIVE_RECONCILE_INTERVAL_MS = 8 * 60 * 60 * 1000;
+  var JOEY_REDIS_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
+  // --- Periodic Redis save / learn refresh as a slow safety net ---
+  setInterval(function(){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!isAutoSyncEnabled()) return;
+    if(!pass || !chatHistory.length) return;
+    console.log('[Joey] Periodic DB save...');
+    saveHistoryToRedis();
+    // Also trigger learn to keep memories/profile fresh
+    if(chatHistory.length >= 2) triggerAutoLearn();
+  }, JOEY_REDIS_REFRESH_INTERVAL_MS);
+
+  var JOEY_DRIVE_BACKUP_INTERVAL_MS = 8 * 60 * 60 * 1000;
+  // --- Periodic auto-backup to Google Drive only after real Joey/context changes ---
+  setInterval(function(){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!isAutoSyncEnabled()) return;
+    if(!pass || !joeyDriveBackupDirty) return;
+    console.log('[Joey] Auto-backup to Google Drive (' + (joeyDriveBackupDirtyReason || 'context-change') + ')...');
+    runJoeyDriveBackup('interval');
+  }, JOEY_DRIVE_BACKUP_INTERVAL_MS);
+  setInterval(function(){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!isAutoSyncEnabled()) return;
+    if(!pass || streaming) return;
+    autoReconcileFromDrive();
+  }, JOEY_DRIVE_RECONCILE_INTERVAL_MS);
+
+  // --- Markdown rendering ---
+  function renderMd(raw){
+    if(typeof marked !== 'undefined'){
+      try{ return marked.parse(raw, {breaks:true, gfm:true}); }catch(e){}
+    }
+    return escHtml(raw).replace(/\n/g,'<br>');
+  }
+  function escHtml(s){
+    s = String(s == null ? '' : s);
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function copyTextToClipboard(text){
+    var value = String(text == null ? '' : text);
+    if(navigator.clipboard && window.isSecureContext){
+      return navigator.clipboard.writeText(value);
+    }
+    return new Promise(function(resolve, reject){
+      try{
+        var ta = document.createElement('textarea');
+        ta.value = value;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '-9999px';
+        ta.style.left = '-9999px';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length);
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if(!ok) throw new Error('Copy failed');
+        resolve();
+      }catch(err){
+        reject(err);
+      }
+    });
+  }
+  function setCopyButtonState(btn, text){
+    if(!btn) return;
+    var resetLabel = btn.getAttribute('data-copy-label') || 'Copy';
+    btn.textContent = text;
+    if(btn._copyResetTimer) clearTimeout(btn._copyResetTimer);
+    btn._copyResetTimer = setTimeout(function(){ btn.textContent = resetLabel; }, 1500);
+  }
+  function looksLikeCodeLine(line){
+    var raw = String(line || '');
+    var text = raw.trim();
+    if(!text) return false;
+    if(/^(const|let|var|function|class|interface|type|if|else|for|while|switch|case|return|import|export|from|async|await|try|catch|finally|def|SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|curl|npm|pnpm|yarn|git|docker|kubectl|python|node|<\w+|<!DOCTYPE|\{|\[)/i.test(text)) return true;
+    if(/[`{}();=>]/.test(text)) return true;
+    if(/^\$ |^#include\b|^\.?\/|^[A-Z0-9_]+\s*=/.test(text)) return true;
+    if(/^\s{2,}\S+/.test(raw)) return true;
+    return false;
+  }
+  function responseHasCopyableCode(raw){
+    var text = String(raw || '').replace(/\r/g, '').trim();
+    if(!text) return false;
+    if(/```[\s\S]*```/.test(text)) return true;
+    var lines = text.split('\n').filter(function(line){ return line.trim(); });
+    if(lines.length < 2) return false;
+    var codeLines = 0;
+    lines.forEach(function(line){
+      if(looksLikeCodeLine(line)) codeLines += 1;
+    });
+    return codeLines >= Math.max(3, Math.ceil(lines.length * 0.45));
+  }
+  function getMessageActionsHtml(role, rawContent){
+    var html = '<div class="oc-msg-actions">';
+    html += '<button type="button" class="oc-copy-action oc-copy-msg" data-copy-kind="message" data-copy-label="Copy">Copy</button>';
+    if(role === 'assistant' && responseHasCopyableCode(rawContent)){
+      html += '<button type="button" class="oc-copy-action oc-copy-code-msg" data-copy-kind="code" data-copy-label="Copy code">Copy code</button>';
+    }
+    html += '</div>';
+    return html;
+  }
+  function getFileChipsHtml(files){
+    if(!files || !files.length) return '';
+    var html = '<div class="oc-file-chips">';
+    files.forEach(function(f){
+      html += '<span class="oc-file-chip"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' + escHtml(f) + '</span>';
+    });
+    html += '</div>';
+    return html;
+  }
+  function renderChatMessage(message, index){
+    var chatIndex = typeof index === 'number' ? index : '';
+    if(message.role === 'user'){
+      return '<div class="oc-msg user" data-chat-index="' + chatIndex + '">' + getMessageActionsHtml('user', message.displayText || message.content) + escHtml(message.displayText || message.content) + getFileChipsHtml(message.files) + '</div>';
+    }
+    if(message.role === 'assistant'){
+      var hasCode = responseHasCopyableCode(message.content);
+      return '<div class="oc-msg bot' + (hasCode ? ' has-code' : '') + '" data-chat-index="' + chatIndex + '">' + getMessageActionsHtml('assistant', message.content) + '<span class="oc-joey-avatar">JT</span><span class="oc-model-tag">' + escHtml(getMessageModelTag(message)) + '</span><span class="oc-content">' + renderMd(message.content) + '</span></div>';
+    }
+    return '';
+  }
+  function syncMessageCodeActions(messageEl, role, rawContent){
+    if(!messageEl || role !== 'assistant') return;
+    var actions = messageEl.querySelector('.oc-msg-actions');
+    if(!actions) return;
+    var hasCode = responseHasCopyableCode(rawContent);
+    var codeBtn = actions.querySelector('.oc-copy-code-msg');
+    messageEl.classList.toggle('has-code', hasCode);
+    if(hasCode && !codeBtn){
+      actions.insertAdjacentHTML('beforeend', '<button type="button" class="oc-copy-action oc-copy-code-msg" data-copy-kind="code" data-copy-label="Copy code">Copy code</button>');
+    } else if(!hasCode && codeBtn){
+      codeBtn.remove();
+    }
+  }
+  function getMessageCopyText(messageEl){
+    if(!messageEl) return '';
+    if(messageEl.classList.contains('streaming')) return streamRaw;
+    var idx = parseInt(messageEl.getAttribute('data-chat-index'), 10);
+    if(!isNaN(idx) && chatHistory[idx]){
+      var entry = chatHistory[idx];
+      return String(entry.role === 'user' ? (entry.displayText || entry.content || '') : (entry.content || ''));
+    }
+    var contentEl = messageEl.querySelector('.oc-content');
+    return String(contentEl ? contentEl.textContent : messageEl.textContent || '');
+  }
+  function getMessageCodeText(messageEl){
+    if(!messageEl) return '';
+    var blocks = [];
+    messageEl.querySelectorAll('pre').forEach(function(pre){
+      var code = pre.querySelector('code');
+      var text = String(code ? code.textContent : (pre.textContent || '').replace(/\s*Copy\s*$/, '')).trim();
+      if(text) blocks.push(text);
+    });
+    if(blocks.length) return blocks.join('\n\n');
+    var raw = getMessageCopyText(messageEl).trim();
+    return responseHasCopyableCode(raw) ? raw : '';
+  }
+
+  function injectCodeCopyButtons(container){
+    container.querySelectorAll('pre').forEach(function(pre){
+      if(pre.querySelector('.oc-copy-code')) return;
+      var btn = document.createElement('button');
+      btn.className = 'oc-copy-code';
+      btn.type = 'button';
+      btn.textContent = 'Copy';
+      btn.setAttribute('data-copy-label', 'Copy');
+      btn.addEventListener('click', function(){
+        var code = pre.querySelector('code');
+        var text = code ? code.textContent : (pre.textContent || '').replace(/\s*Copy\s*$/, '');
+        copyTextToClipboard(text).then(function(){
+          setCopyButtonState(btn, 'Copied!');
+        }).catch(function(){
+          setCopyButtonState(btn, 'Failed');
+        });
+      });
+      pre.style.position = 'relative';
+      pre.appendChild(btn);
+    });
+  }
+
+  // --- Rendering ---
+  function getWelcomeHtml(){
+    if(currentContextMode === 'work'){
+      return '<div class="oc-welcome"><span class="oc-welcome-icon">\u{1F4BC}</span><strong>' + escHtml(getProviderDisplayName(currentProvider, currentContextMode)) + '</strong> keeps tasks, follow-ups, and decisions straight.<br>What needs tracking?</div>';
+    }
+    return '<div class="oc-welcome"><span class="oc-welcome-icon">\u{1F355}</span><strong>' + escHtml(getProviderDisplayName(currentProvider, currentContextMode)) + '</strong> doesn\'t share food, but shares answers.<br>How you doin\'? Ask me anything.</div>';
+  }
+  function getActivePromptHtml(){
+    var prompt = getSavedSystemPrompt(currentContextMode);
+    if(!prompt) return '';
+    return '<div class="oc-active-prompt"><span class="oc-active-prompt-label">Active System Prompt</span>' + escHtml(prompt) + '</div>';
+  }
+  function getMessageModelTag(message){
+    var label = normalizeModelLabel(message && message.model);
+    if(label) return label;
+    return getStoredModelLabel((message && message.provider) || currentProvider, (message && message.mode) || currentContextMode) || getProviderFallbackLabel((message && message.provider) || currentProvider, (message && message.mode) || currentContextMode);
+  }
+
+  function renderMessages(){
+    var html = getWelcomeHtml() + getActivePromptHtml();
+    chatHistory.forEach(function(m, index){
+      html += renderChatMessage(m, index);
+    });
+    messagesEl.innerHTML = html;
+    injectCodeCopyButtons(messagesEl);
+    scrollMessagesToBottom(true);
+  }
+
+  // --- Copy message (event delegation) ---
+  messagesEl.addEventListener('click', function(e){
+    var btn = e.target.closest('.oc-copy-action');
+    if(!btn) return;
+    var msg = btn.closest('.oc-msg');
+    if(!msg) return;
+    var text = btn.getAttribute('data-copy-kind') === 'code' ? getMessageCodeText(msg) : getMessageCopyText(msg);
+    if(!text){
+      setCopyButtonState(btn, 'No code');
+      return;
+    }
+    copyTextToClipboard(text).then(function(){
+      setCopyButtonState(btn, 'Copied!');
+    }).catch(function(){
+      setCopyButtonState(btn, 'Failed');
+    });
+  });
+
+  function addTypingIndicator(){
+    var el = document.createElement('div');
+    el.className = 'oc-msg bot';
+    el.id = 'oc-typing';
+    el.innerHTML = '<span class="oc-joey-avatar">JT</span><span class="oc-model-tag">' + escHtml(getStoredModelLabel(currentProvider, currentContextMode)) + '</span><div class="oc-typing"><span></span><span></span><span></span></div>';
+    messagesEl.appendChild(el);
+    scrollMessagesToBottom(false);
+  }
+  function removeTypingIndicator(){
+    var t = document.getElementById('oc-typing');
+    if(t) t.remove();
+    updateScrollLatestButton();
+  }
+
+  var streamRaw = '';
+  function formatModelLabel(model){
+    return normalizeModelLabel(model);
+  }
+  function appendBotChunk(text, modelLabel){
+    var existing = messagesEl.querySelector('.oc-msg.bot.streaming');
+    if(!existing){
+      existing = document.createElement('div');
+      existing.className = 'oc-msg bot streaming';
+      existing.innerHTML = getMessageActionsHtml('assistant', '') + '<span class="oc-joey-avatar">JT</span><span class="oc-model-tag"></span><span class="oc-content"></span>';
+      messagesEl.appendChild(existing);
+      streamRaw = '';
+    }
+    var tag = existing.querySelector('.oc-model-tag');
+    if(tag) tag.textContent = modelLabel || getStoredModelLabel(currentProvider, currentContextMode) || getProviderFallbackLabel(currentProvider, currentContextMode);
+    streamRaw += text;
+    var c = existing.querySelector('.oc-content');
+    if(c) c.textContent = streamRaw;
+    syncMessageCodeActions(existing, 'assistant', streamRaw);
+    scrollMessagesToBottom(false);
+  }
+  function finalizeBotMessage(){
+    var el = messagesEl.querySelector('.oc-msg.bot.streaming');
+    if(el){
+      el.classList.remove('streaming');
+      var c = el.querySelector('.oc-content');
+      if(c){
+        c.innerHTML = renderMd(streamRaw);
+        injectCodeCopyButtons(el);
+      }
+      syncMessageCodeActions(el, 'assistant', streamRaw);
+      var result = streamRaw;
+      streamRaw = '';
+      updateScrollLatestButton();
+      return result;
+    }
+    return '';
+  }
+
+  // --- Joey Actions: create tasks, goals, focus tasks, events ---
+  function inferTaskActionFromUserText(text){
+    var raw = String(text || '').trim();
+    if(!raw) return null;
+    if(!/\b(?:create|add|save|track|put|make|turn)\b/i.test(raw)) return null;
+    if(!/\b(?:task|todo|to-?do|card|issue)\b/i.test(raw)) return null;
+    var remainder = raw.replace(/^\s*(?:please\s+)?(?:create|add|save|track|put|make)\s+(?:me\s+|this\s+|a\s+|an\s+)?(?:new\s+)?(?:task|todo|to-?do|card|issue)\b/i, '').trim();
+    var remainderProjectMatch = remainder.match(/^(?:in|into|under|for)\s+(?:the\s+)?project\s+["Ã¢â‚¬Å“]?([^,"\n]+?)["Ã¢â‚¬Â]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
+    if(remainderProjectMatch){
+      var inferredProject = String(remainderProjectMatch[1] || '').trim();
+      var inferredSummary = remainder.slice(remainderProjectMatch[0].length).trim().replace(/^[,:-]\s*/, '');
+      inferredSummary = inferredSummary.replace(/^\s*(?:for|to)\s+/i, '').trim();
+      if(inferredSummary && inferredSummary.length >= 3){
+        return {
+          project: inferredProject,
+          summary: inferredSummary,
+          notes: inferredSummary
+        };
+      }
+    }
+    var remainderScopedMatch = remainder.match(/^(?:in|into|under|for)\s+["ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ]?([A-Za-z][A-Za-z0-9_-]{1,20})["ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
+    if(remainderScopedMatch && !/^the$/i.test(String(remainderScopedMatch[1] || '').trim())){
+      var scopedProject = String(remainderScopedMatch[1] || '').trim();
+      var scopedSummary = remainder.slice(remainderScopedMatch[0].length).trim().replace(/^[,:-]\s*/, '');
+      scopedSummary = scopedSummary.replace(/^\s*(?:for|to)\s+/i, '').trim();
+      if(scopedSummary && scopedSummary.length >= 3){
+        return {
+          project: scopedProject,
+          summary: scopedSummary,
+          notes: scopedSummary
+        };
+      }
+    }
+    var project = '';
+    var projectMatch = raw.match(/\b(?:in|into|under|for)\s+(?:the\s+)?project\s+["â€œ]?([^,"\n]+?)["â€]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
+    if(projectMatch) project = String(projectMatch[1] || '').trim();
+    var summary = raw
+      .replace(/^\s*(?:please\s+)?(?:create|add|save|track|put|make)\s+(?:me\s+|this\s+|a\s+|an\s+)?(?:new\s+)?(?:task|todo|to-?do|card|issue)\b/i, '')
+      .replace(/^\s*(?:in|into|under|for)\s+(?:the\s+)?project\s+["â€œ]?([^,"\n]+?)["â€]?(?:\s*,|\s*:\s*|\s+-\s+)?/i, '')
+      .replace(/^\s*(?:for|to)\s+/i, '')
+      .trim();
+    if(!summary){
+      var parts = raw.split(/[:,]/);
+      if(parts.length > 1) summary = parts.slice(1).join(':').trim();
+    }
+    if(!summary || summary.length < 3) return null;
+    return {
+      project: project,
+      summary: summary,
+      notes: summary
+    };
+  }
+  function inferDirectTaskRequest(text){
+    var raw = String(text || '').replace(/\s+/g, ' ').trim();
+    if(!raw) return null;
+    if(!/\b(?:create|add|save|track|put|make|turn)\b/i.test(raw)) return null;
+    if(!/\b(?:task|todo|to-?do|card|issue)\b/i.test(raw)) return null;
+    var body = raw.replace(/^\s*(?:please\s+)?(?:create|add|save|track|put|make|turn)\s+(?:me\s+|this\s+|a\s+|an\s+)?(?:new\s+)?(?:task|todo|to-?do|card|issue)\b/i, '').trim();
+    if(!body) return null;
+    var requestedMode = '';
+    var project = '';
+    var summary = body;
+    var patterns = [
+      /^(?:in|into|under|for)\s+(?:the\s+)?(?:(personal|work)\s*,\s*)?["Ã¢â‚¬Å“]?([^,"\n]+?)\s+project["Ã¢â‚¬Â]?(?:\s*,|\s*:\s*|\s+-\s+|\s+)([\s\S]+)$/i,
+      /^(?:in|into|under|for)\s+(?:the\s+)?project\s+["â€œ]?([^,"\n]+?)["â€]?(?:\s*,|\s*:\s*|\s+-\s+|\s+)([\s\S]+)$/i,
+      /^(?:in|into|under|for)\s+["â€œ]?([A-Za-z][A-Za-z0-9 _-]{1,40})["â€]?(?:\s*,|\s*:\s*|\s+-\s+|\s+)([\s\S]+)$/i
+    ];
+    for(var p = 0; p < patterns.length; p++){
+      var found = body.match(patterns[p]);
+      if(found){
+        if(p === 0){
+          requestedMode = String(found[1] || '').trim().toLowerCase();
+          project = String(found[2] || '').trim();
+          summary = String(found[3] || '').trim();
+        } else {
+          project = String(found[1] || '').trim();
+          summary = String(found[2] || '').trim();
+        }
+        break;
+      }
+    }
+    project = project.replace(/^(?:personal|work)\s*,\s*/i, '').trim();
+    summary = summary
+      .replace(/^\s*(?:for|to)\s+/i, '')
+      .replace(/^[,:-]\s*/, '')
+      .replace(/\s*(?:,|\band\b)?\s*(?:add|include|put|with)\s+(?:relevant\s+)?subtasks?.*$/i, '')
+      .trim();
+    if(project && /^the$/i.test(project)) project = '';
+    if(!summary || summary.length < 3) return null;
+    return {
+      mode: requestedMode === 'work' ? 'work' : (requestedMode === 'personal' ? 'personal' : ''),
+      project: project,
+      summary: summary,
+      notes: summary
+    };
+  }
+  function taskNeedsAgentSubtasks(text){
+    return /\b(?:subtasks?|steps?|break(?:\s+it)?\s+down|relevant\s+subtasks?)\b/i.test(String(text || ''));
+  }
+  function applyAgentEventMutation(eventData, options){
+    options = options || {};
+    var evt = eventData && typeof eventData === 'object' ? Object.assign({}, eventData) : {};
+    evt.title = clampAgentText(evt.title || evt.summary || 'Reminder', 120) || 'Reminder';
+    evt.summary = evt.title;
+    evt.description = clampAgentText(evt.description || evt.notes || evt.body || '', 300);
+    evt.location = clampAgentText(evt.location || '', 120);
+    evt.category = clampAgentText(evt.category || 'reminder', 32) || 'reminder';
+    evt.date = clampAgentText(evt.date || new Date().toISOString().slice(0,10), 20) || new Date().toISOString().slice(0,10);
+    evt.time = clampAgentText(evt.time || '', 10);
+    if(typeof window._calendarAddCustomEvent === 'function'){
+      window._calendarAddCustomEvent(evt);
+    }
+    if(evt.heartbeat && evt.heartbeat.enabled && typeof window._calendarAddHeartbeatRule === 'function'){
+      var intervalMinutes = Math.max(1, parseInt(evt.heartbeat.intervalMinutes, 10) || 0);
+      if(intervalMinutes){
+        window._calendarAddHeartbeatRule({
+          title: evt.title,
+          body: clampAgentText(evt.heartbeat.body || evt.description || evt.title, 240),
+          intervalMinutes: intervalMinutes,
+          nextAt: Date.now() + (intervalMinutes * 60 * 1000),
+          enabled: true
+        });
+      }
+    }
+    try{ window.dispatchEvent(new Event('calendar-changed')); }catch(_e){}
+    return {
+      ok:true,
+      title:evt.title,
+      intervalMinutes: evt.heartbeat && evt.heartbeat.intervalMinutes ? parseInt(evt.heartbeat.intervalMinutes, 10) : 0,
+      message: evt.heartbeat && evt.heartbeat.intervalMinutes
+        ? ('Recurring reminder set every ' + evt.heartbeat.intervalMinutes + ' min: ' + evt.title)
+        : ('Event added: ' + evt.title)
+    };
+  }
+  function normalizeIssueKeyLookup(value){
+    return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9-]+/g, '');
+  }
+  function toTitleCaseText(value){
+    return String(value || '').replace(/\s+/g, ' ').trim().replace(/\b([a-z])/g, function(_m, ch){ return ch.toUpperCase(); });
+  }
+  function inferDirectEventRequest(text){
+    var raw = String(text || '').replace(/\s+/g, ' ').trim();
+    if(!raw) return null;
+    var lower = raw.toLowerCase();
+    if(!/\b(remind|reminder|heartbeat|heart\s*beat|heart\s*bit|heartbit|check[- ]?in|check in)\b/.test(lower)) return null;
+    var everyMatch = raw.match(/\bevery\s+(\d{1,3})\s*(minute|minutes|min|mins|hour|hours|hr|hrs)\b/i);
+    var intervalMinutes = 0;
+    if(everyMatch){
+      intervalMinutes = parseInt(everyMatch[1], 10) || 0;
+      var unit = String(everyMatch[2] || '').toLowerCase();
+      if(/^h/.test(unit)) intervalMinutes *= 60;
+    }
+    var bodyMatch = raw.match(/\b(?:to|for)\s+(.+)$/i);
+    var body = bodyMatch ? String(bodyMatch[1] || '').trim() : '';
+    body = body.replace(/[.?!]+$/g, '').trim();
+    if(!body){
+      body = raw
+        .replace(/^\s*(?:please\s+)?(?:set|create|add|make)\s+(?:a\s+)?(?:heartbeat|heart\s*beat|heart\s*bit|heartbit|reminder|check[- ]?in)\b/i, '')
+        .replace(/\bevery\s+\d{1,3}\s*(?:minute|minutes|min|mins|hour|hours|hr|hrs)\b/ig, '')
+        .replace(/^\s*(?:to|for)\s+/i, '')
+        .replace(/[.?!]+$/g, '')
+        .trim();
+    }
+    if(!body) body = 'Reminder';
+    var title = toTitleCaseText(body);
+    var evt = {
+      title: title,
+      summary: title,
+      description: body,
+      category: 'reminder',
+      date: new Date().toISOString().slice(0, 10)
+    };
+    if(intervalMinutes > 0){
+      evt.heartbeat = {
+        enabled: true,
+        intervalMinutes: intervalMinutes,
+        body: body
+      };
+      evt.recurrence = {
+        freq: intervalMinutes % 60 === 0 ? 'HOURLY' : 'MINUTELY',
+        interval: intervalMinutes % 60 === 0 ? Math.max(1, Math.round(intervalMinutes / 60)) : intervalMinutes
+      };
+    }
+    return evt;
+  }
+  function normalizeIssueColumn(value){
+    var raw = String(value || '').trim().toLowerCase();
+    if(!raw) return '';
+    raw = raw.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if(raw === 'todo' || raw === 'to do' || raw === 'open') return 'todo';
+    if(raw === 'progress' || raw === 'in progress' || raw === 'doing' || raw === 'active') return 'progress';
+    if(raw === 'pending' || raw === 'blocked' || raw === 'waiting') return 'pending';
+    if(raw === 'backlog' || raw === 'later' || raw === 'icebox') return 'backlog';
+    if(raw === 'done' || raw === 'complete' || raw === 'completed' || raw === 'closed') return 'done';
+    return '';
+  }
+  function inferDirectIssueUpdateRequest(text){
+    var raw = String(text || '').replace(/\s+/g, ' ').trim();
+    if(!raw) return null;
+    if(!/\b(?:update|edit|change|modify|move|set|rename|retitle|add)\b/i.test(raw)) return null;
+    var keyMatch = raw.match(/\b([A-Z][A-Z0-9]{1,9}-\d{1,8})\b/i);
+    if(!keyMatch) return null;
+    var result = { op:'update', key: normalizeIssueKeyLookup(keyMatch[1]) };
+    var changed = false;
+    var statusMatch = raw.match(/\b(?:move|set|change|update|edit)\s+[A-Z][A-Z0-9]{1,9}-\d{1,8}\s+(?:to|into)?\s*(?:status|column|state)?\s*(?:to|as|=)?\s*(to do|todo|open|in progress|progress|doing|pending|blocked|waiting|backlog|later|done|complete|completed|closed)\b/i)
+      || raw.match(/\b(?:status|column|state)\s+(?:to|as|=)?\s*(to do|todo|open|in progress|progress|doing|pending|blocked|waiting|backlog|later|done|complete|completed|closed)\b/i);
+    var status = normalizeIssueColumn(statusMatch && statusMatch[1]);
+    if(status){
+      result.status = status;
+      changed = true;
+    }
+    var priorityMatch = raw.match(/\bpriority\s+(?:to|as|=)?\s*(high|medium|low)\b/i);
+    if(priorityMatch){
+      result.priority = priorityMatch[1].toLowerCase();
+      changed = true;
+    }
+    var dueMatch = raw.match(/\bdue\s+(?:to|on|as|=)?\s*(\d{4}-\d{2}-\d{2})\b/i);
+    if(dueMatch){
+      result.due = dueMatch[1];
+      changed = true;
+    }
+    var renameMatch = raw.match(/\b(?:rename|retitle)\s+[A-Z][A-Z0-9]{1,9}-\d{1,8}\s+(?:to|as)?\s*(.+)$/i)
+      || raw.match(/\bsummary\s+(?:to|as|=)\s*(.+)$/i);
+    if(renameMatch){
+      result.summary = renameMatch[1].trim();
+      changed = true;
+    }
+    var notesMatch = raw.match(/\b(?:notes?|description)\s+(?:to|as|=)\s*(.+)$/i);
+    if(notesMatch){
+      result.notes = notesMatch[1].trim();
+      changed = true;
+    }
+    var subtaskMatch = raw.match(/\badd\s+(?:a\s+)?subtask\s+(?:to|for)\s+[A-Z][A-Z0-9]{1,9}-\d{1,8}\s*[:,]?\s*(.+)$/i);
+    if(subtaskMatch){
+      result.subtasks = [{ text: subtaskMatch[1].trim() }];
+      changed = true;
+    }
+    return changed ? result : null;
+  }
+  function clampAgentText(value, maxLen){
+    var text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+    text = text.replace(/([A-Za-z0-9@._-]{2,})(?:\/\1){3,}/g, '$1');
+    if(maxLen && text.length > maxLen) text = text.slice(0, maxLen).trim();
+    return text;
+  }
+  function parseTaskActionData(raw, userText){
+    var taskData = null;
+    var rawText = '';
+    if(raw && typeof raw === 'object' && !Array.isArray(raw)){
+      taskData = raw;
+      try{ rawText = JSON.stringify(raw); }catch(_e){ rawText = String(raw); }
+    } else {
+      rawText = String(raw || '').trim();
+      try{ taskData = JSON.parse(rawText); }catch(e){
+        var objectStart = rawText.indexOf('{');
+        if(objectStart >= 0){
+          var jsonCandidate = rawText.slice(objectStart);
+          var objectEnd = jsonCandidate.lastIndexOf('}');
+          if(objectEnd >= 0){
+            try{ taskData = JSON.parse(jsonCandidate.slice(0, objectEnd + 1)); }catch(_){}
+          }
+        }
+        if(!taskData){
+          taskData = inferDirectIssueUpdateRequest(userText) || inferDirectIssueUpdateRequest(rawText) || inferTaskActionFromUserText(userText) || inferTaskActionFromUserText(rawText) || { summary: rawText };
+        }
+      }
+    }
+    if(!taskData || typeof taskData !== 'object') taskData = { summary: rawText };
+    var normalized = {
+      mode: String(taskData.mode || taskData.scope || '').trim().toLowerCase() === 'work' ? 'work' : (String(taskData.mode || taskData.scope || '').trim().toLowerCase() === 'personal' ? 'personal' : ''),
+      op: clampAgentText(taskData.op || taskData.action || (taskData.key || taskData.issueKey ? 'update' : 'create'), 24).toLowerCase(),
+      key: normalizeIssueKeyLookup(taskData.key || taskData.issueKey || taskData.issue || ''),
+      project: clampAgentText(taskData.project || taskData.projectId || taskData.projectName || taskData.projectKey || '', 80),
+      projectId: clampAgentText(taskData.projectId || '', 80),
+      summary: clampAgentText(taskData.summary || taskData.title || '', 180),
+      notes: clampAgentText(taskData.notes || taskData.description || taskData.desc || '', 700),
+      due: clampAgentText(taskData.due || '', 40),
+      priority: /^(high|medium|low)$/i.test(String(taskData.priority || '')) ? String(taskData.priority).toLowerCase() : '',
+      status: normalizeIssueColumn(taskData.status || taskData.col || taskData.column || taskData.state || ''),
+      labels: Array.isArray(taskData.labels)
+        ? taskData.labels.map(function(label){ return clampAgentText(label, 32); }).filter(Boolean).slice(0, 8)
+        : (typeof taskData.labels === 'string'
+          ? String(taskData.labels).split(',').map(function(label){ return clampAgentText(label, 32); }).filter(Boolean).slice(0, 8)
+          : []),
+      customFields: (taskData.customFields && typeof taskData.customFields === 'object') ? taskData.customFields : {},
+      subtasks: []
+    };
+    var inferred = inferDirectIssueUpdateRequest(userText) || inferDirectIssueUpdateRequest(rawText) || inferTaskActionFromUserText(userText) || inferTaskActionFromUserText(rawText);
+    if(!normalized.key && inferred && inferred.key) normalized.key = normalizeIssueKeyLookup(inferred.key);
+    if(!normalized.mode && inferred && inferred.mode) normalized.mode = inferred.mode === 'work' ? 'work' : 'personal';
+    if(!normalized.status && inferred && inferred.status) normalized.status = normalizeIssueColumn(inferred.status);
+    if(!normalized.project && inferred && inferred.project) normalized.project = clampAgentText(inferred.project, 80);
+    if(!normalized.summary && inferred && inferred.summary) normalized.summary = clampAgentText(inferred.summary, 180);
+    if(!normalized.notes && inferred && inferred.notes) normalized.notes = clampAgentText(inferred.notes, 700);
+    if(!normalized.op) normalized.op = normalized.key ? 'update' : 'create';
+    var seenSubtasks = {};
+    (Array.isArray(taskData.subtasks) ? taskData.subtasks : []).slice(0, 6).forEach(function(st){
+      var stObj = typeof st === 'string' ? { text: st } : (st || {});
+      var text = clampAgentText(stObj.text || stObj.summary || stObj.title || '', 120);
+      if(!text) return;
+      var dedupeKey = text.toLowerCase();
+      if(seenSubtasks[dedupeKey]) return;
+      seenSubtasks[dedupeKey] = true;
+      normalized.subtasks.push({
+        text: text,
+        effort: clampAgentText(stObj.effort || '', 24),
+        due: clampAgentText(stObj.due || '', 40),
+        notes: clampAgentText(stObj.notes || stObj.description || stObj.desc || '', 220)
+      });
+    });
+    return normalized;
+  }
+  var lastJoeyTaskFingerprint = '';
+  var lastJoeyTaskTs = 0;
+  function buildTaskFingerprint(taskData){
+    var project = clampAgentText(taskData && (taskData.projectId || taskData.project || taskData.projectName || taskData.projectKey) || '', 80).toLowerCase();
+    var summary = clampAgentText(taskData && (taskData.summary || taskData.title) || '', 180).toLowerCase();
+    return project + '|' + summary;
+  }
+  function shouldSkipRecentTask(taskData){
+    var fingerprint = buildTaskFingerprint(taskData);
+    return !!(fingerprint && fingerprint === lastJoeyTaskFingerprint && (Date.now() - lastJoeyTaskTs) < 120000);
+  }
+  function rememberRecentTask(taskData){
+    var fingerprint = buildTaskFingerprint(taskData);
+    if(!fingerprint) return;
+    lastJoeyTaskFingerprint = fingerprint;
+    lastJoeyTaskTs = Date.now();
+  }
+  function inferDirectCommandRequest(text){
+    var raw = String(text || '').replace(/\s+/g, ' ').trim();
+    if(!raw) return null;
+    var body = raw
+      .replace(/^(?:please\s+)?(?:can you|could you|would you|will you)\s+/i, '')
+      .replace(/^(?:please\s+)?/i, '')
+      .trim();
+    var lower = body.toLowerCase();
+    var tabMap = {
+      home: 'home',
+      pomodoro: 'pomodoro',
+      focuslab: 'focuslab',
+      'focus lab': 'focuslab',
+      investing: 'investing',
+      tools: 'tools',
+      links: 'links',
+      news: 'news',
+      vault: 'vault'
+    };
+    var openMap = { notes:'notes', secrets:'secrets', projects:'projects', kanban:'kanban', goals:'goals' };
+    var tabMatch = lower.match(/^(?:open|show|go to|click|press|tap)\s+(?:the\s+)?(?:tab\s+)?(home|pomodoro|focus lab|focuslab|investing|tools|links|news|vault)$/i);
+    if(tabMatch) return { op:'tab', target:tabMap[tabMatch[1].toLowerCase()] };
+    var openMatch = lower.match(/^(?:open|show|click|press|tap)\s+(?:the\s+)?(notes|secrets|projects|kanban|goals)$/i);
+    if(openMatch) return { op:'open', target:openMap[openMatch[1].toLowerCase()] };
+    var modeMatch = lower.match(/^(?:switch|change|set)\s+(?:to\s+)?(work|personal)(?:\s+mode)?$/i);
+    if(modeMatch) return { op:'mode', target:modeMatch[1].toLowerCase() };
+    var issueMatch = body.match(/^(?:open|show|click|press|tap)\s+([A-Z][A-Z0-9]{1,9}-\d{1,8})$/i);
+    if(issueMatch) return { op:'issue-open', key: normalizeIssueKeyLookup(issueMatch[1]), target: normalizeIssueKeyLookup(issueMatch[1]) };
+    if(/^(?:start|resume|click|press|tap)\s+(?:the\s+)?(?:pomodoro|timer|focus timer|focus|start button)$/i.test(lower)) return { op:'pomodoro-start' };
+    if(/^(?:pause|stop|click|press|tap)\s+(?:the\s+)?(?:pause button|pomodoro|timer|focus timer|focus)$/i.test(lower)) return { op:'pomodoro-pause' };
+    if(/^(?:reset|click|press|tap)\s+(?:the\s+)?(?:reset button|pomodoro|timer|focus timer|focus)$/i.test(lower)) return { op:'pomodoro-reset' };
+    if(/^(?:skip|click|press|tap)\s+(?:the\s+)?(?:skip button|pomodoro|timer|phase|break|session)$/i.test(lower)) return { op:'pomodoro-skip' };
+    var zenStart = body.match(/^(?:start|enter|open|click|press|tap)\s+zen(?:\s+mode)?(?:\s+(?:for|with)\s+(.+))?$/i);
+    if(zenStart) return { op:'zen-start', target: clampAgentText(zenStart[1] || '', 140) };
+    if(/^(?:stop|exit|close|click|press|tap)\s+zen(?:\s+mode)?$/i.test(lower)) return { op:'zen-stop' };
+    if(/^(?:start|play|begin|click|press|tap)\s+(?:box\s+)?breathing$/i.test(lower)) return { op:'breathing-start' };
+    if(/^(?:stop|pause|click|press|tap)\s+(?:box\s+)?breathing$/i.test(lower)) return { op:'breathing-stop' };
+    if(/^(?:sync\s+drive|sync\s+from\s+drive|reconcile\s+drive)$/i.test(lower)) return { op:'drive-sync' };
+    if(/^(?:backup\s+drive|backup\s+to\s+drive)$/i.test(lower)) return { op:'drive-backup' };
+    if(/^(?:commit\s+memory|save\s+memory|memory\s+commit)$/i.test(lower)) return { op:'memory-commit' };
+    if(/^(?:mirror\s+vault|vault\s+mirror|backup\s+vault)$/i.test(lower)) return { op:'vault-mirror' };
+    var mixMatch = lower.match(/^(?:play|start|click|press|tap)\s+(?:the\s+)?(sleep|rainy|reading|cozy)\s+mix$/i);
+    if(mixMatch) return { op:'sound-mix', target: mixMatch[1].toLowerCase() };
+    if(/^(?:stop|pause)\s+(?:all\s+)?(?:sounds?|music|audio|ambience|ambient)$/i.test(lower)) return { op:'sound-stop', target:'' };
+    var soundPlay = body.match(/^(?:play|start|click|press|tap)\s+(.+)$/i);
+    if(soundPlay){
+      var soundTarget = String(soundPlay[1] || '').toLowerCase()
+        .replace(/\b(?:sound|music|audio|track|ambience|ambient|noise)\b/g, '')
+        .replace(/\b(?:the|some)\b/g, '')
+        .trim();
+      if(/^(ocean|fire|fireplace|rain|jazz|rainywindow|cafe|caf|lofi|lo-fi|wind|synthwave|weightless)$/.test(soundTarget)){
+        return { op:'sound-play', target: soundTarget };
+      }
+    }
+    var soundStop = body.match(/^(?:stop|pause|click|press|tap)\s+(.+)$/i);
+    if(soundStop){
+      var stopTarget = String(soundStop[1] || '').toLowerCase()
+        .replace(/\b(?:sound|music|audio|track|ambience|ambient|noise)\b/g, '')
+        .replace(/\b(?:the|some)\b/g, '')
+        .trim();
+      if(/^(ocean|fire|fireplace|rain|jazz|rainywindow|cafe|caf|lofi|lo-fi|wind|synthwave|weightless)$/.test(stopTarget)){
+        return { op:'sound-stop', target: stopTarget };
+      }
+    }
+    var genericSet = body.match(/^(?:set|fill|write|type|enter|update|change)\s+(.+?)\s+(?:to|with|as)\s+(.+)$/i);
+    if(genericSet){
+      return {
+        op:'set-field',
+        target: clampAgentText(genericSet[1] || '', 120),
+        value: clampAgentText(genericSet[2] || '', 4000)
+      };
+    }
+    var genericClick = body.match(/^(?:click|press|tap)\s+(.+)$/i);
+    if(genericClick){
+      return { op:'click', target: clampAgentText(genericClick[1] || '', 120) };
+    }
+    return null;
+  }
+  function inferDirectNoteRequest(text){
+    var raw = String(text || '').trim();
+    if(!raw) return null;
+    var normalized = raw.replace(/\s+/g, ' ').trim();
+    var patterns = [
+      { target:'brain-dump', mode:'append', re:/^(?:please\s+)?(?:add|append|put|save|write|include)\s+(?:the\s+following\s+)?text\s+(?:in|into|to)\s+brain\s*dump\s*[:\-]\s*(.+)$/i },
+      { target:'brain-dump', mode:'append', re:/^(?:please\s+)?(?:add|append|put|save|write|include)\s+(?:this\s+)?(?:in|into|to)\s+brain\s*dump\s*[:\-]\s*(.+)$/i },
+      { target:'brain-dump', mode:'replace', re:/^(?:please\s+)?(?:set|update|replace)\s+brain\s*dump\s+(?:to|with)\s*(.+)$/i },
+      { target:'zen-goal', mode:'replace', re:/^(?:please\s+)?(?:set|update|change)\s+(?:the\s+)?zen\s+goal\s+(?:to|as)\s*(.+)$/i },
+      { target:'vault', mode:'replace', re:/^(?:please\s+)?(?:set|update|replace)\s+(?:the\s+)?vault\s+note\s+(?:to|with)\s*(.+)$/i },
+      { target:'vault', mode:'append', re:/^(?:please\s+)?(?:add|append|put|save|write|include)\s+(?:the\s+following\s+)?text\s+(?:in|into|to)\s+(?:the\s+)?vault\s+note\s*[:\-]\s*(.+)$/i }
+    ];
+    for(var i = 0; i < patterns.length; i++){
+      var match = normalized.match(patterns[i].re);
+      if(match){
+        var noteText = clampAgentText(match[1] || '', 4000);
+        if(!noteText) return null;
+        return { target:patterns[i].target, text:noteText, mode:patterns[i].mode };
+      }
+    }
+    return null;
+  }
+  function inferDeferredNoteRequest(text){
+    var raw = String(text || '').trim();
+    if(!raw) return null;
+    var normalized = raw.replace(/\s+/g, ' ').trim();
+    var target = '';
+    if(/\bbrain\s*dump\b/i.test(normalized)) target = 'brain-dump';
+    else if(/\bzen\s+goal\b/i.test(normalized)) target = 'zen-goal';
+    else if(/\bvault\s+note\b/i.test(normalized)) target = 'vault';
+    if(!target) return null;
+    if(!/(?:generate|create|come up with|write|draft|compose|make)\b/i.test(normalized)) return null;
+    if(!/(?:save|put|add|append|store|keep|place|set|update)\b/i.test(normalized)) return null;
+    return {
+      target: target,
+      mode: /\b(?:append|add|put|save|store|keep|place)\b/i.test(normalized) ? 'append' : 'replace'
+    };
+  }
+  function inferDirectRememberRequest(text){
+    var raw = String(text || '').trim();
+    if(!raw) return null;
+    var normalized = raw.replace(/\s+/g, ' ').trim();
+    var match = normalized.match(/^(?:please\s+)?(?:remember|save|store|keep\s+in\s+mind|note)\s+(?:that\s+)?(.+)$/i);
+    if(!match) return null;
+    var memoryText = clampAgentText(match[1] || '', 600);
+    if(!memoryText) return null;
+    var lower = memoryText.toLowerCase();
+    var category = 'fact';
+    if(/\bprefer|preference|like|likes|love|favorite|favourite|usually|always|never\b/i.test(memoryText)) category = 'preference';
+    else if(/\bhabit|routine|every day|daily|each morning|each evening\b/i.test(memoryText)) category = 'routine';
+    else if(/\bgoal|want to|trying to|aim to|plan to\b/i.test(memoryText)) category = 'goal';
+    else if(/\bopinion|believe|think\b/i.test(memoryText)) category = 'opinion';
+    return {
+      memory: memoryText.replace(/^that\s+/i, '').trim(),
+      category: category,
+      source: 'direct-user-remember'
+    };
+  }
+  function inferDirectQuoteRequest(text){
+    var raw = String(text || '').trim();
+    if(!raw) return null;
+    var normalized = raw.replace(/\s+/g, ' ').trim();
+    var patterns = [
+      /^(?:please\s+)?(?:save|remember|keep|store|add)\s+(?:the\s+)?(?:quote|line|mantra|stoic\s+line|wisdom)\s+(.+)$/i,
+      /^(?:please\s+)?(?:save|remember|keep|store|add)\s+(?:this\s+)?(?:quote|line|mantra|stoic\s+line|wisdom)\s*[:\-]\s*(.+)$/i,
+      /^(?:please\s+)?(?:save|remember|keep|store)\s+this\s+for\s+later\s*[:\-]\s*(.+)$/i,
+      /^(?:please\s+)?(?:save|remember|keep|store)\s+(.+?)\s+(?:in|into|to)\s+quotes\.md$/i,
+      /^(?:please\s+)?(?:save|remember|keep|store|add)\s+(?:to|into|in)\s+quotes\.md\s+(.+)$/i,
+      /^(?:please\s+)?(?:save|remember|keep|store)\s+this\s*[:\-]\s*(.+)$/i
+    ];
+    for(var i = 0; i < patterns.length; i++){
+      var match = normalized.match(patterns[i]);
+      if(!match) continue;
+      var quoteText = clampAgentText(match[1] || '', 2000);
+      if(!quoteText) return null;
+      if(i === 3 && !/(?:["'“”].+["'“”]|(?:^| )[-—][ ]?[A-Z][a-z]+|Ted Lasso|Marcus Aurelius|Seneca|Epictetus)/.test(quoteText)) return null;
+      if(i === 4 && !/(?:["'â€œâ€].+["'â€œâ€]|(?:^| )[-â€”][ ]?[A-Z][a-z]+|Ted Lasso|Marcus Aurelius|Seneca|Epictetus|author\s+[A-Z]|said by| by )/i.test(quoteText)) return null;
+      return { memory: quoteText, category:'quote', source:'direct-user-quote' };
+    }
+    return null;
+  }
+  function inferDeferredQuoteRequest(text){
+    var raw = String(text || '').trim();
+    if(!raw) return null;
+    var normalized = raw.replace(/\s+/g, ' ').trim();
+    if(!/\b(?:quote|quotes|quotes\.md|saved quotes|stoic line|mantra|wisdom)\b/i.test(normalized)) return null;
+    if(!/\b(?:save|remember|keep|store|add|append|put|write|include|sync)\b/i.test(normalized)) return null;
+    return { source:'deferred-user-quote' };
+  }
+  function inferDirectQuoteEditRequest(text){
+    var raw = String(text || '').replace(/\s+/g, ' ').trim();
+    if(!raw) return null;
+    var clearMatch = raw.match(/^(?:clear|reset|wipe)\s+(?:all\s+)?(?:saved\s+)?quotes$/i);
+    if(clearMatch) return { op:'clear' };
+    var deleteMatch = raw.match(/^(?:delete|remove)\s+(?:saved\s+)?quote\s+(\d{1,4})$/i);
+    if(deleteMatch) return { op:'delete', index:Math.max(0, parseInt(deleteMatch[1], 10) - 1) };
+    var authorMatch = raw.match(/^(?:change|set|update)\s+(?:the\s+)?author\s+(?:of|for)\s+(?:saved\s+)?quote\s+(\d{1,4})\s+(?:to|as)\s+(.+)$/i);
+    if(authorMatch) return { op:'author', index:Math.max(0, parseInt(authorMatch[1], 10) - 1), author:clampAgentText(authorMatch[2] || '', 120) };
+    var updateMatch = raw.match(/^(?:update|edit|change|replace)\s+(?:saved\s+)?quote\s+(\d{1,4})\s+(?:to|with|as)\s+(.+)$/i);
+    if(updateMatch) return { op:'update', index:Math.max(0, parseInt(updateMatch[1], 10) - 1), quote:clampAgentText(updateMatch[2] || '', 2000) };
+    return null;
+  }
+  function extractGeneratedNoteText(text){
+    var clean = String(text || '').trim();
+    if(!clean) return '';
+    clean = clean.replace(/^here(?:'s| is)\s+(?:a|the|one|your)\s+[^:\n]{0,80}:\s*/i, '');
+    clean = clean.replace(/^(?:stoic|brain dump|zen goal|vault note)\s*[:\-]\s*/i, '');
+    clean = clean.replace(/^["']+|["']+$/g, '').trim();
+    return clampAgentText(clean, 4000);
+  }
+  function extractGeneratedQuotes(text){
+    var raw = String(text || '').replace(/\r\n/g, '\n').trim();
+    if(!raw) return [];
+    var results = [];
+    var seen = {};
+    function pushQuote(value, author){
+      var parsed = parseSavedQuoteInput(value, author || 'Unknown');
+      if(!parsed) return;
+      var key = normalizeSavedQuoteText(parsed.q).toLowerCase() + '|' + String(parsed.a || 'Unknown').trim().toLowerCase();
+      if(seen[key]) return;
+      seen[key] = true;
+      results.push(parsed);
+    }
+    var blockRegex = />\s*["“]?([\s\S]*?)["”]?\s*(?:\n\s*-\s*Author:\s*([^\n]+))?(?=\n## |\n>\s*["“]?|\n\n|$)/gi;
+    var blockMatch;
+    while((blockMatch = blockRegex.exec(raw))){
+      var blockQuote = clampAgentText((blockMatch[1] || '').replace(/\n>\s*/g, '\n').trim(), 2000);
+      if(blockQuote) pushQuote(blockQuote, blockMatch[2] || 'Unknown');
+    }
+    var pairRegex = /(^|\n)\s*["“]([^"\n]+)["”]\s*\n\s*[—-]\s*([^\n]{2,120})(?=\n|$)/g;
+    var pairMatch;
+    while((pairMatch = pairRegex.exec(raw))){
+      pushQuote(String(pairMatch[2] || '').trim(), String(pairMatch[3] || '').trim() || 'Unknown');
+    }
+    raw.split('\n').forEach(function(line){
+      var cleaned = String(line || '').trim();
+      if(!cleaned) return;
+      cleaned = cleaned.replace(/^[-*•\d.)\s]+/, '').trim();
+      if(!cleaned) return;
+      if(/^>/.test(cleaned)){
+        cleaned = cleaned.replace(/^>\s*/, '').trim();
+      }
+      if(/^["“].+["”]\s*(?:[—-]\s*.+)?$/.test(cleaned)){
+        pushQuote(cleaned, 'Unknown');
+      }
+    });
+    return results;
+  }
+  function applyAgentRememberMutation(memData){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return Promise.resolve({ ok:false, message:'Unlock vault first so Joey memory can be updated.' });
+    var payload = memData && typeof memData === 'object' ? memData : { memory:String(memData || ''), category:'general' };
+    if(String(payload.category || '').toLowerCase() === 'quote'){
+      return applySavedQuoteMutation({
+        op:'save',
+        quote:payload.memory || payload.text || '',
+        author:payload.author || 'Unknown'
+      }).then(function(result){
+        if(!result || !result.ok) return result || { ok:false, message:'Quote save failed.' };
+        return { ok:true, message:result.message || 'Saved to Quotes.md.' };
+      });
+    }
+    var rememberUrl = typeof window._homerJoeyActionUrl === 'function' ? window._homerJoeyActionUrl('memory') : '/api/joey?action=memory&mode=' + encodeURIComponent((localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal');
+    var rememberBody = typeof window._homerWithContextMode === 'function'
+      ? window._homerWithContextMode({
+        passphrase:pass,
+        memory:payload.memory || payload.text || '',
+        category:payload.category || 'general',
+        source:payload.source || 'explicit-agent-action',
+        confidence:typeof payload.confidence === 'number' ? payload.confidence : 0.96,
+        pinned:!!payload.pinned || String(payload.category || '').toLowerCase() === 'pin'
+      })
+      : {
+        passphrase:pass,
+        mode:(localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal',
+        memory:payload.memory || payload.text || '',
+        category:payload.category || 'general',
+        source:payload.source || 'explicit-agent-action',
+        confidence:typeof payload.confidence === 'number' ? payload.confidence : 0.96,
+        pinned:!!payload.pinned || String(payload.category || '').toLowerCase() === 'pin'
+      };
+    return fetch(rememberUrl, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(rememberBody)
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if(d && d.ok){
+        refreshCanonicalFiles().catch(function(){});
+        scheduleJoeyMemoryCommit('remember-action', 60000);
+        markJoeyDriveBackupDirty(String(payload.category || '').toLowerCase() === 'quote' ? 'quote-memory' : 'remember-action');
+        return { ok:true, count:d.count, message:String(payload.category || '').toLowerCase() === 'quote' ? 'Saved to Quotes.md.' : 'Memory saved.' };
+      }
+      return { ok:false, message:(d && (d.error || d.reason)) || 'Memory save failed.' };
+    }).catch(function(err){
+      return { ok:false, message:err && err.message ? err.message : String(err) };
+    });
+  }
+  function applyAgentNoteMutation(noteData, options){
+    options = options || {};
+    var target = String(noteData && noteData.target || 'vault').trim().toLowerCase();
+    var text = String(noteData && noteData.text || '').trim();
+    var mode = String(noteData && noteData.mode || 'replace').trim().toLowerCase();
+    var actionMode = resolveAgentActionMode(options);
+    if(!text) return Promise.resolve({ ok:false, message:'Note text is empty' });
+    if(target === 'brain-dump'){
+      var currentDump = localStorage.getItem('homer-brain-dump') || '';
+      var nextDump = mode === 'append' && currentDump.trim()
+        ? currentDump.replace(/\s+$/,'') + '\n' + text
+        : text;
+      if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.updateBrainDump === 'function'){
+        window._homerFocusLabAgent.updateBrainDump(nextDump);
+      } else {
+        localStorage.setItem('homer-brain-dump', nextDump);
+      }
+      return Promise.resolve({ ok:true, message:'Brain dump updated' });
+    }
+    if(target === 'zen-goal'){
+      if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.setZenGoal === 'function'){
+        window._homerFocusLabAgent.setZenGoal(text);
+      } else {
+        localStorage.setItem('homer-zen-goal', text);
+      }
+      return Promise.resolve({ ok:true, message:'Zen goal updated' });
+    }
+    if(typeof window._homerUpdateVaultNote === 'function'){
+      return Promise.resolve(window._homerUpdateVaultNote(
+        mode === 'append' ? (((typeof notesArea !== 'undefined' && notesArea && notesArea.value) || '').trim() ? (((typeof notesArea !== 'undefined' && notesArea && notesArea.value) || '').replace(/\s+$/,'') + '\n' + text) : text) : text
+      , actionMode)).then(function(result){
+        return result && result.ok
+          ? { ok:true, message:'Vault note updated' }
+          : { ok:false, message:'Vault note save failed: ' + ((result && result.error) || 'unknown error') };
+      }).catch(function(err){
+        return { ok:false, message:'Vault note save failed: ' + (err && err.message ? err.message : err) };
+      });
+    }
+    return Promise.resolve({ ok:false, message:'Vault notes are unavailable right now' });
+  }
+  function runAgentCommand(commandData, options){
+    options = options || {};
+    var cmd = String(commandData && (commandData.op || commandData.command) || '').trim().toLowerCase();
+    var cmdTarget = String(commandData && (commandData.target || commandData.surface || commandData.tab || commandData.goal) || '').trim().toLowerCase();
+    var rawTarget = String(commandData && (commandData.target || commandData.surface || commandData.tab || commandData.goal || commandData.label || commandData.id) || '').trim();
+    if(cmd === 'tab'){
+      if(typeof window._homerShowTab === 'function'){
+        window._homerShowTab(cmdTarget || 'home');
+        return { ok:true, message:'Opened tab: ' + (cmdTarget || 'home') };
+      }
+      return { ok:false, message:'Tab command unavailable' };
+    }
+    if(cmd === 'mode'){
+      if(typeof window._homerApplyContextMode === 'function'){
+        var nextMode = cmdTarget === 'work' ? 'work' : 'personal';
+        window._homerApplyContextMode(nextMode, { source:'joey-command' });
+        return { ok:true, message:'Mode switched to ' + nextMode };
+      }
+      return { ok:false, message:'Mode switch unavailable' };
+    }
+    if(cmd === 'open'){
+      if(typeof window._homerShowTab === 'function') window._homerShowTab('vault');
+      if(typeof window._homerOpenVaultSurface === 'function'){
+        var openResult = window._homerOpenVaultSurface(cmdTarget);
+        return openResult && openResult.ok
+          ? { ok:true, message:'Opened ' + cmdTarget }
+          : { ok:false, message:'Open failed: ' + ((openResult && openResult.error) || 'unknown target') };
+      }
+      return { ok:false, message:'Vault open command unavailable' };
+    }
+    if(cmd === 'drive-sync'){
+      if(typeof window._homerSyncContextFromDrive === 'function'){
+        window._homerSyncContextFromDrive(false, true).catch(function(err){
+          showJoeyStatusToast('Drive sync failed: ' + (err && err.message ? err.message : err), 'warn');
+        });
+        return { ok:true, message:'Drive sync queued' };
+      }
+      return { ok:false, message:'Drive sync unavailable' };
+    }
+    if(cmd === 'drive-backup'){
+      if(typeof window._homerBackupJoeyToDrive === 'function'){
+        window._homerBackupJoeyToDrive('command-action').catch(function(err){
+          showJoeyStatusToast('Drive backup failed: ' + (err && err.message ? err.message : err), 'warn');
+        });
+        return { ok:true, message:'Drive backup queued' };
+      }
+      return { ok:false, message:'Drive backup unavailable' };
+    }
+    if(cmd === 'memory-commit'){
+      if(typeof window._homerCommitJoeyMemory === 'function'){
+        window._homerCommitJoeyMemory({ silent:true, skipLearn:false, skipDrive:true, reason:'command-action' }).catch(function(err){
+          showJoeyStatusToast('Memory commit failed: ' + (err && err.message ? err.message : err), 'warn');
+        });
+        return { ok:true, message:'Memory commit queued' };
+      }
+      return { ok:false, message:'Memory commit unavailable' };
+    }
+    if(cmd === 'vault-mirror'){
+      if(typeof window._homerBackupEverythingToDb === 'function'){
+        window._homerBackupEverythingToDb().then(function(){
+          if(typeof refreshVaultMirrorStatus === 'function') refreshVaultMirrorStatus({ force:true, reason:'command-vault-mirror' });
+        }).catch(function(err){
+          showJoeyStatusToast('Vault mirror failed: ' + (err && err.message ? err.message : err), 'warn');
+        });
+        return { ok:true, message:'Vault mirror queued' };
+      }
+      return { ok:false, message:'Vault mirror unavailable' };
+    }
+    if(cmd === 'issue-open'){
+      if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
+        window._homerLoadVault().then(function(data){
+          var foundIssue = findIssueRecordByKey(data, commandData.key || cmdTarget);
+          if(!foundIssue){
+            showJoeyStatusToast('Issue not found: ' + (commandData.key || cmdTarget || 'unknown'), 'warn');
+            return;
+          }
+          if(typeof window._homerShowTab === 'function') window._homerShowTab('vault');
+          if(typeof openProjectBoard === 'function') openProjectBoard(foundIssue.goal.projectId);
+          if(typeof window._homerOpenIssue === 'function') window._homerOpenIssue(foundIssue.goalIndex);
+        }).catch(function(err){
+          showJoeyStatusToast('Issue open failed: ' + (err && err.message ? err.message : err), 'warn');
+        });
+        return { ok:true, message:'Opening issue: ' + (commandData.key || cmdTarget || '') };
+      }
+      return { ok:false, message:'Unlock the vault first to open issues' };
+    }
+    if(cmd === 'pomodoro-start' || cmd === 'pomodoro-pause' || cmd === 'pomodoro-reset' || cmd === 'pomodoro-skip'){
+      var method = cmd.split('-')[1];
+      if(window._homerPomodoroAgent && typeof window._homerPomodoroAgent[method] === 'function'){
+        window._homerPomodoroAgent[method]();
+        return { ok:true, message:'Pomodoro ' + method + ' triggered' };
+      }
+      return { ok:false, message:'Pomodoro command unavailable' };
+    }
+    if(cmd === 'sound-play'){
+      if(window._homerAmbientAudio && typeof window._homerAmbientAudio.playTrack === 'function' && window._homerAmbientAudio.playTrack(cmdTarget, commandData.volume)){
+        return { ok:true, message:'Playing ' + cmdTarget };
+      }
+      return { ok:false, message:'Sound play failed: ' + (cmdTarget || 'missing target') };
+    }
+    if(cmd === 'sound-stop'){
+      if(window._homerAmbientAudio){
+        var stopped = cmdTarget
+          ? (typeof window._homerAmbientAudio.stopTrack === 'function' && window._homerAmbientAudio.stopTrack(cmdTarget))
+          : (typeof window._homerAmbientAudio.stopAll === 'function' && (window._homerAmbientAudio.stopAll(), true));
+        return stopped
+          ? { ok:true, message:'Stopped ' + (cmdTarget || 'all sounds') }
+          : { ok:false, message:'Sound stop failed' };
+      }
+      return { ok:false, message:'Sound command unavailable' };
+    }
+    if(cmd === 'sound-mix'){
+      if(window._homerAmbientAudio && typeof window._homerAmbientAudio.playMix === 'function' && window._homerAmbientAudio.playMix(cmdTarget)){
+        return { ok:true, message:'Playing ' + cmdTarget + ' mix' };
+      }
+      return { ok:false, message:'Sound mix failed: ' + (cmdTarget || 'missing target') };
+    }
+    if(cmd === 'zen-start'){
+      if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.startZen === 'function'){
+        window._homerFocusLabAgent.startZen(commandData.target || commandData.goal || '');
+        return { ok:true, message:'Zen mode started' };
+      }
+      return { ok:false, message:'Zen mode unavailable' };
+    }
+    if(cmd === 'zen-stop'){
+      if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.stopZen === 'function'){
+        window._homerFocusLabAgent.stopZen();
+        return { ok:true, message:'Zen mode stopped' };
+      }
+      return { ok:false, message:'Zen mode unavailable' };
+    }
+    if(cmd === 'breathing-start'){
+      if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.startBreathing === 'function'){
+        window._homerFocusLabAgent.startBreathing();
+        return { ok:true, message:'Breathing started' };
+      }
+      return { ok:false, message:'Breathing command unavailable' };
+    }
+    if(cmd === 'breathing-stop'){
+      if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.stopBreathing === 'function'){
+        window._homerFocusLabAgent.stopBreathing();
+        return { ok:true, message:'Breathing stopped' };
+      }
+      return { ok:false, message:'Breathing command unavailable' };
+    }
+    if(cmd === 'click'){
+      var clickable = findAgentUiElement(rawTarget, 'button');
+      if(!clickable) return { ok:false, message:'Control not found: ' + (rawTarget || 'unknown') };
+      try{
+        if(typeof clickable.scrollIntoView === 'function') clickable.scrollIntoView({ block:'center', inline:'center' });
+      }catch(_e){}
+      try{
+        if(typeof clickable.focus === 'function') clickable.focus();
+      }catch(_e){}
+      try{
+        clickable.click();
+        return { ok:true, message:'Clicked ' + (getAgentUiControlLabel(clickable) || rawTarget || 'control') };
+      }catch(err){
+        return { ok:false, message:'Click failed: ' + (err && err.message ? err.message : err) };
+      }
+    }
+    if(cmd === 'set-field' || cmd === 'fill' || cmd === 'write'){
+      var field = findAgentUiElement(rawTarget, 'field');
+      var nextValue = String(commandData && (commandData.value || commandData.text || commandData.content) || '');
+      if(!field) return { ok:false, message:'Field not found: ' + (rawTarget || 'unknown') };
+      try{
+        if(typeof field.scrollIntoView === 'function') field.scrollIntoView({ block:'center', inline:'center' });
+      }catch(_e){}
+      try{
+        if(typeof field.focus === 'function') field.focus();
+      }catch(_e){}
+      if(!setAgentFieldValue(field, nextValue)){
+        return { ok:false, message:'Field update failed: ' + (getAgentUiControlLabel(field) || rawTarget || 'unknown') };
+      }
+      return { ok:true, message:'Updated ' + (getAgentUiControlLabel(field) || rawTarget || 'field') };
+    }
+    return { ok:false, message:'Unsupported command: ' + (cmd || 'unknown') };
+  }
+  function resolveAgentVaultMode(){
+    try{
+      if(typeof window._homerGetVaultMode === 'function'){
+        var liveMode = window._homerGetVaultMode();
+        if(liveMode === 'work' || liveMode === 'personal') return liveMode;
+      }
+    }catch(_e){}
+    return (localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal';
+  }
+  function resolveAgentActionMode(options, requestedMode){
+    var optionMode = options && options.mode;
+    var inferredMode = requestedMode || optionMode || (typeof currentContextMode !== 'undefined' ? currentContextMode : '') || resolveAgentVaultMode();
+    return inferredMode === 'work' ? 'work' : 'personal';
+  }
+  function resolveAgentVaultModeLabel(){
+    var mode = resolveAgentVaultMode();
+    return mode === 'work' ? 'Work' : 'Personal';
+  }
+  function resolveAgentProjectCustomFields(project, rawValues){
+    var mapper = window._homerMapGoalCustomFieldsForProject || (typeof mapGoalCustomFieldsForProject === 'function' ? mapGoalCustomFieldsForProject : null);
+    if(typeof mapper === 'function') return mapper(project, rawValues);
+    return rawValues && typeof rawValues === 'object' ? Object.assign({}, rawValues) : {};
+  }
+  function findIssueRecordByKey(data, rawKey){
+    var lookup = normalizeIssueKeyLookup(rawKey);
+    if(!lookup || !data || !Array.isArray(data.goals)) return null;
+    var projects = data.projects || [];
+    for(var i = 0; i < data.goals.length; i++){
+      var goal = data.goals[i];
+      if(normalizeIssueKeyLookup(issueKey(goal, projects)) === lookup){
+        return { goal: goal, goalIndex: i };
+      }
+    }
+    return null;
+  }
+  function updateAgentTaskInVault(taskData, options){
+    options = options || {};
+    var normalizedTask = parseTaskActionData(taskData, options.userText || '');
+    var activeVaultMode = resolveAgentActionMode(options, normalizedTask.mode);
+    if(normalizedTask.mode && normalizedTask.mode !== activeVaultMode){
+      showJoeyStatusToast('Cross-mode issue updates are blocked. Switch to ' + (normalizedTask.mode === 'work' ? 'Work' : 'Personal') + ' mode first.', 'warn');
+      return Promise.resolve({ ok:false, reason:'cross-mode-blocked', mode:activeVaultMode, requestedMode:normalizedTask.mode, task:normalizedTask });
+    }
+    if(!normalizedTask.key){
+      showJoeyStatusToast('Issue update needs a key like APP-13.', 'warn');
+      return Promise.resolve({ ok:false, reason:'missing-key', task:normalizedTask });
+    }
+    if(typeof window._homerLoadVaultForMode !== 'function' || typeof window._homerSaveVaultForMode !== 'function' || !window._homerVaultUnlocked){
+      showJoeyStatusToast('Unlock the ' + (activeVaultMode === 'work' ? 'Work' : 'Personal') + ' vault first to update issues.', 'warn');
+      return Promise.resolve({ ok:false, reason:'locked', mode:activeVaultMode, task:normalizedTask });
+    }
+    return window._homerLoadVaultForMode(activeVaultMode).then(function(data){
+      if(!data) throw new Error('Vault data unavailable');
+      if(!Array.isArray(data.goals)) data.goals = [];
+      if(!data._nextSubId) data._nextSubId = 1;
+      var projectHelpers = getActionProjectHelpers();
+      var projects = projectHelpers.ensureProjects(data.projects || []);
+      var match = findIssueRecordByKey(data, normalizedTask.key);
+      if(!match){
+        showJoeyStatusToast('Issue not found: ' + normalizedTask.key, 'warn');
+        return { ok:false, reason:'issue-not-found', key:normalizedTask.key, task:normalizedTask };
+      }
+      var task = match.goal;
+      var currentProject = getProjectById(projects, task.projectId);
+      var requestedProject = String(normalizedTask.projectId || normalizedTask.project || '').trim();
+      var targetProject = currentProject;
+      if(requestedProject){
+        targetProject = projectHelpers.matchProject(projects, requestedProject, task.projectId, true);
+        if(!targetProject){
+          showJoeyStatusToast('Project not found for issue update: ' + requestedProject, 'warn');
+          return { ok:false, reason:'project-not-found', requestedProject:requestedProject, task:normalizedTask };
+        }
+        if(targetProject.archived){
+          showJoeyStatusToast('Project "' + (projectHelpers.projectDisplay(targetProject) || targetProject).name + '" is archived.', 'warn');
+          return { ok:false, reason:'archived-project', requestedProject:requestedProject, task:normalizedTask };
+        }
+      }
+      var changes = [];
+      if(normalizedTask.summary){
+        task.summary = normalizedTask.summary;
+        changes.push('summary');
+      }
+      if(normalizedTask.notes){
+        task.notes = normalizedTask.notes;
+        task.desc = normalizedTask.notes;
+        changes.push('notes');
+      }
+      if(normalizedTask.due){
+        task.due = normalizedTask.due;
+        changes.push('due');
+      }
+      if(normalizedTask.priority){
+        task.priority = normalizedTask.priority;
+        changes.push('priority');
+      }
+      if(normalizedTask.status){
+        task.col = normalizedTask.status;
+        changes.push('status');
+      }
+      if(normalizedTask.labels && normalizedTask.labels.length){
+        task.labels = normalizedTask.labels.slice();
+        changes.push('labels');
+      }
+      if(targetProject && targetProject.id && task.projectId !== targetProject.id){
+        task.projectId = targetProject.id;
+        changes.push('project');
+      }
+      if(normalizedTask.customFields && Object.keys(normalizedTask.customFields).length){
+        task.customFields = Object.assign({}, task.customFields || {}, resolveAgentProjectCustomFields(targetProject || currentProject, normalizedTask.customFields));
+        changes.push('custom fields');
+      }
+      if(normalizedTask.subtasks && normalizedTask.subtasks.length){
+        if(!Array.isArray(task.subtasks)) task.subtasks = [];
+        var seenSubtasks = {};
+        task.subtasks.forEach(function(subtask){
+          seenSubtasks[String(subtask && subtask.text || '').trim().toLowerCase()] = true;
+        });
+        var addedCount = 0;
+        normalizedTask.subtasks.forEach(function(st){
+          var text = clampAgentText(st && st.text || '', 120);
+          if(!text) return;
+          var dedupeKey = text.toLowerCase();
+          if(seenSubtasks[dedupeKey]) return;
+          seenSubtasks[dedupeKey] = true;
+          addedCount++;
+          task.subtasks.push({
+            id: data._nextSubId++,
+            text: text,
+            done: false,
+            effort: clampAgentText(st.effort || '', 24),
+            due: clampAgentText(st.due || '', 40),
+            notes: clampAgentText(st.notes || '', 220),
+            attachments: []
+          });
+        });
+        if(addedCount) changes.push(addedCount + ' subtask' + (addedCount === 1 ? '' : 's'));
+      }
+      if(!changes.length){
+        showJoeyStatusToast('No changes applied to ' + normalizedTask.key, 'warn');
+        return { ok:false, reason:'no-changes', key:normalizedTask.key, task:normalizedTask };
+      }
+      if(!Array.isArray(task.log)) task.log = [];
+      task.log.push({ action:'Task updated by Joey: ' + changes.join(', '), ts:Date.now() });
+      return window._homerSaveVaultForMode(activeVaultMode, data).then(function(){
+        var updatedIssueKey = typeof issueKey === 'function' ? issueKey(task, data.projects || []) : normalizedTask.key;
+        if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('joey-task-update', 900);
+        try{ window.dispatchEvent(new Event('vault-goals-changed')); }catch(e){}
+        showJoeyStatusToast('Updated ' + updatedIssueKey + ': ' + task.summary, 'success');
+        if(typeof populateProjectControls === 'function'){
+          populateProjectControls(data.projects || [], data.goals || [], {
+            selectedFilter: task.projectId,
+            preferredTaskProject: task.projectId
+          });
+        }
+        if(typeof renderGoals === 'function') renderGoals(data.goals || [], data.projects || []);
+        if(typeof renderProjectDashboard === 'function') renderProjectDashboard(data);
+        if(typeof renderVault === 'function') renderVault();
+        if(typeof openProjectBoard === 'function' && options.openBoard !== false) openProjectBoard(task.projectId);
+        refreshCanonicalFiles().catch(function(){});
+        console.log('[Joey task] Updated', {
+          ok: true,
+          mode: activeVaultMode,
+          issueKey: updatedIssueKey,
+          taskId: task.id,
+          projectId: task.projectId,
+          summary: task.summary,
+          changes: changes
+        });
+        return {
+          ok:true,
+          mode:activeVaultMode,
+          issueKey:updatedIssueKey,
+          taskId:task.id,
+          projectId:task.projectId,
+          summary:task.summary,
+          changes:changes
+        };
+      });
+    }).catch(function(err){
+      console.error('[Joey task] Update failed', err);
+      showJoeyStatusToast('Issue update failed: ' + (err && err.message ? err.message : err), 'warn');
+      return { ok:false, reason:'error', error:(err && err.message ? err.message : String(err || 'Unknown error')), task:normalizedTask };
+    });
+  }
+  function applyAgentTaskMutation(taskData, options){
+    var normalizedTask = parseTaskActionData(taskData, options && options.userText || '');
+    if(normalizedTask.key || normalizedTask.op === 'update') return updateAgentTaskInVault(normalizedTask, options);
+    return createAgentTaskInVault(normalizedTask, options);
+  }
+  function createAgentTaskInVault(taskData, options){
+    options = options || {};
+    var normalizedTask = parseTaskActionData(taskData, options.userText || '');
+    if(normalizedTask.key || normalizedTask.op === 'update') return updateAgentTaskInVault(normalizedTask, options);
+    if(!normalizedTask.summary) normalizedTask.summary = 'New Task';
+    if(!normalizedTask.notes) normalizedTask.notes = normalizedTask.summary;
+    var activeVaultMode = resolveAgentActionMode(options, normalizedTask.mode);
+    if(normalizedTask.mode && normalizedTask.mode !== activeVaultMode){
+      showJoeyStatusToast('Cross-mode task creation is blocked. Switch to ' + (normalizedTask.mode === 'work' ? 'Work' : 'Personal') + ' mode first.', 'warn');
+      return Promise.resolve({ ok:false, reason:'cross-mode-blocked', mode:activeVaultMode, requestedMode:normalizedTask.mode, task:normalizedTask });
+    }
+    if(shouldSkipRecentTask(normalizedTask)){
+      console.log('[Joey task] Skipped duplicate task request', normalizedTask);
+      return Promise.resolve({ ok:false, reason:'duplicate', task:normalizedTask });
+    }
+    if(typeof window._homerLoadVaultForMode !== 'function' || typeof window._homerSaveVaultForMode !== 'function' || !window._homerVaultUnlocked){
+      showJoeyStatusToast('Unlock the ' + (activeVaultMode === 'work' ? 'Work' : 'Personal') + ' vault first to add tasks.', 'warn');
+      return Promise.resolve({ ok:false, reason:'locked', mode:activeVaultMode, task:normalizedTask });
+    }
+    return window._homerLoadVaultForMode(activeVaultMode).then(function(data){
+      if(!data) throw new Error('Vault data unavailable');
+      if(!Array.isArray(data.goals)) data.goals = [];
+      if(!data._nextId) data._nextId = 1;
+      if(!data._nextSubId) data._nextSubId = 1;
+      var goalFilterProjectEl = (typeof goalFilterProject !== 'undefined' && goalFilterProject) || document.getElementById('goal-filter-project');
+      var projectHelpers = getActionProjectHelpers();
+      var projects = projectHelpers.ensureProjects(data.projects || []);
+      var requestedProject = String(normalizedTask.projectId || normalizedTask.project || normalizedTask.projectName || normalizedTask.projectKey || '').trim();
+      var fallbackProjectId = (goalFilterProjectEl && goalFilterProjectEl.value) || projectHelpers.getDefaultProjectId(projects);
+      var matchedProject = projectHelpers.matchProject(projects, requestedProject, fallbackProjectId, !!requestedProject);
+      console.log('[Joey task] Parsed request', {
+        mode: activeVaultMode,
+        requestedProject: requestedProject,
+        fallbackProjectId: fallbackProjectId,
+        matchedProjectId: matchedProject && matchedProject.id,
+        matchedProjectKey: matchedProject && matchedProject.key,
+        summary: normalizedTask.summary
+      });
+      if(requestedProject && !matchedProject){
+        showJoeyStatusToast('Project not found for task: ' + requestedProject, 'warn');
+        return { ok:false, reason:'project-not-found', requestedProject:requestedProject, task:normalizedTask };
+      }
+      if(!matchedProject){
+        showJoeyStatusToast('No active project available for task creation.', 'warn');
+        return { ok:false, reason:'no-project', task:normalizedTask };
+      }
+      var displayProject = projectHelpers.projectDisplay(matchedProject) || matchedProject;
+      if(matchedProject && matchedProject.archived){
+        showJoeyStatusToast('Project "' + displayProject.name + '" is archived. Restore it before adding tasks there.', 'warn');
+        return { ok:false, reason:'archived-project', projectId:matchedProject.id, task:normalizedTask };
+      }
+      var customFields = resolveAgentProjectCustomFields(matchedProject, normalizedTask.customFields || {});
+      var subtasks = [];
+      if(normalizedTask.subtasks && Array.isArray(normalizedTask.subtasks)){
+        normalizedTask.subtasks.forEach(function(st){
+          var stObj = typeof st === 'string' ? { text: st } : (st || {});
+          subtasks.push({
+            id: data._nextSubId++,
+            text: stObj.text || stObj.summary || stObj.title || 'Subtask',
+            done: false,
+            effort: stObj.effort || '',
+            due: stObj.due || '',
+            notes: stObj.notes || stObj.description || stObj.desc || '',
+            attachments: []
+          });
+        });
+      }
+      var taskNotes = normalizedTask.notes || normalizedTask.description || normalizedTask.desc || '';
+      var task = {
+        id: data._nextId++,
+        projectId: matchedProject.id,
+        summary: normalizedTask.summary || normalizedTask.title || 'New Task',
+        desc: taskNotes,
+        notes: taskNotes,
+        due: normalizedTask.due || '',
+        priority: normalizedTask.priority || '',
+        reporter: '',
+        assignee: '',
+        labels: normalizedTask.labels || [],
+        col: 'todo',
+        subtasks: subtasks,
+        attachments: [],
+        comments: [],
+        customFields: customFields,
+        log: [{action:'Task created by Joey in ' + displayProject.name, ts:Date.now()}]
+      };
+      data.goals.push(task);
+      return window._homerSaveVaultForMode(activeVaultMode, data).then(function(){
+        var createdIssueKey = typeof issueKey === 'function' ? issueKey(task, data.projects || []) : ((matchedProject.key || 'TASK') + '-' + task.id);
+        rememberRecentTask({ projectId: matchedProject.id, summary: task.summary });
+        if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('joey-task', 900);
+        try{ window.dispatchEvent(new Event('vault-goals-changed')); }catch(e){}
+        showJoeyStatusToast('Created ' + createdIssueKey + ' in ' + displayProject.name + ': ' + task.summary, 'success');
+        if(typeof populateProjectControls === 'function'){
+          populateProjectControls(data.projects || [], data.goals || [], {
+            selectedFilter: matchedProject.id,
+            preferredTaskProject: matchedProject.id
+          });
+        }
+        if(typeof renderGoals === 'function') renderGoals(data.goals || [], data.projects || []);
+        if(typeof renderProjectDashboard === 'function') renderProjectDashboard(data);
+        if(typeof renderVault === 'function') renderVault();
+        if(typeof openProjectBoard === 'function' && options.openBoard !== false) openProjectBoard(matchedProject.id);
+        refreshCanonicalFiles().catch(function(){});
+        console.log('[Joey task] Saved', {
+          ok: true,
+          mode: activeVaultMode,
+          issueKey: createdIssueKey,
+          taskId: task.id,
+          projectId: matchedProject.id,
+          projectName: displayProject.name,
+          summary: task.summary
+        });
+        return {
+          ok:true,
+          mode:activeVaultMode,
+          issueKey:createdIssueKey,
+          taskId:task.id,
+          projectId:matchedProject.id,
+          projectName:displayProject.name,
+          summary:task.summary
+        };
+      });
+    }).catch(function(err){
+      console.error('[Joey task] Create failed', err);
+      showJoeyStatusToast('Task create failed: ' + (err && err.message ? err.message : err), 'warn');
+      return { ok:false, reason:'error', error:(err && err.message ? err.message : String(err || 'Unknown error')), task:normalizedTask };
+    });
+  }
+  window._homerCreateAgentTask = createAgentTaskInVault;
+  window._homerUpdateIssueByKey = updateAgentTaskInVault;
+  window._homerApplyAgentTask = applyAgentTaskMutation;
+  function getActionProjectHelpers(){
+    var ensureProjectsFn = window._homerEnsureProjects || (typeof ensureProjects === 'function' ? ensureProjects : function(projects){
+      return Array.isArray(projects) ? projects.slice() : [];
+    });
+    var getDefaultProjectIdFn = window._homerGetDefaultProjectId || (typeof getDefaultProjectId === 'function' ? getDefaultProjectId : function(projects){
+      var list = ensureProjectsFn(projects || []);
+      var active = list.filter(function(project){ return project && !project.archived; });
+      var source = active.length ? active : list;
+      return source[0] && source[0].id ? source[0].id : '';
+    });
+    var projectDisplayFn = window._homerProjectDisplay || (typeof projectDisplay === 'function' ? projectDisplay : function(project){
+      return project || null;
+    });
+    var matchProjectFn = window._homerMatchProject || (typeof matchProject === 'function' ? matchProject : function(projects, requestedProject, fallbackProjectId, strict){
+      var list = ensureProjectsFn(projects || []);
+      var requested = String(requestedProject || '').trim().toLowerCase();
+      var fallbackId = fallbackProjectId || getDefaultProjectIdFn(list);
+      var fallback = list.find(function(project){ return project && project.id === fallbackId; }) || list[0] || null;
+      if(!requested) return fallback;
+      var requestedKey = requested.replace(/[^a-z0-9]+/g, '');
+      var found = list.find(function(project){
+        if(!project) return false;
+        var display = projectDisplayFn(project) || project;
+        return String(project.id || '').toLowerCase() === requested ||
+          String(project.key || '').toLowerCase() === requested ||
+          String(project.name || '').toLowerCase() === requested ||
+          String(display.name || '').toLowerCase() === requested ||
+          String(project.id || '').toLowerCase().replace(/[^a-z0-9]+/g, '') === requestedKey ||
+          String(project.key || '').toLowerCase().replace(/[^a-z0-9]+/g, '') === requestedKey ||
+          String(project.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '') === requestedKey ||
+          String(display.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '') === requestedKey;
+      });
+      return found || (strict ? null : fallback);
+    });
+    return {
+      ensureProjects: ensureProjectsFn,
+      getDefaultProjectId: getDefaultProjectIdFn,
+      projectDisplay: projectDisplayFn,
+      matchProject: matchProjectFn
+    };
+  }
+  function executeActions(text, userText){
+    var actions = [];
+    var regex = /\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET|PROJECT|NOTE|LINK|SECRET|COMMAND)\]([\s\S]*?)(?:\[\/ACTION\]|$)/g;
+    var match;
+    while((match = regex.exec(text)) !== null){
+      actions.push({type: match[1], data: match[2].trim()});
+    }
+    var inferredTask = inferDirectTaskRequest(userText);
+    var directTaskNeedsPlanning = taskNeedsAgentSubtasks(userText);
+    var inferredIssueUpdate = inferDirectIssueUpdateRequest(userText);
+    var inferredCommand = inferDirectCommandRequest(userText);
+    if(!actions.length) return text;
+
+    var actionMode = resolveAgentActionMode({ mode:(typeof currentContextMode !== 'undefined' ? currentContextMode : resolveAgentVaultMode()) });
+    var notifications = [];
+    actions.forEach(function(a){
+      try{
+        if(a.type === 'TASK'){
+          // Kanban board task (vault) Ã¢â‚¬â€ accepts JSON or plain string
+          if(((inferredTask && !directTaskNeedsPlanning) || inferredIssueUpdate) && !a.inferred) return;
+          var taskData = parseTaskActionData(a.data, userText);
+          applyAgentTaskMutation(taskData, { userText:userText, source:'action', mode:actionMode });
+          notifications.push(taskData.key
+            ? 'Issue update queued: ' + taskData.key
+            : ((a.inferred ? 'Kanban task inferred: ' : 'Kanban task queued: ') + (taskData.summary || taskData.title || a.data) + ((taskData.subtasks && taskData.subtasks.length) ? ' (' + taskData.subtasks.length + ' subtasks)' : '') + ((taskData.project || taskData.projectId) ? ' -> ' + (taskData.project || taskData.projectId) : '')));
+          return;
+          if(shouldSkipRecentTask(taskData)) return;
+          if(typeof window._homerLoadVaultForMode === 'function' && window._homerVaultUnlocked){
+            window._homerLoadVaultForMode(actionMode).then(function(data){
+              if(!data) return;
+              if(!Array.isArray(data.goals)) data.goals = [];
+              if(!data._nextId) data._nextId = 1;
+              if(!data._nextSubId) data._nextSubId = 1;
+              var goalFilterProjectEl = (typeof goalFilterProject !== 'undefined' && goalFilterProject) || document.getElementById('goal-filter-project');
+              var projectHelpers = getActionProjectHelpers();
+              var projects = projectHelpers.ensureProjects(data.projects || []);
+              var requestedProject = String(taskData.projectId || taskData.project || taskData.projectName || taskData.projectKey || '').trim();
+              var fallbackProjectId = (goalFilterProjectEl && goalFilterProjectEl.value) || projectHelpers.getDefaultProjectId(projects);
+              var matchedProject = projectHelpers.matchProject(projects, requestedProject, fallbackProjectId, !!requestedProject);
+              if(requestedProject && !matchedProject){
+                showJoeyStatusToast('Project not found for task: ' + requestedProject, 'warn');
+                return;
+              }
+              if(!matchedProject){
+                showJoeyStatusToast('No active project available for task creation.', 'warn');
+                return;
+              }
+              var displayProject = projectHelpers.projectDisplay(matchedProject) || matchedProject;
+              var customFields = mapGoalCustomFieldsForProject(matchedProject, taskData.customFields || {});
+              if(matchedProject && matchedProject.archived){
+                showJoeyStatusToast('Project "' + displayProject.name + '" is archived. Restore it before adding tasks there.', 'warn');
+                return;
+              }
+              var subtasks = [];
+              if(taskData.subtasks && Array.isArray(taskData.subtasks)){
+                taskData.subtasks.forEach(function(st){
+                  var stObj = typeof st === 'string' ? { text: st } : (st || {});
+                  subtasks.push({
+                    id: data._nextSubId++,
+                    text: stObj.text || stObj.summary || stObj.title || 'Subtask',
+                    done: false,
+                    effort: stObj.effort || '',
+                    due: stObj.due || '',
+                    notes: stObj.notes || stObj.description || stObj.desc || '',
+                    attachments: []
+                  });
+                });
+              }
+              var taskNotes = taskData.notes || taskData.description || taskData.desc || '';
+              var task = {
+                id: data._nextId++,
+                projectId: matchedProject.id,
+                summary: taskData.summary || taskData.title || 'New Task',
+                desc: taskNotes,
+                notes: taskNotes,
+                due: taskData.due || '',
+                priority: taskData.priority || '',
+                reporter: '',
+                assignee: '',
+                labels: taskData.labels || [],
+                col: 'todo',
+                subtasks: subtasks,
+                attachments: [],
+                comments: [],
+                customFields: customFields,
+                log: [{action:'Task created by Joey in ' + displayProject.name, ts:Date.now()}]
+              };
+              data.goals.push(task);
+              window._homerSaveVault(data).then(function(){
+                rememberRecentTask({ projectId: matchedProject.id, summary: task.summary });
+                if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('joey-task', 900);
+                try{ window.dispatchEvent(new Event('vault-goals-changed')); }catch(e){}
+                showJoeyStatusToast('Task added to ' + displayProject.name + ': ' + task.summary, 'success');
+                if(typeof populateProjectControls === 'function'){
+                  populateProjectControls(data.projects || [], data.goals || [], {
+                    selectedFilter: matchedProject.id,
+                    preferredTaskProject: matchedProject.id
+                  });
+                }
+                renderGoals(data.goals || [], data.projects || []);
+                if(typeof renderProjectDashboard === 'function') renderProjectDashboard(data);
+                if(typeof renderVault === 'function') renderVault();
+                refreshCanonicalFiles().catch(function(){});
+              }).catch(function(err){
+                showJoeyStatusToast('Task save failed: ' + (err && err.message ? err.message : err), 'warn');
+              });
+            });
+          } else {
+            notifications.push('Vault is locked Ã¢â‚¬â€ unlock it first to add tasks to the Kanban board');
+            return;
+          }
+          notifications.push((a.inferred ? 'Kanban task inferred: ' : 'Kanban task queued: ') + (taskData.summary || taskData.title || a.data) + ((taskData.subtasks && taskData.subtasks.length) ? ' (' + taskData.subtasks.length + ' subtasks)' : '') + ((taskData.project || taskData.projectId) ? ' -> ' + (taskData.project || taskData.projectId) : ''));
+        }
+        else if(a.type === 'GOAL'){
+          // Life goal (vault) Ã¢â‚¬â€ aspirations with milestones
+          var lgData = JSON.parse(a.data);
+          if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
+            window._homerLoadVault().then(function(data){
+              if(!data) return;
+              if(!data.lifeGoals) data.lifeGoals = [];
+              if(!data._nextLgId) data._nextLgId = 1;
+              data.lifeGoals.push({
+                id: data._nextLgId++,
+                title: lgData.title || 'New Goal',
+                description: lgData.description || '',
+                category: lgData.category || 'personal',
+                milestones: (lgData.milestones || []).map(function(m){ return {text: typeof m === 'string' ? m : m.text, done: false}; }),
+                progress: 0,
+                targetDate: lgData.targetDate || '',
+                icon: lgData.icon || 'Ã°Å¸Å½Â¯',
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+              });
+              window._homerSaveVault(data).then(function(){
+                if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('joey-goal', 1000);
+              }).catch(function(){});
+              if(typeof window._refreshLifeGoals === 'function') window._refreshLifeGoals();
+              refreshCanonicalFiles().catch(function(){});
+            });
+          } else {
+            notifications.push('Vault is locked Ã¢â‚¬â€ unlock it first to add life goals');
+            return;
+          }
+          notifications.push('Life goal created: ' + (lgData.title || 'New Goal'));
+        }
+        else if(a.type === 'FOCUS'){
+          // Pomodoro focus task Ã¢â‚¬â€ quick task for the timer
+          var TKEY = 'pom.tasks.v1';
+          var list = [];
+          try{ list = JSON.parse(localStorage.getItem(TKEY) || '[]'); }catch(e){}
+          list.unshift({text: a.data, done: false, ts: Date.now()});
+          localStorage.setItem(TKEY, JSON.stringify(list));
+          try{ window.dispatchEvent(new Event('tasks-changed')); }catch(e){}
+          notifications.push('Focus task added: ' + a.data);
+        }
+        else if(a.type === 'EVENT'){
+          var evtData = JSON.parse(a.data);
+          var evt = {
+            title: evtData.title || 'New Event',
+            date: evtData.date || new Date().toISOString().slice(0,10),
+            time: evtData.time || '',
+            location: evtData.location || '',
+            description: evtData.description || '',
+            category: evtData.category || '',
+            recurrence: evtData.recurrence || null,
+            heartbeat: evtData.heartbeat || null
+          };
+          applyAgentEventMutation(evt, { source:'action', mode:actionMode });
+          var catLabel = evtData.category ? ' ['+evtData.category+']' : '';
+          notifications.push('Event added: ' + (evtData.title || 'New Event') + catLabel + ' on ' + (evtData.date || 'today'));
+        }
+        else if(a.type === 'REMEMBER'){
+          // Save to Joey's persistent memory (Redis)
+          var memData;
+          try{ memData = JSON.parse(a.data); }catch(e){ memData = {memory: a.data, category: 'general'}; }
+          applyAgentRememberMutation(memData).then(function(result){
+            if(result && result.ok) console.log('Memory saved:', result.message);
+          });
+          notifications.push((String(memData.category || '').toLowerCase() === 'quote' ? 'Saved quote: ' : 'Remembered: ') + (memData.memory||memData.text||a.data));
+        }
+        else if(a.type === 'FORGET'){
+          // Remove from Joey's persistent memory
+          var pass = localStorage.getItem('homer-sync-pass') || '';
+          if(pass){
+            var forgetUrl = typeof window._homerJoeyActionUrl === 'function' ? window._homerJoeyActionUrl('memory') : '/api/joey?action=memory&mode=' + encodeURIComponent((localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal');
+            var forgetBody = typeof window._homerWithContextMode === 'function'
+              ? window._homerWithContextMode({passphrase:pass, match:a.data})
+              : {passphrase:pass, mode:(localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal', match:a.data};
+            fetch(forgetUrl, {
+              method:'DELETE',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify(forgetBody)
+            }).then(function(r){return r.json();}).then(function(d){
+              if(d.ok){
+                console.log('Memory removed, remaining:', d.count);
+                refreshCanonicalFiles().catch(function(){});
+                scheduleJoeyMemoryCommit('forget-action', 60000);
+              }
+            }).catch(function(){});
+          }
+          notifications.push('Forgot: ' + a.data);
+        }
+        else if(a.type === 'PROJECT'){
+          var projectAction;
+          try{ projectAction = JSON.parse(a.data); }catch(e){ projectAction = { op:'create', name:a.data }; }
+          var op = String(projectAction.op || projectAction.action || 'create').trim().toLowerCase();
+          if(op === 'edit' || op === 'rename') op = 'update';
+          if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
+            window._homerLoadVault().then(function(data){
+              var projectHelpers = getActionProjectHelpers();
+              var projects = projectHelpers.ensureProjects(data.projects || []);
+              var requestedProject = String(projectAction.project || projectAction.projectId || projectAction.id || projectAction.key || '').trim();
+              if(!requestedProject && op !== 'update'){
+                requestedProject = String(projectAction.name || '').trim();
+              }
+              var matchedProject = requestedProject ? projectHelpers.matchProject(projects, requestedProject, projectHelpers.getDefaultProjectId(projects, true), true) : null;
+              var matchedName = matchedProject ? (projectHelpers.projectDisplay(matchedProject) || matchedProject).name : requestedProject;
+              if(op === 'create'){
+                createProjectEntry(projectAction, { mode: actionMode }).then(function(result){
+                  if(result && result.ok){
+                    loadVaultForMode(actionMode).then(function(nextData){
+                      populateProjectControls(nextData.projects, nextData.goals, {selectedFilter:result.projectId, preferredTaskProject:result.projectId});
+                      renderProjectDashboard(nextData);
+                    });
+                    showJoeyStatusToast('Project created: ' + (result.name || requestedProject || 'New Project'));
+                    refreshCanonicalFiles().catch(function(){});
+                  } else if(result && result.reason === 'exists'){
+                    showJoeyStatusToast('Project already exists: ' + requestedProject, 'warn');
+                  } else {
+                    showJoeyStatusToast('Project create failed', 'warn');
+                  }
+                }).catch(function(err){
+                  showJoeyStatusToast('Project create failed: ' + (err && err.message ? err.message : err), 'warn');
+                });
+              } else if(op === 'update'){
+                if(!requestedProject){
+                  showJoeyStatusToast('Project update needs a "project" target.', 'warn');
+                  return;
+                }
+                if(!matchedProject){
+                  showJoeyStatusToast('Project not found: ' + requestedProject, 'warn');
+                  return;
+                }
+                updateProjectEntry(matchedProject.id, projectAction, { mode: actionMode }).then(function(result){
+                  if(result && result.ok){
+                    loadVaultForMode(actionMode).then(function(nextData){
+                      populateProjectControls(nextData.projects, nextData.goals, {selectedFilter:matchedProject.id, preferredTaskProject:matchedProject.id});
+                      renderProjectDashboard(nextData);
+                      renderGoals(nextData.goals || [], nextData.projects || []);
+                    });
+                    showJoeyStatusToast('Project updated: ' + (result.name || matchedName));
+                    refreshCanonicalFiles().catch(function(){});
+                  } else if(result && result.reason === 'exists'){
+                    showJoeyStatusToast('Project name or key already exists.', 'warn');
+                  } else if(result && result.reason === 'missing-name'){
+                    showJoeyStatusToast('Project update needs a name.', 'warn');
+                  } else {
+                    showJoeyStatusToast('Project update failed', 'warn');
+                  }
+                }).catch(function(err){
+                  showJoeyStatusToast('Project update failed: ' + (err && err.message ? err.message : err), 'warn');
+                });
+              } else if(!matchedProject){
+                showJoeyStatusToast('Project not found: ' + requestedProject, 'warn');
+              } else if(op === 'archive'){
+                archiveProjectById(matchedProject.id, { mode: actionMode }).then(function(result){
+                  if(result && result.ok) showJoeyStatusToast('Project archived: ' + matchedName);
+                }).catch(function(err){
+                  showJoeyStatusToast('Archive failed: ' + (err && err.message ? err.message : err), 'warn');
+                });
+              } else if(op === 'restore'){
+                restoreProjectById(matchedProject.id, { mode: actionMode }).then(function(result){
+                  if(result && result.ok) showJoeyStatusToast('Project restored: ' + matchedName);
+                }).catch(function(err){
+                  showJoeyStatusToast('Restore failed: ' + (err && err.message ? err.message : err), 'warn');
+                });
+              } else if(op === 'delete'){
+                deleteProjectById(matchedProject.id, { mode: actionMode }).then(function(result){
+                  if(result && result.ok) showJoeyStatusToast('Project deleted: ' + matchedName);
+                  else if(result && result.reason === 'has-issues') showJoeyStatusToast('Project still has issues. Move or archive them before delete.', 'warn');
+                }).catch(function(err){
+                  showJoeyStatusToast('Delete failed: ' + (err && err.message ? err.message : err), 'warn');
+                });
+              } else {
+                showJoeyStatusToast('Unsupported project action: ' + op, 'warn');
+              }
+            });
+          } else {
+            notifications.push('Vault is locked - unlock it first to manage projects');
+            return;
+          }
+          notifications.push('Project action queued: ' + op + ((projectAction.project || projectAction.projectId || projectAction.name) ? ' ' + (projectAction.project || projectAction.projectId || projectAction.name) : ''));
+        }
+        else if(a.type === 'NOTE'){
+          var noteData;
+          try{ noteData = JSON.parse(a.data); }catch(e){ noteData = { target:'vault', text:a.data }; }
+          var noteTarget = String(noteData.target || 'vault').trim().toLowerCase();
+          var noteText = String(noteData.text || noteData.value || noteData.note || '').trim();
+          if(noteTarget === 'brain-dump'){
+            if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.updateBrainDump === 'function'){
+              window._homerFocusLabAgent.updateBrainDump(noteText);
+            } else {
+              localStorage.setItem('homer-brain-dump', noteText);
+            }
+            notifications.push('Brain dump updated');
+          } else if(noteTarget === 'zen-goal'){
+            if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.setZenGoal === 'function'){
+              window._homerFocusLabAgent.setZenGoal(noteText);
+            } else {
+              localStorage.setItem('homer-zen-goal', noteText);
+            }
+            notifications.push('Zen goal updated');
+          } else if(typeof window._homerUpdateVaultNote === 'function'){
+            window._homerUpdateVaultNote(noteText, actionMode).catch(function(err){
+              showJoeyStatusToast('Vault note save failed: ' + (err && err.message ? err.message : err), 'warn');
+            });
+            notifications.push('Vault note updated');
+          } else {
+            notifications.push('Vault notes are unavailable right now');
+          }
+        }
+        else if(a.type === 'LINK'){
+          var linkData;
+          try{ linkData = JSON.parse(a.data); }catch(e){ linkData = { name:a.data, url:a.data }; }
+          if(typeof window._homerAddSavedLink === 'function'){
+            var addedLink = window._homerAddSavedLink(linkData);
+            notifications.push(addedLink && addedLink.ok
+              ? 'Saved link added: ' + (addedLink.name || linkData.name || 'Link')
+              : 'Saved link failed: ' + ((addedLink && addedLink.error) || 'invalid data'));
+          } else {
+            notifications.push('Links tab is unavailable right now');
+          }
+        }
+        else if(a.type === 'SECRET'){
+          var secretData;
+          try{ secretData = JSON.parse(a.data); }catch(e){ secretData = { type:'credential', label:a.data, password:'' }; }
+          var secretType = String(secretData.type || 'credential').trim().toLowerCase();
+          if(secretType === 'link'){
+            if(typeof window._homerAddVaultSecretLink === 'function'){
+              window._homerAddVaultSecretLink(secretData, actionMode).then(function(result){
+                if(!result || !result.ok) showJoeyStatusToast('Secret link failed: ' + ((result && result.error) || 'invalid data'), 'warn');
+              }).catch(function(err){
+                showJoeyStatusToast('Secret link failed: ' + (err && err.message ? err.message : err), 'warn');
+              });
+              notifications.push('Secret link queued: ' + (secretData.name || secretData.title || 'Link'));
+            } else {
+              notifications.push('Vault secret links are unavailable right now');
+            }
+          } else if(typeof window._homerAddVaultCredential === 'function'){
+            window._homerAddVaultCredential(secretData, actionMode).then(function(result){
+              if(!result || !result.ok) showJoeyStatusToast('Credential save failed: ' + ((result && result.error) || 'invalid data'), 'warn');
+            }).catch(function(err){
+              showJoeyStatusToast('Credential save failed: ' + (err && err.message ? err.message : err), 'warn');
+            });
+            notifications.push('Credential queued: ' + (secretData.label || secretData.name || 'Credential'));
+          } else {
+            notifications.push('Vault credentials are unavailable right now');
+          }
+        }
+        else if(a.type === 'COMMAND'){
+          var commandData;
+          try{ commandData = JSON.parse(a.data); }catch(e){ commandData = { op:a.data }; }
+          var cmd = String(commandData.op || commandData.command || '').trim().toLowerCase();
+          var cmdTarget = String(commandData.target || commandData.surface || commandData.tab || '').trim().toLowerCase();
+          if(inferredCommand && !a.inferred) return;
+          var commandResult = runAgentCommand(commandData, { source:'action' });
+          notifications.push(commandResult && commandResult.message ? commandResult.message : ('Unsupported command: ' + (cmd || 'unknown')));
+          return;
+          if(cmd === 'tab'){
+            if(typeof window._homerShowTab === 'function'){
+              window._homerShowTab(cmdTarget || 'home');
+              notifications.push('Opened tab: ' + (cmdTarget || 'home'));
+            } else {
+              notifications.push('Tab command unavailable');
+            }
+          } else if(cmd === 'mode'){
+            if(typeof window._homerApplyContextMode === 'function'){
+              window._homerApplyContextMode(cmdTarget === 'work' ? 'work' : 'personal', { source:'joey-command' });
+              notifications.push('Mode switched to ' + (cmdTarget === 'work' ? 'work' : 'personal'));
+            } else {
+              notifications.push('Mode switch unavailable');
+            }
+          } else if(cmd === 'open'){
+            if(typeof window._homerShowTab === 'function') window._homerShowTab('vault');
+            if(typeof window._homerOpenVaultSurface === 'function'){
+              var openResult = window._homerOpenVaultSurface(cmdTarget);
+              notifications.push(openResult && openResult.ok
+                ? 'Opened ' + cmdTarget
+                : 'Open failed: ' + ((openResult && openResult.error) || 'unknown target'));
+            } else {
+              notifications.push('Vault open command unavailable');
+            }
+          } else if(cmd === 'drive-sync'){
+            if(typeof window._homerSyncContextFromDrive === 'function'){
+              window._homerSyncContextFromDrive(false, true).catch(function(err){
+                showJoeyStatusToast('Drive sync failed: ' + (err && err.message ? err.message : err), 'warn');
+              });
+              notifications.push('Drive sync queued');
+            } else {
+              notifications.push('Drive sync unavailable');
+            }
+          } else if(cmd === 'drive-backup'){
+            if(typeof window._homerBackupJoeyToDrive === 'function'){
+              window._homerBackupJoeyToDrive('command-action').catch(function(err){
+                showJoeyStatusToast('Drive backup failed: ' + (err && err.message ? err.message : err), 'warn');
+              });
+              notifications.push('Drive backup queued');
+            } else {
+              notifications.push('Drive backup unavailable');
+            }
+          } else if(cmd === 'memory-commit'){
+            if(typeof window._homerCommitJoeyMemory === 'function'){
+              window._homerCommitJoeyMemory({ silent:true, skipLearn:false, skipDrive:true, reason:'command-action' }).catch(function(err){
+                showJoeyStatusToast('Memory commit failed: ' + (err && err.message ? err.message : err), 'warn');
+              });
+              notifications.push('Memory commit queued');
+            } else {
+              notifications.push('Memory commit unavailable');
+            }
+          } else if(cmd === 'vault-mirror'){
+            if(typeof window._homerBackupEverythingToDb === 'function'){
+              window._homerBackupEverythingToDb().then(function(){
+                if(typeof refreshVaultMirrorStatus === 'function') refreshVaultMirrorStatus({ force:true, reason:'command-vault-mirror' });
+              }).catch(function(err){
+                showJoeyStatusToast('Vault mirror failed: ' + (err && err.message ? err.message : err), 'warn');
+              });
+              notifications.push('Vault mirror queued');
+            } else {
+              notifications.push('Vault mirror unavailable');
+            }
+          } else if(cmd === 'issue-open'){
+          if(typeof window._homerLoadVaultForMode === 'function' && window._homerVaultUnlocked){
+            window._homerLoadVaultForMode(actionMode).then(function(data){
+                var foundIssue = findIssueRecordByKey(data, commandData.key || cmdTarget);
+                if(!foundIssue){
+                  showJoeyStatusToast('Issue not found: ' + (commandData.key || cmdTarget || 'unknown'), 'warn');
+                  return;
+                }
+                if(typeof window._homerShowTab === 'function') window._homerShowTab('vault');
+                if(typeof openProjectBoard === 'function') openProjectBoard(foundIssue.goal.projectId);
+                if(typeof window._homerOpenIssue === 'function') window._homerOpenIssue(foundIssue.goalIndex);
+              }).catch(function(err){
+                showJoeyStatusToast('Issue open failed: ' + (err && err.message ? err.message : err), 'warn');
+              });
+              notifications.push('Issue open queued: ' + (commandData.key || cmdTarget || ''));
+            } else {
+              notifications.push('Unlock the vault first to open issues');
+            }
+          } else if(cmd === 'pomodoro-start' || cmd === 'pomodoro-pause' || cmd === 'pomodoro-reset' || cmd === 'pomodoro-skip'){
+            if(window._homerPomodoroAgent && typeof window._homerPomodoroAgent[cmd.split('-')[1]] === 'function'){
+              window._homerPomodoroAgent[cmd.split('-')[1]]();
+              notifications.push('Pomodoro ' + cmd.split('-')[1] + ' triggered');
+            } else {
+              notifications.push('Pomodoro command unavailable');
+            }
+          } else if(cmd === 'sound-play'){
+            if(window._homerAmbientAudio && typeof window._homerAmbientAudio.playTrack === 'function' && window._homerAmbientAudio.playTrack(cmdTarget, commandData.volume)){
+              notifications.push('Sound playing: ' + cmdTarget);
+            } else {
+              notifications.push('Sound play failed: ' + (cmdTarget || 'missing target'));
+            }
+          } else if(cmd === 'sound-stop'){
+            if(window._homerAmbientAudio){
+              var stopped = cmdTarget
+                ? (typeof window._homerAmbientAudio.stopTrack === 'function' && window._homerAmbientAudio.stopTrack(cmdTarget))
+                : (typeof window._homerAmbientAudio.stopAll === 'function' && (window._homerAmbientAudio.stopAll(), true));
+              notifications.push(stopped ? ('Sound stopped: ' + (cmdTarget || 'all')) : 'Sound stop failed');
+            } else {
+              notifications.push('Sound command unavailable');
+            }
+          } else if(cmd === 'sound-mix'){
+            if(window._homerAmbientAudio && typeof window._homerAmbientAudio.playMix === 'function' && window._homerAmbientAudio.playMix(cmdTarget)){
+              notifications.push('Sound mix playing: ' + cmdTarget);
+            } else {
+              notifications.push('Sound mix failed: ' + (cmdTarget || 'missing target'));
+            }
+          } else if(cmd === 'zen-start'){
+            if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.startZen === 'function'){
+              window._homerFocusLabAgent.startZen(commandData.target || commandData.goal || '');
+              notifications.push('Zen mode started');
+            } else {
+              notifications.push('Zen mode unavailable');
+            }
+          } else if(cmd === 'zen-stop'){
+            if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.stopZen === 'function'){
+              window._homerFocusLabAgent.stopZen();
+              notifications.push('Zen mode stopped');
+            } else {
+              notifications.push('Zen mode unavailable');
+            }
+          } else if(cmd === 'breathing-start'){
+            if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.startBreathing === 'function'){
+              window._homerFocusLabAgent.startBreathing();
+              notifications.push('Breathing started');
+            } else {
+              notifications.push('Breathing command unavailable');
+            }
+          } else if(cmd === 'breathing-stop'){
+            if(window._homerFocusLabAgent && typeof window._homerFocusLabAgent.stopBreathing === 'function'){
+              window._homerFocusLabAgent.stopBreathing();
+              notifications.push('Breathing stopped');
+            } else {
+              notifications.push('Breathing command unavailable');
+            }
+          } else {
+            notifications.push('Unsupported command: ' + (cmd || 'unknown'));
+          }
+        }
+      }catch(e){
+        notifications.push('Action failed: ' + e.message);
+      }
+    });
+
+    // Show confirmation toast
+    if(notifications.length){
+      var toast = document.createElement('div');
+      toast.className = 'oc-msg bot';
+      toast.style.cssText = 'background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);font-size:.78rem;color:#4ade80;text-align:center;max-width:100%;';
+      toast.innerHTML = notifications.map(function(n){ return '&#10003; ' + escHtml(n); }).join('<br>');
+      messagesEl.appendChild(toast);
+      scrollMessagesToBottom(false);
+    }
+
+    // Strip action tags from displayed text
+    return text.replace(/\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET|PROJECT|NOTE|LINK|SECRET|COMMAND)\][\s\S]*?(?:\[\/ACTION\]|$)/g, '').trim();
+  }
+
+  function showError(msg){
+    var el = document.createElement('div');
+    el.className = 'oc-msg error';
+    el.textContent = msg;
+    messagesEl.appendChild(el);
+    scrollMessagesToBottom(false);
+  }
+
+  function showJoeyStatusToast(msg, tone){
+    var el = document.createElement('div');
+    var kind = tone || 'success';
+    var styles = {
+      success: {
+        background: 'rgba(34,197,94,.1)',
+        border: '1px solid rgba(34,197,94,.25)',
+        color: '#4ade80',
+        prefix: '\u2713 '
+      },
+      warn: {
+        background: 'rgba(245,158,11,.12)',
+        border: '1px solid rgba(245,158,11,.28)',
+        color: '#fbbf24',
+        prefix: '\u26a0 '
+      },
+      error: {
+        background: 'rgba(239,68,68,.12)',
+        border: '1px solid rgba(239,68,68,.28)',
+        color: '#fca5a5',
+        prefix: '\u2715 '
+      }
+    };
+    var style = styles[kind] || styles.success;
+    el.className = 'oc-msg bot';
+    el.style.cssText = 'align-self:center;padding:10px 14px;border-radius:10px;font-size:.78rem;text-align:center;max-width:100%;background:' + style.background + ';border:' + style.border + ';color:' + style.color + ';';
+    el.textContent = style.prefix + String(msg || '');
+    messagesEl.appendChild(el);
+    scrollMessagesToBottom(false);
+  }
+
+  // --- File attachment ---
+  var TEXT_EXTS = /\.(txt|md|json|csv|js|ts|jsx|tsx|py|html|css|xml|yaml|yml|log|sql|sh|toml|ini|cfg|env|java|go|rs|c|cpp|h|rb|php|swift|kt|r|m|bat|ps1|makefile|dockerfile|gitignore|svelte|vue|scss|less|sass|graphql|proto|tf|hcl|asm|lua|pl|ex|exs|clj|hs|erl|dart|scala|groovy|diff|patch)$/i;
+  var MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+
+  function base64FromArrayBuffer(arrayBuffer, maxChars){
+    var bytes = new Uint8Array(arrayBuffer);
+    var chunkSize = 0x8000;
+    var binary = '';
+    for(var i = 0; i < bytes.length; i += chunkSize){
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+    }
+    var base64 = btoa(binary);
+    return maxChars ? base64.slice(0, maxChars) : base64;
+  }
+
+  function extractPdfText(arrayBuffer){
+    return new Promise(function(resolve){
+      if(typeof pdfjsLib === 'undefined'){
+        resolve('[PDF content - pdf.js not loaded. Showing raw text extract below]\n' + new TextDecoder('utf-8',{fatal:false}).decode(arrayBuffer).replace(/[^\x20-\x7E\n\r\t]/g,''));
+        return;
+      }
+      pdfjsLib.getDocument({data:arrayBuffer}).promise.then(function(pdf){
+        var pages = [];
+        var count = pdf.numPages;
+        function getPage(n){
+          if(n > count){ resolve(pages.join('\n\n--- Page Break ---\n\n')); return; }
+          pdf.getPage(n).then(function(page){
+            page.getTextContent().then(function(tc){
+              pages.push(tc.items.map(function(i){return i.str;}).join(' '));
+              getPage(n+1);
+            });
+          });
+        }
+        getPage(1);
+      }).catch(function(err){
+        resolve('[PDF parsing failed: ' + err.message + ']');
+      });
+    });
+  }
+
+  function extractDocxText(arrayBuffer){
+    return new Promise(function(resolve){
+      if(typeof mammoth === 'undefined' || !mammoth.extractRawText){
+        resolve('[DOCX content - Mammoth not loaded. The file was still attached and saved for later reuse.]');
+        return;
+      }
+      mammoth.extractRawText({ arrayBuffer: arrayBuffer }).then(function(result){
+        var text = String((result && result.value) || '').trim();
+        resolve(text || '[DOCX parsed successfully but no text was extracted]');
+      }).catch(function(err){
+        resolve('[DOCX parsing failed: ' + err.message + ']');
+      });
+    });
+  }
+
+  function readFileContent(file){
+    return new Promise(function(resolve){
+      var ext = file.name.split('.').pop().toLowerCase();
+      if(ext === 'pdf'){
+        var r = new FileReader();
+        r.onload = function(e){ extractPdfText(e.target.result).then(resolve); };
+        r.readAsArrayBuffer(file);
+      } else if(ext === 'docx'){
+        var rDocx = new FileReader();
+        rDocx.onload = function(e){ extractDocxText(e.target.result).then(resolve); };
+        rDocx.readAsArrayBuffer(file);
+      } else if(TEXT_EXTS.test(file.name) || file.type.startsWith('text/')){
+        var r2 = new FileReader();
+        r2.onload = function(e){ resolve(e.target.result); };
+        r2.readAsText(file);
+      } else {
+        var r3 = new FileReader();
+        r3.onload = function(e){
+          var preview = base64FromArrayBuffer(e.target.result, 2000);
+          resolve(
+            '[Binary file: ' + file.name +
+            ' (' + (file.size / 1024).toFixed(1) + 'KB, type: ' + (file.type || 'unknown') + ')]\n' +
+            'The original binary is attached for Drive upload and later reuse.\n' +
+            'Base64 preview (first 2000 chars):\n' + preview
+          );
+        };
+        r3.readAsArrayBuffer(file);
+      }
+    });
+  }
+
+  function fileToBase64(file){
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onload = function(e){
+        var result = String(e.target.result || '');
+        var comma = result.indexOf(',');
+        resolve(comma >= 0 ? result.slice(comma + 1) : result);
+      };
+      reader.onerror = function(){ reject(new Error('Could not read file bytes')); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function uploadFileToDrive(file, extractedText){
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!pass) return Promise.reject(new Error('Unlock vault first so uploads can be saved to Google Drive.'));
+    return fileToBase64(file).then(function(base64Data){
+      return fetch('/api/gdrive-reconcile?action=file', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(withContextMode({
+          passphrase: pass,
+          fileName: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          size: file.size,
+          base64Data: base64Data,
+          extractedText: extractedText,
+          source: 'joey-chat'
+        }))
+      }).then(function(r){
+        return r.json().catch(function(){ return {}; }).then(function(data){
+          if(!r.ok || !data || !data.ok || !data.file){
+            var reason = (data && [data.detail, data.hint, data.error].filter(Boolean).join(' Ã¢â‚¬â€ ')) || 'Upload failed';
+            throw new Error(reason);
+          }
+          return data;
+        });
+      }).then(function(data){
+        return data.file;
+      });
+    });
+  }
+
+  if(voiceBtn){
+    voiceBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      toggleVoiceInput();
+    });
+    syncVoiceUi();
+  }
+  attachBtn.addEventListener('click', function(){ fileInput.click(); });
+  fileInput.addEventListener('change', function(){
+    Array.from(fileInput.files).forEach(function(file){
+      if(file.size > MAX_FILE_SIZE){
+        showError('File too large: ' + file.name + ' (max 25MB)');
+        return;
+      }
+      readFileContent(file).then(function(content){
+        return uploadFileToDrive(file, content).then(function(saved){
+          pendingFiles.push({
+            name: file.name,
+            content: content,
+            driveUrl: saved.driveUrl || '',
+            downloadUrl: saved.downloadUrl || '',
+            libraryId: saved.id || '',
+            uploadedAt: saved.uploadedAt || '',
+            excerpt: saved.excerpt || ''
+          });
+          renderFilePreviewPanel();
+          setUploadStatus('Saved "' + file.name + '" to Google Drive.', 'success');
+          if(libraryPanel && libraryPanel.classList.contains('open')) fetchFileLibrary({ silent:true });
+          refreshCanonicalFiles().catch(function(){});
+        }).catch(function(err){
+          pendingFiles.push({name: file.name, content: content, localOnly: true});
+          renderFilePreviewPanel();
+          setUploadStatus('Could not save "' + file.name + '" to Drive. ' + err.message, 'warn', true);
+        });
+      });
+    });
+    fileInput.value = '';
+  });
+  function renderFilePreviewPanel(){
+    filePreview.innerHTML = '';
+    filePreview.classList.toggle('has-files', pendingFiles.length > 0);
+    pendingFiles.forEach(function(f, idx){
+      var tag = document.createElement('span');
+      tag.className = 'oc-file-tag';
+      tag.innerHTML = escHtml(f.name) + (f.driveUrl ? ' <span title="Saved to Google Drive">Ã¢ËœÂ</span>' : ' <span title="Not synced">local</span>') + ' <button title="Remove">&times;</button>';
+      tag.querySelector('button').addEventListener('click', function(){
+        pendingFiles.splice(idx, 1);
+        renderFilePreviewPanel();
+      });
+      filePreview.appendChild(tag);
+    });
+  }
+
+  // --- Emoji picker ---
+  var fixMojibake = window._homerFixMojibakeText || function(value){ return value; };
+  var EMOJI_DATA = {
+    'Ã°Å¸Ëœâ‚¬': ['Ã°Å¸Ëœâ‚¬','Ã°Å¸Ëœâ€š','Ã°Å¸Â¤Â£','Ã°Å¸ËœÅ ','Ã°Å¸ËœÂ','Ã°Å¸Â¥Â°','Ã°Å¸ËœÅ½','Ã°Å¸Â¤Â©','Ã°Å¸Ëœâ€¡','Ã°Å¸Â¥Â³','Ã°Å¸ËœÂ','Ã°Å¸Â¤â€','Ã°Å¸ËœÂ´','Ã°Å¸Â¤Â¯','Ã°Å¸Â¥Âº','Ã°Å¸ËœÂ¤','Ã°Å¸ËœÂ­','Ã°Å¸â€™â‚¬','Ã°Å¸Â¤â€“','Ã°Å¸â€˜Â»'],
+    'Ã°Å¸â€˜â€¹': ['Ã°Å¸â€˜â€¹','Ã°Å¸â€˜Â','Ã°Å¸â€˜Å½','Ã°Å¸â€˜Â','Ã°Å¸â„¢Å’','Ã°Å¸Â¤Â','Ã¢Å“Å’Ã¯Â¸Â','Ã°Å¸Â¤Å¾','Ã°Å¸â€™Âª','Ã°Å¸â„¢Â','Ã°Å¸â€˜â‚¬','Ã°Å¸Â§Â ','Ã¢ÂÂ¤Ã¯Â¸Â','Ã°Å¸â€Â¥','Ã¢Â­Â','Ã°Å¸â€™Â¡','Ã¢Å“â€¦','Ã¢ÂÅ’','Ã¢Å¡Â¡','Ã°Å¸Å½â€°'],
+    'Ã°Å¸ÂÂ±': ['Ã°Å¸ÂÂ±','Ã°Å¸ÂÂ¶','Ã°Å¸Â¦Å ','Ã°Å¸ÂÂ»','Ã°Å¸Â¦Â','Ã°Å¸ÂÂ¸','Ã°Å¸Ââ„¢','Ã°Å¸Â¦Å¾','Ã°Å¸Â¦â‚¬','Ã°Å¸ÂÂ','Ã°Å¸Å’Â¿','Ã°Å¸Å’Â¸','Ã°Å¸Å’â„¢','Ã¢Ëœâ‚¬Ã¯Â¸Â','Ã°Å¸Å’Ë†','Ã°Å¸â€™Â§','Ã¢Ââ€žÃ¯Â¸Â','Ã°Å¸Ââ€¢','Ã¢Ëœâ€¢','Ã°Å¸ÂÂº'],
+    'Ã°Å¸â€™Â»': ['Ã°Å¸â€™Â»','Ã°Å¸â€œÂ±','Ã¢Å’Â¨Ã¯Â¸Â','Ã°Å¸â€“Â¥Ã¯Â¸Â','Ã°Å¸â€œÂ','Ã°Å¸â€œâ€ž','Ã°Å¸â€œÅ ','Ã°Å¸â€â€”','Ã°Å¸â€â€™','Ã°Å¸â€â€˜','Ã°Å¸â€œÂ¡','Ã°Å¸â€ºÂ Ã¯Â¸Â','Ã¢Å¡â„¢Ã¯Â¸Â','Ã°Å¸Â§Âª','Ã°Å¸â€œÂ','Ã°Å¸â€™Â¾','Ã°Å¸â€œÂ¦','Ã°Å¸Å¡â‚¬','Ã°Å¸ÂÂ ','Ã°Å¸â€œÅ’']
+  };
+  EMOJI_DATA = Object.keys(EMOJI_DATA).reduce(function(next, cat){
+    next[fixMojibake(cat)] = EMOJI_DATA[cat].map(fixMojibake);
+    return next;
+  }, {});
+  var emojiCats = Object.keys(EMOJI_DATA);
+  var tabsEl = emojiPicker.querySelector('.oc-emoji-tabs');
+  var gridEl = emojiPicker.querySelector('.oc-emoji-grid');
+
+  emojiCats.forEach(function(cat, i){
+    var tab = document.createElement('button');
+    tab.className = 'oc-emoji-tab' + (i === 0 ? ' active' : '');
+    tab.textContent = cat;
+    tab.addEventListener('click', function(){
+      tabsEl.querySelectorAll('.oc-emoji-tab').forEach(function(t){ t.classList.remove('active'); });
+      tab.classList.add('active');
+      renderEmojiGrid(cat);
+    });
+    tabsEl.appendChild(tab);
+  });
+  function renderEmojiGrid(cat){
+    gridEl.innerHTML = '';
+    EMOJI_DATA[cat].forEach(function(em){
+      var btn = document.createElement('button');
+      btn.textContent = em;
+      btn.addEventListener('click', function(){
+        var start = inputEl.selectionStart || 0;
+        var end = inputEl.selectionEnd || 0;
+        var val = inputEl.value;
+        inputEl.value = val.slice(0, start) + em + val.slice(end);
+        inputEl.selectionStart = inputEl.selectionEnd = start + em.length;
+        inputEl.focus();
+        emojiPicker.classList.remove('open');
+      });
+      gridEl.appendChild(btn);
+    });
+  }
+  renderEmojiGrid(emojiCats[0]);
+  emojiBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    emojiPicker.classList.toggle('open');
+  });
+  document.addEventListener('mousedown', function(e){
+    if(!emojiPicker.contains(e.target) && e.target !== emojiBtn) emojiPicker.classList.remove('open');
+  });
+
+  // --- Web search button ---
+  var searchBtn = document.getElementById('oc-search-btn');
+  searchBtn.addEventListener('click', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    var query = inputEl.value.trim();
+    if(!query){ inputEl.placeholder = 'Type a search query first...'; setTimeout(function(){ syncProviderUi(); }, 2000); return; }
+    inputEl.value = '[FORCE_WEB_SEARCH] ' + query;
+    sendMessage();
+  });
+
+  // --- Export chat ---
+  exportBtn.addEventListener('click', function(){
+    if(!chatHistory.length) return;
+    var md = '# Joey Chat Export\n_' + new Date().toLocaleString() + '_\n\n';
+    chatHistory.forEach(function(m){
+      if(m.role === 'user'){
+        md += '## You\n\n' + (m.displayText || m.content) + '\n\n';
+      } else {
+        md += '## Joey (N3S)\n\n' + m.content + '\n\n---\n\n';
+      }
+    });
+    var blob = new Blob([md], {type:'text/markdown'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'joey-chat-' + new Date().toISOString().slice(0,10) + '.md';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // --- Send via Vercel API proxy ---
+  async function sendMessage(){
+    if(!ensureJoeyAccess(true)) return;
+    var text = inputEl.value.trim();
+    if(!text && !pendingFiles.length) return;
+    if(streaming) return;
+    var savedPromptOverride = getSavedSystemPrompt(currentContextMode);
+    var JOEY_PROMPT = 'You are Joey Ã¢â‚¬â€ a personal AI assistant with personality. You speak like Joey Tribbiani from Friends (confident, charming, fun), but you\'re genuinely smart and deeply helpful. You know this person. You have their profile, memories, and conversation history injected into your context by the server. USE THEM.\n\nTODAY: ' + new Date().toISOString().slice(0,10) + ' | TIME: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '\n\n=== PERSONALITY ===\n- Be direct, no fluff. Match the user\'s energy.\n- Use Joey catchphrases SPARINGLY and naturally Ã¢â‚¬â€ don\'t force them every message.\n- Have real opinions. Disagree when warranted. Be a friend, not a yes-man.\n- When you know something about them (from profile/memories), use it naturally Ã¢â‚¬â€ don\'t announce "I remember...".\n- Ask follow-up questions about things you know they care about (their goals, their people, recent events).\n- If they seem stressed or down, be supportive. If they\'re excited, share that energy.\n\n=== ACTIONS (append at END of your response) ===\n\nTASK (Kanban board Ã¢â‚¬â€ DEFAULT for any work item, to-do, action):\n- Create a TASK only when the user explicitly asks you to add, create, save, track, put on the board, or turn something into a task.\n- Do NOT create tasks proactively, by implication, or just because a deadline/problem/action item was mentioned.\n- If the user is only discussing plans or problems, respond normally without action tags.\n- For explicit task requests, include: summary, notes, priority when implied, due when mentioned, and 2-5 concrete subtasks.\n- If the user names a project, include \"project\" or \"projectId\" in the TASK JSON. Never leave it out.\n- Use notes for the task description. Do not use GOAL for normal actionable work items.\n- Simple fallback: [ACTION:TASK]Buy groceries[/ACTION]\n- Preferred detailed format: [ACTION:TASK]{\"project\":\"Apps\",\"summary\":\"Fix login bug\",\"notes\":\"Users cannot sign in after password reset. Investigate the reset flow, patch the regression, and verify the happy path.\",\"priority\":\"high\",\"due\":\"2026-03-25\",\"subtasks\":[{\"text\":\"Reproduce the bug locally\",\"notes\":\"Test the password reset flow with an affected account.\"},{\"text\":\"Identify the failing auth step\"},{\"text\":\"Implement and verify the fix\"}]}[/ACTION]\n\nGOAL (Life Goals Ã¢â‚¬â€ aspirations, dreams, long-term objectives):\n[ACTION:GOAL]{"title":"Buy a house","description":"Why this matters","category":"finance","milestones":["Step 1","Step 2"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\nCategories: health, finance, career, personal, education, travel, creative, relationship\n\nFOCUS (Pomodoro Ã¢â‚¬â€ ONLY when user explicitly says "focus", "pomodoro", "focus task"):\n[ACTION:FOCUS]Task name[/ACTION]\nIMPORTANT: NEVER create FOCUS unless explicitly asked. Default is always TASK.\n\nEVENT (Calendar Ã¢â‚¬â€ use category to differentiate event types):\n[ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details","category":"meeting"}[/ACTION]\nEvent categories: meeting, deadline, reminder, personal, work\n\nREMEMBER (save important facts Ã¢â‚¬â€ your auto-memory also captures things, but use this for explicit asks):\n[ACTION:REMEMBER]{"memory":"fact about the user","category":"preference"}[/ACTION]\nCategories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work, quote\n- If the user asks to save a quote, mantra, stoic line, or wisdom for later, use category "quote". Those entries are appended to Quotes.md and should stay referenceable.\n\nFORGET:\n[ACTION:FORGET]text to forget[/ACTION]\n\n=== WEB SEARCH ===\n- You may receive LIVE WEB SEARCH RESULTS in your system prompt when the user asks about current events, facts, or anything that needs up-to-date info.\n- When you have search results, use them to give accurate answers. Cite sources naturally (e.g. "According to...", link titles).\n- If search results are present, prioritize them over your training data for current facts.\n- You can suggest the user search for something specific if you don\'t have results: just say "let me look that up" Ã¢â‚¬â€ the system will search automatically on their next related question.\n\n=== RULES ===\n- Dates: YYYY-MM-DD, Times: HH:MM (24h), Priority: high/medium/low\n- Always include action tags only when the user explicitly asked to create something.\n- When the user explicitly asks to add or create a task, append a TASK action unless they explicitly refuse.\n- For TASK actions, prefer JSON over plain text so the Kanban card is fully populated.\n- When the user names a project, the TASK must target that project explicitly instead of guessing.\n- Natural-language confirmation alone is not enough for task creation; you must append the TASK action tag.\n- Do not offer or create a task just because a deadline, plan, or obligation was mentioned.\n- Conversation memory is saved automatically from chat when sync is unlocked; use REMEMBER only when the user explicitly wants something pinned or deliberately saved.';
+    var systemPrompt = savedPromptOverride || JOEY_PROMPT;
+    systemPrompt += '\n\n=== PERSONAL OPERATOR MODE ===\n- Your job is to become distinctive to this user, not generic.\n- Learn their standards, tastes, projects, recurring frustrations, and preferred way of working.\n- Use remembered context to make your suggestions feel specifically tuned to them.\n- When context is thin, ask a short sharp follow-up that improves future personalization.';
+    if(typeof window._homerBuildJoeyProjectInstruction === 'function'){
+      systemPrompt += window._homerBuildJoeyProjectInstruction();
+    }
+    if(typeof window._homerBuildJoeyWebsiteInstruction === 'function'){
+      systemPrompt += window._homerBuildJoeyWebsiteInstruction();
+    }
+    systemPrompt += '\n\n=== PROJECT ACTIONS ===\n- If the user explicitly asks to create, rename, edit, archive, restore, or delete a project, append a PROJECT action.\n- PROJECT create format: [ACTION:PROJECT]{\"op\":\"create\",\"name\":\"Project Name\",\"description\":\"Optional description\",\"icon\":\"rocket\",\"color\":\"#60a5fa\"}[/ACTION]\n- PROJECT update format: [ACTION:PROJECT]{\"op\":\"update\",\"project\":\"Apps\",\"name\":\"Apps Platform\",\"description\":\"Shared product work\",\"icon\":\"AP\",\"color\":\"#34d399\"}[/ACTION]\n- PROJECT archive format: [ACTION:PROJECT]{\"op\":\"archive\",\"project\":\"Apps\"}[/ACTION]\n- PROJECT restore format: [ACTION:PROJECT]{\"op\":\"restore\",\"project\":\"Apps\"}[/ACTION]\n- PROJECT delete format: [ACTION:PROJECT]{\"op\":\"delete\",\"project\":\"Apps\"}[/ACTION]\n- Use \"project\" to identify the existing project for any non-create action.\n- Never delete a project that still has issues.\n- Never place new tasks into archived projects.';
+    systemPrompt += '\n\n=== MODE ISOLATION ===\n- Personal and Work are separate memory domains.\n- Never reveal, summarize, hint at, or rely on information from the other mode.\n- If the user asks for something that belongs to the other mode, tell them to switch modes.\n- "Use full context" means full context for the current mode only.';
+    systemPrompt += '\n- All vault mutations are mode-bound. In Personal mode, create and update only Personal vault items and Personal Drive backup. In Work mode, create and update only Work vault items and Work Drive backup. Never write across modes.';
+    systemPrompt += '\n\n=== CANONICAL FILES ===\n- Mode-specific context lives in AgentContext.md, Today.md, OpenLoops.md, Projects.md, Areas.md, Resources.md, People.md, Wins.md, Lessons.md, WeeklyReview.md, Decisions.md, PinnedContext.md, Archive.md, FilesIndex.md, Quotes.md when saved quotes exist, and Uploads/*.md for the current mode only.\n- FilesIndex.md lists remembered uploaded files and also names extra custom context files for this mode.\n- Do not assume a context file is missing just because it is not an uploaded file or because it is not under Uploads/.\n- Do not conclude that Quotes.md is missing only because it is not mentioned in the remembered uploads section of FilesIndex.md.\n- Quotes.md is an accumulating reference file containing quotes saved from Home and quotes Joey saved via memory actions; use it for recall, advice framing, and preference shaping when relevant.\n- Quote entries must be stored in canonical form: blockquote contains only the quote text wrapped in quotation marks, Author line contains only the speaker name, Saved line contains only the ISO timestamp.\n- Never store prefixes like "Quote:" inside the quote body, and never leave the author inside the quoted text when it can be separated.\n- Uploads/*.md contains extracted text for previously processed files when relevant to this mode.\n- Prefer REMEMBER with categories win, lesson, resource, decision, pin, archive, or quote when the user explicitly asks to save something.\n- If the user says "save this as a win", store category "win".\n- If the user says "save this as a lesson", store category "lesson".\n- If the user says "save this as a resource" or "keep this note", store category "resource".\n- If the user says "save this quote", "remember this quote", or asks you to keep a line for later advice, store category "quote".\n- If the user says "pin this" or "always remember this", store category "pin" with pinned:true.\n- If the user asks for deeper recall, tell them they can say "use full context".';
+    if(currentContextMode === 'work'){
+      systemPrompt += '\n\n=== WORK MODE ===\n- You are in Work mode with separate work memory, uploads, files, and Drive backups.\n- Optimize for execution and recall: tasks, deadlines, blockers, dependencies, decisions, meeting outcomes, stakeholders, and next actions.\n- Beat a human personal assistant on follow-through: be organized, specific, concise, and proactive about missing details that matter for delivery.\n- When the user asks to save something work-related, prefer REMEMBER with categories work, decision, resource, win, lesson, or pin.\n- When work is discussed, default to crisp operational framing: what is due, who owns it, what is blocked, and what should happen next.\n- Never answer with personal-only memories unless they are present in current work context.';
+    } else {
+      systemPrompt += '\n\n=== PERSONAL MODE ===\n- You are in Personal mode with separate personal memory, uploads, files, and Drive backups.\n- Never answer with work-only memories, stakeholders, deadlines, or private work details unless they are present in current personal context.';
+    }
+
+    var forceWebSearch = /^\[FORCE_WEB_SEARCH\]\s*/i.test(text);
+    var forceFullContext = /^(use full context|deep context)\b/i.test(text) || /^\[(USE_FULL_CONTEXT|DEEP_CONTEXT)\]\s*/i.test(text);
+    var cleanText = text.replace(/^\[FORCE_WEB_SEARCH\]\s*/i, '').replace(/^\[(USE_FULL_CONTEXT|DEEP_CONTEXT)\]\s*/i, '').trim();
+    var displayText = cleanText || text;
+    var fullContent = cleanText || text;
+    var directTaskRequest = inferDirectTaskRequest(displayText);
+    var directTaskNeedsPlanning = taskNeedsAgentSubtasks(displayText);
+    var directIssueUpdate = inferDirectIssueUpdateRequest(displayText);
+    var directEventRequest = inferDirectEventRequest(displayText);
+    var directRememberRequest = inferDirectRememberRequest(displayText);
+    var directNoteRequest = inferDirectNoteRequest(displayText);
+    var deferredNoteRequest = directNoteRequest ? null : inferDeferredNoteRequest(displayText);
+    var directQuoteRequest = inferDirectQuoteRequest(displayText);
+    var directQuoteEditRequest = inferDirectQuoteEditRequest(displayText);
+    var deferredQuoteRequest = (!directQuoteRequest && !directQuoteEditRequest) ? inferDeferredQuoteRequest(displayText) : null;
+    var directCommandRequest = inferDirectCommandRequest(displayText);
+    if(forceWebSearch) fullContent = '[FORCE_WEB_SEARCH] ' + fullContent;
+    if(forceFullContext) fullContent = '[USE_FULL_CONTEXT] ' + fullContent;
+    var fileNames = [];
+
+    if(pendingFiles.length){
+      var fileBlock = '';
+      pendingFiles.forEach(function(f){
+        fileNames.push(f.name);
+        fileBlock += '\n--- ' + f.name + ' ---\n';
+        if(f.libraryId) fileBlock += 'Library ID: ' + f.libraryId + '\n';
+        if(f.driveUrl) fileBlock += 'Drive URL: ' + f.driveUrl + '\n';
+        if(f.downloadUrl) fileBlock += 'Download URL: ' + f.downloadUrl + '\n';
+        fileBlock += f.content + '\n--- end ---\n';
+      });
+      fullContent = '[Attached files for analysis]' + fileBlock + '\n' + fullContent;
+      pendingFiles = [];
+      renderFilePreviewPanel();
+    }
+
+    var historyEntry = {role:'user', content:fullContent, displayText:displayText, provider:currentProvider, mode:currentContextMode};
+    if(fileNames.length) historyEntry.files = fileNames;
+    chatHistory.push(historyEntry);
+    markLocalChatMutation();
+    markJoeyDriveBackupDirty('chat-user');
+    autoStickToBottom = true;
+    messagesEl.insertAdjacentHTML('beforeend', renderChatMessage(historyEntry, chatHistory.length - 1));
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+    scrollMessagesToBottom(true);
+    if(currentProvider === 'joey' && directIssueUpdate){
+      applyAgentTaskMutation(directIssueUpdate, { userText:displayText, source:'direct-user', mode:currentContextMode });
+    } else if(directTaskRequest && !directTaskNeedsPlanning && currentProvider === 'joey'){
+      applyAgentTaskMutation(directTaskRequest, { userText:displayText, source:'direct-user', mode:currentContextMode });
+    } else if(directEventRequest && currentProvider === 'joey'){
+      var directEventResult = applyAgentEventMutation(directEventRequest, { source:'direct-user', mode:currentContextMode });
+      var directEventReply = {
+        role:'assistant',
+        content:(directEventResult && directEventResult.message) || 'Reminder set.',
+        provider:currentProvider,
+        model:getStoredModelLabel(currentProvider, currentContextMode),
+        mode:currentContextMode
+      };
+      chatHistory.push(directEventReply);
+      markLocalChatMutation();
+      messagesEl.insertAdjacentHTML('beforeend', renderChatMessage(directEventReply, chatHistory.length - 1));
+      injectCodeCopyButtons(messagesEl);
+      scrollMessagesToBottom(true);
+      saveChatToVault();
+      saveHistoryToRedis();
+      return;
+    } else if(directQuoteEditRequest && currentProvider === 'joey'){
+      var directQuoteEditResult = await applySavedQuoteMutation(directQuoteEditRequest);
+      var directQuoteEditReply = {
+        role:'assistant',
+        content:(directQuoteEditResult && directQuoteEditResult.message) || 'Quote updated.',
+        provider:currentProvider,
+        model:getStoredModelLabel(currentProvider, currentContextMode),
+        mode:currentContextMode
+      };
+      chatHistory.push(directQuoteEditReply);
+      markLocalChatMutation();
+      messagesEl.insertAdjacentHTML('beforeend', renderChatMessage(directQuoteEditReply, chatHistory.length - 1));
+      injectCodeCopyButtons(messagesEl);
+      scrollMessagesToBottom(true);
+      saveChatToVault();
+      saveHistoryToRedis();
+      return;
+    } else if(directQuoteRequest && currentProvider === 'joey'){
+      var directQuoteResult = await applyAgentRememberMutation(directQuoteRequest);
+      var directQuoteReply = {
+        role:'assistant',
+        content:(directQuoteResult && directQuoteResult.message) || 'Saved to Quotes.md.',
+        provider:currentProvider,
+        model:getStoredModelLabel(currentProvider, currentContextMode),
+        mode:currentContextMode
+      };
+      chatHistory.push(directQuoteReply);
+      markLocalChatMutation();
+      messagesEl.insertAdjacentHTML('beforeend', renderChatMessage(directQuoteReply, chatHistory.length - 1));
+      injectCodeCopyButtons(messagesEl);
+      scrollMessagesToBottom(true);
+      saveChatToVault();
+      saveHistoryToRedis();
+      return;
+    } else if(directRememberRequest && currentProvider === 'joey'){
+      var directRememberResult = await applyAgentRememberMutation(directRememberRequest);
+      var directRememberReply = {
+        role:'assistant',
+        content:(directRememberResult && directRememberResult.message) || 'Memory saved.',
+        provider:currentProvider,
+        model:getStoredModelLabel(currentProvider, currentContextMode),
+        mode:currentContextMode
+      };
+      chatHistory.push(directRememberReply);
+      markLocalChatMutation();
+      messagesEl.insertAdjacentHTML('beforeend', renderChatMessage(directRememberReply, chatHistory.length - 1));
+      injectCodeCopyButtons(messagesEl);
+      scrollMessagesToBottom(true);
+      saveChatToVault();
+      saveHistoryToRedis();
+      return;
+    } else if(directNoteRequest && currentProvider === 'joey'){
+      var directNoteResult = await applyAgentNoteMutation(directNoteRequest, { mode:currentContextMode });
+      var directNoteReply = {
+        role:'assistant',
+        content:(directNoteResult && directNoteResult.message) || 'Note updated.',
+        provider:currentProvider,
+        model:getStoredModelLabel(currentProvider, currentContextMode),
+        mode:currentContextMode
+      };
+      chatHistory.push(directNoteReply);
+      markLocalChatMutation();
+      messagesEl.insertAdjacentHTML('beforeend', renderChatMessage(directNoteReply, chatHistory.length - 1));
+      injectCodeCopyButtons(messagesEl);
+      scrollMessagesToBottom(true);
+      saveChatToVault();
+      saveHistoryToRedis();
+      return;
+    } else if(directCommandRequest && currentProvider === 'joey'){
+      var directCommandResult = runAgentCommand(directCommandRequest, { source:'direct-user' });
+      var directReply = {
+        role:'assistant',
+        content:(directCommandResult && directCommandResult.message) || 'Done.',
+        provider:currentProvider,
+        model:getStoredModelLabel(currentProvider, currentContextMode),
+        mode:currentContextMode
+      };
+      chatHistory.push(directReply);
+      markLocalChatMutation();
+      messagesEl.insertAdjacentHTML('beforeend', renderChatMessage(directReply, chatHistory.length - 1));
+      injectCodeCopyButtons(messagesEl);
+      scrollMessagesToBottom(true);
+      saveChatToVault();
+      saveHistoryToRedis();
+      return;
+    }
+
+    if(currentProvider === 'joey'){
+      try { await refreshCanonicalFiles(); } catch(e){}
+    }
+
+    var apiMessages = [];
+    chatHistory.slice(currentProvider === 'nemoclaw' ? -30 : -20).forEach(function(m){ apiMessages.push({role:m.role, content:m.content}); });
+
+    streaming = true;
+    sendBtn.disabled = true;
+    fabDot.className = 'fab-dot ok';
+    addTypingIndicator();
+
+    try{
+      var syncPass = localStorage.getItem('homer-sync-pass') || '';
+      var apiEndpoint = currentProvider === 'nemoclaw' ? '/api/nemoclaw' : '/api/openclaw';
+      console.log('[Joey/NemoClaw] provider=' + currentProvider + ' endpoint=' + apiEndpoint);
+      var res = await fetch(apiEndpoint, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(withContextMode({
+          messages: apiMessages,
+          passphrase: syncPass,
+          systemPromptOverride: systemPrompt,
+          chatClearedAt: getChatClearedAt(currentContextMode),
+          savedQuotesContent: (typeof buildSavedQuotesMarkdown === 'function' && typeof loadSaved === 'function')
+            ? buildSavedQuotesMarkdown(loadSaved())
+            : ''
+        }))
+      });
+      var activeModel = res.headers.get('X-OpenClaw-Model') || '';
+      var primaryModel = res.headers.get('X-OpenClaw-Primary-Model') || '';
+      var fallbackUsed = res.headers.get('X-OpenClaw-Fallback-Used') === '1';
+      var modelLabel = formatModelLabel(activeModel);
+      var primaryModelLabel = formatModelLabel(primaryModel) || getProviderDefaultModel(currentProvider, currentContextMode);
+      if(primaryModelLabel) rememberModelLabel(currentProvider, currentContextMode, primaryModelLabel);
+      applyModelBadge(primaryModelLabel);
+      if(fallbackUsed){
+        var fallbackNotice = getProviderDisplayName(currentProvider, currentContextMode) + ' switched to fallback: ' + (modelLabel || 'llama-3.1-8b-instant');
+        if(!fallbackStatusActive && isMobileShell()) showError(fallbackNotice);
+        fallbackStatusActive = true;
+        setUploadStatus(fallbackNotice, 'warn', true);
+      } else if(fallbackStatusActive){
+        fallbackStatusActive = false;
+        setUploadStatus('');
+      }
+
+      removeTypingIndicator();
+
+      if(!res.ok){
+        var errText = await res.text().catch(function(){ return res.statusText; });
+        showError('Error ' + res.status + ': ' + (errText || 'Unknown error'));
+        streaming = false; sendBtn.disabled = false; fabDot.className = 'fab-dot off';
+        return;
+      }
+
+      var reader = res.body.getReader();
+      var decoder = new TextDecoder();
+      var buffer = '';
+
+      while(true){
+        var chunk = await reader.read();
+        if(chunk.done) break;
+        buffer += decoder.decode(chunk.value, {stream:true});
+        var lines = buffer.split('\n');
+        buffer = lines.pop();
+        for(var i = 0; i < lines.length; i++){
+          var line = lines[i].trim();
+          if(!line || !line.startsWith('data:')) continue;
+          var data = line.slice(5).trim();
+          if(data === '[DONE]') continue;
+          try{
+            var parsed = JSON.parse(data);
+            var delta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta;
+            if(delta && delta.content) appendBotChunk(delta.content, modelLabel);
+          }catch(e){}
+        }
+      }
+
+      var fullResponse = finalizeBotMessage();
+      if(fullResponse){
+        // Execute any actions (tasks, goals, events) and strip tags from display
+      var cleanResponse = executeActions(fullResponse, displayText);
+        if(currentProvider === 'joey' && deferredQuoteRequest){
+          var generatedQuotes = extractGeneratedQuotes(cleanResponse);
+          if(generatedQuotes.length){
+            try{
+              var deferredQuoteSave = await applySavedQuoteBatch(generatedQuotes, 'deferred-quote-save');
+              if(deferredQuoteSave && deferredQuoteSave.ok){
+                cleanResponse += '\n\n' + (deferredQuoteSave.message || 'Saved to Quotes.md.');
+              } else if(deferredQuoteSave && deferredQuoteSave.message){
+                cleanResponse += '\n\n' + deferredQuoteSave.message;
+              }
+            }catch(err){
+              cleanResponse += '\n\nQuote save failed: ' + (err && err.message ? err.message : err);
+            }
+          }
+        }
+        if(currentProvider === 'joey' && deferredNoteRequest && !/\[ACTION:NOTE\]/i.test(fullResponse)){
+          var generatedNoteText = extractGeneratedNoteText(cleanResponse);
+          if(generatedNoteText){
+            try{
+              var deferredSave = await applyAgentNoteMutation({
+                target: deferredNoteRequest.target,
+                mode: deferredNoteRequest.mode,
+                text: generatedNoteText
+              }, { mode:currentContextMode });
+              if(deferredSave && deferredSave.ok){
+                cleanResponse += '\n\nSaved to ' + (deferredNoteRequest.target === 'brain-dump' ? 'brain dump.' : (deferredNoteRequest.target === 'zen-goal' ? 'zen goal.' : 'vault note.'));
+              } else if(deferredSave && deferredSave.message){
+                cleanResponse += '\n\n' + deferredSave.message;
+              }
+            }catch(err){
+              cleanResponse += '\n\nSave failed: ' + (err && err.message ? err.message : err);
+            }
+          }
+        }
+        chatHistory.push({role:'assistant', content:cleanResponse, provider:currentProvider, model:modelLabel || primaryModelLabel || getStoredModelLabel(currentProvider, currentContextMode), mode:currentContextMode});
+        markLocalChatMutation();
+        markJoeyDriveBackupDirty('chat-assistant');
+        incrementUnread();
+        // Re-render the last bot message without action tags
+        var lastBot = messagesEl.querySelector('.oc-msg.bot:last-of-type');
+        if(lastBot && lastBot.querySelector('.oc-content')){
+          var tag = lastBot.querySelector('.oc-model-tag');
+          if(tag) tag.textContent = modelLabel || primaryModelLabel || getStoredModelLabel(currentProvider, currentContextMode);
+          lastBot.querySelector('.oc-content').innerHTML = renderMd(cleanResponse);
+          syncMessageCodeActions(lastBot, 'assistant', cleanResponse);
+          injectCodeCopyButtons(lastBot);
+        }
+        updateScrollLatestButton();
+      }
+      saveChatToVault();
+      saveHistoryToRedis();
+      triggerAutoLearn();
+
+    }catch(err){
+      removeTypingIndicator();
+      showError('Connection error: ' + err.message);
+    }
+    streaming = false;
+    sendBtn.disabled = false;
+    fabDot.className = 'fab-dot off';
+  }
+
+  sendBtn.addEventListener('click', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    sendMessage();
+  });
+  inputEl.addEventListener('keydown', function(e){
+    if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); e.stopPropagation(); sendMessage(); }
+  });
+  inputEl.addEventListener('input', function(){
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  });
+
+  clearBtn.addEventListener('click', function(){
+    clearChatWindow();
+  });
+
+  document.addEventListener('mousedown', function(e){
+    if(panelOpen && !panel.contains(e.target) && !fabBtn.contains(e.target)){
+      closePanel({ blur:true });
+    }
+  });
+
+  if(window._homerVaultUnlocked) loadChatFromVault();
+})();
+
+// Ã¢â€â‚¬Ã¢â€â‚¬ Life Goals Page Logic Ã¢â€â‚¬Ã¢â€â‚¬
+(function(){
+  var overlay = document.getElementById('goals-overlay');
+  var closeBtn = document.getElementById('goals-close-btn');
+  var pageTitle = document.getElementById('lg-page-title');
+  var statsRow = document.getElementById('goals-stats-row');
+  var grid = document.getElementById('lg-grid');
+  var searchInput = document.getElementById('lg-search');
+  var catFilter = document.getElementById('lg-filter-cat');
+  var addOpenBtn = document.getElementById('lg-add-open');
+  var modalBg = document.getElementById('lg-modal-bg');
+  var modalClose = document.getElementById('lg-modal-close');
+  var modalTitle = document.getElementById('lg-modal-title');
+  var fTitle = document.getElementById('lg-title');
+  var fDesc = document.getElementById('lg-desc');
+  var fCat = document.getElementById('lg-category');
+  var fIcon = document.getElementById('lg-icon');
+  var fTarget = document.getElementById('lg-target');
+  var fMilestones = document.getElementById('lg-milestones');
+  var fSubmit = document.getElementById('lg-submit');
+  var editIdx = -1; // -1 = creating new
+  var CATS = {health:{icon:'Ã°Å¸â€™Âª',color:'#22c55e'},finance:{icon:'Ã°Å¸â€™Â°',color:'#fbbf24'},career:{icon:'Ã°Å¸ÂÂ¢',color:'#60a5fa'},personal:{icon:'Ã°Å¸Å’Å¸',color:'#a78bfa'},education:{icon:'Ã°Å¸â€œÅ¡',color:'#f59e0b'},travel:{icon:'Ã¢Å“Ë†Ã¯Â¸Â',color:'#06b6d4'},creative:{icon:'Ã°Å¸Å½Â¨',color:'#ec4899'},relationship:{icon:'Ã¢ÂÂ¤Ã¯Â¸Â',color:'#ef4444'}};
+
+  function isWorkGoalsMode(){
+    return typeof window._homerGetVaultMode === 'function' && window._homerGetVaultMode() === 'work';
+  }
+  function getGoalsCopy(){
+    var work = isWorkGoalsMode();
+    return {
+      pageTitle: work ? 'Work Goals' : 'Life Goals',
+      addButton: work ? '+ New Work Goal' : '+ New Goal',
+      searchPlaceholder: work ? 'Search work goals...' : 'Search goals...',
+      modalCreateTitle: work ? 'Ã°Å¸â€™Â¼ New Work Goal' : 'Ã°Å¸Å½Â¯ New Life Goal',
+      modalEditTitle: work ? 'Ã¢Å“ÂÃ¯Â¸Â Edit Work Goal' : 'Ã¢Å“ÂÃ¯Â¸Â Edit Life Goal',
+      submitCreate: work ? 'Create Work Goal' : 'Create Goal',
+      submitEdit: work ? 'Save Work Goal' : 'Save Changes',
+      addCard: work ? 'Add a Work Goal' : 'Add a Life Goal',
+      deleteConfirm: work ? 'Delete this work goal?' : 'Delete this life goal?',
+      completedSub: work ? 'work goals completed' : 'goals completed',
+      totalLabel: work ? 'Total Work Goals' : 'Total Goals',
+      totalSub: work ? 'tracked work outcomes' : 'life aspirations'
+    };
+  }
+  function applyGoalsCopy(){
+    var copy = getGoalsCopy();
+    if(pageTitle) pageTitle.textContent = copy.pageTitle;
+    if(addOpenBtn) addOpenBtn.textContent = copy.addButton;
+    if(searchInput) searchInput.placeholder = copy.searchPlaceholder;
+    if(editIdx < 0){
+      if(modalTitle) modalTitle.textContent = copy.modalCreateTitle;
+      if(fSubmit) fSubmit.textContent = copy.submitCreate;
+    }
+  }
+  function openGoalsOverlay(){
+    applyGoalsCopy();
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    if(typeof window._homerSyncPageScrollLock === 'function') window._homerSyncPageScrollLock();
+    if(typeof window._homerSyncMobileOverlayState === 'function') window._homerSyncMobileOverlayState();
+  }
+  function closeGoalsOverlay(){
+    overlay.classList.remove('open');
+    if(typeof window._homerSyncPageScrollLock === 'function') window._homerSyncPageScrollLock();
+    else document.body.style.overflow = '';
+    if(typeof window._homerSyncMobileOverlayState === 'function') window._homerSyncMobileOverlayState();
+  }
+  window._homerOpenGoalsOverlay = openGoalsOverlay;
+  window._homerCloseGoalsOverlay = closeGoalsOverlay;
+  window.addEventListener('homer-context-mode-changed', function(){
+    applyGoalsCopy();
+    if(overlay.classList.contains('open')) refresh();
+  });
+
+  closeBtn.addEventListener('click', closeGoalsOverlay);
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && overlay.classList.contains('open')) closeGoalsOverlay(); });
+  searchInput.addEventListener('input', refresh);
+  catFilter.addEventListener('change', refresh);
+
+  // Modal
+  addOpenBtn.addEventListener('click', function(){ openModal(-1); });
+  modalClose.addEventListener('click', function(){ modalBg.classList.remove('open'); });
+  modalBg.addEventListener('click', function(e){ if(e.target===modalBg) modalBg.classList.remove('open'); });
+
+  function openModal(idx){
+    editIdx = idx;
+    if(idx >= 0){
+      window._homerLoadVault().then(function(data){
+        var g = (data.lifeGoals||[])[idx];
+        if(!g) return;
+        modalTitle.textContent = 'Ã¢Å“ÂÃ¯Â¸Â Edit Life Goal';
+        fTitle.value = g.title||'';
+        fDesc.value = g.description||'';
+        fCat.value = g.category||'personal';
+        fIcon.value = g.icon||'Ã°Å¸Å½Â¯';
+        fTarget.value = g.targetDate||'';
+        fMilestones.value = (g.milestones||[]).map(function(m){ return m.text; }).join('\n');
+        fSubmit.textContent = 'Save Changes';
+        modalTitle.textContent = getGoalsCopy().modalEditTitle;
+        fSubmit.textContent = getGoalsCopy().submitEdit;
+        modalBg.classList.add('open');
+      });
+    } else {
+      modalTitle.textContent = 'Ã°Å¸Å½Â¯ New Life Goal';
+      fTitle.value=''; fDesc.value=''; fCat.value='personal'; fIcon.value='Ã°Å¸Å½Â¯'; fTarget.value=''; fMilestones.value='';
+      fSubmit.textContent = 'Create Goal';
+      modalTitle.textContent = getGoalsCopy().modalCreateTitle;
+      fSubmit.textContent = getGoalsCopy().submitCreate;
+      modalBg.classList.add('open');
+    }
+    setTimeout(function(){ fTitle.focus(); },100);
+  }
+
+  fSubmit.addEventListener('click', function(){
+    var title = fTitle.value.trim();
+    if(!title) return;
+    var milestones = fMilestones.value.split('\n').filter(function(l){ return l.trim(); }).map(function(l){ return {text:l.trim(),done:false}; });
+    window._homerLoadVault().then(function(data){
+      if(!data.lifeGoals) data.lifeGoals = [];
+      if(!data._nextLgId) data._nextLgId = 1;
+      if(editIdx >= 0 && data.lifeGoals[editIdx]){
+        // Preserve milestone done states
+        var old = data.lifeGoals[editIdx].milestones || [];
+        milestones.forEach(function(m){
+          var prev = old.find(function(o){ return o.text === m.text; });
+          if(prev) m.done = prev.done;
+        });
+        data.lifeGoals[editIdx].title = title;
+        data.lifeGoals[editIdx].description = fDesc.value.trim();
+        data.lifeGoals[editIdx].category = fCat.value;
+        data.lifeGoals[editIdx].icon = fIcon.value||'Ã°Å¸Å½Â¯';
+        data.lifeGoals[editIdx].targetDate = fTarget.value;
+        data.lifeGoals[editIdx].milestones = milestones;
+        data.lifeGoals[editIdx].progress = calcProgress(milestones);
+        data.lifeGoals[editIdx].updatedAt = Date.now();
+      } else {
+        data.lifeGoals.push({
+          id: data._nextLgId++,
+          title: title,
+          description: fDesc.value.trim(),
+          category: fCat.value,
+          milestones: milestones,
+          progress: 0,
+          targetDate: fTarget.value,
+          icon: fIcon.value||'Ã°Å¸Å½Â¯',
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        });
+      }
+      window._homerSaveVault(data).then(function(){
+        modalBg.classList.remove('open');
+        refresh();
+      });
+    });
+  });
+
+  function calcProgress(ms){
+    if(!ms||!ms.length) return 0;
+    var done = ms.filter(function(m){ return m.done; }).length;
+    return Math.round(done/ms.length*100);
+  }
+
+  window.addEventListener('vault-goals-changed', function(){
+    if(overlay.classList.contains('open')) refresh();
+  });
+
+  // Expose refresh for external calls
+  window._refreshLifeGoals = refresh;
+
+  function refresh(){
+    if(typeof window._homerLoadVault !== 'function') return;
+    window._homerLoadVault().then(function(data){
+      var goals = data.lifeGoals || [];
+      renderStats(goals);
+      var filtered = applyFilters(goals);
+      renderGrid(filtered, goals);
+    });
+  }
+
+  function applyFilters(goals){
+    var q = searchInput.value.trim().toLowerCase();
+    var cat = catFilter.value;
+    return goals.filter(function(g){
+      if(cat && g.category !== cat) return false;
+      if(q && (g.title||'').toLowerCase().indexOf(q)===-1 && (g.description||'').toLowerCase().indexOf(q)===-1) return false;
+      return true;
+    });
+  }
+
+  function renderStats(goals){
+    var total = goals.length;
+    var completed = goals.filter(function(g){ return g.progress >= 100; }).length;
+    var avgProgress = total ? Math.round(goals.reduce(function(s,g){ return s+(g.progress||0); },0)/total) : 0;
+    var totalMs = 0, doneMs = 0;
+    goals.forEach(function(g){ (g.milestones||[]).forEach(function(m){ totalMs++; if(m.done) doneMs++; }); });
+    var msPct = totalMs ? Math.round(doneMs/totalMs*100) : 0;
+
+    function ring(pct, color){
+      var r=20, c=2*Math.PI*r, off=c-(pct/100)*c;
+      return '<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="'+r+'" class="ring-bg"/><circle cx="24" cy="24" r="'+r+'" class="ring-fg" stroke="'+color+'" stroke-dasharray="'+c+'" stroke-dashoffset="'+off+'"/></svg><span class="ring-label">'+pct+'%</span>';
+    }
+    statsRow.innerHTML =
+      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(total?Math.round(completed/total*100):0,'#22c55e')+'</div><div class="goals-stat-info"><h3>Achieved</h3><div class="stat-value">'+completed+'/'+total+'</div><div class="stat-sub">'+getGoalsCopy().completedSub+'</div></div></div>'+
+      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(avgProgress,'#60a5fa')+'</div><div class="goals-stat-info"><h3>Avg Progress</h3><div class="stat-value">'+avgProgress+'%</div><div class="stat-sub">across all goals</div></div></div>'+
+      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(msPct,'#fbbf24')+'</div><div class="goals-stat-info"><h3>Milestones</h3><div class="stat-value">'+doneMs+'/'+totalMs+'</div><div class="stat-sub">steps completed</div></div></div>'+
+      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(100,'#a78bfa')+'</div><div class="goals-stat-info"><h3>'+getGoalsCopy().totalLabel+'</h3><div class="stat-value">'+total+'</div><div class="stat-sub">'+getGoalsCopy().totalSub+'</div></div></div>';
+  }
+
+  function escH(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+  function renderGrid(filtered, all){
+    var html = '';
+    filtered.forEach(function(g){
+      var idx = all.indexOf(g);
+      var catDef = CATS[g.category] || CATS.personal;
+      var pct = g.progress || 0;
+      html += '<div class="lg-card" data-idx="'+idx+'">';
+      html += '<div class="lg-card-head">';
+      html += '<div class="lg-card-icon" style="background:'+catDef.color+'20;">'+(g.icon||catDef.icon)+'</div>';
+      html += '<div><div class="lg-card-title">'+escH(g.title)+'</div>';
+      html += '<span class="lg-card-cat" style="background:'+catDef.color+'20;color:'+catDef.color+';">'+(g.category||'personal')+'</span></div>';
+      html += '</div>';
+      if(g.description) html += '<div class="lg-card-desc">'+escH(g.description)+'</div>';
+      html += '<div class="lg-progress"><div class="lg-bar"><div class="lg-bar-fill" style="width:'+pct+'%;"></div></div><span class="lg-pct">'+pct+'%</span></div>';
+      if(g.milestones && g.milestones.length){
+        html += '<ul class="lg-milestones">';
+        g.milestones.forEach(function(m,mi){
+          html += '<li class="'+(m.done?'done':'')+'" data-idx="'+idx+'" data-mi="'+mi+'" style="cursor:pointer;"><span>'+(m.done?'Ã¢Å“â€¦':'Ã¢Â¬Å“')+'</span> '+escH(m.text)+'</li>';
+        });
+        html += '</ul>';
+      }
+      if(g.targetDate) html += '<div class="lg-card-date">Target: '+new Date(g.targetDate).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+'</div>';
+      html += '<div style="display:flex;gap:6px;margin-top:10px;">';
+      html += '<button class="lg-edit-btn" data-idx="'+idx+'" style="flex:1;padding:6px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:none;color:var(--muted);cursor:pointer;font-size:.75rem;font-weight:700;">Edit</button>';
+      html += '<button class="lg-del-btn" data-idx="'+idx+'" style="padding:6px 10px;border-radius:8px;border:1px solid rgba(239,68,68,.2);background:none;color:#ef4444;cursor:pointer;font-size:.75rem;font-weight:700;">Delete</button>';
+      html += '</div></div>';
+    });
+    // Add card
+    html += '<button class="lg-add-btn" id="lg-add-card"><span style="font-size:2rem;">+</span>'+getGoalsCopy().addCard+'</button>';
+    grid.innerHTML = html;
+
+    // Wire events
+    grid.querySelectorAll('.lg-milestones li').forEach(function(li){
+      li.addEventListener('click', function(e){
+        e.stopPropagation();
+        var idx = parseInt(li.dataset.idx), mi = parseInt(li.dataset.mi);
+        window._homerLoadVault().then(function(data){
+          if(data.lifeGoals[idx] && data.lifeGoals[idx].milestones[mi]){
+            data.lifeGoals[idx].milestones[mi].done = !data.lifeGoals[idx].milestones[mi].done;
+            data.lifeGoals[idx].progress = calcProgress(data.lifeGoals[idx].milestones);
+            data.lifeGoals[idx].updatedAt = Date.now();
+            window._homerSaveVault(data).then(refresh);
+          }
+        });
+      });
+    });
+    grid.querySelectorAll('.lg-edit-btn').forEach(function(btn){
+      btn.addEventListener('click', function(e){ e.stopPropagation(); openModal(parseInt(btn.dataset.idx)); });
+    });
+    grid.querySelectorAll('.lg-del-btn').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        if(!confirm(getGoalsCopy().deleteConfirm)) return;
+        var idx = parseInt(btn.dataset.idx);
+        window._homerLoadVault().then(function(data){
+          if(data.lifeGoals) data.lifeGoals.splice(idx,1);
+          window._homerSaveVault(data).then(refresh);
+        });
+      });
+    });
+    var addCard = document.getElementById('lg-add-card');
+    if(addCard) addCard.addEventListener('click', function(){ openModal(-1); });
+  }
+  // Auto-refresh when overlay opens
+  var obs = new MutationObserver(function(){ if(overlay.classList.contains('open')) refresh(); });
+  obs.observe(overlay, {attributes:true, attributeFilter:['class']});
+})();
+
+(function(){
+  var scrollLockObserverStarted = false;
+  var scrollLockSyncQueued = false;
+  function scheduleSyncPageScrollLock(){
+    if(scrollLockSyncQueued) return;
+    scrollLockSyncQueued = true;
+    requestAnimationFrame(function(){
+      scrollLockSyncQueued = false;
+      syncPageScrollLock();
+    });
+  }
+  function syncPageScrollLock(){
+    var body = document.body;
+    if(!body) return false;
+    var overlayIds = ['issue-overlay','goals-overlay','notes-overlay','secrets-overlay','projects-overlay','kanban-overlay'];
+    var hasOverlay = overlayIds.some(function(id){
+      var el = document.getElementById(id);
+      if(!el) return false;
+      if(id === 'issue-overlay' || id === 'goals-overlay') return el.classList.contains('open');
+      return window.getComputedStyle(el).display !== 'none';
+    });
+    var hasModal = !!document.querySelector('.fab-overlay.open');
+    var mobileJoeyOpen = body.classList.contains('mobile-shell') && body.classList.contains('oc-panel-open');
+    var mobileSheet = document.getElementById('mobile-sheet');
+    var mobileSheetOpen = !!(mobileSheet && mobileSheet.classList.contains('open'));
+    var shouldLock = hasOverlay || hasModal || mobileJoeyOpen || mobileSheetOpen;
+    body.style.overflow = shouldLock ? 'hidden' : '';
+    body.dataset.pageScrollLocked = shouldLock ? '1' : '0';
+    return shouldLock;
+  }
+  window._homerSyncPageScrollLock = syncPageScrollLock;
+  function hasScrollableRoom(el, deltaY){
+    if(!el || el === document.body || el === document.documentElement) return false;
+    if(el.scrollHeight <= el.clientHeight + 1) return false;
+    var style = window.getComputedStyle(el);
+    var overflowY = style ? style.overflowY : '';
+    if(overflowY !== 'auto' && overflowY !== 'scroll' && overflowY !== 'overlay') return false;
+    if(deltaY < 0) return el.scrollTop > 0;
+    if(deltaY > 0) return (el.scrollTop + el.clientHeight) < (el.scrollHeight - 1);
+    return false;
+  }
+  function nearestScrollableAncestor(start, deltaY){
+    var node = start;
+    while(node && node !== document.body && node !== document.documentElement){
+      if(hasScrollableRoom(node, deltaY)) return node;
+      node = node.parentElement;
+    }
+    return null;
+  }
+  function installDesktopWheelFallback(){
+    if(typeof window === 'undefined') return;
+    window.addEventListener('wheel', function(e){
+      if(!e || !e.deltaY || e.defaultPrevented) return;
+      if(window.innerWidth <= 900) return;
+      if(document.body && document.body.dataset.pageScrollLocked === '1') return;
+      if(nearestScrollableAncestor(e.target, e.deltaY)) return;
+      var scroller = document.scrollingElement || document.documentElement || document.body;
+      if(!scroller) return;
+      var maxScroll = Math.max(0, scroller.scrollHeight - window.innerHeight);
+      if(maxScroll <= 0) return;
+      var top = scroller.scrollTop;
+      var nextTop = Math.max(0, Math.min(maxScroll, top + e.deltaY));
+      if(nextTop === top) return;
+      e.preventDefault();
+      scroller.scrollTop = nextTop;
+    }, { passive:false, capture:true });
+  }
+  function initPageScrollLockObserver(){
+    if(scrollLockObserverStarted || !document.body || typeof MutationObserver === 'undefined') return;
+    scrollLockObserverStarted = true;
+    var observer = new MutationObserver(function(){ scheduleSyncPageScrollLock(); });
+    observer.observe(document.body, {
+      subtree:true,
+      attributes:true,
+      attributeFilter:['class','style']
+    });
+    window.addEventListener('resize', scheduleSyncPageScrollLock, { passive:true });
+    scheduleSyncPageScrollLock();
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', initPageScrollLockObserver, { once:true });
+  } else {
+    initPageScrollLockObserver();
+  }
+  installDesktopWheelFallback();
+
+  function initMobileOverlayDock(){
+    if(window.innerWidth > 480) return;
+    var body = document.body;
+    var dock = document.getElementById('mobile-overlay-dock');
+    var backBtn = document.getElementById('mobile-overlay-back');
+    var homeBtn = document.getElementById('mobile-overlay-home');
+    if(!dock || !backBtn || !homeBtn) return;
+
+    var ids = ['issue-overlay','goals-overlay','notes-overlay','secrets-overlay','projects-overlay','kanban-overlay'];
+    function isOpen(el){
+      if(!el) return false;
+      if(el.id === 'issue-overlay' || el.id === 'goals-overlay') return el.classList.contains('open');
+      return window.getComputedStyle(el).display !== 'none';
+    }
+    function activeOverlay(){
+      if(isOpen(document.getElementById('issue-overlay'))) return 'issue';
+      if(isOpen(document.getElementById('goals-overlay'))) return 'goals';
+      if(isOpen(document.getElementById('notes-overlay'))) return 'notes';
+      if(isOpen(document.getElementById('secrets-overlay'))) return 'secrets';
+      if(isOpen(document.getElementById('projects-overlay'))) return 'projects';
+      if(isOpen(document.getElementById('kanban-overlay'))) return 'kanban';
+      return '';
+    }
+    function closeCurrent(){
+      var openModal = document.querySelector('.fab-overlay.open');
+      if(openModal){
+        openModal.classList.remove('open');
+        sync();
+        return;
+      }
+      var current = activeOverlay();
+      if(current === 'issue' && typeof window._homerCloseIssue === 'function') return window._homerCloseIssue();
+      if(current === 'goals' && typeof window._homerCloseGoalsOverlay === 'function') return window._homerCloseGoalsOverlay();
+      if((current === 'notes' || current === 'secrets' || current === 'kanban') && typeof window._homerCloseVaultOverlay === 'function'){
+        return window._homerCloseVaultOverlay(current + '-overlay');
+      }
+    }
+    function closeAll(){
+      document.querySelectorAll('.fab-overlay.open').forEach(function(el){ el.classList.remove('open'); });
+      if(typeof window._homerCloseIssue === 'function') window._homerCloseIssue();
+      if(typeof window._homerCloseGoalsOverlay === 'function') window._homerCloseGoalsOverlay();
+      if(typeof window._homerCloseVaultOverlay === 'function'){
+        ['notes-overlay','secrets-overlay','projects-overlay','kanban-overlay'].forEach(function(id){ window._homerCloseVaultOverlay(id); });
+      }
+      if(typeof window._homerCloseJoeyPanel === 'function') window._homerCloseJoeyPanel();
+      var sheet = document.getElementById('mobile-sheet');
+      if(sheet) sheet.classList.remove('open');
+    }
+    function sync(){
+      var current = activeOverlay();
+      var open = !!current;
+      body.classList.toggle('mobile-overlay-active', open);
+      syncPageScrollLock();
+      backBtn.querySelector('span').textContent = current === 'issue' ? 'Back' : 'Close';
+    }
+    window._homerSyncMobileOverlayState = sync;
+
+    backBtn.addEventListener('click', function(){ closeCurrent(); });
+    homeBtn.addEventListener('click', function(){
+      closeAll();
+      if(typeof showTab === 'function') showTab('home');
+      window.scrollTo(0,0);
+      sync();
+    });
+
+    var observer = new MutationObserver(sync);
+    ids.forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) observer.observe(el, { attributes:true, attributeFilter:['class','style'] });
+    });
+    window.addEventListener('homer-tab-change', sync);
+    window.addEventListener('homer-joey-panel', sync);
+    window.addEventListener('resize', sync);
+    sync();
+  }
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){
+    initMobileOverlayDock();
+    syncPageScrollLock();
+  }, { once:true });
+  else {
+    initMobileOverlayDock();
+    syncPageScrollLock();
+  }
+  window.addEventListener('resize', syncPageScrollLock);
+})();
+
+// Mobile nav logic
+(function(){
+  if(window.innerWidth > 480) return;
+  var nav = document.getElementById('mobile-nav');
+  var sheet = document.getElementById('mobile-sheet');
+  var sheetContent = document.getElementById('mobile-sheet-content');
+  if(!nav) return;
+  function closeJoeyPanel(){
+    if(typeof window._homerCloseJoeyPanel === 'function') window._homerCloseJoeyPanel();
+  }
+  function toggleJoeyPanel(){
+    if(typeof window._homerToggleJoeyPanel === 'function') window._homerToggleJoeyPanel();
+  }
+  function isJoeyOpen(){
+    return typeof window._homerIsJoeyOpen === 'function' && window._homerIsJoeyOpen();
+  }
+  function syncActive(tab, panelOpen){
+    nav.querySelectorAll('.mnav-btn').forEach(function(b){
+      var isActive = panelOpen ? b.id === 'mnav-joey' : (tab ? b.dataset.tab === tab : false);
+      if(b.id === 'mnav-more' && sheet.classList.contains('open')) isActive = true;
+      b.classList.toggle('active', isActive);
+    });
+  }
+
+  // Tab switching from bottom nav
+  nav.querySelectorAll('.mnav-btn[data-tab]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var tab = btn.dataset.tab;
+      closeJoeyPanel();
+      if(typeof showTab === 'function') showTab(tab);
+      sheet.classList.remove('open');
+      syncActive(tab, false);
+      window.scrollTo(0,0);
+    });
+  });
+
+  // Joey button Ã¢â‚¬â€ trigger the fab-openclaw click
+  var joeyBtn = document.getElementById('mnav-joey');
+  if(joeyBtn){
+    joeyBtn.addEventListener('click', function(){
+      sheet.classList.remove('open');
+      toggleJoeyPanel();
+    });
+  }
+
+  // More button Ã¢â‚¬â€ open bottom sheet
+  var moreBtn = document.getElementById('mnav-more');
+  if(moreBtn){
+    moreBtn.addEventListener('click', function(){
+      sheet.classList.toggle('open');
+      syncActive(document.body.dataset.activeTab || 'home', isJoeyOpen());
+    });
+  }
+
+  // Sheet tab items
+  sheet.querySelectorAll('.msheet-item[data-tab]').forEach(function(item){
+    item.addEventListener('click', function(){
+      var tab = item.dataset.tab;
+      closeJoeyPanel();
+      if(typeof showTab === 'function') showTab(tab);
+      sheet.classList.remove('open');
+      syncActive(tab, false);
+      window.scrollTo(0,0);
+    });
+  });
+
+  // Sheet action items Ã¢â‚¬â€ proxy to existing FABs
+  var actions = {account:'fab-account', sync:'fab-cloud', wake:'fab-wake', clear:'fab-clear'};
+  Object.keys(actions).forEach(function(key){
+    var el = document.getElementById('msheet-'+key);
+    if(el) el.addEventListener('click', function(){
+      var fab = document.getElementById(actions[key]);
+      if(fab) fab.click();
+      sheet.classList.remove('open');
+      syncActive(document.body.dataset.activeTab || 'home', isJoeyOpen());
+    });
+  });
+
+  // Close sheet on backdrop tap
+  sheet.addEventListener('click', function(e){
+    if(e.target === sheet){
+      sheet.classList.remove('open');
+      syncActive(document.body.dataset.activeTab || 'home', isJoeyOpen());
+    }
+  });
+
+  // Swipe down to close sheet
+  var startY = 0;
+  sheetContent.addEventListener('touchstart', function(e){startY = e.touches[0].clientY;}, {passive:true});
+  sheetContent.addEventListener('touchmove', function(e){
+    if(e.touches[0].clientY - startY > 60){
+      sheet.classList.remove('open');
+      syncActive(document.body.dataset.activeTab || 'home', isJoeyOpen());
+    }
+  }, {passive:true});
+  window.addEventListener('homer-tab-change', function(e){
+    syncActive((e.detail && e.detail.tab) || document.body.dataset.activeTab || 'home', isJoeyOpen());
+  });
+  window.addEventListener('homer-joey-panel', function(e){
+    syncActive(document.body.dataset.activeTab || 'home', !!(e.detail && e.detail.open));
+  });
+  syncActive(document.body.dataset.activeTab || 'home', false);
+})();
