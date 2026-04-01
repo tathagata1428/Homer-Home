@@ -12535,7 +12535,9 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     closeMobileSheet();
     if(libraryPanel && libraryPanel.classList.contains('open')) fetchFileLibrary({ silent:true });
     loadChatFromVault();
-    loadHistoryFromRedis({ force:false, source:'redis-poll' });
+    refreshJoeyBundleFromRedis({ forceMode:true, mode:currentContextMode, source:'panel-open' }).catch(function(){
+      loadHistoryFromRedis({ force:false, source:'panel-open-fallback' });
+    });
     setTimeout(function(){
       try{ inputEl.focus({ preventScroll:true }); }catch(e){ inputEl.focus(); }
       updateMobileViewport();
@@ -13860,7 +13862,9 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(window._homerVaultUnlocked) loadChatFromVault();
     if(panelOpen){
       setTimeout(function(){
-        loadHistoryFromRedis({ force:false, source:'cloud-pull' });
+        refreshJoeyBundleFromRedis({ forceMode:true, mode:currentContextMode, source:'cloud-pull' }).catch(function(){
+          loadHistoryFromRedis({ force:false, source:'cloud-pull-fallback' });
+        });
       }, 300);
     }
   });
@@ -13868,7 +13872,9 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   // Load conversation from Redis as fallback (cross-device continuity)
   setTimeout(function(){
     maybeRefreshJoeyBundleFromRedis({ source:'initial-redis-sync' }).then(function(result){
-      if(!result) loadHistoryFromRedis({ force:false, source:'initial-redis-sync' });
+      if(!result) refreshJoeyBundleFromRedis({ forceMode:true, mode:currentContextMode, source:'initial-redis-sync-fallback' }).catch(function(){
+        loadHistoryFromRedis({ force:false, source:'initial-redis-sync-final-fallback' });
+      });
     });
   }, 1500);
   setInterval(function(){
@@ -13895,7 +13901,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
         if(d.ok){
           joeyLastDriveReconcileAt = Date.now();
           console.log('[Joey] Drive reconcile complete:', d.reconciled);
-          if(d.reconciled && d.reconciled.history) loadHistoryFromRedis({ force:false, source:'drive-reconcile' });
+          if(d.reconciled && d.reconciled.history) {
+            refreshJoeyBundleFromRedis({ forceMode:true, mode:currentContextMode, source:'drive-reconcile' }).catch(function(){
+              loadHistoryFromRedis({ force:false, source:'drive-reconcile-fallback' });
+            });
+          }
           if(d.changed){
             refreshCanonicalFiles().catch(function(){});
             if(libraryPanel && libraryPanel.classList.contains('open')) fetchFileLibrary({ silent:true });
@@ -13970,16 +13980,13 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     });
   }
   var JOEY_DRIVE_RECONCILE_INTERVAL_MS = 8 * 60 * 60 * 1000;
-  var JOEY_REDIS_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
-  // --- Periodic Redis save / learn refresh as a slow safety net ---
+  var JOEY_REDIS_REFRESH_INTERVAL_MS = 45 * 60 * 1000;
+  // --- Slow learn refresh safety net only; message persistence already happens per turn ---
   setInterval(function(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!isAutoSyncEnabled()) return;
-    if(!pass || !chatHistory.length) return;
-    console.log('[Joey] Periodic DB save...');
-    saveHistoryToRedis();
-    // Also trigger learn to keep memories/profile fresh
-    if(chatHistory.length >= 2) triggerAutoLearn();
+    if(!pass || !chatHistory.length || streaming) return;
+    if(chatHistory.length >= 2) triggerAutoLearn('periodic-refresh');
   }, JOEY_REDIS_REFRESH_INTERVAL_MS);
 
   var JOEY_DRIVE_BACKUP_INTERVAL_MS = 8 * 60 * 60 * 1000;
@@ -16362,9 +16369,6 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     inputEl.value = '';
     inputEl.style.height = 'auto';
     scrollMessagesToBottom(true);
-    if(currentProvider === 'joey'){
-      Promise.resolve(saveHistoryToRedis({ silent:true })).catch(function(){ return null; });
-    }
     if(currentProvider === 'joey' && directIssueUpdate){
       applyAgentTaskMutation(directIssueUpdate, { userText:displayText, source:'direct-user', mode:currentContextMode });
     } else if(directTaskRequest && !directTaskNeedsPlanning && currentProvider === 'joey'){
