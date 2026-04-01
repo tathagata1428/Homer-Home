@@ -4,6 +4,77 @@ import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
 import { loadRedisJson, saveRedisJson, safeJsonParse } from '../lib/joey-server.js';
 import { computeJoeySyncMeta } from '../lib/joey-sync-meta.js';
 
+function asObject(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function uniqueStringList(items) {
+  const out = [];
+  const seen = new Set();
+  asArray(items).forEach((item) => {
+    const value = String(item || '').trim();
+    if (!value) return;
+    const key = value.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(value);
+  });
+  return out;
+}
+
+function appendProfilePreference(profile, value) {
+  const next = { ...asObject(profile) };
+  const preference = String(value || '').trim();
+  if (!preference) return next;
+  next.preferences = uniqueStringList([].concat(asArray(next.preferences), [preference]));
+  return next;
+}
+
+function applyDeterministicProfileMemory(profile, memoryText, category) {
+  const current = { ...asObject(profile) };
+  const raw = String(memoryText || '').replace(/\s+/g, ' ').trim();
+  const normalized = raw.replace(/[.?!]+$/g, '').trim();
+  const lowerCategory = String(category || '').trim().toLowerCase();
+  if (!normalized) return current;
+
+  let match = normalized.match(/^my\s+favou?rite\s+([a-z][a-z0-9 _-]{1,30})\s+is\s+(.+)$/i);
+  if (match) {
+    const subject = String(match[1] || '').trim().toLowerCase();
+    const value = String(match[2] || '').trim();
+    if (subject === 'color' || subject === 'colour') current.favorite_color = value;
+    return appendProfilePreference(current, 'Favorite ' + subject + ': ' + value);
+  }
+
+  match = normalized.match(/^i\s+prefer\s+(.+)$/i);
+  if (match) {
+    const value = String(match[1] || '').trim();
+    if (/\bcelsius\b/i.test(value)) current.temperature_unit = 'celsius';
+    if (/\bfahrenheit\b/i.test(value)) current.temperature_unit = 'fahrenheit';
+    return appendProfilePreference(current, 'Prefers ' + value);
+  }
+
+  match = normalized.match(/^i\s+(always|usually|never)\s+(.+)$/i);
+  if (match) {
+    return appendProfilePreference(current, String(match[1] || '').trim().toLowerCase() + ' ' + String(match[2] || '').trim());
+  }
+
+  match = normalized.match(/^my\s+name\s+is\s+(.+)$/i);
+  if (match && !String(current.name || '').trim()) {
+    current.name = String(match[1] || '').trim();
+    return current;
+  }
+
+  if (lowerCategory === 'preference' || /\bprefer|preference|favorite|favourite|like|love\b/i.test(normalized)) {
+    return appendProfilePreference(current, normalized);
+  }
+
+  return current;
+}
+
 function sanitizeManagedCustomFiles(value) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const out = {};
@@ -406,10 +477,14 @@ export default async function handler(req, res) {
       if (req.method === 'POST') {
         const { memory, category, source, confidence, pinned } = req.body || {};
         if (!memory) return res.status(400).json({ error: 'Missing memory' });
-        const [result, customFilesResult, filesResult] = await Promise.all([
+        const [result, customFilesResult, filesResult, profileResult, historyResult, libraryResult, syncMetaResult] = await Promise.all([
           redis(['GET', MEMORY_KEY]),
           redis(['GET', CUSTOM_FILES_KEY]),
-          redis(['GET', FILES_KEY])
+          redis(['GET', FILES_KEY]),
+          redis(['GET', PROFILE_KEY]),
+          redis(['GET', HISTORY_KEY]),
+          redis(['GET', FILE_LIBRARY_KEY]),
+          redis(['GET', SYNC_META_KEY])
         ]);
         const memories = result.result ? JSON.parse(result.result) : [];
         memories.push({
@@ -423,18 +498,52 @@ export default async function handler(req, res) {
         });
         while (memories.length > MAX_MEMORIES) memories.shift();
         const customFiles = sanitizeManagedCustomFiles(customFilesResult.result ? JSON.parse(customFilesResult.result) : {});
-        const files = sanitizeManagedFiles(filesResult.result ? JSON.parse(filesResult.result) : {}, [], customFiles, new Date().toISOString());
+        const fileLibrary = libraryResult.result ? JSON.parse(libraryResult.result) : [];
+        const currentProfile = profileResult.result ? JSON.parse(profileResult.result) : {};
+        const history = historyResult.result ? JSON.parse(historyResult.result) : [];
+        const generatedAt = new Date().toISOString();
+        const profile = applyDeterministicProfileMemory(currentProfile, memory, category);
+        const existingFiles = sanitizeManagedFiles(filesResult.result ? JSON.parse(filesResult.result) : {}, fileLibrary, customFiles, generatedAt);
+        let files = existingFiles;
         if (isQuoteLikeCategory(category)) {
           const nextQuoteContent = mergeQuotesMarkdown(customFiles[QUOTES_FILE_NAME], buildQuoteMarkdownFromMemory(memory, category));
           if (nextQuoteContent) {
             customFiles[QUOTES_FILE_NAME] = nextQuoteContent;
-            files[QUOTES_FILE_NAME] = nextQuoteContent;
           }
         }
+        files = buildContextFiles({
+          profile,
+          memories,
+          history,
+          tasks: [],
+          fileLibrary,
+          existingFiles,
+          customFiles,
+          scope: mode,
+          generatedAt
+        });
+        const storedSyncMeta = syncMetaResult.result ? JSON.parse(syncMetaResult.result) : {};
+        const syncMeta = computeJoeySyncMeta({
+          mode,
+          profile,
+          memories,
+          history,
+          files,
+          fileLibrary,
+          customFiles,
+          journal: []
+        }, {
+          ...storedSyncMeta,
+          mode,
+          updatedAt: generatedAt,
+          lastSource: 'memory-action'
+        });
         await Promise.all([
           redis(['SET', MEMORY_KEY, JSON.stringify(memories)]),
+          redis(['SET', PROFILE_KEY, JSON.stringify(profile)]),
           redis(['SET', CUSTOM_FILES_KEY, JSON.stringify(customFiles)]),
-          redis(['SET', FILES_KEY, JSON.stringify(files)])
+          redis(['SET', FILES_KEY, JSON.stringify(files)]),
+          redis(['SET', SYNC_META_KEY, JSON.stringify(syncMeta)])
         ]);
         await appendJournalEntries([
           buildJournalEntry('memory-added', {
@@ -443,7 +552,11 @@ export default async function handler(req, res) {
             source: source || 'manual'
           })
         ]);
-        return res.status(200).json({ ok: true, count: memories.length });
+        return res.status(200).json({
+          ok: true,
+          count: memories.length,
+          profileUpdated: JSON.stringify(profile) !== JSON.stringify(currentProfile)
+        });
       }
       if (req.method === 'DELETE') {
         const { memoryId, match } = req.body || {};
