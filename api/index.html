@@ -557,8 +557,8 @@
 
   <!-- Lock Screen -->
   <div id="vault-lock" style="display:flex;align-items:center;justify-content:center;min-height:340px;padding:40px 20px;">
-    <div style="width:min(360px,100%);text-align:center;">
-      <div style="width:72px;height:72px;margin:0 auto 20px;border-radius:50%;background:linear-gradient(135deg,rgba(96,165,250,.15),rgba(139,92,246,.15));border:1px solid rgba(96,165,250,.2);display:grid;place-items:center;font-size:2rem;">Lock</div>
+    <div style="width:min(420px,100%);text-align:center;padding:28px 24px;border-radius:22px;background:linear-gradient(180deg,rgba(15,23,42,.96),rgba(2,6,23,.94));border:1px solid rgba(148,163,184,.18);box-shadow:0 24px 60px rgba(2,6,23,.42);">
+      <div style="width:72px;height:72px;margin:0 auto 20px;border-radius:50%;background:linear-gradient(135deg,rgba(96,165,250,.15),rgba(139,92,246,.15));border:1px solid rgba(96,165,250,.2);display:grid;place-items:center;font-size:2rem;">&#128274;</div>
       <h3 id="vault-lock-label" style="margin:0 0 6px;font-size:1.15rem;font-weight:800;color:var(--text);">Unlock Vault</h3>
       <p style="color:var(--muted);font-size:.88rem;margin:0 0 24px;">Enter your account credentials to access encrypted data</p>
 
@@ -570,7 +570,7 @@
         <input id="vault-pw-user" type="text" placeholder="Username" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" class="acct-field" style="text-align:center;margin-bottom:0;">
         <div class="acct-field-wrap" style="margin-bottom:0;">
           <input id="vault-pw" type="password" placeholder="Password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" class="acct-field" style="text-align:center;margin-bottom:0;">
-          <button type="button" class="pw-toggle" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'Show':'Hide'">Show</button>
+          <button type="button" class="pw-toggle" aria-label="Show password" title="Show password" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';var l=i.type==='password'?'Show password':'Hide password';this.setAttribute('aria-label',l);this.title=l;">&#128065;</button>
         </div>
       </div>
 
@@ -865,7 +865,7 @@
         <input id="vault-cred-user" type="text" placeholder="Username" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
         <div style="flex:1;min-width:100px;position:relative;">
           <input id="vault-cred-pass" type="password" placeholder="Password" style="width:100%;padding:10px 38px 10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
-          <button type="button" class="pw-toggle" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'Ã°Å¸â€˜Â':'Ã°Å¸â€˜ÂÃ¢â‚¬ÂÃ°Å¸â€”Â¨'" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;padding:2px;">Ã°Å¸â€˜Â</button>
+          <button type="button" class="pw-toggle" aria-label="Show password" title="Show password" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';var l=i.type==='password'?'Show password':'Hide password';this.setAttribute('aria-label',l);this.title=l;" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;padding:2px;">&#128065;</button>
         </div>
         <textarea id="vault-cred-details" placeholder="Details / notes..." rows="2" style="flex-basis:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-family:inherit;font-size:.9rem;resize:vertical;"></textarea>
         <button id="vault-cred-add" class="btn primary" style="padding:10px 18px;">+ Add</button>
@@ -1090,12 +1090,12 @@
       <input id="acct-user" class="acct-field" type="text" placeholder="Username" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
       <div class="acct-field-wrap">
         <input id="acct-pass" class="acct-field" type="password" placeholder="Password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
-        <button type="button" class="pw-toggle" onclick="var i=document.getElementById('acct-pass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'Ã°Å¸â€˜Â':'Ã°Å¸â€˜ÂÃ¢â‚¬ÂÃ°Å¸â€”Â¨'">Ã°Å¸â€˜Â</button>
+        <button type="button" class="pw-toggle" aria-label="Show password" title="Show password" onclick="var i=document.getElementById('acct-pass');i.type=i.type==='password'?'text':'password';var l=i.type==='password'?'Show password':'Hide password';this.setAttribute('aria-label',l);this.title=l;">&#128065;</button>
       </div>
       <div id="acct-confirm-wrap" style="display:none;">
         <div class="acct-field-wrap">
           <input id="acct-confirm" class="acct-field" type="password" placeholder="Confirm password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
-          <button type="button" class="pw-toggle" onclick="var i=document.getElementById('acct-confirm');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'Ã°Å¸â€˜Â':'Ã°Å¸â€˜ÂÃ¢â‚¬ÂÃ°Å¸â€”Â¨'">Ã°Å¸â€˜Â</button>
+          <button type="button" class="pw-toggle" aria-label="Show password" title="Show password" onclick="var i=document.getElementById('acct-confirm');i.type=i.type==='password'?'text':'password';var l=i.type==='password'?'Show password':'Hide password';this.setAttribute('aria-label',l);this.title=l;">&#128065;</button>
         </div>
       </div>
       <div style="display:flex;gap:8px;">
@@ -1128,7 +1128,7 @@
         <input id="admin-user" class="acct-field" type="text" placeholder="Admin email" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" style="font-size:.88rem;">
         <div class="acct-field-wrap">
           <input id="admin-pass" class="acct-field" type="password" placeholder="Admin password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" style="font-size:.88rem;">
-          <button type="button" class="pw-toggle" onclick="var i=document.getElementById('admin-pass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'Ã°Å¸â€˜Â':'Ã°Å¸â€˜ÂÃ¢â‚¬ÂÃ°Å¸â€”Â¨'">Ã°Å¸â€˜Â</button>
+          <button type="button" class="pw-toggle" aria-label="Show password" title="Show password" onclick="var i=document.getElementById('admin-pass');i.type=i.type==='password'?'text':'password';var l=i.type==='password'?'Show password':'Hide password';this.setAttribute('aria-label',l);this.title=l;">&#128065;</button>
         </div>
         <button id="admin-signin" class="btn" style="width:100%;padding:9px;font-size:.88rem;background:linear-gradient(135deg,#8b5cf6,#6d28d9);border:none;color:#fff;">Authenticate</button>
         <p id="admin-error" style="color:#ef4444;font-size:.82rem;min-height:1em;margin:6px 0 0;text-align:center;"></p>
@@ -1165,7 +1165,7 @@
             <input id="new-user-email" class="acct-field" type="email" placeholder="Email" style="font-size:.85rem;margin-bottom:8px;">
             <div class="acct-field-wrap" style="margin-bottom:10px;">
               <input id="new-user-password" class="acct-field" type="password" placeholder="Password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" style="font-size:.85rem;margin-bottom:0;">
-              <button type="button" class="pw-toggle" onclick="var i=document.getElementById('new-user-password');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'Ã°Å¸â€˜Â':'Ã°Å¸â€˜ÂÃ¢â‚¬ÂÃ°Å¸â€”Â¨'">Ã°Å¸â€˜Â</button>
+              <button type="button" class="pw-toggle" aria-label="Show password" title="Show password" onclick="var i=document.getElementById('new-user-password');i.type=i.type==='password'?'text':'password';var l=i.type==='password'?'Show password':'Hide password';this.setAttribute('aria-label',l);this.title=l;">&#128065;</button>
             </div>
             <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.8rem;color:var(--muted);">
@@ -1369,6 +1369,6 @@
   </div>
 </div>
 
-    <script src="/assets/app-shell.v20260401w.js"></script>
+    <script src="/assets/app-shell.v20260401x.js"></script>
 </body>
 </html>

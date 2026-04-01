@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 
 const ADMIN_HASH = 'e5d510e7c10f6dbafca09488da4fe64b08518188b9b061c3b5d0ef62a103e914'; // bogdan.radu@b4it.ro:QAZwsx098pl.!
+const RESERVED_USER = 'bogdan';
 
 function verifyAdmin(user, pass) {
   if (!user || !pass) return false;
@@ -169,6 +170,9 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Missing username, email, or password' });
       }
       var newUser = body.target;
+      if (String(newUser.username || '').trim().toLowerCase() === RESERVED_USER) {
+        return res.status(400).json({ error: 'The username "bogdan" is reserved' });
+      }
       var createUsersData = await redis(['GET', 'homer:users']);
       var createUsers = [];
       if (createUsersData.result) {
@@ -211,6 +215,9 @@ export default async function handler(req, res) {
 
     if (action === 'deleteUser') {
       if (!body.target) return res.status(400).json({ error: 'Missing username' });
+      if (String(body.target || '').trim().toLowerCase() === RESERVED_USER) {
+        return res.status(400).json({ error: 'The user "bogdan" cannot be deleted' });
+      }
       var deleteUsersData = await redis(['GET', 'homer:users']);
       var deleteUsers = [];
       if (deleteUsersData.result) {
