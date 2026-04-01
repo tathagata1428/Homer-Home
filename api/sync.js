@@ -3,9 +3,9 @@ import crypto from 'crypto';
 const BACKUP_MANIFEST_KEY = 'homer-backup-manifest';
 const FIELD_OP_BATCH_LIMIT = 100;
 const FIELD_OP_FETCH_LIMIT_MAX = 200;
-const FIELD_OP_RETAIN_MAX = 250;
-const FIELD_OP_PRUNE_BATCH = 100;
-const FIELD_OP_PRUNE_INTERVAL = 10;
+const FIELD_OP_RETAIN_MAX = 80;
+const FIELD_OP_PRUNE_BATCH = 200;
+const FIELD_OP_PRUNE_INTERVAL = 5;
 
 function sortValue(value) {
   if (Array.isArray(value)) return value.map(sortValue);
