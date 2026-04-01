@@ -13238,6 +13238,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   var joeyLastSyncMetaCheckAtByMode = { personal:0, work:0 };
   var joeyHistorySaveInflight = { personal:null, work:null };
   var joeyLastHistorySaveSignatureByMode = { personal:'', work:'' };
+  var joeyLastHistorySyncedLengthByMode = { personal:0, work:0 };
   function parseJoeyBundleStamp(value){
     if(!value) return 0;
     var date = new Date(value);
@@ -13295,6 +13296,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
         source: opts.source || 'redis-bundle',
         updatedAt: Date.now()
       });
+      joeyLastHistorySyncedLengthByMode[bundleMode] = Array.isArray(bundle.history) ? bundle.history.length : 0;
+      joeyLastHistorySaveSignatureByMode[bundleMode] = getJoeyHistorySaveSignature(bundleMode, bundle.history || []);
     }
     scheduleJoeySyncStatusRefresh(200);
     return true;
@@ -13360,18 +13363,29 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!opts.force && joeyHistorySaveInflight[activeMode] && joeyHistorySaveInflight[activeMode].signature === signature){
       return joeyHistorySaveInflight[activeMode].promise;
     }
+    var syncedLength = Math.max(0, Number(joeyLastHistorySyncedLengthByMode[activeMode] || 0));
+    var canSendDelta = !opts.force && syncedLength > 0 && syncedLength <= chatHistory.length;
+    var payloadMessages = canSendDelta ? chatHistory.slice(syncedLength) : chatHistory;
+    if(!payloadMessages.length){
+      joeyLastHistorySaveSignatureByMode[activeMode] = signature;
+      joeyLastHistorySyncedLengthByMode[activeMode] = chatHistory.length;
+      return Promise.resolve({ ok:true, skipped:true, reason:'no-delta' });
+    }
     var request = fetch(joeyActionUrl('history'), {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       keepalive: !!opts.keepalive,
       body: JSON.stringify(withContextMode({
         passphrase:pass,
-        messages:chatHistory,
+        messages:payloadMessages,
         chatClearedAt:getChatClearedAt(currentContextMode)
       }))
     }).then(function(r){ return r.json(); }).then(function(d){
       if(d && d.updatedAt) rememberJoeyBundleStamp(currentContextMode, d.updatedAt);
-      if(d && d.ok) joeyLastHistorySaveSignatureByMode[activeMode] = signature;
+      if(d && d.ok){
+        joeyLastHistorySaveSignatureByMode[activeMode] = signature;
+        joeyLastHistorySyncedLengthByMode[activeMode] = chatHistory.length;
+      }
       if(d && d.ok && typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-joey-sync-ts');
       return d;
     }).catch(function(err){
@@ -16295,9 +16309,6 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var forceFullContext = /^(use full context|deep context)\b/i.test(text) || /^\[(USE_FULL_CONTEXT|DEEP_CONTEXT)\]\s*/i.test(text);
     var cleanText = text.replace(/^\[FORCE_WEB_SEARCH\]\s*/i, '').replace(/^\[(USE_FULL_CONTEXT|DEEP_CONTEXT)\]\s*/i, '').trim();
     var displayText = cleanText || text;
-    if(currentProvider === 'joey'){
-      Promise.resolve(maybeRefreshJoeyBundleFromRedis({ source:'pre-send' })).catch(function(){ return null; });
-    }
     var fullContent = cleanText || text;
     var directTaskRequest = inferDirectTaskRequest(displayText);
     var directTaskNeedsPlanning = taskNeedsAgentSubtasks(displayText);
@@ -16461,9 +16472,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
 
     if(currentProvider === 'joey' && implicitProfileRemember){
       await Promise.resolve(applyAgentRememberMutation(implicitProfileRemember)).catch(function(){ return null; });
-      try{
-        await maybeRefreshJoeyBundleFromRedis({ source:'implicit-profile-remember' });
-      }catch(_e){}
+      Promise.resolve(maybeRefreshJoeyBundleFromRedis({ source:'implicit-profile-remember' })).catch(function(){ return null; });
     }
 
     if(currentProvider === 'joey'){
@@ -16599,8 +16608,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       }
       saveChatToVault();
       if(currentProvider === 'joey'){
-        await Promise.resolve(saveHistoryToRedis({ silent:true })).catch(function(){ return null; });
-        await Promise.resolve(commitJoeyMemory({
+        Promise.resolve(saveHistoryToRedis({ silent:true })).catch(function(){ return null; });
+        Promise.resolve(commitJoeyMemory({
           silent:true,
           skipLearn:false,
           skipDrive:true,
