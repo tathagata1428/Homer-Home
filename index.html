@@ -1009,7 +1009,6 @@
           <div class="oc-sync-status-title">Sync Status</div>
           <div class="oc-sync-status-note">Redis stays live. Drive is compared safely and only missing context is merged.</div>
         </div>
-        <button type="button" id="oc-sync-status-refresh" class="oc-settings-btn secondary">Refresh Sync Status</button>
       </div>
       <div id="oc-sync-status-summary" class="oc-sync-status-summary">Unlock Joey memory to check sync status.</div>
       <div id="oc-sync-status-grid" class="oc-sync-status-grid"></div>
@@ -1023,23 +1022,10 @@
     </div>
     <div class="oc-settings-actions">
       <div class="oc-settings-actions-row">
-        <button type="button" id="oc-library-btn" class="oc-settings-btn library" title="Browse remembered uploaded files">&#x1f4ce; Uploads</button>
-        <button type="button" id="oc-sync-toggle" class="oc-settings-btn secondary" title="Toggle automatic cloud and Drive sync">Auto Sync On</button>
-        <button type="button" id="oc-gdrive-sync" class="oc-settings-btn sync" title="Refresh Joey from the latest Google Drive context">&#x27f3; Sync from Drive</button>
+        <button type="button" id="oc-save-db" class="oc-settings-btn danger" title="Save context (history, memories, profile) to database">&#x1f4be; Commit Memory Now</button>
         <button type="button" id="oc-gdrive-backup" class="oc-settings-btn backup" title="Backup agent context to Google Drive">&#x2601; Backup to Drive</button>
-        <button type="button" id="oc-settings-advanced-toggle" class="oc-settings-btn secondary" aria-expanded="false" title="Show repair and export tools">Advanced Tools</button>
-      </div>
-      <div id="oc-settings-advanced" class="oc-settings-advanced">
-        <div class="oc-settings-advanced-note">Use these only when you want to repair Joey state, inspect stored context, or export data.</div>
-        <div class="oc-settings-actions-row">
-          <button type="button" id="oc-save-db" class="oc-settings-btn danger" title="Save context (history, memories, profile) to database">&#x1f4be; Commit Memory Now</button>
-          <button type="button" id="oc-redis-refresh" class="oc-settings-btn secondary" title="Reload the latest chat history from Redis for this mode">&#x21bb; Refresh from Redis</button>
-          <button type="button" id="oc-gdrive-restore" class="oc-settings-btn warn" title="Restore agent context from Google Drive and overwrite current mode context">&#x21bb; Restore from Drive</button>
-          <button type="button" id="oc-rebuild-files" class="oc-settings-btn teal" title="Rebuild canonical context files from current data">&#x21bb; Rebuild Context</button>
-          <button type="button" id="oc-rebuild-library" class="oc-settings-btn teal" title="Refresh remembered uploads and rebuild file-backed context docs">&#x1f4ce; Rebuild Files</button>
-          <button type="button" id="oc-view-files" class="oc-settings-btn blue" title="Inspect the shared canonical context files">&#x1f4c2; View Context</button>
-          <button type="button" id="oc-export-files" class="oc-settings-btn indigo" title="Export the canonical context files bundle">&#x2b07; Export Context</button>
-        </div>
+        <button type="button" id="oc-gdrive-restore" class="oc-settings-btn warn" title="Restore agent context from Google Drive and overwrite current mode context">&#x21bb; Restore from Drive</button>
+        <button type="button" id="oc-view-files" class="oc-settings-btn blue" title="Inspect the shared canonical context files">&#x1f4c2; View Context</button>
       </div>
     </div>
     <div id="oc-library-panel">

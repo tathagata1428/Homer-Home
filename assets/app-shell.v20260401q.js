@@ -12924,7 +12924,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   window._homerCommitJoeyMemory = function(opts){
     return commitJoeyMemory(opts || {});
   };
-  document.getElementById('oc-save-db').addEventListener('click', function(){
+  if(saveDbBtn) saveDbBtn.addEventListener('click', function(){
     commitJoeyMemory({ silent:false, skipLearn:false, skipDrive:true, reason:'manual' }).catch(function(){});
     return;
     var btn = this;
@@ -13009,7 +13009,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   }
 
   // --- Google Drive context backup ---
-  document.getElementById('oc-gdrive-backup').addEventListener('click', function(){
+  var gdriveBackupBtn = document.getElementById('oc-gdrive-backup');
+  if(gdriveBackupBtn) gdriveBackupBtn.addEventListener('click', function(){
     var btn = this;
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass){ alert('Log in first (unlock vault) to backup.'); return; }
@@ -13044,7 +13045,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   });
 
   // --- Google Drive context restore ---
-  document.getElementById('oc-gdrive-restore').addEventListener('click', function(){
+  var gdriveRestoreBtn = document.getElementById('oc-gdrive-restore');
+  if(gdriveRestoreBtn) gdriveRestoreBtn.addEventListener('click', function(){
     var btn = this;
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass){ alert('Log in first (unlock vault) to restore.'); return; }
@@ -13357,7 +13359,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     document.body.appendChild(modal);
   }
 
-  document.getElementById('oc-rebuild-files').addEventListener('click', function(){
+  var rebuildFilesBtn = document.getElementById('oc-rebuild-files');
+  if(rebuildFilesBtn) rebuildFilesBtn.addEventListener('click', function(){
     var btn = this;
     btn.disabled = true;
     btn.textContent = 'Ã¢ÂÂ³ Rebuilding...';
@@ -13376,7 +13379,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     });
   });
 
-  document.getElementById('oc-rebuild-library').addEventListener('click', function(){
+  var rebuildLibraryBtn = document.getElementById('oc-rebuild-library');
+  if(rebuildLibraryBtn) rebuildLibraryBtn.addEventListener('click', function(){
     var btn = this;
     btn.disabled = true;
     btn.textContent = 'ÃƒÂ¢Ã‚ÂÃ‚Â³ Rebuilding...';
@@ -13393,13 +13397,15 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     });
   });
 
-  document.getElementById('oc-view-files').addEventListener('click', function(){
+  var viewFilesBtn = document.getElementById('oc-view-files');
+  if(viewFilesBtn) viewFilesBtn.addEventListener('click', function(){
     fetchContextFiles().then(showContextFilesModal).catch(function(err){
       alert(err.message);
     });
   });
 
-  document.getElementById('oc-export-files').addEventListener('click', function(){
+  var exportFilesBtn = document.getElementById('oc-export-files');
+  if(exportFilesBtn) exportFilesBtn.addEventListener('click', function(){
     fetchContextFiles().then(function(files){
       var bundle = {
         exportedAt: new Date().toISOString(),
@@ -13647,7 +13653,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   }
 
   // --- Force sync button handler ---
-  document.getElementById('oc-gdrive-sync').addEventListener('click', function(){
+  var gdriveSyncBtn = document.getElementById('oc-gdrive-sync');
+  if(gdriveSyncBtn) gdriveSyncBtn.addEventListener('click', function(){
     var btn = this;
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass){ alert('Log in first (unlock vault) to sync.'); return; }
