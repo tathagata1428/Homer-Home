@@ -11187,7 +11187,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   var joeySyncStatusTimer = null;
   var joeySyncStatusInFlight = null;
   var joeyLastDriveReconcileAt = 0;
-  var JOEY_DRIVE_BACKUP_MIN_DIRTY_MS = 60 * 60 * 1000;
+  var JOEY_DRIVE_BACKUP_MIN_DIRTY_MS = 2 * 60 * 60 * 1000;
   var mobileSuppressedFields = [];
   var MediaRecorderCtor = window.MediaRecorder || null;
   var SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition || null;
@@ -12939,7 +12939,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       return fetch('/api/gdrive-backup', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(withContextMode({ passphrase: pass, tasks: tasks, force:true, quoteMarkdown: quoteMarkdown }))
+        body: JSON.stringify(withContextMode({ passphrase: pass, tasks: tasks, quoteMarkdown: quoteMarkdown }))
       });
     }).then(function(r){ return r.json(); }).then(function(d){
       if(d.ok){
@@ -13554,7 +13554,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       console.log('[Joey] Auto-reconcile error:', e && e.message ? e.message : e);
     });
   }
-  var JOEY_DRIVE_RECONCILE_INTERVAL_MS = 3 * 60 * 60 * 1000;
+  var JOEY_DRIVE_RECONCILE_INTERVAL_MS = 4 * 60 * 60 * 1000;
   var JOEY_REDIS_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
   // --- Periodic Redis save / learn refresh as a slow safety net ---
   setInterval(function(){
@@ -13567,7 +13567,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(chatHistory.length >= 2) triggerAutoLearn();
   }, JOEY_REDIS_REFRESH_INTERVAL_MS);
 
-  var JOEY_DRIVE_BACKUP_INTERVAL_MS = 2 * 60 * 60 * 1000;
+  var JOEY_DRIVE_BACKUP_INTERVAL_MS = 4 * 60 * 60 * 1000;
   // --- Periodic auto-backup to Google Drive only after real Joey/context changes ---
   setInterval(function(){
     var pass = localStorage.getItem('homer-sync-pass') || '';
