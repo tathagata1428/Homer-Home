@@ -12979,8 +12979,22 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       btn.textContent = 'Refreshing...';
       Promise.resolve(saveHistoryToRedis({ keepalive:false })).catch(function(){})
         .then(function(){
-          loadHistoryFromRedis({ force:true, allowRewrite:true, source:'manual-redis-refresh' });
-          showJoeyStatusToast('Chat refreshed from Redis.', 'success');
+          return fetch(joeyActionUrl('bundle', pass), { cache:'no-store' }).then(function(r){ return r.json(); });
+        })
+        .then(function(data){
+          var bundle = data && data.bundle && typeof data.bundle === 'object' ? data.bundle : null;
+          if(bundle && Array.isArray(bundle.history)){
+            replaceChatHistory(bundle.history, {
+              force:true,
+              allowRewrite:true,
+              source:'manual-redis-refresh',
+              updatedAt: Date.now()
+            });
+          } else {
+            loadHistoryFromRedis({ force:true, allowRewrite:true, source:'manual-redis-refresh' });
+          }
+          scheduleJoeySyncStatusRefresh(200);
+          showJoeyStatusToast('Redis bundle refreshed.', 'success');
         })
         .catch(function(err){
           showJoeyStatusToast('Redis refresh failed: ' + (err && err.message ? err.message : err), 'warn');
@@ -14387,6 +14401,26 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     return {
       target: target,
       mode: /\b(?:append|add|put|save|store|keep|place)\b/i.test(normalized) ? 'append' : 'replace'
+    };
+  }
+  function inferDirectRememberRequest(text){
+    var raw = String(text || '').trim();
+    if(!raw) return null;
+    var normalized = raw.replace(/\s+/g, ' ').trim();
+    var match = normalized.match(/^(?:please\s+)?(?:remember|save|store|keep\s+in\s+mind|note)\s+(?:that\s+)?(.+)$/i);
+    if(!match) return null;
+    var memoryText = clampAgentText(match[1] || '', 600);
+    if(!memoryText) return null;
+    var lower = memoryText.toLowerCase();
+    var category = 'fact';
+    if(/\bprefer|preference|like|likes|love|favorite|favourite|usually|always|never\b/i.test(memoryText)) category = 'preference';
+    else if(/\bhabit|routine|every day|daily|each morning|each evening\b/i.test(memoryText)) category = 'routine';
+    else if(/\bgoal|want to|trying to|aim to|plan to\b/i.test(memoryText)) category = 'goal';
+    else if(/\bopinion|believe|think\b/i.test(memoryText)) category = 'opinion';
+    return {
+      memory: memoryText.replace(/^that\s+/i, '').trim(),
+      category: category,
+      source: 'direct-user-remember'
     };
   }
   function inferDirectQuoteRequest(text){
@@ -15976,6 +16010,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var directTaskNeedsPlanning = taskNeedsAgentSubtasks(displayText);
     var directIssueUpdate = inferDirectIssueUpdateRequest(displayText);
     var directEventRequest = inferDirectEventRequest(displayText);
+    var directRememberRequest = inferDirectRememberRequest(displayText);
     var directNoteRequest = inferDirectNoteRequest(displayText);
     var deferredNoteRequest = directNoteRequest ? null : inferDeferredNoteRequest(displayText);
     var directQuoteRequest = inferDirectQuoteRequest(displayText);
@@ -16061,6 +16096,23 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       chatHistory.push(directQuoteReply);
       markLocalChatMutation();
       messagesEl.insertAdjacentHTML('beforeend', renderChatMessage(directQuoteReply, chatHistory.length - 1));
+      injectCodeCopyButtons(messagesEl);
+      scrollMessagesToBottom(true);
+      saveChatToVault();
+      saveHistoryToRedis();
+      return;
+    } else if(directRememberRequest && currentProvider === 'joey'){
+      var directRememberResult = await applyAgentRememberMutation(directRememberRequest);
+      var directRememberReply = {
+        role:'assistant',
+        content:(directRememberResult && directRememberResult.message) || 'Memory saved.',
+        provider:currentProvider,
+        model:getStoredModelLabel(currentProvider, currentContextMode),
+        mode:currentContextMode
+      };
+      chatHistory.push(directRememberReply);
+      markLocalChatMutation();
+      messagesEl.insertAdjacentHTML('beforeend', renderChatMessage(directRememberReply, chatHistory.length - 1));
       injectCodeCopyButtons(messagesEl);
       scrollMessagesToBottom(true);
       saveChatToVault();
