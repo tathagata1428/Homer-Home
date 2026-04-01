@@ -11941,7 +11941,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     syncVoiceUi();
     setUploadStatus('Transcribing voice command…', 'success', true);
     return blobToBase64(blob).then(function(audioBase64){
-      return fetch('/api/transcribe', {
+      return fetch('/api/openclaw?action=transcribe', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
