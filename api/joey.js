@@ -91,7 +91,11 @@ function buildQuotesMarkdown(entries) {
 
 function mergeQuotesMarkdown(existingMarkdown, incomingMarkdown) {
   const merged = [];
-  const seen = new Set();
+  const indexByKey = new Map();
+  const parseSavedAt = (value) => {
+    const ts = Date.parse(String(value || '').trim());
+    return Number.isFinite(ts) ? ts : 0;
+  };
   const addEntries = (entries) => {
     entries.forEach((entry) => {
       const quote = String(entry && entry.quote || '').trim();
@@ -100,9 +104,16 @@ function mergeQuotesMarkdown(existingMarkdown, incomingMarkdown) {
       const author = String(entry && entry.author || 'Unknown').trim() || 'Unknown';
       const savedAt = String(entry && entry.savedAt || '').trim();
       const key = normalizeQuoteKey(quote, author);
-      if (seen.has(key)) return;
-      seen.add(key);
-      merged.push({ quote, author, savedAt });
+      const existingIdx = indexByKey.get(key);
+      if (existingIdx == null) {
+        indexByKey.set(key, merged.length);
+        merged.push({ quote, author, savedAt });
+        return;
+      }
+      const previous = merged[existingIdx];
+      if (parseSavedAt(savedAt) >= parseSavedAt(previous && previous.savedAt)) {
+        merged[existingIdx] = { quote, author, savedAt };
+      }
     });
   };
   addEntries(extractQuoteEntriesFromMarkdown(existingMarkdown));
