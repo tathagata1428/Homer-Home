@@ -26,11 +26,10 @@ function buildNemoClawSystemParts(context) {
 
   systemParts.push(buildActiveSystemPromptPart(systemPromptOverride, forceFullContext));
   if (joeyContext) systemParts.push(clampText(joeyContext, forceFullContext ? 24000 : 14000));
+  if (profileText) systemParts.push(clampText(profileText, filesText ? 2600 : 6000));
+  if (memoriesText) systemParts.push(clampText(memoriesText, filesText ? (forceFullContext ? 9000 : 4200) : 12000));
   if (filesText) {
-    systemParts.push(clampText(filesText, forceFullContext ? 80000 : 38000));
-  } else {
-    if (profileText) systemParts.push(clampText(profileText, 6000));
-    if (memoriesText) systemParts.push(clampText(memoriesText, 12000));
+    systemParts.push(clampText(filesText, forceFullContext ? 72000 : 32000));
   }
   if (searchContext) systemParts.push(clampText(searchContext, 8000));
 

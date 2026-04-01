@@ -141,11 +141,23 @@ function buildOpenClawSystemParts(context) {
   if (joeyContext) {
     systemParts.push(clampText(joeyContext, forceFullContext ? (largeContext ? 22000 : 11000) : (largeContext ? 16000 : 6000)));
   }
-  if (profileText && (largeContext || !filesText)) systemParts.push(clampText(profileText, largeContext ? 4200 : 2200));
-  if (memoriesText && (largeContext || !filesText)) {
-    systemParts.push(clampText(memoriesText, forceFullContext ? (largeContext ? 16000 : 6400) : (largeContext ? 9000 : 3200)));
+  if (profileText) {
+    systemParts.push(clampText(
+      profileText,
+      filesText
+        ? (largeContext ? 2600 : 1800)
+        : (largeContext ? 4200 : 2200)
+    ));
   }
-  if (filesText) systemParts.push(clampText(filesText, forceFullContext ? (largeContext ? 72000 : 28000) : (largeContext ? 40000 : 14000)));
+  if (memoriesText) {
+    systemParts.push(clampText(
+      memoriesText,
+      filesText
+        ? (forceFullContext ? (largeContext ? 9000 : 4200) : (largeContext ? 4200 : 2200))
+        : (forceFullContext ? (largeContext ? 16000 : 6400) : (largeContext ? 9000 : 3200))
+    ));
+  }
+  if (filesText) systemParts.push(clampText(filesText, forceFullContext ? (largeContext ? 68000 : 26000) : (largeContext ? 36000 : 12000)));
   if (searchContext) systemParts.push(clampText(searchContext, largeContext ? 6000 : 2800));
 
   systemParts.push(`
