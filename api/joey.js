@@ -714,17 +714,52 @@ export default async function handler(req, res) {
 
     if (action === 'sync-meta') {
       if (req.method === 'GET') {
-        const [profileRes, memoryRes, historyRes, filesRes, libraryRes, customFilesRes, journalRes, syncMetaRes] = await Promise.all([
+        const [syncMetaRes, profileLenRes, memoryLenRes, historyLenRes, filesLenRes, libraryLenRes, customFilesLenRes, journalLenRes] = await Promise.all([
+          redis(['GET', SYNC_META_KEY]),
+          redis(['STRLEN', PROFILE_KEY]),
+          redis(['STRLEN', MEMORY_KEY]),
+          redis(['STRLEN', HISTORY_KEY]),
+          redis(['STRLEN', FILES_KEY]),
+          redis(['STRLEN', FILE_LIBRARY_KEY]),
+          redis(['STRLEN', CUSTOM_FILES_KEY]),
+          redis(['STRLEN', JOURNAL_KEY])
+        ]);
+        const storedSyncMeta = syncMetaRes.result ? JSON.parse(syncMetaRes.result) : {};
+        const hasStoredMeta = !!(storedSyncMeta && storedSyncMeta.hashes && storedSyncMeta.counts);
+        if (hasStoredMeta) {
+          const stats = {
+            planBytes: REDIS_PLAN_BYTES,
+            keyCount: 8,
+            bundleBytes:
+              (parseInt(profileLenRes && profileLenRes.result, 10) || 0) +
+              (parseInt(memoryLenRes && memoryLenRes.result, 10) || 0) +
+              (parseInt(historyLenRes && historyLenRes.result, 10) || 0) +
+              (parseInt(filesLenRes && filesLenRes.result, 10) || 0) +
+              (parseInt(libraryLenRes && libraryLenRes.result, 10) || 0) +
+              (parseInt(customFilesLenRes && customFilesLenRes.result, 10) || 0) +
+              (parseInt(journalLenRes && journalLenRes.result, 10) || 0) +
+              measureJsonBytes(storedSyncMeta),
+            memoryCount: Number((storedSyncMeta.counts && storedSyncMeta.counts.memories) || 0),
+            historyCount: Number((storedSyncMeta.counts && storedSyncMeta.counts.history) || 0),
+            fileCount: Number((storedSyncMeta.counts && storedSyncMeta.counts.files) || 0),
+            customFileCount: Number((storedSyncMeta.counts && storedSyncMeta.counts.customFiles) || 0),
+            uploadCount: Number((storedSyncMeta.counts && storedSyncMeta.counts.fileLibrary) || 0),
+            journalCount: Number((storedSyncMeta.counts && storedSyncMeta.counts.journal) || 0)
+          };
+          stats.bundleMegabytes = Number((stats.bundleBytes / (1024 * 1024)).toFixed(3));
+          stats.planUtilizationPct = Number(((stats.bundleBytes / REDIS_PLAN_BYTES) * 100).toFixed(3));
+          return res.status(200).json({ ok: true, syncMeta: storedSyncMeta, stats });
+        }
+
+        const [profileRes, memoryRes, historyRes, filesRes, libraryRes, customFilesRes, journalRes] = await Promise.all([
           redis(['GET', PROFILE_KEY]),
           redis(['GET', MEMORY_KEY]),
           redis(['GET', HISTORY_KEY]),
           redis(['GET', FILES_KEY]),
           redis(['GET', FILE_LIBRARY_KEY]),
           redis(['GET', CUSTOM_FILES_KEY]),
-          redis(['GET', JOURNAL_KEY]),
-          redis(['GET', SYNC_META_KEY])
+          redis(['GET', JOURNAL_KEY])
         ]);
-        const storedSyncMeta = syncMetaRes.result ? JSON.parse(syncMetaRes.result) : {};
         const generatedAt = resolveManagedGeneratedAt(storedSyncMeta);
         const bundle = {
           mode,

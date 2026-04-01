@@ -197,7 +197,7 @@
               <div>Pomodoros: <strong id="pom-count">0</strong></div>
               <div>Cycle: <strong id="pom-cycle">1</strong>/4</div>
               <div><label><input type="checkbox" id="pom-notify"> Notifications</label></div>
-              <div><label><input type="checkbox" id="pom-voice" checked> Voice lines (Ã¢â‚¬Å“DÃ¢â‚¬â„¢oh!Ã¢â‚¬Â, Ã¢â‚¬Å“Woo-ho!Ã¢â‚¬Â)</label></div>
+              <div><label><input type="checkbox" id="pom-voice" checked> Voice lines ("D'oh!", "Woo-ho!")</label></div>
               <div><label><input type="checkbox" id="pom-sfx" checked> Synth beeps</label></div>
             </div>
           </div>
@@ -207,7 +207,7 @@
           <div class="card tasks">
             <h2 class="section">Tasks</h2>
             <div class="task-row">
-              <input id="task-input" type="text" placeholder="Add a taskÃ¢â‚¬Â¦">
+              <input id="task-input" type="text" placeholder="Add a task...">
               <button id="task-add" class="btn">Add</button>
             </div>
             <ul id="task-list"></ul>
@@ -217,11 +217,11 @@
           <div class="card" style="margin-top:18px">
             <h2 class="section">Hints</h2>
             <div class="muted" style="font-size:.95rem">
-              Ã¢â‚¬Â¢ 25/5 is classic: 25 min focus Ã¢â€ â€™ 5 min short break; every 4th break is long.<br>
-              Ã¢â‚¬Â¢ Write a tiny task for each focus block to stay laser-focused.<br>
-              Ã¢â‚¬Â¢ Enable notifications to get alerted on phase changes.<br>
-              Ã¢â‚¬Â¢ Use Ã¢â‚¬Å“Skip PhaseÃ¢â‚¬Â if you finish early or need to switch.<br>
-             <strong>Bonus:</strong>Keep everything in a single Ã¢â‚¬Å“todayÃ¢â‚¬â„¢s goalÃ¢â‚¬Â list so youÃ¢â‚¬â„¢re always working toward a tangible outcome. Happy ticking!
+              &bull; 25/5 is classic: 25 min focus -> 5 min short break; every 4th break is long.<br>
+              &bull; Write a tiny task for each focus block to stay laser-focused.<br>
+              &bull; Enable notifications to get alerted on phase changes.<br>
+              &bull; Use "Skip Phase" if you finish early or need to switch.<br>
+             <strong>Bonus:</strong> Keep everything in a single "today's goal" list so you're always working toward a tangible outcome. Happy ticking!
             </div>
           </div>
         </div>
@@ -304,15 +304,15 @@
         <!-- News Section -->
         <div class="span-12 card">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-            <h3 style="margin:0;">Ã°Å¸â€”Å¾Ã¯Â¸Â Market News</h3>
+            <h3 style="margin:0;">&#128240; Market News</h3>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
               <select id="news-country" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;">
-                <option value="us">Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸ United States</option>
-                <option value="ro" selected>Ã°Å¸â€¡Â·Ã°Å¸â€¡Â´ Romania</option>
-                <option value="uk">Ã°Å¸â€¡Â¬Ã°Å¸â€¡Â§ United Kingdom</option>
-                <option value="de">Ã°Å¸â€¡Â©Ã°Å¸â€¡Âª Germany</option>
-                <option value="fr">Ã°Å¸â€¡Â«Ã°Å¸â€¡Â· France</option>
-                <option value="eu">Ã°Å¸â€¡ÂªÃ°Å¸â€¡Âº European Union</option>
+                <option value="us">United States</option>
+                <option value="ro" selected>Romania</option>
+                <option value="uk">United Kingdom</option>
+                <option value="de">Germany</option>
+                <option value="fr">France</option>
+                <option value="eu">European Union</option>
               </select>
               <select id="news-source" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;">
               </select>
@@ -332,25 +332,25 @@
   <div class="tools-wrap" style="max-width:860px;margin-inline:auto;">
     <div class="grid">
       <div class="span-4 card tool-card">
-        <h3>Ã°Å¸Â§Â© Nextcloud</h3>
+        <h3>&#129489;&#8205;&#128187; Nextcloud</h3>
         <p class="muted">Access your personal cloud and files securely.</p>
         <a href="https://cloud.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Nextcloud</a>
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>Ã°Å¸â€œÅ¡ Docs</h3>
+        <h3>&#128218; Docs</h3>
         <p class="muted">Access personal documentation.</p>
         <a href="https://docs.b4it.ro/" target="_blank" rel="noopener" class="btn secondary">Open Notifications</a>
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>Ã¢ÂÂ° Reminders</h3>
+        <h3>&#9200; Reminders</h3>
         <p class="muted">Manage your reminders and schedule tasks.</p>
         <a href="https://reminder.b4it.ro/reminders" target="_blank" rel="noopener" class="btn primary">Open Reminders</a>
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>Ã°Å¸â€œâ€ Journal</h3>
+        <h3>&#128221; Journal</h3>
         <p class="muted">Daily notes and reflections.</p>
         <a href="https://journal.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Journal</a>
       </div>
@@ -362,13 +362,13 @@
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>Ã°Å¸â€”â€™Ã¯Â¸Â Notes</h3>
+        <h3>&#9997;&#65039; Notes</h3>
         <p class="muted">Quick notes & to-dos.</p>
         <a href="https://tasks.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Notes</a>
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>Ã¢Å“Â¨ Glance</h3>
+        <h3>&#10024; Glance</h3>
         <p class="muted"> Various widgets.</p>
         <a href="https://glance.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Glance</a>
       </div>
@@ -380,9 +380,9 @@
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>Ã¢Ëœâ€¢ Keep Awake</h3>
+        <h3>&#9728; Keep Awake</h3>
         <p class="muted">Prevents screen from sleeping.</p>
-        <button id="btn-wake" class="btn danger">Ã¢Ëœâ€¢ Keep Awake</button>
+        <button id="btn-wake" class="btn danger">&#9728; Keep Awake</button>
       </div>
 
       <div class="span-4 card tool-card">
@@ -398,7 +398,7 @@
       </div>
 
       <div class="span-4 card tool-card">
-        <h3>Ã°Å¸â€œÂ¨ AI Email Rewriter</h3>
+        <h3>&#128233; AI Email Rewriter</h3>
         <p class="muted">Email & Text Proofer.</p>
         <a href="https://redefine.b4it.ro" target="_blank" rel="noopener" class="btn primary">Open Rewriter</a>
       </div>
@@ -742,7 +742,7 @@
 <div id="goal-modal-bg" class="fab-overlay" style="z-index:9990;">
   <div class="fab-dialog" style="width:min(440px,92vw);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-      <h3 style="margin:0;font-size:1.1rem;">Ã°Å¸â€œâ€¹ New Task</h3>
+      <h3 style="margin:0;font-size:1.1rem;">&#128221; New Task</h3>
       <button id="goal-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
     </div>
     <input id="goal-summary" type="text" placeholder="Summary *" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem;margin-bottom:10px;font-weight:700;">
@@ -751,7 +751,7 @@
       <option value="">Project *</option>
     </select>
     <select id="goal-priority" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
-      <option value="">Priority (optional)</option><option value="high">Ã°Å¸â€Â´ High</option><option value="medium">Ã°Å¸Å¸Â¡ Medium</option><option value="low">Ã°Å¸Å¸Â¢ Low</option>
+      <option value="">Priority (optional)</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option>
     </select>
     <div style="display:flex;gap:8px;margin-bottom:10px;">
       <input id="goal-reporter" type="text" placeholder="Reporter" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;">
@@ -773,7 +773,7 @@
       <div id="goal-custom-fields" style="display:flex;flex-direction:column;gap:8px;"></div>
     </div>
     <input id="goal-due" type="date" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
-    <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px dashed var(--border);background:rgba(255,255,255,.03);cursor:pointer;margin-bottom:4px;font-size:.85rem;color:var(--muted);">Ã°Å¸â€œÅ½ Attach files <span style="font-size:.7rem;opacity:.6;">(max 25MB each)</span><input id="goal-files" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;"></label>
+    <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px dashed var(--border);background:rgba(255,255,255,.03);cursor:pointer;margin-bottom:4px;font-size:.85rem;color:var(--muted);">&#128206; Attach files <span style="font-size:.7rem;opacity:.6;">(max 25MB each)</span><input id="goal-files" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;"></label>
     <div id="goal-files-preview" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
     <button id="goal-submit" class="btn primary" style="width:100%;padding:10px;font-size:.95rem;">Create Task</button>
   </div>
@@ -825,7 +825,7 @@
 <div id="subtask-modal-bg" class="fab-overlay" style="z-index:9990;">
   <div class="fab-dialog" style="width:min(400px,92vw);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-      <h3 style="margin:0;font-size:1.1rem;">Ã°Å¸â€œâ€¹ New Subtask</h3>
+      <h3 style="margin:0;font-size:1.1rem;">&#128221; New Subtask</h3>
       <button id="subtask-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
     </div>
     <input id="subtask-name" type="text" placeholder="Subtask name *" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem;margin-bottom:10px;font-weight:700;">
@@ -834,7 +834,7 @@
     </select>
     <input id="subtask-due" type="date" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;margin-bottom:10px;">
     <textarea id="subtask-notes" placeholder="Notes..." rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;font-family:inherit;resize:vertical;margin-bottom:10px;"></textarea>
-    <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px dashed var(--border);background:rgba(255,255,255,.03);cursor:pointer;margin-bottom:4px;font-size:.85rem;color:var(--muted);">Ã°Å¸â€œÅ½ Attach files <span style="font-size:.7rem;opacity:.6;">(max 25MB each)</span><input id="subtask-files" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;"></label>
+    <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px dashed var(--border);background:rgba(255,255,255,.03);cursor:pointer;margin-bottom:4px;font-size:.85rem;color:var(--muted);">&#128206; Attach files <span style="font-size:.7rem;opacity:.6;">(max 25MB each)</span><input id="subtask-files" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv,.xls,.xlsx" style="display:none;"></label>
     <div id="subtask-files-preview" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
     <button id="subtask-submit" class="btn primary" style="width:100%;padding:10px;font-size:.95rem;">Add Subtask</button>
   </div>
@@ -843,10 +843,10 @@
 <!-- Secrets Overlay (Passwords + Links) -->
 <div id="secrets-overlay" class="vault-ov" style="display:none;">
   <div class="vault-ov-page">
-    <div class="vault-ov-topbar"><h2>Ã°Å¸â€â€˜ Passwords & Secrets</h2><button class="vault-ov-close" data-close="secrets-overlay">&times; Close</button></div>
+    <div class="vault-ov-topbar"><h2>&#128274; Passwords & Secrets</h2><button class="vault-ov-close" data-close="secrets-overlay">&times; Close</button></div>
 
     <div class="card" style="padding:18px;margin-bottom:18px;">
-      <h3 style="margin:0 0 12px;">Ã°Å¸â€â€” Secret Links</h3>
+      <h3 style="margin:0 0 12px;">&#128279; Secret Links</h3>
       <form style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;" onsubmit="return false;">
         <input id="vault-link-name" type="text" placeholder="Name" style="flex:1;min-width:120px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;">
         <input id="vault-link-url" type="url" placeholder="https://..." style="flex:2;min-width:180px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
@@ -858,7 +858,7 @@
     </div>
 
     <div class="card" style="padding:18px;">
-      <h3 style="margin:0 0 12px;">Ã°Å¸â€â€˜ Passwords</h3>
+      <h3 style="margin:0 0 12px;">&#128274; Passwords</h3>
       <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
         <input id="vault-cred-label" type="text" placeholder="Label (e.g. Gmail)" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;">
         <input id="vault-cred-site" type="text" placeholder="Site URL" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
@@ -880,7 +880,7 @@
 <div id="notes-overlay" class="vault-ov" style="display:none;">
   <div class="vault-ov-page">
     <div class="vault-ov-topbar">
-      <h2>Ã°Å¸â€œÂ Secret Notes</h2>
+      <h2>&#128221; Secret Notes</h2>
       <div style="display:flex;align-items:center;gap:10px;">
         <span id="vault-notes-status" style="color:var(--muted);font-size:.75rem;"></span>
         <button id="vault-notes-toggle" class="btn ghost" style="padding:4px 10px;font-size:.8rem;">Hide</button>
@@ -894,7 +894,7 @@
 </div>
 
     <footer class="site-footer">
-      Created with Ã¢ÂÂ¤Ã¯Â¸Â by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
+      Created with &#10084;&#65039; by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
       <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v7.0 (Calendar Pro + Bulletproof Backup)</span>
     </footer>
   </div>
@@ -1369,6 +1369,6 @@
   </div>
 </div>
 
-    <script src="/assets/app-shell.v20260401y.js"></script>
+    <script src="/assets/app-shell.v20260401z.js"></script>
 </body>
 </html>
