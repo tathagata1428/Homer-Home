@@ -663,6 +663,7 @@ export default async function handler(req, res) {
           history: histRes.result ? JSON.parse(histRes.result) : [],
           tasks: effectiveTasks,
           fileLibrary: libraryRes.result ? JSON.parse(libraryRes.result) : [],
+          existingFiles,
           customFiles: existingCustomFiles,
           scope: mode,
           generatedAt
@@ -909,6 +910,7 @@ export default async function handler(req, res) {
           history: currentHistory,
           tasks: [],
           fileLibrary: currentFileLibrary,
+          existingFiles: currentFiles,
           customFiles: currentCustomFiles,
           scope: mode,
           generatedAt: learnedAt

@@ -3,9 +3,9 @@ import crypto from 'crypto';
 const BACKUP_MANIFEST_KEY = 'homer-backup-manifest';
 const FIELD_OP_BATCH_LIMIT = 100;
 const FIELD_OP_FETCH_LIMIT_MAX = 200;
-const FIELD_OP_RETAIN_MAX = 1000;
-const FIELD_OP_PRUNE_BATCH = 200;
-const FIELD_OP_PRUNE_INTERVAL = 25;
+const FIELD_OP_RETAIN_MAX = 250;
+const FIELD_OP_PRUNE_BATCH = 100;
+const FIELD_OP_PRUNE_INTERVAL = 10;
 
 function sortValue(value) {
   if (Array.isArray(value)) return value.map(sortValue);
@@ -266,7 +266,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Redis not configured' });
   }
 
-  var MAX_VERSIONS = 4;
+  var MAX_VERSIONS = 2;
 
   function parseManifest(snapshot) {
     if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return null;

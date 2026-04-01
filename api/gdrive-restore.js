@@ -1,5 +1,5 @@
 // Google Drive context restore — fetches Joey context from Google Apps Script, restores to Redis
-import { mergeDerivedFileContext } from '../lib/context-files.js';
+import { compactFileLibraryEntries, mergeDerivedFileContext } from '../lib/context-files.js';
 import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
 import { computeJoeySyncMeta, validateJoeySyncBundleMeta } from '../lib/joey-sync-meta.js';
 import {
@@ -116,7 +116,7 @@ export default async function handler(req, res) {
       loadRedisJson(redisFetch, FILE_LIBRARY_KEY, []),
       loadRedisJson(redisFetch, JOURNAL_KEY, [])
     ]);
-    const restoredFileLibrary = fileLibrary || currentFileLibrary || [];
+    const restoredFileLibrary = compactFileLibraryEntries(fileLibrary || currentFileLibrary || []);
     const restoredCustomFiles = sanitizeCustomFilesMap(customFiles || {});
     const restoredFiles = driveScope === 'md-only'
       ? (files && typeof files === 'object' ? files : {})

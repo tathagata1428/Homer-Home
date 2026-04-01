@@ -1,4 +1,4 @@
-import { buildContextFiles, mergeDerivedFileContext, preserveGeneratedContextFiles } from '../lib/context-files.js';
+import { buildContextFiles, compactFileLibraryEntries, mergeDerivedFileContext, preserveGeneratedContextFiles } from '../lib/context-files.js';
 import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
 import { computeJoeySyncMeta } from '../lib/joey-sync-meta.js';
 import {
@@ -198,6 +198,10 @@ export default async function handler(req, res) {
     const history = Array.isArray(fullHistory) ? fullHistory : [];
 
     let files = filesResult && typeof filesResult === 'object' ? filesResult : {};
+    const compactFileLibrary = compactFileLibraryEntries(fileLibrary);
+    if (JSON.stringify(compactFileLibrary) !== JSON.stringify(fileLibrary)) {
+      await saveRedisJson(redisFetch, FILE_LIBRARY_KEY, compactFileLibrary);
+    }
     let nextCustomFiles = customFiles && typeof customFiles === 'object' ? { ...customFiles } : {};
     if (!redisOnly) {
       if (quoteMarkdown) {
@@ -209,14 +213,15 @@ export default async function handler(req, res) {
         memories,
         history,
         tasks: effectiveTasks,
-        fileLibrary,
+        fileLibrary: compactFileLibrary,
+        existingFiles: files,
         customFiles: nextCustomFiles,
         scope: mode,
         generatedAt
       });
       const preserved = preserveGeneratedContextFiles(files, generatedFiles, nextCustomFiles, generatedAt);
       nextCustomFiles = preserved.customFiles && typeof preserved.customFiles === 'object' ? preserved.customFiles : nextCustomFiles;
-      files = mergeDerivedFileContext(preserved.files, fileLibrary, nextCustomFiles, generatedAt);
+      files = mergeDerivedFileContext(preserved.files, compactFileLibrary, nextCustomFiles, generatedAt);
       await Promise.all([
         saveRedisJson(redisFetch, FILES_KEY, files),
         saveRedisJson(redisFetch, CUSTOM_FILES_KEY, nextCustomFiles)
@@ -229,7 +234,7 @@ export default async function handler(req, res) {
       memories,
       history,
       files,
-      fileLibrary,
+      fileLibrary: compactFileLibrary,
       customFiles: nextCustomFiles,
       journal
     }, {

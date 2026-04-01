@@ -1,6 +1,6 @@
 import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
 import handleGdriveFile from '../lib/gdrive-file-handler.js';
-import { mergeDerivedFileContext } from '../lib/context-files.js';
+import { compactFileLibraryEntries, mergeDerivedFileContext } from '../lib/context-files.js';
 import { buildJoeySyncDrift, computeJoeySyncMeta, validateJoeySyncBundleMeta } from '../lib/joey-sync-meta.js';
 import {
   createRedisFetch,
@@ -438,7 +438,7 @@ export default async function handler(req, res) {
     const mergedProfile = mergeProfile(currentProfile, driveData.profile);
     const mergedMemories = mergeMemories(currentMemories, driveData.memories);
     const mergedHistory = mergeHistory(currentHistory, driveData.history);
-    const mergedFileLibrary = mergeFileLibrary(currentFileLibrary, driveData.fileLibrary);
+    const mergedFileLibrary = compactFileLibraryEntries(mergeFileLibrary(currentFileLibrary, driveData.fileLibrary));
     const mergedCustomFiles = mergeCustomFiles(currentCustomFiles, driveData.customFiles, driveFiles);
     const mergedFiles = mergeDerivedFileContext(
       mergeFiles(currentFiles, driveFiles, mergedCustomFiles),
