@@ -76,6 +76,108 @@ function applyDeterministicProfileMemory(profile, memoryText, category) {
   return current;
 }
 
+function normalizeHistoryMessage(item, index) {
+  if (!item || (item.role !== 'user' && item.role !== 'assistant')) return null;
+  const content = String(item.content || '').slice(0, 2000);
+  if (!content.trim()) return null;
+  const rawTs = Number(item.ts);
+  return {
+    role: item.role,
+    content,
+    ts: Number.isFinite(rawTs) && rawTs > 0 ? rawTs : (Date.now() + index)
+  };
+}
+
+function sameHistoryMessage(a, b) {
+  return !!a && !!b &&
+    a.role === b.role &&
+    String(a.content || '') === String(b.content || '') &&
+    Number(a.ts || 0) === Number(b.ts || 0);
+}
+
+function historyPrefixLength(a, b) {
+  const left = Array.isArray(a) ? a : [];
+  const right = Array.isArray(b) ? b : [];
+  const max = Math.min(left.length, right.length);
+  let index = 0;
+  while (index < max && sameHistoryMessage(left[index], right[index])) index += 1;
+  return index;
+}
+
+function historyIsPrefix(prefix, whole) {
+  const left = Array.isArray(prefix) ? prefix : [];
+  const right = Array.isArray(whole) ? whole : [];
+  if (left.length > right.length) return false;
+  for (let index = 0; index < left.length; index += 1) {
+    if (!sameHistoryMessage(left[index], right[index])) return false;
+  }
+  return true;
+}
+
+function historyTailHeadOverlap(a, b) {
+  const left = Array.isArray(a) ? a : [];
+  const right = Array.isArray(b) ? b : [];
+  const max = Math.min(left.length, right.length);
+  for (let size = max; size > 0; size -= 1) {
+    let ok = true;
+    for (let index = 0; index < size; index += 1) {
+      if (!sameHistoryMessage(left[left.length - size + index], right[index])) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return size;
+  }
+  return 0;
+}
+
+function mergeHistoryMessages(existing, incoming, options = {}) {
+  const current = (Array.isArray(existing) ? existing : [])
+    .map(normalizeHistoryMessage)
+    .filter(Boolean)
+    .slice(-MAX_HISTORY);
+  const next = (Array.isArray(incoming) ? incoming : [])
+    .map(normalizeHistoryMessage)
+    .filter(Boolean)
+    .slice(-MAX_HISTORY);
+
+  const clearedAt = Number(options.clearedAt || 0);
+  if (!next.length && clearedAt > 0) return [];
+  if (!current.length) return next;
+  if (!next.length) return current;
+  if (historyIsPrefix(current, next)) return next;
+  if (historyIsPrefix(next, current)) return current;
+
+  const overlapForward = historyTailHeadOverlap(current, next);
+  if (overlapForward > 0) {
+    return current.concat(next.slice(overlapForward)).slice(-MAX_HISTORY);
+  }
+
+  const overlapReverse = historyTailHeadOverlap(next, current);
+  if (overlapReverse > 0) {
+    return next.concat(current.slice(overlapReverse)).slice(-MAX_HISTORY);
+  }
+
+  const sharedPrefix = historyPrefixLength(current, next);
+  const prefix = current.slice(0, sharedPrefix);
+  const mergedTail = current.slice(sharedPrefix).concat(next.slice(sharedPrefix))
+    .sort((a, b) => {
+      const aTs = Number(a && a.ts) || 0;
+      const bTs = Number(b && b.ts) || 0;
+      if (aTs !== bTs) return aTs - bTs;
+      return 0;
+    });
+  const dedupedTail = [];
+  const seen = new Set();
+  mergedTail.forEach((item) => {
+    const key = String(item.ts || 0) + '|' + item.role + '|' + item.content;
+    if (seen.has(key)) return;
+    seen.add(key);
+    dedupedTail.push(item);
+  });
+  return prefix.concat(dedupedTail).slice(-MAX_HISTORY);
+}
+
 function sanitizeManagedCustomFiles(value) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const out = {};
@@ -462,7 +564,7 @@ export default async function handler(req, res) {
         });
       }
       if (req.method === 'POST') {
-        const { messages } = req.body || {};
+        const { messages, chatClearedAt } = req.body || {};
         if (!messages || !Array.isArray(messages)) {
           return res.status(400).json({ error: 'Missing messages array' });
         }
@@ -471,28 +573,31 @@ export default async function handler(req, res) {
           loadRedisJson(redis, SYNC_META_KEY, {})
         ]);
         const cleaned = messages
-          .filter(m => m.role === 'user' || m.role === 'assistant')
-          .map(m => ({ role: m.role, content: (m.content || '').slice(0, 2000) }))
+          .map(normalizeHistoryMessage)
+          .filter(Boolean)
           .slice(-MAX_HISTORY);
-        await redis(['SET', HISTORY_KEY, JSON.stringify(cleaned)]);
+        const merged = mergeHistoryMessages(previous, cleaned, { clearedAt: chatClearedAt });
+        await redis(['SET', HISTORY_KEY, JSON.stringify(merged)]);
         const journalEntries = [];
         const prevNormalized = Array.isArray(previous) ? previous : [];
-        const prevLooksPrefix = prevNormalized.length <= cleaned.length && prevNormalized.every((item, index) => (
-          item && cleaned[index] &&
-          item.role === cleaned[index].role &&
-          String(item.content || '') === String(cleaned[index].content || '')
-        ));
+        const prevLooksPrefix = historyIsPrefix(prevNormalized, merged);
         if (prevLooksPrefix) {
-          cleaned.slice(prevNormalized.length).forEach((item) => {
+          merged.slice(prevNormalized.length).forEach((item) => {
             journalEntries.push(buildJournalEntry('message', {
               role: item.role,
               text: item.content,
               source: 'history-sync'
             }));
           });
+        } else if (!merged.length && Number(chatClearedAt || 0) > 0) {
+          journalEntries.push(buildJournalEntry('history-cleared', {
+            text: 'Chat cleared',
+            source: 'history-sync',
+            ts: Number(chatClearedAt) || Date.now()
+          }));
         } else {
           journalEntries.push(buildJournalEntry('history-rewrite', {
-            text: JSON.stringify(cleaned.slice(-8)),
+            text: JSON.stringify(merged.slice(-8)),
             source: 'history-sync'
           }));
         }
@@ -502,7 +607,7 @@ export default async function handler(req, res) {
         await saveRedisJson(redis, SYNC_META_KEY, nextSyncMeta);
         return res.status(200).json({
           ok: true,
-          count: cleaned.length,
+          count: merged.length,
           updatedAt,
           syncMeta: nextSyncMeta
         });
