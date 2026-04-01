@@ -2103,6 +2103,11 @@
     .oc-action-btn{width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,.1);cursor:pointer;flex-shrink:0;
       background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;}
     .oc-action-btn:hover{background:rgba(255,255,255,.08);border-color:rgba(234,88,12,.3);}
+    .oc-action-btn.active{background:rgba(234,88,12,.14);border-color:rgba(234,88,12,.42);}
+    .oc-action-btn.recording{background:rgba(220,38,38,.16);border-color:rgba(248,113,113,.52);box-shadow:0 0 0 3px rgba(248,113,113,.12);}
+    .oc-action-btn.recording svg{stroke:#fca5a5;}
+    .oc-action-btn:disabled{opacity:.45;cursor:not-allowed;}
+    .oc-action-btn:disabled:hover{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1);}
     .oc-action-btn svg{width:16px;height:16px;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
     #oc-chat-input{
       flex:1;padding:10px 14px;border-radius:14px;
