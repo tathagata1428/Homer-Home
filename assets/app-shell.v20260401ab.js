@@ -16486,14 +16486,41 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     sendBtn.disabled = true;
     fabDot.className = 'fab-dot ok';
     addTypingIndicator();
+    var composerReleased = false;
+    function releaseComposer(){
+      if(composerReleased) return;
+      composerReleased = true;
+      streaming = false;
+      sendBtn.disabled = false;
+      fabDot.className = 'fab-dot off';
+    }
 
     try{
       var syncPass = localStorage.getItem('homer-sync-pass') || '';
       var apiEndpoint = currentProvider === 'nemoclaw' ? '/api/nemoclaw' : '/api/openclaw';
       console.log('[Joey/NemoClaw] provider=' + currentProvider + ' endpoint=' + apiEndpoint);
+      var streamController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var streamIdleTimer = null;
+      var streamSawContent = false;
+      function clearStreamIdleTimer(){
+        if(streamIdleTimer){
+          clearTimeout(streamIdleTimer);
+          streamIdleTimer = null;
+        }
+      }
+      function armStreamIdleTimer(){
+        clearStreamIdleTimer();
+        if(!streamController) return;
+        streamIdleTimer = setTimeout(function(){
+          if(streamSawContent){
+            try{ streamController.abort(new Error('stream-idle-timeout')); }catch(_e){}
+          }
+        }, isMobileShell() ? 2200 : 3200);
+      }
       var res = await fetch(apiEndpoint, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
+        signal: streamController ? streamController.signal : undefined,
         body: JSON.stringify(withContextMode({
           messages: apiMessages,
           passphrase: syncPass,
@@ -16526,7 +16553,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       if(!res.ok){
         var errText = await res.text().catch(function(){ return res.statusText; });
         showError('Error ' + res.status + ': ' + (errText || 'Unknown error'));
-        streaming = false; sendBtn.disabled = false; fabDot.className = 'fab-dot off';
+        clearStreamIdleTimer();
+        releaseComposer();
         return;
       }
 
@@ -16537,6 +16565,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       while(true){
         var chunk = await reader.read();
         if(chunk.done) break;
+        streamSawContent = true;
+        armStreamIdleTimer();
         buffer += decoder.decode(chunk.value, {stream:true});
         var lines = buffer.split('\n');
         buffer = lines.pop();
@@ -16552,11 +16582,26 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
           }catch(e){}
         }
       }
+      clearStreamIdleTimer();
 
       var fullResponse = finalizeBotMessage();
       if(fullResponse){
         // Execute any actions (tasks, goals, events) and strip tags from display
-      var cleanResponse = executeActions(fullResponse, displayText);
+        var cleanResponse = executeActions(fullResponse, displayText);
+        chatHistory.push({role:'assistant', content:cleanResponse, provider:currentProvider, model:modelLabel || primaryModelLabel || getStoredModelLabel(currentProvider, currentContextMode), mode:currentContextMode, ts:Date.now()});
+        markLocalChatMutation();
+        markJoeyDriveBackupDirty('chat-assistant');
+        incrementUnread();
+        var lastBot = messagesEl.querySelector('.oc-msg.bot:last-of-type');
+        if(lastBot && lastBot.querySelector('.oc-content')){
+          var tag = lastBot.querySelector('.oc-model-tag');
+          if(tag) tag.textContent = modelLabel || primaryModelLabel || getStoredModelLabel(currentProvider, currentContextMode);
+          lastBot.querySelector('.oc-content').innerHTML = renderMd(cleanResponse);
+          syncMessageCodeActions(lastBot, 'assistant', cleanResponse);
+          injectCodeCopyButtons(lastBot);
+        }
+        updateScrollLatestButton();
+        releaseComposer();
         if(currentProvider === 'joey' && deferredQuoteRequest){
           var generatedQuotes = extractGeneratedQuotes(cleanResponse);
           if(generatedQuotes.length){
@@ -16591,20 +16636,14 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
             }
           }
         }
-        chatHistory.push({role:'assistant', content:cleanResponse, provider:currentProvider, model:modelLabel || primaryModelLabel || getStoredModelLabel(currentProvider, currentContextMode), mode:currentContextMode, ts:Date.now()});
-        markLocalChatMutation();
-        markJoeyDriveBackupDirty('chat-assistant');
-        incrementUnread();
-        // Re-render the last bot message without action tags
-        var lastBot = messagesEl.querySelector('.oc-msg.bot:last-of-type');
         if(lastBot && lastBot.querySelector('.oc-content')){
-          var tag = lastBot.querySelector('.oc-model-tag');
-          if(tag) tag.textContent = modelLabel || primaryModelLabel || getStoredModelLabel(currentProvider, currentContextMode);
           lastBot.querySelector('.oc-content').innerHTML = renderMd(cleanResponse);
           syncMessageCodeActions(lastBot, 'assistant', cleanResponse);
           injectCodeCopyButtons(lastBot);
         }
-        updateScrollLatestButton();
+        if(chatHistory.length){
+          chatHistory[chatHistory.length - 1].content = cleanResponse;
+        }
       }
       saveChatToVault();
       if(currentProvider === 'joey'){
@@ -16623,12 +16662,14 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       }
 
     }catch(err){
+      clearStreamIdleTimer();
       removeTypingIndicator();
-      showError('Connection error: ' + err.message);
+      var errMsg = err && err.message ? err.message : String(err);
+      if(!(streamRaw && /stream-idle-timeout/i.test(errMsg))){
+        showError('Connection error: ' + errMsg);
+      }
     }
-    streaming = false;
-    sendBtn.disabled = false;
-    fabDot.className = 'fab-dot off';
+    releaseComposer();
   }
 
   sendBtn.addEventListener('click', function(e){
