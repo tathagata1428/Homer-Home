@@ -537,7 +537,7 @@ export default async function handler(req, res) {
           ts: Date.now(),
           source: source || 'manual',
           confidence: typeof confidence === 'number' ? Math.max(0, Math.min(1, confidence)) : undefined,
-          pinned: !!pinned
+          pinned: !!pinned || /^(direct-user-remember|implicit-profile-remember)$/i.test(String(source || ''))
         });
         while (memories.length > MAX_MEMORIES) memories.shift();
         const customFiles = sanitizeManagedCustomFiles(customFilesResult.result ? JSON.parse(customFilesResult.result) : {});
