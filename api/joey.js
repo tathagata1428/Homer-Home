@@ -621,11 +621,14 @@ export default async function handler(req, res) {
         let quoteMemories = null;
         let savedQuotesChanged = false;
         if (typeof savedQuotesContent === 'string') {
-          const normalizedQuotes = mergeQuotesMarkdown('', savedQuotesContent);
           const currentQuotes = String(existingCustomFiles[QUOTES_FILE_NAME] || '');
+          const incomingQuotes = String(savedQuotesContent || '');
+          const normalizedQuotes = incomingQuotes.trim()
+            ? mergeQuotesMarkdown(currentQuotes, incomingQuotes)
+            : currentQuotes;
           if (normalizedQuotes.trim()) {
             existingCustomFiles[QUOTES_FILE_NAME] = normalizedQuotes;
-          } else {
+          } else if (incomingQuotes.trim()) {
             delete existingCustomFiles[QUOTES_FILE_NAME];
           }
           savedQuotesChanged = currentQuotes !== String(existingCustomFiles[QUOTES_FILE_NAME] || '');
