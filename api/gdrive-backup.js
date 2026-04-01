@@ -109,10 +109,11 @@ export default async function handler(req, res) {
   try {
     const requestKind = String((req.body || {}).kind || '').trim().toLowerCase();
     const forceBackup = !!(req.body && req.body.force);
+    const redisOnly = !!(req.body && req.body.redisOnly);
     const taskSnapshot = Array.isArray((req.body || {}).tasks) ? req.body.tasks : [];
     const quoteMarkdown = typeof (req.body || {}).quoteMarkdown === 'string' ? String(req.body.quoteMarkdown || '').trim() : '';
     const cleanupManaged = !!(req.body && req.body.cleanupManaged);
-    const effectiveTasks = taskSnapshot;
+    const effectiveTasks = redisOnly ? [] : taskSnapshot;
     const isValid = await verifyJoeyPassphrase(passphrase, redisFetch);
     if (!isValid) return res.status(403).json({ error: 'Forbidden' });
 
@@ -185,28 +186,30 @@ export default async function handler(req, res) {
     const history = Array.isArray(fullHistory) ? fullHistory : [];
 
     let files = filesResult && typeof filesResult === 'object' ? filesResult : {};
-    let nextCustomFilesSource = customFiles && typeof customFiles === 'object' ? { ...customFiles } : {};
-    if (quoteMarkdown) {
-      nextCustomFilesSource[QUOTES_FILE_NAME] = mergeQuotesMarkdown(nextCustomFilesSource[QUOTES_FILE_NAME], quoteMarkdown);
+    let nextCustomFiles = customFiles && typeof customFiles === 'object' ? { ...customFiles } : {};
+    if (!redisOnly) {
+      if (quoteMarkdown) {
+        nextCustomFiles[QUOTES_FILE_NAME] = mergeQuotesMarkdown(nextCustomFiles[QUOTES_FILE_NAME], quoteMarkdown);
+      }
+      const generatedAt = String((syncMetaStored && (syncMetaStored.lastCommittedAt || syncMetaStored.updatedAt)) || new Date().toISOString());
+      const generatedFiles = buildContextFiles({
+        profile: profile || {},
+        memories,
+        history,
+        tasks: effectiveTasks,
+        fileLibrary,
+        customFiles: nextCustomFiles,
+        scope: mode,
+        generatedAt
+      });
+      const preserved = preserveGeneratedContextFiles(files, generatedFiles, nextCustomFiles, generatedAt);
+      nextCustomFiles = preserved.customFiles && typeof preserved.customFiles === 'object' ? preserved.customFiles : nextCustomFiles;
+      files = mergeDerivedFileContext(preserved.files, fileLibrary, nextCustomFiles, generatedAt);
+      await Promise.all([
+        saveRedisJson(redisFetch, FILES_KEY, files),
+        saveRedisJson(redisFetch, CUSTOM_FILES_KEY, nextCustomFiles)
+      ]);
     }
-    const generatedAt = String((syncMetaStored && (syncMetaStored.lastCommittedAt || syncMetaStored.updatedAt)) || new Date().toISOString());
-    const generatedFiles = buildContextFiles({
-      profile: profile || {},
-      memories,
-      history,
-      tasks: effectiveTasks,
-      fileLibrary,
-      customFiles: nextCustomFilesSource,
-      scope: mode,
-      generatedAt
-    });
-    const preserved = preserveGeneratedContextFiles(files, generatedFiles, nextCustomFilesSource, generatedAt);
-    const nextCustomFiles = preserved.customFiles && typeof preserved.customFiles === 'object' ? preserved.customFiles : nextCustomFilesSource;
-    files = mergeDerivedFileContext(preserved.files, fileLibrary, nextCustomFiles, generatedAt);
-    await Promise.all([
-      saveRedisJson(redisFetch, FILES_KEY, files),
-      saveRedisJson(redisFetch, CUSTOM_FILES_KEY, nextCustomFiles)
-    ]);
 
     const syncMeta = computeJoeySyncMeta({
       mode,
@@ -221,7 +224,7 @@ export default async function handler(req, res) {
       ...(syncMetaStored && typeof syncMetaStored === 'object' ? syncMetaStored : {}),
       mode,
       updatedAt: new Date().toISOString(),
-      lastSource: 'gdrive-backup'
+      lastSource: redisOnly ? 'gdrive-backup-redis' : 'gdrive-backup'
     });
 
     if (
