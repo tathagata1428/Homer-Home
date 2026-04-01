@@ -45,8 +45,9 @@ function applyDeterministicProfileMemory(profile, memoryText, category) {
   if (match) {
     const subject = String(match[1] || '').trim().toLowerCase();
     const value = String(match[2] || '').trim();
-    if (subject === 'color' || subject === 'colour') current.favorite_color = value;
-    return appendProfilePreference(current, 'Favorite ' + subject + ': ' + value);
+    const normalizedSubject = subject === 'coleor' ? 'color' : subject;
+    if (normalizedSubject === 'color' || normalizedSubject === 'colour') current.favorite_color = value;
+    return appendProfilePreference(current, 'Favorite ' + normalizedSubject + ': ' + value);
   }
 
   match = normalized.match(/^i\s+prefer\s+(.+)$/i);
