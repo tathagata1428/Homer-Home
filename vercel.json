@@ -1,6 +1,17 @@
 {
   "redirects": [
     {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.b4it.ro"
+        }
+      ],
+      "destination": "https://b4it.ro/:path*",
+      "permanent": true
+    },
+    {
       "source": "/api",
       "destination": "/",
       "permanent": true
