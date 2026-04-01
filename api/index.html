@@ -16,6 +16,14 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Homer">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script>
+    (function(){
+      var host = location.hostname || '';
+      if (/\.vercel\.app$/i.test(host) && !/^b4it\.ro$/i.test(host) && !/^www\.b4it\.ro$/i.test(host)) {
+        location.replace('https://b4it.ro' + location.pathname + location.search + location.hash);
+      }
+    })();
+  </script>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
 
@@ -1380,6 +1388,6 @@
   </div>
 </div>
 
-    <script src="/assets/app-shell.v20260401c.js"></script>
+    <script src="/assets/app-shell.v20260401d.js"></script>
 </body>
 </html>
