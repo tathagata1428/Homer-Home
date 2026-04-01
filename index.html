@@ -19,7 +19,7 @@
   <script>
     (function(){
       var host = location.hostname || '';
-      if (/\.vercel\.app$/i.test(host) && !/^b4it\.ro$/i.test(host) && !/^www\.b4it\.ro$/i.test(host)) {
+      if (/^www\.b4it\.ro$/i.test(host) || (/\.vercel\.app$/i.test(host) && !/^b4it\.ro$/i.test(host) && !/^www\.b4it\.ro$/i.test(host))) {
         location.replace('https://b4it.ro' + location.pathname + location.search + location.hash);
       }
     })();
@@ -1388,6 +1388,6 @@
   </div>
 </div>
 
-    <script src="/assets/app-shell.v20260401d.js"></script>
+    <script src="/assets/app-shell.v20260401e.js"></script>
 </body>
 </html>

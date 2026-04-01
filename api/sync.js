@@ -337,7 +337,7 @@ export default async function handler(req, res) {
   }
 
   async function verifyStoredSnapshot(redis, key, expectedHash) {
-    var stored = await readJsonKey(redis, key, 8, 250);
+    var stored = await readJsonKey(redis, key, 20, 300);
     if (!stored) return { ok: false, reason: 'Stored snapshot missing after write' };
     var inspected = inspectSnapshot(stored);
     if (!inspected.ok) return { ok: false, reason: inspected.reason, integrity: inspected };
