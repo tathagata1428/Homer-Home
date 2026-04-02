@@ -10,6 +10,13 @@ import {
   saveRedisJson,
   verifyJoeyPassphrase
 } from '../lib/joey-server.js';
+import {
+  isSupabaseConfigured,
+  createAdminClient,
+  createUserClient,
+  verifySupabaseJwt
+} from '../lib/supabase-server.js';
+import { createSupabaseRedisFetch } from '../lib/supabase-redis-compat.js';
 
 const GDRIVE_BACKUP_TIMEOUT_MS = 60000;
 const QUOTES_FILE_NAME = 'Quotes.md';
@@ -91,20 +98,19 @@ function mergeQuotesMarkdown(existingMarkdown, incomingMarkdown) {
   return buildQuotesMarkdown(merged);
 }
 
-// Google Drive context backup — fetches Joey context from Redis, POSTs to Google Apps Script
+// Google Drive context backup — fetches Joey context from Supabase/Redis, POSTs to Google Apps Script
 export default async function handler(req, res) {
   const origin = req.headers.origin || '*';
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   // --- Auth ---
   const { passphrase } = req.body || {};
-  if (!passphrase) return res.status(401).json({ error: 'Missing passphrase' });
   const mode = getJoeyMode(req);
   const { MEMORY_KEY, PROFILE_KEY, HISTORY_KEY, FILES_KEY, FILE_LIBRARY_KEY, CUSTOM_FILES_KEY, JOURNAL_KEY, SYNC_META_KEY } = getJoeyContextKeys(mode);
 
@@ -113,10 +119,38 @@ export default async function handler(req, res) {
   if (!gdriveWebhook) return res.status(500).json({ error: 'GDRIVE_WEBHOOK_URL not configured' });
   if (!gdriveSecret) return res.status(500).json({ error: 'GDRIVE_SECRET not configured' });
 
-  // --- Redis ---
-  const redisFetch = createRedisFetch();
+  // --- Resolve data backend (Supabase preferred for JWT users) ---
+  let redisFetch;
+  const authHeader = String(req.headers.authorization || '');
+  const jwtToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+  let supabaseUser = null;
+  const supabaseEnabled = isSupabaseConfigured();
+  const rawRedisFetch = createRedisFetch();
   const { url: redisUrl, token: redisToken } = getRedisConfig();
-  if (!redisUrl || !redisToken || !redisFetch) return res.status(500).json({ error: 'Redis not configured' });
+  if (jwtToken && supabaseEnabled) {
+    supabaseUser = await verifySupabaseJwt(jwtToken).catch(() => null);
+  }
+  if (supabaseUser) {
+    const supabaseClient = createUserClient(jwtToken);
+    redisFetch = createSupabaseRedisFetch(supabaseClient, supabaseUser.id);
+  } else {
+    if (!passphrase) return res.status(401).json({ error: 'Missing passphrase' });
+    // Try passphrase against admin hash first — works without Redis
+    const adminHash = String(process.env.HOMER_ADMIN_HASH || '').trim();
+    const ownerId = String(process.env.SUPABASE_OWNER_ID || '').trim();
+    let isValid = !!adminHash && passphrase.trim() === adminHash;
+    if (!isValid && rawRedisFetch) {
+      isValid = await verifyJoeyPassphrase(passphrase, rawRedisFetch);
+    }
+    if (!isValid) return res.status(403).json({ error: 'Forbidden' });
+
+    if (supabaseEnabled && ownerId) {
+      redisFetch = createSupabaseRedisFetch(createAdminClient(), ownerId);
+    } else {
+      if (!redisUrl || !redisToken || !rawRedisFetch) return res.status(500).json({ error: 'Redis not configured' });
+      redisFetch = rawRedisFetch;
+    }
+  }
 
   try {
     const requestKind = String((req.body || {}).kind || '').trim().toLowerCase();
@@ -126,8 +160,6 @@ export default async function handler(req, res) {
     const quoteMarkdown = typeof (req.body || {}).quoteMarkdown === 'string' ? String(req.body.quoteMarkdown || '').trim() : '';
     const cleanupManaged = !!(req.body && req.body.cleanupManaged);
     const effectiveTasks = redisOnly ? [] : taskSnapshot;
-    const isValid = await verifyJoeyPassphrase(passphrase, redisFetch);
-    if (!isValid) return res.status(403).json({ error: 'Forbidden' });
 
     if (requestKind === 'vault-snapshot') {
       const snapshot = req.body && req.body.snapshot && typeof req.body.snapshot === 'object' ? req.body.snapshot : null;
