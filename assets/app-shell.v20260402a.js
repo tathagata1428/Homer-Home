@@ -533,10 +533,15 @@ function renderQuote(q) {
       });
       return latestItem ? normalizeSavedQuoteText(latestItem.q) : '';
     }
+    function getQuotesSyncAuthHeader(){
+      try{ if(typeof window.supabaseAuthHeader === 'function') return String(window.supabaseAuthHeader() || '').trim(); }catch(_e){}
+      return '';
+    }
     function verifyRemoteQuotesFile(pass, expectedContent){
       var expectedLatestTs = getLatestSavedQuoteTimestampFromMarkdown(expectedContent);
       var expectedLatestQuote = getLatestSavedQuoteTextFromList(loadSaved()).toLowerCase();
-      return fetch(savedQuotesActionUrl('custom-files', pass), { cache:'no-store' })
+      var qsAuth = getQuotesSyncAuthHeader();
+      return fetch(savedQuotesActionUrl('custom-files', pass), qsAuth ? { cache:'no-store', headers:{ Authorization: qsAuth } } : { cache:'no-store' })
         .then(function(r){ return r.json(); })
         .then(function(data){
           var remoteContent = data && data.customFiles ? String(data.customFiles[SAVED_QUOTES_FILE_NAME] || '') : '';
@@ -584,9 +589,12 @@ function renderQuote(q) {
           return finalizeQuoteSyncSuccess();
         });
       }
+      var qsPostAuth = getQuotesSyncAuthHeader();
+      var qsPostHeaders = { 'Content-Type':'application/json' };
+      if(qsPostAuth) qsPostHeaders.Authorization = qsPostAuth;
       return fetch(savedQuotesActionUrl('custom-files', pass), {
         method:'POST',
-        headers:{'Content-Type':'application/json'},
+        headers: qsPostHeaders,
         body: JSON.stringify(withSavedQuotesMode({
           passphrase: pass,
           name: SAVED_QUOTES_FILE_NAME,
@@ -11936,7 +11944,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
     renderJoeySyncStatusState('Checking Redis and Google Drive for ' + (currentContextMode === 'work' ? 'Work' : 'Personal') + ' mode...', [], []);
     joeySyncStatusInFlight = Promise.all([
-      fetchJson(joeyActionUrl('sync-meta', pass), withSupabaseAuth({ cache:'no-store' })),
+      fetch(joeyActionUrl('sync-meta', pass), withSupabaseAuth({ cache:'no-store' })).then(function(r){ return r.json(); }),
       fetch('/api/gdrive-reconcile', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
