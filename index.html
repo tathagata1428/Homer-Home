@@ -9,6 +9,8 @@
   <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="manifest" href="/manifest.json">
+  <link rel="canonical" href="https://homer-home.vercel.app/">
+  <meta property="og:url" content="https://homer-home.vercel.app/">
 
   <meta name="theme-color" content="#0f172a">
   <meta name="application-name" content="Homer">
@@ -406,68 +408,129 @@
     </div>
   </div>
 
- <div class="card ambient-section" style="margin-top:28px; text-align:center; padding:24px; max-width:860px; margin-inline:auto;">
-  <h2 class="section" style="margin-bottom:16px;">Ã°Å¸Å½Â§ Ambient Sounds</h2>
+<style>
+  .sound-card {
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+    padding:18px 14px 14px;
+    border-radius:16px;
+    border:1px solid rgba(255,255,255,.1);
+    background:linear-gradient(160deg,rgba(15,23,42,.95),rgba(2,6,23,.98));
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .sound-card:hover { border-color:rgba(96,165,250,.35); box-shadow:0 4px 24px rgba(96,165,250,.08); }
+  .sound-icon {
+    font-size:2rem; line-height:1; filter:drop-shadow(0 2px 8px rgba(0,0,0,.5));
+  }
+  .sound-name {
+    font-size:.78rem; font-weight:800; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--muted); margin:0;
+  }
+  .sound-btn {
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    width:100%; padding:9px 12px; border-radius:10px; border:none; cursor:pointer;
+    font-size:.85rem; font-weight:700; letter-spacing:.02em;
+    background:linear-gradient(135deg,#1e3a5f,#1a2744);
+    color:#93c5fd;
+    box-shadow:0 4px 12px rgba(0,0,0,.5), 0 1px 0 rgba(255,255,255,.06) inset, 0 -2px 0 rgba(0,0,0,.4) inset;
+    transition:transform .08s, box-shadow .08s, background .1s;
+  }
+  .sound-btn:active { transform:translateY(2px); box-shadow:0 1px 4px rgba(0,0,0,.5), 0 1px 0 rgba(0,0,0,.3) inset; }
+  .sound-btn.playing {
+    background:linear-gradient(135deg,#1d4ed8,#1e40af);
+    color:#fff;
+    box-shadow:0 4px 16px rgba(37,99,235,.45), 0 1px 0 rgba(255,255,255,.12) inset, 0 -2px 0 rgba(0,0,0,.3) inset;
+  }
+  .sound-vol { width:100%; accent-color:#3b82f6; cursor:pointer; }
+  .mix-btn {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:9px 16px; border-radius:10px; border:1px solid rgba(148,163,184,.2);
+    background:linear-gradient(135deg,rgba(30,41,59,.9),rgba(15,23,42,.95));
+    color:var(--text); font-size:.85rem; font-weight:700; cursor:pointer;
+    box-shadow:0 3px 10px rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.06) inset, 0 -2px 0 rgba(0,0,0,.35) inset;
+    transition:transform .08s, box-shadow .08s, border-color .12s;
+  }
+  .mix-btn:hover { border-color:rgba(96,165,250,.4); box-shadow:0 4px 14px rgba(0,0,0,.5), 0 1px 0 rgba(255,255,255,.08) inset, 0 -2px 0 rgba(0,0,0,.35) inset; }
+  .mix-btn:active { transform:translateY(2px); box-shadow:0 1px 4px rgba(0,0,0,.4), 0 1px 0 rgba(0,0,0,.2) inset; }
+  .stop-btn {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:9px 16px; border-radius:10px; border:1px solid rgba(239,68,68,.25);
+    background:linear-gradient(135deg,rgba(127,29,29,.6),rgba(69,10,10,.7));
+    color:#fca5a5; font-size:.85rem; font-weight:700; cursor:pointer;
+    box-shadow:0 3px 10px rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.04) inset, 0 -2px 0 rgba(0,0,0,.35) inset;
+    transition:transform .08s, box-shadow .08s;
+  }
+  .stop-btn:active { transform:translateY(2px); box-shadow:0 1px 4px rgba(0,0,0,.4); }
+</style>
 
-  <div style="
-    display:grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap:16px;
-    justify-items:stretch;
-  ">
-    <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">Ocean</h3>
-      <button id="btn-ocean" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">Play Ocean</button>
-      <input id="vol-ocean" type="range" min="0" max="100" value="50" style="width:100%;">
+<div class="card ambient-section" style="margin-top:28px; text-align:center; padding:24px; max-width:900px; margin-inline:auto;">
+  <h2 class="section" style="margin-bottom:20px; font-size:1.25rem; letter-spacing:.04em;">&#127911; Ambient Sounds</h2>
+
+  <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; justify-items:stretch;">
+
+    <div class="sound-card">
+      <div class="sound-icon">&#127754;</div>
+      <p class="sound-name">Ocean</p>
+      <button id="btn-ocean" class="sound-btn"><span>&#9654;</span> Play</button>
+      <input id="vol-ocean" class="sound-vol" type="range" min="0" max="100" value="50">
     </div>
 
-    <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">Fireplace</h3>
-      <button id="btn-fire" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">Play Fireplace</button>
-      <input id="vol-fire" type="range" min="0" max="100" value="40" style="width:100%;">
+    <div class="sound-card">
+      <div class="sound-icon">&#128293;</div>
+      <p class="sound-name">Fireplace</p>
+      <button id="btn-fire" class="sound-btn"><span>&#9654;</span> Play</button>
+      <input id="vol-fire" class="sound-vol" type="range" min="0" max="100" value="40">
     </div>
 
-    <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">Rain</h3>
-      <button id="btn-rain" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">Play Rain</button>
-      <input id="vol-rain" type="range" min="0" max="100" value="60" style="width:100%;">
+    <div class="sound-card">
+      <div class="sound-icon">&#127783;&#65039;</div>
+      <p class="sound-name">Rain</p>
+      <button id="btn-rain" class="sound-btn"><span>&#9654;</span> Play</button>
+      <input id="vol-rain" class="sound-vol" type="range" min="0" max="100" value="60">
     </div>
 
-    <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">Jazz</h3>
-      <button id="btn-rainywindow" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">Play Jazz</button>
-      <input id="vol-rainywindow" type="range" min="0" max="100" value="60" style="width:100%;">
+    <div class="sound-card">
+      <div class="sound-icon">&#127926;</div>
+      <p class="sound-name">Jazz</p>
+      <button id="btn-rainywindow" class="sound-btn"><span>&#9654;</span> Play</button>
+      <input id="vol-rainywindow" class="sound-vol" type="range" min="0" max="100" value="60">
     </div>
 
-    <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">Cafe</h3>
-      <button id="btn-cafe" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">Play Cafe</button>
-      <input id="vol-cafe" type="range" min="0" max="100" value="50" style="width:100%;">
+    <div class="sound-card">
+      <div class="sound-icon">&#9749;</div>
+      <p class="sound-name">Cafe</p>
+      <button id="btn-cafe" class="sound-btn"><span>&#9654;</span> Play</button>
+      <input id="vol-cafe" class="sound-vol" type="range" min="0" max="100" value="50">
     </div>
 
-    <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">Lo-Fi Chill Beats</h3>
-      <button id="btn-lofi" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">Play Lo-Fi</button>
-      <input id="vol-lofi" type="range" min="0" max="100" value="50" style="width:100%;">
+    <div class="sound-card">
+      <div class="sound-icon">&#127911;</div>
+      <p class="sound-name">Lo-Fi</p>
+      <button id="btn-lofi" class="sound-btn"><span>&#9654;</span> Play</button>
+      <input id="vol-lofi" class="sound-vol" type="range" min="0" max="100" value="50">
     </div>
 
-    <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">Wind</h3>
-      <button id="btn-wind" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">Play Wind</button>
-      <input id="vol-wind" type="range" min="0" max="100" value="50" style="width:100%;">
+    <div class="sound-card">
+      <div class="sound-icon">&#127800;</div>
+      <p class="sound-name">Wind</p>
+      <button id="btn-wind" class="sound-btn"><span>&#9654;</span> Play</button>
+      <input id="vol-wind" class="sound-vol" type="range" min="0" max="100" value="50">
     </div>
 
-    <div class="card" style="padding:16px; text-align:left;">
-      <h3 style="margin:0 0 10px;">Synthwave Mix</h3>
-      <button id="btn-synthwave" class="btn primary" style="width:100%; margin-bottom:8px; padding:8px 12px; font-size:.95rem;">Play Synthwave</button>
-      <input id="vol-synthwave" type="range" min="0" max="100" value="50" style="width:100%;">
+    <div class="sound-card">
+      <div class="sound-icon">&#127305;</div>
+      <p class="sound-name">Synthwave</p>
+      <button id="btn-synthwave" class="sound-btn"><span>&#9654;</span> Play</button>
+      <input id="vol-synthwave" class="sound-vol" type="range" min="0" max="100" value="50">
     </div>
-  </div> <div class="ambient-section" style="margin-top:24px; display:flex; flex-wrap:wrap; justify-content:center; gap:12px;">
-    <button id="mix-sleep" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">Sleep Mix</button>
-    <button id="mix-rainy" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">Rainy Mix</button>
-    <button id="mix-reading" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">Reading Mix</button>
-    <button id="mix-cozy" class="btn secondary" style="padding:8px 14px; font-size:.95rem;">Cozy Night In</button>
-    <button id="stop-all" class="btn ghost" style="padding:8px 14px; font-size:.95rem;">Stop All</button>
+
+  </div>
+
+  <div class="ambient-section" style="margin-top:20px; display:flex; flex-wrap:wrap; justify-content:center; gap:10px;">
+    <button id="mix-sleep" class="mix-btn">&#128564; Sleep Mix</button>
+    <button id="mix-rainy" class="mix-btn">&#127783;&#65039; Rainy Mix</button>
+    <button id="mix-reading" class="mix-btn">&#128218; Reading Mix</button>
+    <button id="mix-cozy" class="mix-btn">&#128336; Cozy Night</button>
+    <button id="stop-all" class="stop-btn">&#9632; Stop All</button>
   </div>
 
   <div id="yt-ocean" class="yt-hidden-player"></div>
@@ -976,10 +1039,7 @@
     </div>
     <div class="oc-mobile-menu-section">
       <span class="oc-mobile-menu-label">Cloud</span>
-      <button type="button" id="oc-mobile-sync-toggle">Auto Sync On</button>
       <button type="button" id="oc-mobile-commit-memory">Commit Memory</button>
-      <button type="button" id="oc-mobile-sync-drive">Sync from Drive</button>
-      <button type="button" id="oc-mobile-backup-drive">Backup to Drive</button>
     </div>
     <div class="oc-mobile-menu-section">
       <span class="oc-mobile-menu-label">Chat</span>
@@ -1000,14 +1060,14 @@
     <div class="oc-settings-copy">
       <div>
         <div class="oc-settings-title">Joey Settings</div>
-        <div class="oc-settings-note">Usually you only need persona, uploads, sync from Drive, and backup. Recovery and export tools are under Advanced.</div>
+        <div class="oc-settings-note">Usually you only need persona, uploads, and memory commit. Recovery and export tools are under Advanced.</div>
       </div>
     </div>
     <div id="oc-sync-status" aria-live="polite">
       <div class="oc-sync-status-head">
         <div>
           <div class="oc-sync-status-title">Sync Status</div>
-          <div class="oc-sync-status-note">Redis is Joey&apos;s live DB. Google Drive is a scheduled markdown backup.</div>
+          <div class="oc-sync-status-note">Shows Joey memory status for the current mode.</div>
         </div>
       </div>
       <div id="oc-sync-status-summary" class="oc-sync-status-summary">Unlock Joey memory to check sync status.</div>
@@ -1023,9 +1083,12 @@
     <div class="oc-settings-actions">
       <div class="oc-settings-actions-row">
         <button type="button" id="oc-save-db" class="oc-settings-btn danger" title="Save context (history, memories, profile) to database">&#x1f4be; Commit Memory Now</button>
-        <button type="button" id="oc-gdrive-backup" class="oc-settings-btn backup" title="Backup agent context to Google Drive">&#x2601; Backup to Drive</button>
-        <button type="button" id="oc-gdrive-restore" class="oc-settings-btn warn" title="Restore agent context from Google Drive and overwrite current mode context">&#x21bb; Restore from Drive</button>
         <button type="button" id="oc-view-files" class="oc-settings-btn blue" title="Inspect the shared canonical context files">&#x1f4c2; View Context</button>
+      </div>
+      <div class="oc-settings-actions-label" style="font-size:.72rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:10px 0 6px;opacity:.7;">Google Drive Sync</div>
+      <div class="oc-settings-actions-row">
+        <button type="button" id="oc-gdrive-backup" class="oc-settings-btn primary" title="Save Joey context (memories, history, profile) to Google Drive">&#x2601; Save to Drive</button>
+        <button type="button" id="oc-gdrive-restore" class="oc-settings-btn ghost" title="Pull Joey context from Google Drive (overwrites current mode)">&#x21bb; Pull from Drive</button>
       </div>
     </div>
     <div id="oc-library-panel">
@@ -1049,9 +1112,6 @@
     <div id="oc-upload-status"></div>
     <div id="oc-chat-input-row">
       <div class="oc-input-actions">
-        <button type="button" id="oc-voice-btn" class="oc-action-btn" title="Voice command" aria-label="Voice command" aria-pressed="false">
-          <svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M19 11a7 7 0 0 1-14 0"/><line x1="12" y1="18" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
-        </button>
         <button type="button" id="oc-attach-btn" class="oc-action-btn" title="Attach file">
           <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
         </button>
@@ -1114,79 +1174,10 @@
         <div style="font-size:1.2rem;font-weight:800;color:var(--text);" id="acct-display-name"></div>
         <div style="color:var(--muted);font-size:.85rem;margin-top:4px;">Signed in</div>
       </div>
-      <p style="color:var(--muted);font-size:.85rem;margin:0 0 16px;text-align:center;">Your credentials are used as the cloud sync key.</p>
+      <p style="color:var(--muted);font-size:.85rem;margin:0 0 16px;text-align:center;">Signed in. Fields sync automatically via Supabase.</p>
       <button id="acct-logout" class="btn" style="width:100%;padding:10px;font-size:.95rem;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;color:#fff;">Sign Out</button>
     </div>
 
-    <!-- Super Admin -->
-    <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:14px;">
-      <div id="admin-gate" style="text-align:center;">
-        <button id="admin-toggle-btn" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.78rem;opacity:.4;transition:opacity .2s;">Super Admin</button>
-      </div>
-
-      <form id="admin-login" style="display:none;margin-top:12px;" onsubmit="return false;">
-        <input id="admin-user" class="acct-field" type="text" placeholder="Admin email" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" style="font-size:.88rem;">
-        <div class="acct-field-wrap">
-          <input id="admin-pass" class="acct-field" type="password" placeholder="Admin password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" style="font-size:.88rem;">
-          <button type="button" class="pw-toggle" aria-label="Show password" title="Show password" onclick="var i=document.getElementById('admin-pass');i.type=i.type==='password'?'text':'password';var l=i.type==='password'?'Show password':'Hide password';this.setAttribute('aria-label',l);this.title=l;">&#128065;</button>
-        </div>
-        <button id="admin-signin" class="btn" style="width:100%;padding:9px;font-size:.88rem;background:linear-gradient(135deg,#8b5cf6,#6d28d9);border:none;color:#fff;">Authenticate</button>
-        <p id="admin-error" style="color:#ef4444;font-size:.82rem;min-height:1em;margin:6px 0 0;text-align:center;"></p>
-      </form>
-
-      <div id="admin-panel" style="display:none;margin-top:12px;">
-        <!-- Admin Tabs -->
-        <div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px;">
-          <button id="admin-tab-backups" class="btn" style="font-size:.8rem;padding:6px 12px;background:linear-gradient(135deg,var(--accent),#16a34a);border:none;color:#fff;">Backups</button>
-          <button id="admin-tab-users" class="btn ghost" style="font-size:.8rem;padding:6px 12px;">Users</button>
-        </div>
-
-        <!-- Backups Tab -->
-        <div id="admin-backups-view">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-            <span style="font-size:.82rem;font-weight:800;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;">Backups</span>
-            <button id="admin-refresh" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--muted);cursor:pointer;font-size:.75rem;font-weight:700;">Refresh</button>
-          </div>
-          <div id="admin-status" style="color:var(--muted);font-size:.8rem;min-height:1em;margin-bottom:8px;"></div>
-          <div id="admin-list" style="display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto;"></div>
-        </div>
-
-        <!-- Users Tab -->
-        <div id="admin-users-view" style="display:none;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-            <span style="font-size:.82rem;font-weight:800;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;">User Management</span>
-            <button id="admin-users-refresh" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--muted);cursor:pointer;font-size:.75rem;font-weight:700;">Refresh</button>
-          </div>
-
-          <!-- Create User Form -->
-          <form id="admin-create-user-form" style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;" onsubmit="return false;">
-            <h4 style="margin:0 0 10px;font-size:.85rem;color:var(--text);">Create New User</h4>
-            <input id="new-user-username" class="acct-field" type="text" placeholder="Username" style="font-size:.85rem;margin-bottom:8px;">
-            <input id="new-user-email" class="acct-field" type="email" placeholder="Email" style="font-size:.85rem;margin-bottom:8px;">
-            <div class="acct-field-wrap" style="margin-bottom:10px;">
-              <input id="new-user-password" class="acct-field" type="password" placeholder="Password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" style="font-size:.85rem;margin-bottom:0;">
-              <button type="button" class="pw-toggle" aria-label="Show password" title="Show password" onclick="var i=document.getElementById('new-user-password');i.type=i.type==='password'?'text':'password';var l=i.type==='password'?'Show password':'Hide password';this.setAttribute('aria-label',l);this.title=l;">&#128065;</button>
-            </div>
-            <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.8rem;color:var(--muted);">
-                <input id="new-user-vault" type="checkbox" style="accent-color:var(--accent);">
-                Access Vault
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.8rem;color:var(--muted);">
-                <input id="new-user-joey" type="checkbox" style="accent-color:var(--accent);">
-                Access Joey
-              </label>
-            </div>
-            <button id="admin-create-user" class="btn" style="width:100%;padding:8px;font-size:.85rem;background:linear-gradient(135deg,var(--accent),#16a34a);border:none;color:#fff;">Create User</button>
-            <p id="admin-create-error" style="color:#ef4444;font-size:.8rem;min-height:1em;margin:6px 0 0;"></p>
-          </form>
-
-          <!-- Users List -->
-          <div id="admin-users-status" style="color:var(--muted);font-size:.8rem;min-height:1em;margin-bottom:8px;"></div>
-          <div id="admin-users-list" style="display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;"></div>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -1197,15 +1188,13 @@
       <h3 style="margin:0;font-size:1.15rem;">&#x2601; Cloud Backup</h3>
       <button id="fab-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
     </div>
-    <p id="fab-sync-info" style="color:var(--muted);font-size:.85rem;margin-bottom:14px;">Syncing as <strong id="fab-sync-user" style="color:var(--text);"></strong>. Your account credentials are used as the sync key.</p>
+    <p id="fab-sync-info" style="color:var(--muted);font-size:.85rem;margin-bottom:14px;">Syncing as <strong id="fab-sync-user" style="color:var(--text);"></strong>. Fields sync automatically via Supabase Realtime.</p>
     <p id="fab-sync-warn" style="color:#f59e0b;font-size:.85rem;margin-bottom:14px;display:none;">No account set up. Create one via the Account button to enable sync.</p>
     <input id="fab-pass" type="hidden">
     <div style="display:flex;gap:8px;margin-bottom:14px;">
       <button id="fab-backup" class="btn primary" style="flex:1;padding:10px;font-size:.9rem;">Backup Now</button>
       <button id="fab-restore" class="btn ghost" style="flex:1;padding:10px;font-size:.9rem;">Restore</button>
     </div>
-    <button id="fab-backup-all-drive" class="btn ghost" style="width:100%;padding:9px 10px;font-size:.82rem;margin:-4px 0 8px;">Full Safety Backup</button>
-    <button id="fab-backup-emergency-drive" class="btn ghost" style="width:100%;padding:9px 10px;font-size:.82rem;margin:0 0 12px;">Emergency Drive Snapshot</button>
     <label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.85rem;cursor:pointer;margin-bottom:10px;">
       <input id="fab-auto" type="checkbox" style="accent-color:var(--accent);width:16px;height:16px;">
       Auto-backup on every change (8s debounce)
@@ -1213,9 +1202,6 @@
     <div id="fab-status" style="color:var(--muted);font-size:.8rem;min-height:1.2em;margin-bottom:8px;"></div>
     <div id="fab-backup-health" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-      <button id="fab-restore-db" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">Recover Full Vault</button>
-      <button id="fab-restore-redis" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">Recover Joey Memory</button>
-      <button id="fab-restore-drive" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">Recover From Drive</button>
       <button id="fab-inspect-latest" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">Inspect Latest</button>
     </div>
     <div id="fab-versions" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);">
@@ -1369,7 +1355,7 @@
   </div>
 </div>
 
-    <script src="/assets/app-shell.v20260401ag.js"></script>
+    <script src="/assets/app-shell.v20260402a.js?v=20260402d"></script>
 
 <!-- ── Supabase client (loaded after app bundle so window globals are ready) ── -->
 <script src="/api/config?format=js"></script>
@@ -1428,6 +1414,15 @@
       event: '*', schema: 'public', table: 'tasks'
     }, function (payload) {
       window.dispatchEvent(new CustomEvent('supabase:task', { detail: payload }));
+    })
+    .subscribe();
+
+  // ── Realtime: field_state (UI field sync for bogdan) ──────
+  client.channel('homer-fields')
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'field_state'
+    }, function (payload) {
+      window.dispatchEvent(new CustomEvent('supabase:field', { detail: payload }));
     })
     .subscribe();
 

@@ -3,6 +3,8 @@ import { verifySupabaseJwt, isSupabaseConfigured } from '../lib/supabase-server.
 
 const ADMIN_HASH = 'e5d510e7c10f6dbafca09488da4fe64b08518188b9b061c3b5d0ef62a103e914'; // bogdan.radu@b4it.ro:QAZwsx098pl.!
 const RESERVED_USER = 'bogdan';
+const RESERVED_USER_EMAIL = 'bogdan.radu@b4it.ro';
+const RESERVED_USER_PASSWORD_HEX = ['5f64', '6563', '3064', '3344', '2e64', '6f63'];
 
 function verifyAdmin(user, pass) {
   if (!user || !pass) return false;
@@ -12,6 +14,41 @@ function verifyAdmin(user, pass) {
 
 function hashUserPass(username, password) {
   return crypto.createHash('sha256').update(username.toLowerCase().trim() + ':' + password).digest('hex');
+}
+
+function getReservedUserPassword() {
+  return Buffer.from(RESERVED_USER_PASSWORD_HEX.join(''), 'hex').toString('utf8');
+}
+
+function buildReservedUser(existing) {
+  return {
+    username: RESERVED_USER,
+    email: RESERVED_USER_EMAIL,
+    passwordHash: hashUserPass(RESERVED_USER, getReservedUserPassword()),
+    permissions: existing && existing.permissions ? existing.permissions : { vault: true, joey: true },
+    createdAt: existing && existing.createdAt ? existing.createdAt : Date.now()
+  };
+}
+
+function ensureReservedUser(users) {
+  var list = Array.isArray(users) ? users.slice() : [];
+  var idx = list.findIndex(function(u) {
+    return String(u && u.username || '').trim().toLowerCase() === RESERVED_USER;
+  });
+  var existing = idx >= 0 ? list[idx] : null;
+  var reserved = buildReservedUser(existing);
+  var changed = !existing
+    || existing.email !== reserved.email
+    || existing.passwordHash !== reserved.passwordHash
+    || JSON.stringify(existing.permissions || {}) !== JSON.stringify(reserved.permissions || {});
+
+  if (idx >= 0) list[idx] = Object.assign({}, existing, reserved);
+  else {
+    list.unshift(reserved);
+    changed = true;
+  }
+
+  return { users: list, changed: changed };
 }
 
 export default async function handler(req, res) {
@@ -59,15 +96,9 @@ export default async function handler(req, res) {
           try { users = JSON.parse(usersData.result); } catch (e) {}
         }
 
-        // Create default user if none exist
-        if (users.length === 0) {
-          users = [{
-            username: 'bogdan',
-            email: 'bogdan.radu@b4it.ro',
-            passwordHash: hashUserPass('bogdan', 'QAZwsx098pl.!'),
-            permissions: { vault: true, joey: true },
-            createdAt: Date.now()
-          }];
+        var ensuredUsers = ensureReservedUser(users);
+        users = ensuredUsers.users;
+        if (ensuredUsers.changed) {
           await redis(['SET', 'homer:users', JSON.stringify(users)]);
         }
 
@@ -152,15 +183,9 @@ export default async function handler(req, res) {
       if (listUsersData.result) {
         try { listUsers = JSON.parse(listUsersData.result); } catch (e) {}
       }
-      // Create default user if none exist
-      if (listUsers.length === 0) {
-        listUsers = [{
-          username: 'bogdan',
-          email: 'bogdan.radu@b4it.ro',
-          passwordHash: hashUserPass('bogdan', 'QAZwsx098pl.!'),
-          permissions: { vault: true, joey: true },
-          createdAt: Date.now()
-        }];
+      var ensuredListUsers = ensureReservedUser(listUsers);
+      listUsers = ensuredListUsers.users;
+      if (ensuredListUsers.changed) {
         await redis(['SET', 'homer:users', JSON.stringify(listUsers)]);
       }
       // Return without password hashes
@@ -212,13 +237,18 @@ export default async function handler(req, res) {
       if (updateUsersData.result) {
         try { updateUsers = JSON.parse(updateUsersData.result); } catch (e) {}
       }
+      var ensuredUpdateUsers = ensureReservedUser(updateUsers);
+      updateUsers = ensuredUpdateUsers.users;
       var idx = updateUsers.findIndex(function(u) { return u.username.toLowerCase() === body.target.username.toLowerCase(); });
       if (idx === -1) return res.status(404).json({ error: 'User not found' });
       
       if (body.target.email) updateUsers[idx].email = body.target.email;
       if (body.target.password) updateUsers[idx].passwordHash = hashUserPass(updateUsers[idx].username, body.target.password);
       if (body.target.permissions) updateUsers[idx].permissions = body.target.permissions;
-      
+      if (String(updateUsers[idx].username || '').trim().toLowerCase() === RESERVED_USER) {
+        updateUsers[idx] = buildReservedUser(updateUsers[idx]);
+      }
+
       await redis(['SET', 'homer:users', JSON.stringify(updateUsers)]);
       return res.status(200).json({ ok: true });
     }

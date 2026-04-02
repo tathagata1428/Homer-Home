@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { verifySupabaseJwt, createAdminClient, isSupabaseConfigured } from '../lib/supabase-server.js';
 
 const BACKUP_MANIFEST_KEY = 'homer-backup-manifest';
 const FIELD_OP_BATCH_LIMIT = 100;
@@ -253,12 +254,137 @@ async function fetchFieldOps(redis, hk, since, limit) {
   };
 }
 
+// ── Supabase field-state helpers ───────────────────────────────────────────
+
+async function sbFieldState(userId, res) {
+  var supabase = createAdminClient();
+  var { data, error } = await supabase
+    .from('field_state')
+    .select('field_id,kind,value,deleted,client_ts,client_seq,device_id,server_ts')
+    .eq('user_id', userId);
+  if (error) return res.status(500).json({ error: error.message });
+  var state = {};
+  (data || []).forEach(function(row) {
+    state[row.field_id] = {
+      fieldId: row.field_id, kind: row.kind, value: row.value,
+      deleted: row.deleted, clientTs: row.client_ts, clientSeq: row.client_seq,
+      deviceId: row.device_id, serverTs: row.server_ts, version: row.server_ts
+    };
+  });
+  return res.status(200).json({ ok: true, latestVersion: Date.now(), state: state });
+}
+
+async function sbFieldOps(userId, req, res) {
+  var since = parseInt(req.query.since || '0', 10) || 0;
+  var supabase = createAdminClient();
+  var query = supabase
+    .from('field_state')
+    .select('field_id,kind,value,deleted,client_ts,client_seq,device_id,server_ts')
+    .eq('user_id', userId);
+  if (since > 0) query = query.gt('server_ts', since);
+  var { data, error } = await query;
+  if (error) return res.status(500).json({ error: error.message });
+  var ops = (data || []).map(function(row) {
+    return {
+      fieldId: row.field_id, kind: row.kind, value: row.value,
+      deleted: row.deleted, clientTs: row.client_ts, clientSeq: row.client_seq,
+      deviceId: row.device_id, serverTs: row.server_ts, version: row.server_ts
+    };
+  });
+  var latestTs = ops.length ? Math.max.apply(null, ops.map(function(op){ return op.serverTs || 0; })) : since;
+  return res.status(200).json({
+    ok: true, since: since,
+    latestVersion: latestTs || Date.now(),
+    minRetainedVersion: 0, hasMore: false, hasGap: false, resetToState: false,
+    ops: ops
+  });
+}
+
+async function sbApplyFieldOps(userId, body, res) {
+  var ops = Array.isArray(body.ops) ? body.ops : [];
+  if (!ops.length) return res.status(400).json({ error: 'Missing ops' });
+  var supabase = createAdminClient();
+  var serverTs = Date.now();
+  var fieldIds = ops.map(function(op){ return op && op.fieldId; }).filter(Boolean);
+  var currentMap = {};
+  if (fieldIds.length) {
+    var { data: rows } = await supabase
+      .from('field_state')
+      .select('field_id,client_ts,client_seq,device_id,value,kind,deleted')
+      .eq('user_id', userId)
+      .in('field_id', fieldIds);
+    (rows || []).forEach(function(row) {
+      currentMap[row.field_id] = {
+        fieldId: row.field_id, clientTs: row.client_ts, clientSeq: row.client_seq,
+        deviceId: row.device_id, value: row.value, kind: row.kind, deleted: row.deleted
+      };
+    });
+  }
+  var applied = [], rejected = [], duplicates = [], upserts = [];
+  for (var i = 0; i < ops.length; i++) {
+    var normalized = normalizeFieldOp(ops[i], body.deviceId);
+    if (!normalized) continue;
+    var current = currentMap[normalized.fieldId] || null;
+    var freshness = compareFieldPriority(current, normalized);
+    if (freshness < 0) { rejected.push({ rejected:true, stale:true, fieldId:normalized.fieldId, current:current, incoming:normalized }); continue; }
+    if (freshness === 0 && current) { duplicates.push({ duplicate:true, fieldId:normalized.fieldId, current:current, incoming:normalized }); continue; }
+    upserts.push({
+      user_id: userId, field_id: normalized.fieldId, kind: normalized.kind,
+      value: normalized.value, deleted: normalized.deleted,
+      client_ts: normalized.clientTs, client_seq: normalized.clientSeq,
+      device_id: normalized.deviceId || '', server_ts: serverTs,
+      updated_at: new Date(serverTs).toISOString()
+    });
+    applied.push(Object.assign({}, normalized, { version: serverTs, serverTs: serverTs }));
+  }
+  if (upserts.length) {
+    var { error } = await supabase.from('field_state').upsert(upserts, { onConflict: 'user_id,field_id' });
+    if (error) return res.status(500).json({ error: error.message });
+  }
+  return res.status(200).json({
+    ok: true, applied: applied, rejected: rejected, duplicates: duplicates,
+    latestVersion: serverTs, minRetainedVersion: 0, prunedOps: 0
+  });
+}
+
+// ── HTTP handler ───────────────────────────────────────────────────────────
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  // ── Supabase JWT auth (bogdan only; non-bogdan stays localStorage) ──────
+  var authHeader = String(req.headers.authorization || '');
+  var jwtToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+  var supabaseUser = null;
+  if (jwtToken && isSupabaseConfigured()) {
+    supabaseUser = await verifySupabaseJwt(jwtToken);
+  }
+
+  // Route Supabase-authenticated field-sync requests
+  if (supabaseUser) {
+    try {
+      if (req.method === 'GET') {
+        var sbAction = req.query.action || 'latest';
+        if (sbAction === 'field-state') return sbFieldState(supabaseUser.id, res);
+        if (sbAction === 'field-ops') return sbFieldOps(supabaseUser.id, req, res);
+        // status: return lightweight info
+        if (sbAction === 'status') {
+          return res.status(200).json({ ok: true, exists: true, ts: Date.now(), fieldVersion: Date.now() });
+        }
+      }
+      if (req.method === 'POST') {
+        var sbBody = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+        if (sbBody && sbBody.action === 'field-op') return sbApplyFieldOps(supabaseUser.id, sbBody, res);
+      }
+    } catch (sbErr) {
+      return res.status(500).json({ error: sbErr.message || 'Supabase error' });
+    }
+  }
+
+  // ── Redis fallback (full backup snapshots + field-ops without JWT) ───────
   var REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   var REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 

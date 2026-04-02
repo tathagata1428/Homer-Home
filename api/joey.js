@@ -3,9 +3,13 @@ import handleJoeyCommit, { runLearnStep } from '../lib/joey-commit-handler.js';
 import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
 import { loadRedisJson, saveRedisJson, safeJsonParse } from '../lib/joey-server.js';
 import { computeJoeySyncMeta } from '../lib/joey-sync-meta.js';
-import { createClient } from '@supabase/supabase-js';
 import { createSupabaseRedisFetch } from '../lib/supabase-redis-compat.js';
-import { verifySupabaseJwt, isSupabaseConfigured } from '../lib/supabase-server.js';
+import {
+  createAdminClient,
+  createUserClient,
+  verifySupabaseJwt,
+  isSupabaseConfigured
+} from '../lib/supabase-server.js';
 
 function asObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
@@ -459,7 +463,7 @@ export default async function handler(req, res) {
   const passphrase  = getPass();
   const authHeader  = String(req.headers.authorization || '');
   const jwtToken    = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  if (!passphrase && !jwtToken) return res.status(401).json({ error: 'Missing passphrase' });
+  if (!passphrase && !jwtToken) return res.status(401).json({ error: 'Missing credentials' });
 
   // Redis (legacy — kept for auth fallback and backward compat during migration)
   const REDIS_URL   = process.env.KV_REST_API_URL   || process.env.UPSTASH_REDIS_REST_URL;
@@ -473,13 +477,10 @@ export default async function handler(req, res) {
     : null;
 
   // Supabase (new canonical data store)
-  const SUPA_URL = process.env.SUPABASE_URL;
-  const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const supabaseClient = (SUPA_URL && SUPA_KEY)
-    ? createClient(SUPA_URL, SUPA_KEY, { auth: { autoRefreshToken: false, persistSession: false } })
-    : null;
+  const supabaseConfigured = isSupabaseConfigured();
+  let supabaseClient = null;
 
-  if (!redisRaw && !supabaseClient) {
+  if (!redisRaw && !supabaseConfigured) {
     return res.status(500).json({ error: 'No data store configured. Set Redis or Supabase env vars.' });
   }
 
@@ -488,9 +489,13 @@ export default async function handler(req, res) {
   let userId  = null;
 
   // 1. Try Supabase JWT first (new auth path)
-  if (jwtToken && supabaseClient) {
+  if (jwtToken && supabaseConfigured) {
     const jwtUser = await verifySupabaseJwt(jwtToken);
-    if (jwtUser) { isValid = true; userId = jwtUser.id; }
+    if (jwtUser) {
+      isValid = true;
+      userId = jwtUser.id;
+      supabaseClient = createUserClient(jwtToken);
+    }
   }
 
   // 2. Fall back to legacy passphrase
@@ -505,7 +510,12 @@ export default async function handler(req, res) {
         if (user && user.passwordHash === passphrase.trim()) { isValid = true; break; }
       }
     }
-    if (isValid) userId = String(process.env.SUPABASE_OWNER_ID || '').trim() || null;
+    if (isValid) {
+      userId = String(process.env.SUPABASE_OWNER_ID || '').trim() || null;
+      if (supabaseConfigured && userId) {
+        supabaseClient = createAdminClient();
+      }
+    }
   }
 
   if (!isValid) return res.status(403).json({ error: 'Forbidden' });

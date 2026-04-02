@@ -26,6 +26,7 @@ export default async function handler(req, res) {
     'tasks.b4it.ro',
     'password.b4it.ro',
     'b4it.go.ro',
+    'homer-home.vercel.app',
     'ntfy.sh',
     'www.tnas.online',
     'b4it.ro'

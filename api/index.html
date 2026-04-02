@@ -9,6 +9,8 @@
   <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="manifest" href="/manifest.json">
+  <link rel="canonical" href="https://homer-home.vercel.app/">
+  <meta property="og:url" content="https://homer-home.vercel.app/">
 
   <meta name="theme-color" content="#0f172a">
   <meta name="application-name" content="Homer">
@@ -976,10 +978,7 @@
     </div>
     <div class="oc-mobile-menu-section">
       <span class="oc-mobile-menu-label">Cloud</span>
-      <button type="button" id="oc-mobile-sync-toggle">Auto Sync On</button>
       <button type="button" id="oc-mobile-commit-memory">Commit Memory</button>
-      <button type="button" id="oc-mobile-sync-drive">Sync from Drive</button>
-      <button type="button" id="oc-mobile-backup-drive">Backup to Drive</button>
     </div>
     <div class="oc-mobile-menu-section">
       <span class="oc-mobile-menu-label">Chat</span>
@@ -1000,14 +999,14 @@
     <div class="oc-settings-copy">
       <div>
         <div class="oc-settings-title">Joey Settings</div>
-        <div class="oc-settings-note">Usually you only need persona, uploads, sync from Drive, and backup. Recovery and export tools are under Advanced.</div>
+        <div class="oc-settings-note">Usually you only need persona, uploads, and memory commit. Recovery and export tools are under Advanced.</div>
       </div>
     </div>
     <div id="oc-sync-status" aria-live="polite">
       <div class="oc-sync-status-head">
         <div>
           <div class="oc-sync-status-title">Sync Status</div>
-          <div class="oc-sync-status-note">Redis is Joey&apos;s live DB. Google Drive is a scheduled markdown backup.</div>
+          <div class="oc-sync-status-note">Shows Joey memory status for the current mode.</div>
         </div>
       </div>
       <div id="oc-sync-status-summary" class="oc-sync-status-summary">Unlock Joey memory to check sync status.</div>
@@ -1023,8 +1022,6 @@
     <div class="oc-settings-actions">
       <div class="oc-settings-actions-row">
         <button type="button" id="oc-save-db" class="oc-settings-btn danger" title="Save context (history, memories, profile) to database">&#x1f4be; Commit Memory Now</button>
-        <button type="button" id="oc-gdrive-backup" class="oc-settings-btn backup" title="Backup agent context to Google Drive">&#x2601; Backup to Drive</button>
-        <button type="button" id="oc-gdrive-restore" class="oc-settings-btn warn" title="Restore agent context from Google Drive and overwrite current mode context">&#x21bb; Restore from Drive</button>
         <button type="button" id="oc-view-files" class="oc-settings-btn blue" title="Inspect the shared canonical context files">&#x1f4c2; View Context</button>
       </div>
     </div>
@@ -1049,9 +1046,6 @@
     <div id="oc-upload-status"></div>
     <div id="oc-chat-input-row">
       <div class="oc-input-actions">
-        <button type="button" id="oc-voice-btn" class="oc-action-btn" title="Voice command" aria-label="Voice command" aria-pressed="false">
-          <svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M19 11a7 7 0 0 1-14 0"/><line x1="12" y1="18" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
-        </button>
         <button type="button" id="oc-attach-btn" class="oc-action-btn" title="Attach file">
           <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
         </button>
@@ -1118,75 +1112,6 @@
       <button id="acct-logout" class="btn" style="width:100%;padding:10px;font-size:.95rem;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;color:#fff;">Sign Out</button>
     </div>
 
-    <!-- Super Admin -->
-    <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:14px;">
-      <div id="admin-gate" style="text-align:center;">
-        <button id="admin-toggle-btn" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.78rem;opacity:.4;transition:opacity .2s;">Super Admin</button>
-      </div>
-
-      <form id="admin-login" style="display:none;margin-top:12px;" onsubmit="return false;">
-        <input id="admin-user" class="acct-field" type="text" placeholder="Admin email" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" style="font-size:.88rem;">
-        <div class="acct-field-wrap">
-          <input id="admin-pass" class="acct-field" type="password" placeholder="Admin password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" style="font-size:.88rem;">
-          <button type="button" class="pw-toggle" aria-label="Show password" title="Show password" onclick="var i=document.getElementById('admin-pass');i.type=i.type==='password'?'text':'password';var l=i.type==='password'?'Show password':'Hide password';this.setAttribute('aria-label',l);this.title=l;">&#128065;</button>
-        </div>
-        <button id="admin-signin" class="btn" style="width:100%;padding:9px;font-size:.88rem;background:linear-gradient(135deg,#8b5cf6,#6d28d9);border:none;color:#fff;">Authenticate</button>
-        <p id="admin-error" style="color:#ef4444;font-size:.82rem;min-height:1em;margin:6px 0 0;text-align:center;"></p>
-      </form>
-
-      <div id="admin-panel" style="display:none;margin-top:12px;">
-        <!-- Admin Tabs -->
-        <div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px;">
-          <button id="admin-tab-backups" class="btn" style="font-size:.8rem;padding:6px 12px;background:linear-gradient(135deg,var(--accent),#16a34a);border:none;color:#fff;">Backups</button>
-          <button id="admin-tab-users" class="btn ghost" style="font-size:.8rem;padding:6px 12px;">Users</button>
-        </div>
-
-        <!-- Backups Tab -->
-        <div id="admin-backups-view">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-            <span style="font-size:.82rem;font-weight:800;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;">Backups</span>
-            <button id="admin-refresh" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--muted);cursor:pointer;font-size:.75rem;font-weight:700;">Refresh</button>
-          </div>
-          <div id="admin-status" style="color:var(--muted);font-size:.8rem;min-height:1em;margin-bottom:8px;"></div>
-          <div id="admin-list" style="display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto;"></div>
-        </div>
-
-        <!-- Users Tab -->
-        <div id="admin-users-view" style="display:none;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-            <span style="font-size:.82rem;font-weight:800;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;">User Management</span>
-            <button id="admin-users-refresh" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--muted);cursor:pointer;font-size:.75rem;font-weight:700;">Refresh</button>
-          </div>
-
-          <!-- Create User Form -->
-          <form id="admin-create-user-form" style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;" onsubmit="return false;">
-            <h4 style="margin:0 0 10px;font-size:.85rem;color:var(--text);">Create New User</h4>
-            <input id="new-user-username" class="acct-field" type="text" placeholder="Username" style="font-size:.85rem;margin-bottom:8px;">
-            <input id="new-user-email" class="acct-field" type="email" placeholder="Email" style="font-size:.85rem;margin-bottom:8px;">
-            <div class="acct-field-wrap" style="margin-bottom:10px;">
-              <input id="new-user-password" class="acct-field" type="password" placeholder="Password" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" style="font-size:.85rem;margin-bottom:0;">
-              <button type="button" class="pw-toggle" aria-label="Show password" title="Show password" onclick="var i=document.getElementById('new-user-password');i.type=i.type==='password'?'text':'password';var l=i.type==='password'?'Show password':'Hide password';this.setAttribute('aria-label',l);this.title=l;">&#128065;</button>
-            </div>
-            <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.8rem;color:var(--muted);">
-                <input id="new-user-vault" type="checkbox" style="accent-color:var(--accent);">
-                Access Vault
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.8rem;color:var(--muted);">
-                <input id="new-user-joey" type="checkbox" style="accent-color:var(--accent);">
-                Access Joey
-              </label>
-            </div>
-            <button id="admin-create-user" class="btn" style="width:100%;padding:8px;font-size:.85rem;background:linear-gradient(135deg,var(--accent),#16a34a);border:none;color:#fff;">Create User</button>
-            <p id="admin-create-error" style="color:#ef4444;font-size:.8rem;min-height:1em;margin:6px 0 0;"></p>
-          </form>
-
-          <!-- Users List -->
-          <div id="admin-users-status" style="color:var(--muted);font-size:.8rem;min-height:1em;margin-bottom:8px;"></div>
-          <div id="admin-users-list" style="display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;"></div>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -1204,8 +1129,6 @@
       <button id="fab-backup" class="btn primary" style="flex:1;padding:10px;font-size:.9rem;">Backup Now</button>
       <button id="fab-restore" class="btn ghost" style="flex:1;padding:10px;font-size:.9rem;">Restore</button>
     </div>
-    <button id="fab-backup-all-drive" class="btn ghost" style="width:100%;padding:9px 10px;font-size:.82rem;margin:-4px 0 8px;">Full Safety Backup</button>
-    <button id="fab-backup-emergency-drive" class="btn ghost" style="width:100%;padding:9px 10px;font-size:.82rem;margin:0 0 12px;">Emergency Drive Snapshot</button>
     <label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.85rem;cursor:pointer;margin-bottom:10px;">
       <input id="fab-auto" type="checkbox" style="accent-color:var(--accent);width:16px;height:16px;">
       Auto-backup on every change (8s debounce)
@@ -1213,9 +1136,6 @@
     <div id="fab-status" style="color:var(--muted);font-size:.8rem;min-height:1.2em;margin-bottom:8px;"></div>
     <div id="fab-backup-health" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-      <button id="fab-restore-db" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">Recover Full Vault</button>
-      <button id="fab-restore-redis" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">Recover Joey Memory</button>
-      <button id="fab-restore-drive" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">Recover From Drive</button>
       <button id="fab-inspect-latest" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">Inspect Latest</button>
     </div>
     <div id="fab-versions" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);">
@@ -1369,6 +1289,6 @@
   </div>
 </div>
 
-    <script src="/assets/app-shell.v20260401ag.js"></script>
+    <script src="/assets/app-shell.v20260402a.js?v=20260402d"></script>
 </body>
 </html>

@@ -4,5 +4,8 @@
   "type": "module",
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4"
+  },
+  "devDependencies": {
+    "pg": "^8.20.0"
   }
 }

@@ -184,6 +184,34 @@ CREATE POLICY "joey_meta_insert" ON public.joey_meta FOR INSERT WITH CHECK (user
 CREATE POLICY "joey_meta_update" ON public.joey_meta FOR UPDATE USING (user_id = auth.uid());
 CREATE POLICY "joey_meta_delete" ON public.joey_meta FOR DELETE USING (user_id = auth.uid());
 
+-- ── FIELD STATE (UI field sync per user) ─────────────────────
+-- Stores the latest value of every synced UI field.
+-- Used by bogdan to sync fields across devices via Supabase Realtime.
+-- Non-bogdan users stay localStorage-only (never write here).
+CREATE TABLE IF NOT EXISTS public.field_state (
+  id         UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id    UUID    NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  field_id   TEXT    NOT NULL,
+  kind       TEXT    NOT NULL DEFAULT 'text',
+  value      TEXT    NOT NULL DEFAULT '',
+  deleted    BOOLEAN DEFAULT FALSE,
+  client_ts  BIGINT  NOT NULL DEFAULT 0,
+  client_seq INTEGER NOT NULL DEFAULT 0,
+  device_id  TEXT    NOT NULL DEFAULT '',
+  server_ts  BIGINT  NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, field_id)
+);
+
+CREATE INDEX IF NOT EXISTS field_state_user_ts ON public.field_state (user_id, server_ts);
+
+ALTER TABLE public.field_state ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "field_state_select" ON public.field_state FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "field_state_insert" ON public.field_state FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "field_state_update" ON public.field_state FOR UPDATE USING (user_id = auth.uid());
+CREATE POLICY "field_state_delete" ON public.field_state FOR DELETE USING (user_id = auth.uid());
+
 -- ── REALTIME ─────────────────────────────────────────────────
 -- Enable realtime replication for the tables clients will subscribe to.
 -- (Run this only once; idempotent via IF NOT EXISTS on table membership.)
@@ -212,5 +240,11 @@ BEGIN
     WHERE pubname = 'supabase_realtime' AND tablename = 'profiles'
   ) THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND tablename = 'field_state'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.field_state;
   END IF;
 END $$;
