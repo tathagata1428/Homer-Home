@@ -536,7 +536,7 @@ function renderQuote(q) {
     function verifyRemoteQuotesFile(pass, expectedContent){
       var expectedLatestTs = getLatestSavedQuoteTimestampFromMarkdown(expectedContent);
       var expectedLatestQuote = getLatestSavedQuoteTextFromList(loadSaved()).toLowerCase();
-      return fetch(savedQuotesActionUrl('custom-files', pass), withSupabaseAuth({ cache:'no-store' }))
+      return fetch(savedQuotesActionUrl('custom-files', pass), { cache:'no-store' })
         .then(function(r){ return r.json(); })
         .then(function(data){
           var remoteContent = data && data.customFiles ? String(data.customFiles[SAVED_QUOTES_FILE_NAME] || '') : '';
@@ -584,7 +584,7 @@ function renderQuote(q) {
           return finalizeQuoteSyncSuccess();
         });
       }
-      return fetch(savedQuotesActionUrl('custom-files', pass), withSupabaseAuth({
+      return fetch(savedQuotesActionUrl('custom-files', pass), {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(withSavedQuotesMode({
@@ -593,7 +593,7 @@ function renderQuote(q) {
           content: content,
           replace: !!opts.replace
         }))
-      })).then(function(r){ return r.json(); })
+      }).then(function(r){ return r.json(); })
         .then(function(data){
           if(!data || data.error) throw new Error((data && data.error) || 'Quote file sync failed');
           if(!opts.skipRefresh && typeof refreshCanonicalFiles === 'function'){
