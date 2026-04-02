@@ -13398,8 +13398,10 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     })).then(function(r){ return r.json(); }).then(function(d){
       if(d.ok){
         btn.textContent = '\u2705 Restored!';
-        // Reload chat history if restored
-        if(d.restored && d.restored.history) loadHistoryFromRedis({ force:true, allowRewrite:true, source:'drive-restore' });
+        // Reload full Joey bundle (memories, profile, files) into agent context
+        refreshJoeyBundleFromRedis({ force:true, mode:currentContextMode, source:'drive-restore' }).catch(function(){
+          if(d.restored && d.restored.history) loadHistoryFromRedis({ force:true, allowRewrite:true, source:'drive-restore' });
+        });
         refreshCanonicalFiles().catch(function(){});
         if(libraryPanel && libraryPanel.classList.contains('open')) fetchFileLibrary({ silent:true });
         scheduleJoeySyncStatusRefresh(250);
