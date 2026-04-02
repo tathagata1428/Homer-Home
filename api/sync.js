@@ -71,7 +71,7 @@ function normalizeFieldOp(input, fallbackDeviceId) {
   return {
     fieldId: fieldId.slice(0, 220),
     kind: kind.slice(0, 40) || 'text',
-    value: value.slice(0, 50000),
+    value: value.slice(0, 500000),
     deleted: deleted,
     clientTs: Number(source.clientTs || 0) || 0,
     clientSeq: Math.max(0, Number(source.clientSeq || 0) || 0),

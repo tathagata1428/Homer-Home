@@ -8886,6 +8886,31 @@ let tvWidgetCreated = false;
   var BACKUP_LOCALSTORAGE_KEYS = LS_KEYS.slice();
   var BACKUP_LOCALSTORAGE_PREFIXES = ['homer-oc-config-'];
   var BACKUP_SCHEMA_VERSION = 2;
+  // LS field sync: localStorage keys that get pushed to Supabase field_state when Bogdan is logged in
+  var LS_FIELD_MAP = {
+    'homer-vault-mode':         'ls:homer-vault-mode',
+    'homer-oc-mode':            'ls:homer-oc-mode',
+    'homer-oc-provider':        'ls:homer-oc-provider',
+    'homer-oc-config-personal': 'ls:homer-oc-config-personal',
+    'homer-oc-config-work':     'ls:homer-oc-config-work',
+    'pom.settings.v1':          'ls:pom-settings',
+    'pom.tasks.v1':             'ls:pom-tasks',
+    'pom.state.v1':             'ls:pom-state',
+    'homer-links':              'ls:homer-links',
+    'homer-cal-ics':            'ls:homer-cal-ics',
+    'homer-cal-events':         'ls:homer-cal-events',
+    'homer-cal-ics:personal':   'ls:homer-cal-ics-personal',
+    'homer-cal-events:personal':'ls:homer-cal-events-personal',
+    'homer-cal-ics:work':       'ls:homer-cal-ics-work',
+    'homer-cal-events:work':    'ls:homer-cal-events-work',
+    'homer-heartbeats':         'ls:homer-heartbeats',
+    'homer-heartbeats:personal':'ls:homer-heartbeats-personal',
+    'homer-heartbeats:work':    'ls:homer-heartbeats-work',
+    'motivator.savedQuotes.v1': 'ls:savedQuotes',
+    'homer-sb-collapsed':       'ls:homer-sb-collapsed'
+  };
+  var LS_FIELD_MAP_REVERSE = {};
+  Object.keys(LS_FIELD_MAP).forEach(function(k){ LS_FIELD_MAP_REVERSE[LS_FIELD_MAP[k]] = k; });
   var JOEY_BUNDLE_PREFIX = 'homer-joey-bundle:';
   var JOEY_BUNDLE_MODES = ['personal', 'work'];
 
@@ -9210,6 +9235,11 @@ let tvWidgetCreated = false;
       applyFocusLabSyncedValue(focusLabConfig, nextValue, opts);
       return;
     }
+    // LS field sync: write to the real localStorage key
+    if(fieldId.indexOf('ls:') === 0 && LS_FIELD_MAP_REVERSE[fieldId]){
+      try{ origSetItem(LS_FIELD_MAP_REVERSE[fieldId], nextValue); }catch(e){}
+      return;
+    }
     try{
       origSetItem(fieldId, nextValue);
     }catch(e){}
@@ -9276,6 +9306,26 @@ let tvWidgetCreated = false;
     return true;
   }
   window._homerQueueFocusLabFieldSync = queueFocusLabFieldSync;
+  function queueLsFieldOp(lsKey, value){
+    var fieldId = LS_FIELD_MAP[lsKey];
+    if(!fieldId || !isFieldSyncReady()) return;
+    fieldSyncPendingMap.set(fieldId, {
+      fieldId: fieldId,
+      kind: 'text',
+      value: String(value == null ? '' : value),
+      deleted: false,
+      source: 'ls-change',
+      scope: getDbBackupMode ? getDbBackupMode() : 'local',
+      clientTs: Date.now(),
+      clientSeq: nextFieldSyncClientSeq(),
+      deviceId: getFieldSyncDeviceId()
+    });
+    if(fieldSyncPushTimer) clearTimeout(fieldSyncPushTimer);
+    fieldSyncPushTimer = setTimeout(function(){
+      fieldSyncPushTimer = null;
+      flushFieldSyncOps('ls-change');
+    }, 1000);
+  }
   function queuePersistentFieldGroupOperations(el){
     var type = String(el && el.type || '').toLowerCase();
     if(type === 'radio' && el.name){
@@ -10906,6 +10956,7 @@ let tvWidgetCreated = false;
     origSetItem(key, value);
     if(syncMetaKeys.indexOf(key) >= 0 || isLocalOnlyBackupKey(key)) return;
     markDirty();
+    if(isSharedSyncUser() && LS_FIELD_MAP[key]) queueLsFieldOp(key, String(value == null ? '' : value));
   };
   localStorage.removeItem = function(key){
     origRemoveItem(key);
