@@ -409,63 +409,185 @@
   </div>
 
 <style>
+  /* ── Sound grid: responsive layout ─────────────────────────────────── */
+  .sound-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  @media (max-width: 700px) {
+    .sound-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  }
+
+  /* ── Card ────────────────────────────────────────────────────────────── */
   .sound-card {
-    display:flex; flex-direction:column; align-items:center; gap:10px;
-    padding:18px 14px 14px;
-    border-radius:16px;
-    border:1px solid rgba(255,255,255,.1);
-    background:linear-gradient(160deg,rgba(15,23,42,.95),rgba(2,6,23,.98));
-    transition:border-color .15s, box-shadow .15s;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    padding: 20px 14px 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,.1);
+    background: linear-gradient(160deg, rgba(15,23,42,.97), rgba(2,6,23,.99));
+    box-shadow: 0 2px 12px rgba(0,0,0,.35);
+    transition: border-color .18s, box-shadow .18s, transform .15s;
+    -webkit-tap-highlight-color: transparent;
   }
-  .sound-card:hover { border-color:rgba(96,165,250,.35); box-shadow:0 4px 24px rgba(96,165,250,.08); }
+  .sound-card:hover {
+    border-color: rgba(96,165,250,.4);
+    box-shadow: 0 8px 32px rgba(96,165,250,.13), 0 2px 8px rgba(0,0,0,.45);
+    transform: translateY(-2px);
+  }
+  .sound-card:active { transform: translateY(0); }
+
+  /* ── Icon ────────────────────────────────────────────────────────────── */
   .sound-icon {
-    font-size:2rem; line-height:1; filter:drop-shadow(0 2px 8px rgba(0,0,0,.5));
+    font-size: 2.2rem; line-height: 1;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,.5));
+    transition: transform .2s ease;
+    pointer-events: none;
   }
+  .sound-card:hover .sound-icon { transform: scale(1.15); }
+
+  /* ── Label ───────────────────────────────────────────────────────────── */
   .sound-name {
-    font-size:.78rem; font-weight:800; letter-spacing:.05em; text-transform:uppercase;
-    color:var(--muted); margin:0;
+    font-size: .75rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--muted); margin: 0;
   }
+
+  /* ── Play / pause button ─────────────────────────────────────────────── */
   .sound-btn {
-    display:flex; align-items:center; justify-content:center; gap:6px;
-    width:100%; padding:9px 12px; border-radius:10px; border:none; cursor:pointer;
-    font-size:.85rem; font-weight:700; letter-spacing:.02em;
-    background:linear-gradient(135deg,#1e3a5f,#1a2744);
-    color:#93c5fd;
-    box-shadow:0 4px 12px rgba(0,0,0,.5), 0 1px 0 rgba(255,255,255,.06) inset, 0 -2px 0 rgba(0,0,0,.4) inset;
-    transition:transform .08s, box-shadow .08s, background .1s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%; min-height: 42px; padding: 10px 12px;
+    border-radius: 12px; border: 1px solid rgba(96,165,250,.15); cursor: pointer;
+    font-size: .84rem; font-weight: 700; letter-spacing: .02em;
+    background: linear-gradient(160deg, #1e3a5f, #162040);
+    color: #93c5fd;
+    box-shadow:
+      0 4px 14px rgba(0,0,0,.55),
+      0 1px 0 rgba(255,255,255,.07) inset,
+      0 -2px 0 rgba(0,0,0,.45) inset;
+    transition: transform .08s, box-shadow .1s, background .12s, border-color .12s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
   }
-  .sound-btn:active { transform:translateY(2px); box-shadow:0 1px 4px rgba(0,0,0,.5), 0 1px 0 rgba(0,0,0,.3) inset; }
+  .sound-btn:hover {
+    background: linear-gradient(160deg, #234878, #1a2c56);
+    border-color: rgba(96,165,250,.3);
+    box-shadow:
+      0 6px 20px rgba(0,0,0,.6),
+      0 1px 0 rgba(255,255,255,.09) inset,
+      0 -2px 0 rgba(0,0,0,.45) inset;
+  }
+  .sound-btn:active {
+    transform: translateY(2px) scale(.98);
+    box-shadow: 0 1px 5px rgba(0,0,0,.55), 0 1px 0 rgba(0,0,0,.35) inset;
+  }
   .sound-btn.playing {
-    background:linear-gradient(135deg,#1d4ed8,#1e40af);
-    color:#fff;
-    box-shadow:0 4px 16px rgba(37,99,235,.45), 0 1px 0 rgba(255,255,255,.12) inset, 0 -2px 0 rgba(0,0,0,.3) inset;
+    background: linear-gradient(160deg, #1d4ed8, #1e3eaf);
+    color: #fff; border-color: rgba(96,165,250,.35);
+    box-shadow:
+      0 4px 18px rgba(37,99,235,.5),
+      0 1px 0 rgba(255,255,255,.14) inset,
+      0 -2px 0 rgba(0,0,0,.3) inset;
   }
-  .sound-vol { width:100%; accent-color:#3b82f6; cursor:pointer; }
+  .sound-btn.playing:hover {
+    background: linear-gradient(160deg, #2563eb, #1d4ed8);
+    box-shadow:
+      0 6px 24px rgba(37,99,235,.6),
+      0 1px 0 rgba(255,255,255,.16) inset,
+      0 -2px 0 rgba(0,0,0,.28) inset;
+  }
+
+  /* ── Volume slider ───────────────────────────────────────────────────── */
+  .sound-vol {
+    width: 100%; cursor: pointer;
+    accent-color: #3b82f6;
+    height: 4px; border-radius: 2px;
+    opacity: .75; transition: opacity .15s;
+  }
+  .sound-vol:hover, .sound-vol:focus { opacity: 1; }
+
+  /* ── Mix / preset buttons ────────────────────────────────────────────── */
   .mix-btn {
-    display:inline-flex; align-items:center; gap:6px;
-    padding:9px 16px; border-radius:10px; border:1px solid rgba(148,163,184,.2);
-    background:linear-gradient(135deg,rgba(30,41,59,.9),rgba(15,23,42,.95));
-    color:var(--text); font-size:.85rem; font-weight:700; cursor:pointer;
-    box-shadow:0 3px 10px rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.06) inset, 0 -2px 0 rgba(0,0,0,.35) inset;
-    transition:transform .08s, box-shadow .08s, border-color .12s;
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 10px 18px; min-height: 42px;
+    border-radius: 12px; border: 1px solid rgba(148,163,184,.2);
+    background: linear-gradient(135deg, rgba(30,41,59,.92), rgba(15,23,42,.97));
+    color: var(--text); font-size: .84rem; font-weight: 700; cursor: pointer;
+    box-shadow:
+      0 3px 12px rgba(0,0,0,.45),
+      0 1px 0 rgba(255,255,255,.07) inset,
+      0 -2px 0 rgba(0,0,0,.38) inset;
+    transition: transform .08s, box-shadow .1s, border-color .12s, background .12s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
   }
-  .mix-btn:hover { border-color:rgba(96,165,250,.4); box-shadow:0 4px 14px rgba(0,0,0,.5), 0 1px 0 rgba(255,255,255,.08) inset, 0 -2px 0 rgba(0,0,0,.35) inset; }
-  .mix-btn:active { transform:translateY(2px); box-shadow:0 1px 4px rgba(0,0,0,.4), 0 1px 0 rgba(0,0,0,.2) inset; }
+  .mix-btn:hover {
+    border-color: rgba(96,165,250,.4);
+    background: linear-gradient(135deg, rgba(36,50,76,.96), rgba(20,30,55,.99));
+    box-shadow:
+      0 5px 18px rgba(0,0,0,.52),
+      0 1px 0 rgba(255,255,255,.09) inset,
+      0 -2px 0 rgba(0,0,0,.38) inset;
+  }
+  .mix-btn:active {
+    transform: translateY(2px) scale(.98);
+    box-shadow: 0 1px 5px rgba(0,0,0,.45), 0 1px 0 rgba(0,0,0,.25) inset;
+  }
+
+  /* ── Stop button ─────────────────────────────────────────────────────── */
   .stop-btn {
-    display:inline-flex; align-items:center; gap:6px;
-    padding:9px 16px; border-radius:10px; border:1px solid rgba(239,68,68,.25);
-    background:linear-gradient(135deg,rgba(127,29,29,.6),rgba(69,10,10,.7));
-    color:#fca5a5; font-size:.85rem; font-weight:700; cursor:pointer;
-    box-shadow:0 3px 10px rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.04) inset, 0 -2px 0 rgba(0,0,0,.35) inset;
-    transition:transform .08s, box-shadow .08s;
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 10px 18px; min-height: 42px;
+    border-radius: 12px; border: 1px solid rgba(239,68,68,.28);
+    background: linear-gradient(135deg, rgba(127,29,29,.65), rgba(69,10,10,.75));
+    color: #fca5a5; font-size: .84rem; font-weight: 700; cursor: pointer;
+    box-shadow:
+      0 3px 12px rgba(0,0,0,.45),
+      0 1px 0 rgba(255,255,255,.05) inset,
+      0 -2px 0 rgba(0,0,0,.38) inset;
+    transition: transform .08s, box-shadow .1s, background .12s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
   }
-  .stop-btn:active { transform:translateY(2px); box-shadow:0 1px 4px rgba(0,0,0,.4); }
+  .stop-btn:hover {
+    background: linear-gradient(135deg, rgba(153,27,27,.75), rgba(127,10,10,.85));
+    box-shadow:
+      0 5px 18px rgba(239,68,68,.22),
+      0 1px 0 rgba(255,255,255,.07) inset,
+      0 -2px 0 rgba(0,0,0,.38) inset;
+    border-color: rgba(239,68,68,.4);
+  }
+  .stop-btn:active {
+    transform: translateY(2px) scale(.98);
+    box-shadow: 0 1px 5px rgba(0,0,0,.45);
+  }
+
+  /* ── Ambient wrapper tweaks ──────────────────────────────────────────── */
+  .ambient-wrapper {
+    margin-top: 28px; text-align: center;
+    padding: 28px 24px 24px;
+    max-width: 960px; margin-inline: auto;
+  }
+  @media (max-width: 700px) {
+    .ambient-wrapper { padding: 20px 14px 18px; }
+    .sound-icon { font-size: 1.9rem; }
+    .sound-card { padding: 16px 10px 14px; gap: 8px; }
+  }
+
+  /* ── Mix row ─────────────────────────────────────────────────────────── */
+  .mix-row {
+    margin-top: 20px;
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+  }
+  @media (max-width: 480px) {
+    .mix-row { gap: 8px; }
+    .mix-btn, .stop-btn { font-size: .8rem; padding: 9px 14px; }
+  }
 </style>
 
-<div class="card ambient-section" style="margin-top:28px; text-align:center; padding:24px; max-width:900px; margin-inline:auto;">
+<div class="card ambient-wrapper">
   <h2 class="section" style="margin-bottom:20px; font-size:1.25rem; letter-spacing:.04em;">&#127911; Ambient Sounds</h2>
 
-  <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; justify-items:stretch;">
+  <div class="sound-grid">
 
     <div class="sound-card">
       <div class="sound-icon">&#127754;</div>
@@ -525,7 +647,7 @@
 
   </div>
 
-  <div class="ambient-section" style="margin-top:20px; display:flex; flex-wrap:wrap; justify-content:center; gap:10px;">
+  <div class="mix-row">
     <button id="mix-sleep" class="mix-btn">&#128564; Sleep Mix</button>
     <button id="mix-rainy" class="mix-btn">&#127783;&#65039; Rainy Mix</button>
     <button id="mix-reading" class="mix-btn">&#128218; Reading Mix</button>
@@ -1355,7 +1477,7 @@
   </div>
 </div>
 
-    <script src="/assets/app-shell.v20260402a.js?v=20260402i"></script>
+    <script src="/assets/app-shell.v20260402a.js?v=20260402j"></script>
 
 <!-- ── Supabase client (loaded after app bundle so window globals are ready) ── -->
 <script src="/api/config?format=js"></script>
