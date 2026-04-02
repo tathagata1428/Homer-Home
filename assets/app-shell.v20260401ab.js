@@ -8845,8 +8845,9 @@ let tvWidgetCreated = false;
   var FIELD_SYNC_CURSOR_KEY = 'homer-field-sync-version';
   var FIELD_SYNC_DEVICE_KEY = 'homer-sync-device-id';
   var FIELD_SYNC_CLIENT_SEQ_KEY = 'homer-field-sync-client-seq';
+  var FREE_REDIS_MODE = true;
   var FIELD_SYNC_PUSH_DELAY = 350;
-  var FIELD_SYNC_PULL_INTERVAL = 2000;
+  var FIELD_SYNC_PULL_INTERVAL = FREE_REDIS_MODE ? 30000 : 2000;
   var fieldSyncPendingMap = new Map();
   var fieldSyncPushTimer = null;
   var fieldSyncPushInFlight = null;
@@ -10109,8 +10110,8 @@ let tvWidgetCreated = false;
       });
   }
 
-  var DB_BACKUP_DELAY_PERSONAL = 60000;
-  var DB_BACKUP_DELAY_WORK = 60000;
+  var DB_BACKUP_DELAY_PERSONAL = FREE_REDIS_MODE ? (15 * 60 * 1000) : 60000;
+  var DB_BACKUP_DELAY_WORK = FREE_REDIS_MODE ? (15 * 60 * 1000) : 60000;
   var DB_BACKUP_FAILURE_BACKOFF_MS = 2 * 60 * 60 * 1000;
   var dbBackupTimers = { personal:null, work:null };
   var dbBackupBackoffUntil = { personal:0, work:0 };
@@ -13250,6 +13251,31 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   var joeyHistorySaveInflight = { personal:null, work:null };
   var joeyLastHistorySaveSignatureByMode = { personal:'', work:'' };
   var joeyLastHistorySyncedLengthByMode = { personal:0, work:0 };
+  var joeyLastHistorySaveAtByMode = { personal:0, work:0 };
+  var joeyHistorySaveTimerByMode = { personal:null, work:null };
+  var joeyHistorySaveDeferredByMode = { personal:null, work:null };
+  var JOEY_PANEL_REDIS_POLL_INTERVAL_MS = FREE_REDIS_MODE ? (2 * 60 * 1000) : (15 * 1000);
+  var JOEY_SYNC_META_DEFAULT_MIN_INTERVAL_MS = FREE_REDIS_MODE ? (2 * 60 * 1000) : 10000;
+  var JOEY_SYNC_META_FAST_MIN_INTERVAL_MS = FREE_REDIS_MODE ? 15000 : 3000;
+  var JOEY_HISTORY_SAVE_DEBOUNCE_MS = FREE_REDIS_MODE ? 5000 : 0;
+
+  function createDeferred(){
+    var resolve;
+    var reject;
+    var promise = new Promise(function(res, rej){
+      resolve = res;
+      reject = rej;
+    });
+    return { promise:promise, resolve:resolve, reject:reject };
+  }
+
+  function settleJoeyHistorySaveDeferred(mode, method, value){
+    var targetMode = getJoeyModeKey(mode);
+    var deferred = joeyHistorySaveDeferredByMode[targetMode];
+    if(!deferred || typeof deferred[method] !== 'function') return;
+    joeyHistorySaveDeferredByMode[targetMode] = null;
+    deferred[method](value);
+  }
   function parseJoeyBundleStamp(value){
     if(!value) return 0;
     var date = new Date(value);
@@ -13280,8 +13306,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   function getJoeySyncMetaMinInterval(source){
     var reason = String(source || '').trim().toLowerCase();
     if(reason === 'manual-redis-refresh' || reason === 'mode-switch') return 0;
-    if(reason === 'pre-send' || reason === 'remember-action' || reason === 'implicit-profile-remember') return 3000;
-    return 10000;
+    if(reason === 'pre-send' || reason === 'remember-action' || reason === 'implicit-profile-remember') return JOEY_SYNC_META_FAST_MIN_INTERVAL_MS;
+    return JOEY_SYNC_META_DEFAULT_MIN_INTERVAL_MS;
   }
   function joeyFetchJson(url, options){
     if(typeof window._homerFetchJson === 'function') return window._homerFetchJson(url, options);
@@ -13362,7 +13388,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   }
 
   // --- Redis conversation persistence ---
-  function saveHistoryToRedis(opts){
+  function saveHistoryToRedisNow(opts){
     opts = opts || {};
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass || !chatHistory.length) return Promise.resolve({ ok:false, skipped:true, reason:'unavailable' });
@@ -13394,6 +13420,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }).then(function(r){ return r.json(); }).then(function(d){
       if(d && d.updatedAt) rememberJoeyBundleStamp(currentContextMode, d.updatedAt);
       if(d && d.ok){
+        joeyLastHistorySaveAtByMode[activeMode] = Date.now();
         joeyLastHistorySaveSignatureByMode[activeMode] = signature;
         joeyLastHistorySyncedLengthByMode[activeMode] = chatHistory.length;
       }
@@ -13409,6 +13436,37 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     });
     joeyHistorySaveInflight[activeMode] = { signature:signature, promise:request };
     return request;
+  }
+  function saveHistoryToRedis(opts){
+    opts = opts || {};
+    var activeMode = getJoeyModeKey(currentContextMode);
+    var needsImmediate = !!(opts.force || opts.keepalive || opts.immediate || !JOEY_HISTORY_SAVE_DEBOUNCE_MS);
+    if(needsImmediate){
+      if(joeyHistorySaveTimerByMode[activeMode]){
+        clearTimeout(joeyHistorySaveTimerByMode[activeMode]);
+        joeyHistorySaveTimerByMode[activeMode] = null;
+      }
+      return saveHistoryToRedisNow(opts).then(function(result){
+        settleJoeyHistorySaveDeferred(activeMode, 'resolve', result);
+        return result;
+      }).catch(function(err){
+        settleJoeyHistorySaveDeferred(activeMode, 'reject', err);
+        throw err;
+      });
+    }
+    if(!joeyHistorySaveDeferredByMode[activeMode]){
+      joeyHistorySaveDeferredByMode[activeMode] = createDeferred();
+    }
+    if(joeyHistorySaveTimerByMode[activeMode]) clearTimeout(joeyHistorySaveTimerByMode[activeMode]);
+    joeyHistorySaveTimerByMode[activeMode] = setTimeout(function(){
+      joeyHistorySaveTimerByMode[activeMode] = null;
+      saveHistoryToRedisNow({ silent:opts.silent }).then(function(result){
+        settleJoeyHistorySaveDeferred(activeMode, 'resolve', result);
+      }).catch(function(err){
+        settleJoeyHistorySaveDeferred(activeMode, 'reject', err);
+      });
+    }, JOEY_HISTORY_SAVE_DEBOUNCE_MS);
+    return joeyHistorySaveDeferredByMode[activeMode].promise;
   }
   function flushJoeyStateForHandoff(reason){
     if(joeyBackgroundCommitInFlight) return;
@@ -13882,7 +13940,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!pass || !panelOpen || streaming) return;
     maybeRefreshJoeyBundleFromRedis({ source:'redis-poll' });
     if(libraryPanel && libraryPanel.classList.contains('open')) fetchFileLibrary({ silent:true });
-  }, 15 * 1000);
+  }, JOEY_PANEL_REDIS_POLL_INTERVAL_MS);
 
   // --- Sync context from Google Drive (safe reconcile) ---
   function syncContextFromDrive(showConfirmation, silent){
