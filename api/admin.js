@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { verifySupabaseJwt, isSupabaseConfigured } from '../lib/supabase-server.js';
 
 const ADMIN_HASH = 'e5d510e7c10f6dbafca09488da4fe64b08518188b9b061c3b5d0ef62a103e914'; // bogdan.radu@b4it.ro:QAZwsx098pl.!
 const RESERVED_USER = 'bogdan';
@@ -16,13 +17,21 @@ function hashUserPass(username, password) {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   var REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   var REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!REDIS_URL || !REDIS_TOKEN) return res.status(500).json({ error: 'Redis not configured' });
+
+  // Accept Supabase JWT as an alternative to admin credentials
+  var authHeader = String(req.headers.authorization || '');
+  var jwtToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+  var supabaseUser = null;
+  if (jwtToken && isSupabaseConfigured()) {
+    supabaseUser = await verifySupabaseJwt(jwtToken);
+  }
 
   async function redis(cmd) {
     var r = await fetch(REDIS_URL, {
@@ -96,8 +105,9 @@ export default async function handler(req, res) {
       }
     }
 
-    // --- ADMIN ENDPOINTS (require admin auth) ---
-    if (!verifyAdmin(body.user, body.pass)) return res.status(403).json({ error: 'Unauthorized' });
+    // --- ADMIN ENDPOINTS (require admin auth or Supabase JWT) ---
+    var adminOk = supabaseUser != null || verifyAdmin(body.user, body.pass);
+    if (!adminOk) return res.status(403).json({ error: 'Unauthorized' });
 
     if (action === 'list') {
       var keys = await redis(['KEYS', 'homer:*']);

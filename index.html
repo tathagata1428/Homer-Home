@@ -1370,5 +1370,84 @@
 </div>
 
     <script src="/assets/app-shell.v20260401ag.js"></script>
+
+<!-- ── Supabase client (loaded after app bundle so window globals are ready) ── -->
+<script src="/api/config?format=js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(function () {
+  var SUPA_URL = window.__SUPABASE_URL__ || '';
+  var SUPA_ANON = window.__SUPABASE_ANON_KEY__ || '';
+
+  // Values are injected by the server (see api/config endpoint) or can be
+  // hard-coded here after setup.  Do NOT put the service-role key here.
+  if (!SUPA_URL || !SUPA_ANON) return;
+
+  var client = supabase.createClient(SUPA_URL, SUPA_ANON, {
+    auth: { persistSession: true, autoRefreshToken: true, storageKey: 'homer_sb_session' }
+  });
+
+  window.__supabase = client;
+
+  // ── Restore existing session ──────────────────────────────
+  client.auth.getSession().then(function (result) {
+    var session = result && result.data && result.data.session;
+    if (session) {
+      window.__sbSession = session;
+      window.dispatchEvent(new CustomEvent('supabase:session', { detail: session }));
+    }
+  });
+
+  // ── Listen for auth state changes ─────────────────────────
+  client.auth.onAuthStateChange(function (event, session) {
+    window.__sbSession = session;
+    window.dispatchEvent(new CustomEvent('supabase:authchange', { detail: { event: event, session: session } }));
+  });
+
+  // ── Realtime: messages ────────────────────────────────────
+  client.channel('homer-messages')
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'messages'
+    }, function (payload) {
+      window.dispatchEvent(new CustomEvent('supabase:message', { detail: payload }));
+    })
+    .subscribe();
+
+  // ── Realtime: memories ────────────────────────────────────
+  client.channel('homer-memories')
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'memories'
+    }, function (payload) {
+      window.dispatchEvent(new CustomEvent('supabase:memory', { detail: payload }));
+    })
+    .subscribe();
+
+  // ── Realtime: tasks ───────────────────────────────────────
+  client.channel('homer-tasks')
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'tasks'
+    }, function (payload) {
+      window.dispatchEvent(new CustomEvent('supabase:task', { detail: payload }));
+    })
+    .subscribe();
+
+  // ── Helper: sign in and cache JWT ─────────────────────────
+  window.supabaseSignIn = function (email, password) {
+    return client.auth.signInWithPassword({ email: email, password: password })
+      .then(function (result) {
+        if (result.error) throw new Error(result.error.message);
+        window.__sbSession = result.data.session;
+        return result.data;
+      });
+  };
+
+  // ── Helper: get Authorization header value ────────────────
+  window.supabaseAuthHeader = function () {
+    var session = window.__sbSession;
+    if (!session || !session.access_token) return null;
+    return 'Bearer ' + session.access_token;
+  };
+})();
+</script>
 </body>
 </html>

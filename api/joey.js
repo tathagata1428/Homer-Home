@@ -3,6 +3,9 @@ import handleJoeyCommit, { runLearnStep } from '../lib/joey-commit-handler.js';
 import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
 import { loadRedisJson, saveRedisJson, safeJsonParse } from '../lib/joey-server.js';
 import { computeJoeySyncMeta } from '../lib/joey-sync-meta.js';
+import { createClient } from '@supabase/supabase-js';
+import { createSupabaseRedisFetch } from '../lib/supabase-redis-compat.js';
+import { verifySupabaseJwt, isSupabaseConfigured } from '../lib/supabase-server.js';
 
 function asObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
@@ -443,41 +446,76 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.query && req.query.action === 'commit') return handleJoeyCommit(req, res);
 
-  // Auth — accept admin hash OR any registered user
+  // Auth — accept Supabase JWT (new) OR legacy passphrase (backward compat)
   const getPass = () => {
     if (req.method === 'GET') return req.query.passphrase;
     if (req.body && typeof req.body === 'object') return req.body.passphrase;
     return null;
   };
-  const passphrase = getPass();
-  if (!passphrase) return res.status(401).json({ error: 'Missing passphrase' });
+  const passphrase  = getPass();
+  const authHeader  = String(req.headers.authorization || '');
+  const jwtToken    = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+  if (!passphrase && !jwtToken) return res.status(401).json({ error: 'Missing passphrase' });
 
-  // Redis
-  const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!REDIS_URL || !REDIS_TOKEN) return res.status(500).json({ error: 'Redis not configured' });
+  // Redis (legacy — kept for auth fallback and backward compat during migration)
+  const REDIS_URL   = process.env.KV_REST_API_URL   || process.env.UPSTASH_REDIS_REST_URL;
+  const REDIS_TOKEN = process.env.KV_REST_API_TOKEN  || process.env.UPSTASH_REDIS_REST_TOKEN;
+  const redisRaw    = (REDIS_URL && REDIS_TOKEN)
+    ? (cmd) => fetch(REDIS_URL, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + REDIS_TOKEN },
+        body: JSON.stringify(cmd)
+      }).then(r => r.json())
+    : null;
 
-  const redis = (cmd) => fetch(REDIS_URL, {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN },
-    body: JSON.stringify(cmd)
-  }).then(r => r.json());
+  // Supabase (new canonical data store)
+  const SUPA_URL = process.env.SUPABASE_URL;
+  const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseClient = (SUPA_URL && SUPA_KEY)
+    ? createClient(SUPA_URL, SUPA_KEY, { auth: { autoRefreshToken: false, persistSession: false } })
+    : null;
 
-  // Verify against admin hash or user database
-  const ADMIN_HASH = (process.env.HOMER_ADMIN_HASH || '').trim();
-  let isValid = ADMIN_HASH && passphrase.trim() === ADMIN_HASH;
-  if (!isValid) {
-    const usersData = await redis(['GET', 'homer:users']);
-    const users = safeJsonParse(usersData && usersData.result, []);
-    for (const user of users) {
-      if (user && user.passwordHash === passphrase.trim()) { isValid = true; break; }
-    }
+  if (!redisRaw && !supabaseClient) {
+    return res.status(500).json({ error: 'No data store configured. Set Redis or Supabase env vars.' });
   }
+
+  // Authenticate and resolve userId
+  let isValid = false;
+  let userId  = null;
+
+  // 1. Try Supabase JWT first (new auth path)
+  if (jwtToken && supabaseClient) {
+    const jwtUser = await verifySupabaseJwt(jwtToken);
+    if (jwtUser) { isValid = true; userId = jwtUser.id; }
+  }
+
+  // 2. Fall back to legacy passphrase
+  if (!isValid && passphrase) {
+    const ADMIN_HASH = (process.env.HOMER_ADMIN_HASH || '').trim();
+    if (ADMIN_HASH && passphrase.trim() === ADMIN_HASH) {
+      isValid = true;
+    } else if (redisRaw) {
+      const usersData = await redisRaw(['GET', 'homer:users']);
+      const users = safeJsonParse(usersData && usersData.result, []);
+      for (const user of users) {
+        if (user && user.passwordHash === passphrase.trim()) { isValid = true; break; }
+      }
+    }
+    if (isValid) userId = String(process.env.SUPABASE_OWNER_ID || '').trim() || null;
+  }
+
   if (!isValid) return res.status(403).json({ error: 'Forbidden' });
+
+  // Select data backend: Supabase if configured + userId known, else Redis
+  const redis = (supabaseClient && userId)
+    ? createSupabaseRedisFetch(supabaseClient, userId)
+    : redisRaw;
+
+  if (!redis) return res.status(500).json({ error: 'Data store unavailable' });
 
   const mode = getJoeyMode(req);
   const { MEMORY_KEY, HISTORY_KEY, PROFILE_KEY, FILES_KEY, FILE_LIBRARY_KEY, CUSTOM_FILES_KEY, JOURNAL_KEY, SYNC_META_KEY } = getJoeyContextKeys(mode);
