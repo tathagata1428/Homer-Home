@@ -222,8 +222,8 @@ export default async function handler(req, res) {
       if (providerHint === 'alicloud') {
         const primaryModel = String(env.OC_ALICLOUD_MODEL || 'qwen3-coder:480b-cloud').trim();
         return {
-          gatewayUrl: String(env.OC_ALICLOUD_GATEWAY_URL || '').trim(),
-          gatewayToken: String(env.OC_ALICLOUD_GATEWAY_TOKEN || env.OC_ALICLOUD_TOKEN || '').trim(),
+          gatewayUrl: String(env.OC_ALICLOUD_GATEWAY_URL || env.OC_GATEWAY_URL || '').trim(),
+          gatewayToken: String(env.OC_ALICLOUD_GATEWAY_TOKEN || env.OC_ALICLOUD_TOKEN || env.OC_GATEWAY_TOKEN || '').trim(),
           primaryModel,
           fallbackModel: '',
           largeContext: true
