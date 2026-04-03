@@ -6518,15 +6518,20 @@ let tvWidgetCreated = false;
     if(!pw){ showError('Please enter your password.'); return; }
     _pendingRememberPw = (vaultRememberMe && vaultRememberMe.checked) ? pw : null;
 
-    // Verify against stored account credentials
+    // Supabase session can bypass the local account-hash pre-check
+    var sbSess = window.__sbSession && typeof window.__sbSession === 'object' ? window.__sbSession : null;
+    var sbSessUser = sbSess && sbSess.user && typeof sbSess.user === 'object' ? sbSess.user : null;
+    var hasSbAuth = !!(sbSessUser && (sbSessUser.id || sbSessUser.email));
+
+    // Verify against stored account credentials (skipped when Supabase session active)
     var storedUser = localStorage.getItem('homer-auth-user');
     var storedAcctHash = localStorage.getItem('homer-auth-hash');
-    if(!storedUser || !storedAcctHash){ showError('No account found. Create one first.'); return; }
-    if(storedUser.toLowerCase() !== user.toLowerCase()){ showError('Invalid username or password.'); return; }
+    if(!hasSbAuth){
+      if(!storedUser || !storedAcctHash){ showError('No account found. Sign in via the Account button first.'); return; }
+      if(storedUser.toLowerCase() !== user.toLowerCase()){ showError('Invalid username or password.'); return; }
+    }
 
-    hashAccountCreds(user, pw).then(function(acctHash){
-      if(acctHash !== storedAcctHash){ showError('Invalid username or password.'); return; }
-
+    var doVaultUnlock = function(){
       // Account verified — use credentials to derive vault encryption key
       getSalt().then(function(salt){
         if(isNew){
@@ -6565,7 +6570,25 @@ let tvWidgetCreated = false;
           });
         }
       });
-    });
+    };
+
+    if(hasSbAuth){
+      doVaultUnlock();
+    } else {
+      hashAccountCreds(user, pw).then(function(acctHash){
+        if(acctHash !== storedAcctHash){
+          // Stale remember-me password — clear it so it doesn't loop on reload
+          if(vaultRememberMe && vaultRememberMe.checked){
+            try{ localStorage.removeItem(VAULT_REMEMBER_KEY); }catch(_e){}
+            vaultRememberMe.checked = false;
+          }
+          _pendingRememberPw = null;
+          showError('Invalid username or password.');
+          return;
+        }
+        doVaultUnlock();
+      });
+    }
   });
   vaultUserInput.addEventListener('keydown', function(e){ if(e.key==='Enter') unlockBtn.click(); });
   pwInput.addEventListener('keydown', function(e){ if(e.key==='Enter') unlockBtn.click(); });
@@ -11790,6 +11813,12 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
   }
   function getJoeyAccessState(){
+    // Supabase session is a valid auth path (e.g. mobile where homer-auth-user may not be set)
+    var sbSession = window.__sbSession && typeof window.__sbSession === 'object' ? window.__sbSession : null;
+    var sbUser = sbSession && sbSession.user && typeof sbSession.user === 'object' ? sbSession.user : null;
+    if(sbUser && (sbUser.id || sbUser.email)){
+      return { ok:true, user:String(sbUser.email || sbUser.id || 'supabase-user'), memoryEnabled: hasJoeyRemoteAuth() };
+    }
     var rawUser = String(localStorage.getItem('homer-auth-user') || '').trim();
     if(!rawUser){
       return { ok:false, message:'This feature is available only for Bogdan. Log in as Bogdan to use Joey.' };
@@ -12995,6 +13024,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   }
   function openPanel(){
     if(!ensureJoeyAccess(true)) return;
+    updateMobileViewport(); // ensure mobile-shell class is set before panel opens
     applyDesktopWindowState();
     panelOpen = true;
     panel.classList.add('open');
