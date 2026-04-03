@@ -1,3 +1,32 @@
+/*
+ * app-shell.v20260331.css — Homer Home stylesheet
+ *
+ * TABLE OF CONTENTS (search for ══ to jump between sections)
+ *  1.  Base / reset / variables
+ *  2.  ZEN MODE
+ *  3.  DESKTOP SIDEBAR
+ *  4.  Hero / tabs / grid
+ *  5.  Button system (.btn, .primary, .secondary, .danger, .ghost)
+ *  6.  Pomodoro / Focus timer
+ *  7.  Sticky footer toolbar (.tool-btn)
+ *  8.  Focus Lab (Trataka, Box Breathing, Brain Dump, Zen)
+ *  9.  HOME: FOCUS TASKS CIRCLE
+ * 10.  KANBAN
+ * 11.  VAULT DASHBOARD
+ * 12.  VAULT OVERLAYS
+ * 13.  LIFE GOALS
+ * 14.  GOALS PAGE OVERLAY
+ * 15.  FULLSCREEN ISSUE VIEW
+ * 16.  FLOATING BACKUP FAB
+ * 17.  ACCOUNT FAB
+ * 18.  CALENDAR
+ * 19.  DRAGGABLE POPUP
+ * 20.  DAY/MONTH TOGGLE
+ * 21.  DAY VIEW (AGENDA)
+ * 22.  JOEY / OPENCLAW FAB
+ * 23.  MOBILE NAV (Notion-style bottom bar)
+ */
+
 :root{
       --bg:#0f172a; --muted:#94a3b8; --text:#e5e7eb;
       --accent:#22c55e; --accent-2:#60a5fa; --border:rgba(255,255,255,.12);
@@ -25,7 +54,7 @@
       overflow-y:auto;
     }
 
-    /* === ZEN MODE OVERRIDES === */
+    /* ══════════════════════ ZEN MODE ══════════════════════ */
     body.zen-active {
         background: #000;
         place-items: center;
@@ -56,7 +85,7 @@
 
     .shell{width:min(1150px,96vw)}
 
-    /* ===== DESKTOP SIDEBAR (>900px) ===== */
+    /* ══════════════════════ DESKTOP SIDEBAR (>900px) ══════════════════════ */
     #desktop-sidebar{display:none;}
     @media(min-width:901px){
       #desktop-sidebar{
@@ -352,7 +381,7 @@
     }
     .secondary:active{box-shadow: 0 1px 6px rgba(96,165,250,.3), 0 1px 0 rgba(0,0,0,.2) inset;}
 
-    /* Ã°Å¸â€Â´ RED BUTTON CLASS */
+    /* === BUTTON VARIANTS: danger === */
     .danger{
       background:linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
       border:none; color:#ffffff;
@@ -414,7 +443,7 @@
     .ring{
       --ring-size: 220px; /* smaller */
       position:relative; width:var(--ring-size); height:var(--ring-size); border-radius:50%;
-      /* Ã°Å¸â€Â´ THICKER RING (76% hole = 24% thick) */
+      /* thicker ring: 76% hole = 24% thickness */
       background:
         radial-gradient(closest-side, #151f32 76%, transparent 77%),
         conic-gradient(var(--accent) var(--pom-progress,0%), rgba(255,255,255,.18) 0);
@@ -965,7 +994,7 @@
     .site-footer a{ color: var(--accent-2); font-weight: 700; text-decoration: none; }
     .site-footer a:hover{ text-decoration: underline; }
 
-    /* ===== Home: Focus Tasks Mini Circle (VISUAL FIX) ===== */
+    /* ══════════════════════ HOME: FOCUS TASKS CIRCLE ══════════════════════ */
     .htasklist{
       display:grid;
       grid-template-columns: repeat( auto-fit, minmax(260px, 1fr) );
@@ -1022,7 +1051,7 @@
       margin-top: auto; /* Push to bottom if needed */
     }
 
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Kanban Ã¢â€â‚¬Ã¢â€â‚¬ */
+    /* ══════════════════════ KANBAN ══════════════════════ */
     .kanban-card{
       padding:12px 14px;border-radius:10px;background:rgba(255,255,255,.04);
       border:1px solid rgba(255,255,255,.08);margin-bottom:8px;cursor:grab;
@@ -1173,7 +1202,7 @@
       .goal-filters{flex-direction:column;gap:6px!important;}
       .goal-filters input,.goal-filters select{width:100%;min-width:0!important;}
       .goal-filters .archive-toggle{margin-left:0!important;width:100%;text-align:center;}
-      /* Secrets overlay Ã¢â‚¬â€ stack form fields */
+      /* Secrets overlay — stack form fields */
       #secrets-overlay .card > div{flex-direction:column!important;}
       #secrets-overlay .card input,#secrets-overlay .card textarea,#secrets-overlay .card > div > div{width:100%!important;min-width:0!important;flex:none!important;}
       #secrets-overlay .card .btn.primary{width:100%;}
@@ -1201,7 +1230,7 @@
       #project-modal-bg .fab-dialog input,
       #project-modal-bg .fab-dialog textarea{min-width:0!important;width:100%;}
     }
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Vault Dashboard Ã¢â€â‚¬Ã¢â€â‚¬ */
+    /* ══════════════════════ VAULT DASHBOARD ══════════════════════ */
     .vault-dashboard{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
     .vd-card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s;display:flex;align-items:center;gap:16px;position:relative;overflow:hidden;}
     .vd-card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.18);box-shadow:0 8px 24px rgba(0,0,0,.3);}
@@ -1356,7 +1385,7 @@
       .project-name{font-size:.94rem;}
       .project-desc{font-size:.78rem;min-height:0;}
     }
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Vault Overlays Ã¢â€â‚¬Ã¢â€â‚¬ */
+    /* ══════════════════════ VAULT OVERLAYS ══════════════════════ */
     .vault-ov{position:fixed;top:0;left:0;right:0;bottom:0;z-index:9970;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;animation:goalsSlideIn .25s ease;}
     .vault-ov-page{max-width:1100px;margin:0 auto;padding:24px 20px 60px;}
     .vault-ov-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
@@ -1369,7 +1398,7 @@
       .vault-ov-topbar h2{font-size:1.1rem;}
       .vault-ov-close{width:100%;text-align:center;}
     }
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Life Goals Ã¢â€â‚¬Ã¢â€â‚¬ */
+    /* ══════════════════════ LIFE GOALS ══════════════════════ */
     .lg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-top:16px;}
     @media(max-width:500px){.lg-grid{grid-template-columns:1fr;}}
     .lg-card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s;}
@@ -1390,7 +1419,7 @@
     .lg-card-date{font-size:.7rem;color:var(--muted);margin-top:10px;}
     .lg-add-btn{background:none;border:2px dashed rgba(255,255,255,.12);border-radius:16px;padding:40px 20px;color:var(--muted);cursor:pointer;font-size:1rem;font-weight:700;transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:8px;}
     .lg-add-btn:hover{border-color:rgba(255,255,255,.25);color:var(--text);background:rgba(255,255,255,.03);}
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Goals Page Overlay Ã¢â€â‚¬Ã¢â€â‚¬ */
+    /* ══════════════════════ GOALS PAGE OVERLAY ══════════════════════ */
     .goals-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9980;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;animation:goalsSlideIn .25s ease;}
     .goals-overlay.open{display:block;}
     @keyframes goalsSlideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
@@ -1490,7 +1519,7 @@
       #lg-modal-bg .fab-dialog > div{flex-direction:column!important;}
       #lg-modal-bg .fab-dialog select,#lg-modal-bg .fab-dialog input[type="text"]{width:100%!important;}
     }
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Fullscreen Issue View Ã¢â€â‚¬Ã¢â€â‚¬ */
+    /* ══════════════════════ FULLSCREEN ISSUE VIEW ══════════════════════ */
     .issue-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9990;background:rgba(0,0,0,.7);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);overflow-y:auto;-webkit-overflow-scrolling:touch;}
     .issue-overlay.open{display:block;}
     .issue-panel{max-width:900px;margin:0 auto;padding:24px 20px 60px;animation:fabSlideIn .2s ease;}
@@ -1578,7 +1607,7 @@
     }
     .issue-log-body.open{display:block;}
 
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Floating Backup FAB Ã¢â€â‚¬Ã¢â€â‚¬ */
+    /* ══════════════════════ FLOATING BACKUP FAB ══════════════════════ */
     @keyframes fabSpin { to { transform:rotate(360deg); } }
     @keyframes fabSlideIn { from{opacity:0;transform:scale(.92) translateY(10px)} to{opacity:1;transform:none} }
     .fab-cluster{
@@ -1639,7 +1668,7 @@
       box-shadow:0 24px 60px rgba(0,0,0,.7); animation:fabSlideIn .2s ease;
     }
 
-    /* === ACCOUNT FAB === */
+    /* ══════════════════════ ACCOUNT FAB ══════════════════════ */
     #fab-account{
       width:58px; height:58px;
       background:linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
@@ -1666,7 +1695,7 @@
     }
     .acct-error{ color:#ef4444; font-size:.85rem; min-height:1.2em; margin-top:4px; }
 
-    /* === CALENDAR === */
+    /* ══════════════════════ CALENDAR ══════════════════════ */
     #homer-cal { position:relative; }
     #homer-cal .cal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
     #homer-cal .cal-header h3 { margin:0; font-size:1.15rem; font-weight:900; color:var(--text); }
@@ -1751,7 +1780,7 @@
     #homer-cal .cal-add-outlook { display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:.82rem; color:var(--muted); cursor:pointer; user-select:none; }
     #homer-cal .cal-add-outlook input { accent-color:#0078d4; cursor:pointer; }
 
-    /* === DRAGGABLE POPUP STYLES === */
+    /* ══════════════════════ DRAGGABLE POPUP ══════════════════════ */
     #homer-cal .cal-popover.draggable,
     #homer-cal .cal-detail.draggable,
     #homer-cal .cal-add-form.draggable { cursor:default; }
@@ -1769,7 +1798,7 @@
     }
     #homer-cal .cal-drag-hint { font-size:.65rem; color:var(--muted); opacity:.5; margin-left:auto; }
 
-    /* === DAY/MONTH TOGGLE === */
+    /* ══════════════════════ DAY/MONTH TOGGLE ══════════════════════ */
     #homer-cal .cal-view-toggle {
       display:inline-flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-left:12px;
     }
@@ -1782,7 +1811,7 @@
     }
     #homer-cal .cal-view-btn:hover:not(.active) { background:rgba(255,255,255,.06); }
 
-    /* === DAY VIEW (AGENDA) === */
+    /* ══════════════════════ DAY VIEW (AGENDA) ══════════════════════ */
     #homer-cal .cal-day-view { display:none; }
     #homer-cal .cal-day-view.visible { display:block; }
     #homer-cal .cal-day-header {
@@ -1900,7 +1929,7 @@
       #homer-cal .cal-view-btn { padding:4px 8px; font-size:.7rem; }
     }
 
-    /* === OPENCLAW FAB === */
+    /* ══════════════════════ JOEY / OPENCLAW FAB ══════════════════════ */
     #fab-openclaw{
       width:46px; height:46px; display:none;
       background:linear-gradient(135deg,#ea580c 0%,#9a3412 100%);
@@ -2345,7 +2374,7 @@
       .oc-settings-input-row{grid-template-columns:1fr;}
     }
 
-    /* ===== MOBILE NAV Ã¢â‚¬â€ Notion-style bottom bar ===== */
+    /* ══════════════════════ MOBILE NAV ══════════════════════ */
     #mobile-nav{display:none;}
     #mobile-sheet{display:none;}
     #mobile-overlay-dock{display:none;}
@@ -2634,7 +2663,7 @@
         scroll-margin-bottom:var(--mobile-nav-clearance);
       }
 
-      /* Joey chat Ã¢â€ â€™ Messenger-style fullscreen */
+      /* Joey chat → Messenger-style fullscreen */
       #oc-panel{
         position:fixed!important;inset:0!important;
         width:100%!important;height:100%!important;
@@ -2659,7 +2688,7 @@
         background:transparent!important;
         display:flex!important;align-items:center!important;justify-content:center!important;
       }
-      #oc-close-btn::before{content:'Ã¢â€ Â';font-size:1.3rem;color:var(--text);}
+      #oc-close-btn::before{content:'←';font-size:1.3rem;color:var(--text);}
       #oc-provider-icon{
         width:40px!important;height:40px!important;border-radius:50%!important;
         background:linear-gradient(135deg,#ea580c,#c2410c)!important;

@@ -226,18 +226,18 @@
 
     /* 3. WEATHER */
     const fixMojibake = window._homerFixMojibakeText || function(value){ return value; };
-    const WX_CODES={0:["Ã¢Ëœâ‚¬Ã¯Â¸Â","Clear sky"],1:["Ã°Å¸Å’Â¤Ã¯Â¸Â","Mainly clear"],2:["Ã¢â€ºâ€¦","Partly cloudy"],3:["Ã¢ËœÂÃ¯Â¸Â","Overcast"],45:["Ã°Å¸Å’Â«Ã¯Â¸Â","Fog"],48:["Ã°Å¸Å’Â«Ã¯Â¸Â","Rime fog"],51:["Ã°Å¸Å’Â¦Ã¯Â¸Â","Light drizzle"],53:["Ã°Å¸Å’Â¦Ã¯Â¸Â","Drizzle"],55:["Ã°Å¸Å’Â§Ã¯Â¸Â","Dense drizzle"],56:["Ã°Å¸Å’Â§Ã¯Â¸Â","Freezing drizzle"],57:["Ã°Å¸Å’Â§Ã¯Â¸Â","Freezing drizzle"],61:["Ã°Å¸Å’Â¦Ã¯Â¸Â","Light rain"],63:["Ã°Å¸Å’Â§Ã¯Â¸Â","Rain"],65:["Ã°Å¸Å’Â§Ã¯Â¸Â","Heavy rain"],66:["Ã°Å¸Å’Â§Ã¯Â¸Â","Freezing rain"],67:["Ã°Å¸Å’Â§Ã¯Â¸Â","Freezing rain"],71:["Ã°Å¸Å’Â¨Ã¯Â¸Â","Light snow"],73:["Ã°Å¸Å’Â¨Ã¯Â¸Â","Snow"],75:["Ã¢Ââ€žÃ¯Â¸Â","Heavy snow"],77:["Ã¢Ââ€žÃ¯Â¸Â","Snow grains"],80:["Ã°Å¸Å’Â¦Ã¯Â¸Â","Rain showers"],81:["Ã°Å¸Å’Â§Ã¯Â¸Â","Rain showers"],82:["Ã¢â€ºË†Ã¯Â¸Â","Violent rain"],85:["Ã°Å¸Å’Â¨Ã¯Â¸Â","Snow showers"],86:["Ã¢Ââ€žÃ¯Â¸Â","Heavy snow showers"],95:["Ã¢â€ºË†Ã¯Â¸Â","Thunderstorm"],96:["Ã¢â€ºË†Ã¯Â¸Â","Thunder + hail"],99:["Ã¢â€ºË†Ã¯Â¸Â","Severe thunder/hail"]};
+    const WX_CODES={0:["☀️","Clear sky"],1:["🌤️","Mainly clear"],2:["⛅","Partly cloudy"],3:["☁️","Overcast"],45:["🌫️","Fog"],48:["🌫️","Rime fog"],51:["🌦️","Light drizzle"],53:["🌦️","Drizzle"],55:["🌧️","Dense drizzle"],56:["🌧️","Freezing drizzle"],57:["🌧️","Freezing drizzle"],61:["🌦️","Light rain"],63:["🌧️","Rain"],65:["🌧️","Heavy rain"],66:["🌧️","Freezing rain"],67:["🌧️","Freezing rain"],71:["🌨️","Light snow"],73:["🌨️","Snow"],75:["❄️","Heavy snow"],77:["❄️","Snow grains"],80:["🌦️","Rain showers"],81:["🌧️","Rain showers"],82:["⛈️","Violent rain"],85:["🌨️","Snow showers"],86:["❄️","Heavy snow showers"],95:["⛈️","Thunderstorm"],96:["⛈️","Thunder + hail"],99:["⛈️","Severe thunder/hail"]};
     Object.keys(WX_CODES).forEach(function(code){
       if(WX_CODES[code] && WX_CODES[code][0]) WX_CODES[code][0] = fixMojibake(WX_CODES[code][0]);
     });
     async function loadWeather(lat,lon,label){
       const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
       const res=await fetch(url,{cache:'no-store'}); const data=await res.json(); const cw=data.current_weather;
-      const [icon,desc]=WX_CODES[cw.weathercode]||["Ã¢â€ºâ€¦","Weather"];
+      const [icon,desc]=WX_CODES[cw.weathercode]||["⛅","Weather"];
       document.getElementById('wx-icon').textContent=fixMojibake(icon);
       document.getElementById('wx-place').textContent=label||"Your location";
-      document.getElementById('wx-desc').textContent=`${desc} Ã¢â‚¬Â¢ Wind ${Math.round(cw.windspeed)} km/h`;
-      document.getElementById('wx-temp').textContent=`${Math.round(cw.temperature)}Ã‚Â°`;
+      document.getElementById('wx-desc').textContent=`${desc} • Wind ${Math.round(cw.windspeed)} km/h`;
+      document.getElementById('wx-temp').textContent=`${Math.round(cw.temperature)}°`;
     }
     function detectWeather(){
       const fallback={lat:44.4268,lon:26.1025,label:"Bucharest"};
@@ -381,7 +381,7 @@ function renderQuote(q) {
     }
 
     async function loadQuoteDB(){
-      // No long-term cache Ã¢â‚¬â€ always fetch fresh quotes
+      // No long-term cache — always fetch fresh quotes
 
       // Fetch from sources
       for(var i=0; i<QUOTE_SOURCES.length; i++){
@@ -393,7 +393,7 @@ function renderQuote(q) {
           var normalized = normalizeQuotes(raw, i);
           if(normalized.length > 50){
             globalQuotes = normalized;
-            // no cache Ã¢â‚¬â€ fresh fetch each session
+            // no cache — fresh fetch each session
             return;
           }
         }catch(e){ continue; }
@@ -437,7 +437,7 @@ function renderQuote(q) {
       btnHumor.addEventListener("click", async () => {
         setLoading(true);
         const statusText = document.querySelector("#status");
-        if(statusText) statusText.innerHTML = '<span class="spinner"></span>Fetching a laughÃ¢â‚¬Â¦';
+        if(statusText) statusText.innerHTML = '<span class="spinner"></span>Fetching a laugh…';
         const q = await fetchHumor();
         renderQuote(q);
       });
@@ -458,7 +458,7 @@ function renderQuote(q) {
     }
 
     els.copy.addEventListener("click",()=>{
-      const txt=`"${els.quote.textContent}" Ã¢â‚¬â€ ${els.author.textContent}`;
+      const txt=`"${els.quote.textContent}" — ${els.author.textContent}`;
       navigator.clipboard.writeText(txt);
       const p=els.copy.textContent; els.copy.textContent="Copied!"; setTimeout(()=>els.copy.textContent=p,1500);
     });
@@ -669,7 +669,7 @@ function renderQuote(q) {
       var raw = String(value || '').trim();
       if(!raw) return null;
       raw = raw.replace(/^(?:the\s+)?quote\s+/i, '').trim();
-      var saidByMatch = raw.match(/^(["â€œ']?)([\s\S]+?)\1\s*,?\s*(?:said\s+by|by|author)\s+([^,.;\n]{2,80})$/i);
+      var saidByMatch = raw.match(/^(["“']?)([\s\S]+?)\1\s*,?\s*(?:said\s+by|by|author)\s+([^,.;\n]{2,80})$/i);
       if(!saidByMatch) return null;
       var quote = normalizeSavedQuoteText(String(saidByMatch[2] || '').trim());
       var author = String(saidByMatch[3] || fallbackAuthor || 'Unknown').trim() || 'Unknown';
@@ -833,8 +833,8 @@ function renderQuote(q) {
       els.savedList.innerHTML=""; els.savedEmpty.style.display=empty?"block":"none";
       list.forEach((it,idx)=>{
         const wrap=document.createElement('div'); wrap.className="saved-item";
-        wrap.innerHTML=`<div><strong>Ã¢â‚¬Å“${it.q}Ã¢â‚¬Â</strong></div>
-          <div class="saved-meta"><span>Ã¢â‚¬â€ ${it.a||"Unknown"}</span><span>${new Date(it.ts).toLocaleString()}</span></div>
+        wrap.innerHTML=`<div><strong>“${it.q}”</strong></div>
+          <div class="saved-meta"><span>— ${it.a||"Unknown"}</span><span>${new Date(it.ts).toLocaleString()}</span></div>
           <div class="row" style="margin-top:10px"><button class="btn ghost" data-act="copy" data-i="${idx}">Copy</button><button class="btn" data-act="del" data-i="${idx}">Delete</button></div>`;
         els.savedList.appendChild(wrap);
       });
@@ -855,7 +855,7 @@ function renderQuote(q) {
       // Handle Copy
       if(btn.dataset.act === 'copy') {
         const list = loadSaved();
-        const textToCopy = `Ã¢â‚¬Å“${list[idx].q}Ã¢â‚¬Â Ã¢â‚¬â€ ${list[idx].a || "Unknown"}`;
+        const textToCopy = `“${list[idx].q}” — ${list[idx].a || "Unknown"}`;
 
         // 1. Try modern clipboard API (using .then instead of async/await to preserve user gesture)
         if (navigator.clipboard && window.isSecureContext) {
@@ -873,7 +873,7 @@ function renderQuote(q) {
     // Helper for visual feedback
     function showCopiedFeedback(btn) {
         const originalText = btn.textContent;
-        btn.textContent = "Copied Ã¢Å“â€œ";
+        btn.textContent = "Copied ✓";
         btn.style.color = "var(--accent)"; // Green text
         setTimeout(() => {
             btn.textContent = originalText;
@@ -899,7 +899,7 @@ function renderQuote(q) {
         document.body.removeChild(textArea);
     }
     els.exportSaved?.addEventListener('click',()=>{
-      const list=loadSaved(); const text=list.map(it=>`Ã¢â‚¬Å“${it.q}Ã¢â‚¬Â Ã¢â‚¬â€ ${it.a||"Unknown"}`).join("\n\n");
+      const list=loadSaved(); const text=list.map(it=>`“${it.q}” — ${it.a||"Unknown"}`).join("\n\n");
       const blob=new Blob([text],{type:'text/plain'}); const url=URL.createObjectURL(blob);
       const a=document.createElement('a'); a.href=url; a.download='saved-quotes.txt'; a.click(); URL.revokeObjectURL(url);
     });
@@ -1079,9 +1079,9 @@ function renderQuote(q) {
     if(btnBox && boxCircle) {
         const BREATH_PHASE_MS = 4000;
         const BREATH_PHASES = [
-            { label:"Inhale", className:"b-inhale", glyph:"â†‘" },
+            { label:"Inhale", className:"b-inhale", glyph:"↑" },
             { label:"Hold", className:"b-hold-in", glyph:". . .", isHold:true },
-            { label:"Exhale", className:"b-exhale", glyph:"â†“" },
+            { label:"Exhale", className:"b-exhale", glyph:"↓" },
             { label:"Hold", className:"b-hold-out", glyph:". . .", isHold:true }
         ];
         function renderBreathingContent(label, glyph, opts){
@@ -1103,7 +1103,7 @@ function renderQuote(q) {
                 clearInterval(bInterval); bInterval = null;
                 btnBox.textContent = "Start Breathing";
                 boxCircle.className = "breathing-circle";
-                renderBreathingContent("Ready", "â€¢");
+                renderBreathingContent("Ready", "•");
             } else {
                 btnBox.textContent = "Stop";
                 bStep = 0;
@@ -1115,13 +1115,13 @@ function renderQuote(q) {
                 bInterval = setInterval(cycle, BREATH_PHASE_MS);
             }
         });
-        renderBreathingContent("Ready", "â€¢");
+        renderBreathingContent("Ready", "•");
     }
     if(btnBox && boxCircle) {
         const AGENT_BREATH_PHASES = [
-            { label:"Inhale", className:"b-inhale", glyph:"Ã¢â€ â€˜" },
+            { label:"Inhale", className:"b-inhale", glyph:"↑" },
             { label:"Hold", className:"b-hold-in", glyph:". . .", isHold:true },
-            { label:"Exhale", className:"b-exhale", glyph:"Ã¢â€ â€œ" },
+            { label:"Exhale", className:"b-exhale", glyph:"↓" },
             { label:"Hold", className:"b-hold-out", glyph:". . .", isHold:true }
         ];
         let agentBreathPhase = -1;
@@ -1150,7 +1150,7 @@ function renderQuote(q) {
                 agentBreathPhase = -1;
                 cleanBtn.textContent = "Start Breathing";
                 boxCircle.className = "breathing-circle";
-                renderAgentBreathingContent("Ready", "Ã¢â‚¬Â¢");
+                renderAgentBreathingContent("Ready", "•");
                 return true;
             }
             function startBreathing(){
@@ -1567,17 +1567,17 @@ function fmtMMSS(totalSeconds){ const s=Math.max(0,Math.floor(totalSeconds)); co
           const leftSpan=document.createElement('span');
 
           /* SMART CLOCK LOGIC: Show time if running (Focus OR Break) */
-          let displayContent = 'Ã¢â€“Â¶';
+          let displayContent = '▶';
 
           if (isRunning) {
              if (isFocus) {
                  displayContent = fmtMMSS(remaining);
              } else {
                  // Break mode running: Mug + Timer perfectly centered in the circle
-                 displayContent = `<div style="display:flex; flex-direction:column; align-items:center; line-height:1.1; margin-top:-2px"><span style="font-size:0.75em;">Ã¢Ëœâ€¢</span><span style="font-size:0.85em;">${fmtMMSS(remaining)}</span></div>`;
+                 displayContent = `<div style="display:flex; flex-direction:column; align-items:center; line-height:1.1; margin-top:-2px"><span style="font-size:0.75em;">☕</span><span style="font-size:0.85em;">${fmtMMSS(remaining)}</span></div>`;
              }
           } else {
-             displayContent = isFocus ? 'Ã¢â€“Â¶' : 'Ã¢Ëœâ€¢';
+             displayContent = isFocus ? '▶' : '☕';
           }
 
           // Apply to first task only
@@ -1600,7 +1600,7 @@ function fmtMMSS(totalSeconds){ const s=Math.max(0,Math.floor(totalSeconds)); co
              if(isFocus) {
                 sub.textContent = isRunning ? 'Focusing...' : 'Ready to Start';
              } else {
-                sub.textContent = isRunning ? 'On Break Ã¢Ëœâ€¢' : 'Break Paused Ã¢Ëœâ€¢';
+                sub.textContent = isRunning ? 'On Break ☕' : 'Break Paused ☕';
              }
           } else {
              sub.textContent = 'Queued';
@@ -1650,16 +1650,16 @@ function fmtMMSS(totalSeconds){ const s=Math.max(0,Math.floor(totalSeconds)); co
       }
     })();
 
-// Ã°Å¸â€Âµ AUDIO PLAYER WITH BULLETPROOF STATE TRACKING
+// 🔵 AUDIO PLAYER WITH BULLETPROOF STATE TRACKING
 const tracks = {
-  ocean: { id:"WHPEKLQID4U", btn:"btn-ocean", vol:"vol-ocean", labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Ocean", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Ocean", holder:"yt-ocean", isPlaying: false },
-  fire:  { id:"UgHKb_7884o", btn:"btn-fire",  vol:"vol-fire",  labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Fireplace", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Fireplace", holder:"yt-fire", isPlaying: false },
-  rain:  { id:"mPZkdNFkNps", btn:"btn-rain",  vol:"vol-rain",  labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Rain", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Rain", holder:"yt-rain", isPlaying: false },
-  rainywindow: { id:"Dx5qFachd3A", btn:"btn-rainywindow", vol:"vol-rainywindow", labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Jazz", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Jazz", holder:"yt-rainywindow", isPlaying: false },
-  cafe:  { id:"uiMXGIG_DQo", btn:"btn-cafe",  vol:"vol-cafe",  labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play CafÃƒÂ©", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause CafÃƒÂ©", holder:"yt-cafe", isPlaying: false },
-  lofi:  { id:"Na0w3Mz46GA", btn:"btn-lofi",  vol:"vol-lofi",  labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Lo-Fi", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Lo-Fi", holder:"yt-lofi", isPlaying: false },
-  wind: { id:"jYu1-CxNqks", btn:"btn-wind", vol:"vol-wind", labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Wind", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Wind", holder:"yt-wind", isPlaying: false },
-  synthwave: { id:"4xDzrJKXOOY", btn:"btn-synthwave", vol:"vol-synthwave", labelPlay:"Ã¢â€“Â¶Ã¯Â¸Â Play Synthwave", labelPause:"Ã¢ÂÂ¸Ã¯Â¸Â Pause Synthwave", holder:"yt-synthwave", isPlaying: false },
+  ocean: { id:"WHPEKLQID4U", btn:"btn-ocean", vol:"vol-ocean", labelPlay:"▶️ Play Ocean", labelPause:"⏸️ Pause Ocean", holder:"yt-ocean", isPlaying: false },
+  fire:  { id:"UgHKb_7884o", btn:"btn-fire",  vol:"vol-fire",  labelPlay:"▶️ Play Fireplace", labelPause:"⏸️ Pause Fireplace", holder:"yt-fire", isPlaying: false },
+  rain:  { id:"mPZkdNFkNps", btn:"btn-rain",  vol:"vol-rain",  labelPlay:"▶️ Play Rain", labelPause:"⏸️ Pause Rain", holder:"yt-rain", isPlaying: false },
+  rainywindow: { id:"Dx5qFachd3A", btn:"btn-rainywindow", vol:"vol-rainywindow", labelPlay:"▶️ Play Jazz", labelPause:"⏸️ Pause Jazz", holder:"yt-rainywindow", isPlaying: false },
+  cafe:  { id:"uiMXGIG_DQo", btn:"btn-cafe",  vol:"vol-cafe",  labelPlay:"▶️ Play Café", labelPause:"⏸️ Pause Café", holder:"yt-cafe", isPlaying: false },
+  lofi:  { id:"Na0w3Mz46GA", btn:"btn-lofi",  vol:"vol-lofi",  labelPlay:"▶️ Play Lo-Fi", labelPause:"⏸️ Pause Lo-Fi", holder:"yt-lofi", isPlaying: false },
+  wind: { id:"jYu1-CxNqks", btn:"btn-wind", vol:"vol-wind", labelPlay:"▶️ Play Wind", labelPause:"⏸️ Pause Wind", holder:"yt-wind", isPlaying: false },
+  synthwave: { id:"4xDzrJKXOOY", btn:"btn-synthwave", vol:"vol-synthwave", labelPlay:"▶️ Play Synthwave", labelPause:"⏸️ Pause Synthwave", holder:"yt-synthwave", isPlaying: false },
   weightless: { id:"vYIYIVmOo3Q", btn:null, vol:null, holder:"yt-weightless", isPlaying: false }
 };
 
@@ -1885,7 +1885,7 @@ let noSleep = typeof NoSleep !== 'undefined' ? new NoSleep() : null;
           await acquireWakeLock();
 
           if (btnWake) {
-              btnWake.textContent = 'Ã°Å¸â€˜â‚¬ Keeping Awake...';
+              btnWake.textContent = '👀 Keeping Awake...';
               btnWake.classList.remove('danger');
               btnWake.classList.add('secondary');
           }
@@ -1901,7 +1901,7 @@ let noSleep = typeof NoSleep !== 'undefined' ? new NoSleep() : null;
           }
 
           if (btnWake) {
-              btnWake.textContent = 'Ã¢Ëœâ€¢ Keep Awake';
+              btnWake.textContent = '☕ Keep Awake';
               btnWake.classList.add('danger');
               btnWake.classList.remove('secondary');
           }
@@ -2121,7 +2121,7 @@ let tvWidgetCreated = false;
 
   // Emoji palette
   var fixMojibake = window._homerFixMojibakeText || function(value){ return value; };
-  var emojis = ['Ã°Å¸â€â€”','Ã°Å¸Å’Â','Ã°Å¸â€™Â»','Ã°Å¸â€œÂ±','Ã°Å¸Å½Â®','Ã°Å¸Å½Âµ','Ã°Å¸Å½Â¬','Ã°Å¸â€œÂº','Ã°Å¸â€œÂ·','Ã°Å¸â€ºâ€™','Ã°Å¸â€™Â°','Ã°Å¸â€œÅ ','Ã°Å¸â€œË†','Ã°Å¸â€œÂ°','Ã°Å¸â€œÅ¡','Ã°Å¸â€œÂ','Ã°Å¸â€œÂ§','Ã°Å¸â€™Â¬','Ã°Å¸â€Â','Ã°Å¸â€Â§','Ã°Å¸â€ºÂ Ã¯Â¸Â','Ã¢Å¡â„¢Ã¯Â¸Â','Ã°Å¸ÂÂ ','Ã°Å¸Å¡â‚¬','Ã¢Â­Â','Ã¢ÂÂ¤Ã¯Â¸Â','Ã°Å¸â€Â¥','Ã¢Å¡Â¡','Ã°Å¸Å½Â¯','Ã°Å¸Â§Â©','Ã¢ËœÂÃ¯Â¸Â','Ã°Å¸â€”â€šÃ¯Â¸Â','Ã°Å¸â€œÂ','Ã°Å¸â€“Â¥Ã¯Â¸Â','Ã°Å¸Å½Â¨','Ã°Å¸Å½Â­','Ã°Å¸Ââ€¹Ã¯Â¸Â','Ã°Å¸Ââ€','Ã¢Ëœâ€¢','Ã°Å¸Å½â€œ','Ã°Å¸ÂÂ¦','Ã°Å¸ÂÂ¥','Ã¢Å“Ë†Ã¯Â¸Â','Ã°Å¸â€”ÂºÃ¯Â¸Â','Ã°Å¸â€œÂ¡','Ã°Å¸â€â€™','Ã°Å¸Â§Âª','Ã°Å¸Â¤â€“','Ã°Å¸â€˜Â¾','Ã°Å¸â€¢Â¹Ã¯Â¸Â','Ã°Å¸â€œÂ»','Ã°Å¸Å½Â§','Ã°Å¸Âªâ€ž','Ã°Å¸â€™Â¡','Ã°Å¸Å’Â','Ã°Å¸Å’â„¢','Ã¢Ëœâ‚¬Ã¯Â¸Â','Ã°Å¸Å’Ë†','Ã°Å¸ÂÂ¿','Ã°Å¸Â§Â '];
+  var emojis = ['🔗','🌐','💻','📱','🎮','🎵','🎬','📺','📷','🛒','💰','📊','📈','📰','📚','📝','📧','💬','🔍','🔧','🛠️','⚙️','🏠','🚀','⭐','❤️','🔥','⚡','🎯','🧩','☁️','🗂️','📁','🖥️','🎨','🎭','🏋️','🍔','☕','🎓','🏦','🏥','✈️','🗺️','📡','🔒','🧪','🤖','👾','🕹️','📻','🎧','🪄','💡','🌍','🌙','☀️','🌈','🍿','🧠'];
 
   emojis = emojis.map(fixMojibake);
 
@@ -2159,7 +2159,7 @@ let tvWidgetCreated = false;
     if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
     var links = load();
     links.push({
-      emoji: String(next.emoji || '').trim() || 'ðŸ”—',
+      emoji: String(next.emoji || '').trim() || '🔗',
       name: name,
       url: url,
       cat: String(next.category || next.cat || 'Uncategorized').trim() || 'Uncategorized',
@@ -2214,17 +2214,17 @@ let tvWidgetCreated = false;
         var iconHtml;
         if(showFavicon && faviconUrl){
           iconHtml = '<img src="' + escAttr(faviconUrl) + '" alt="" style="width:22px;height:22px;border-radius:4px;background:#fff;padding:1px;flex-shrink:0;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline\';">' +
-                     '<span style="display:none;font-size:1.2rem;flex-shrink:0;">' + (lnk.emoji || 'Ã°Å¸â€â€”') + '</span>';
+                     '<span style="display:none;font-size:1.2rem;flex-shrink:0;">' + (lnk.emoji || '🔗') + '</span>';
         } else {
-          iconHtml = '<span style="font-size:1.2rem;flex-shrink:0;">' + (lnk.emoji || 'Ã°Å¸â€â€”') + '</span>';
+          iconHtml = '<span style="font-size:1.2rem;flex-shrink:0;">' + (lnk.emoji || '🔗') + '</span>';
         }
 
         div.innerHTML =
           iconHtml +
           '<a href="' + escAttr(lnk.url) + '" target="_blank" rel="noopener" style="color:var(--accent-2);font-weight:700;text-decoration:none;flex:1;">' + escHtml(lnk.name) + '</a>' +
           '<span style="color:var(--muted);font-size:.85rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(lnk.url) + '</span>' +
-          '<button class="link-copy btn ghost" data-url="' + escAttr(lnk.url) + '" style="padding:4px 10px;font-size:.8rem;flex-shrink:0;" title="Copy URL">Ã°Å¸â€œâ€¹</button>' +
-          '<button class="link-del btn" data-idx="' + item.idx + '" style="padding:4px 10px;font-size:.8rem;flex-shrink:0;">Ã¢Å“â€¢</button>';
+          '<button class="link-copy btn ghost" data-url="' + escAttr(lnk.url) + '" style="padding:4px 10px;font-size:.8rem;flex-shrink:0;" title="Copy URL">📋</button>' +
+          '<button class="link-del btn" data-idx="' + item.idx + '" style="padding:4px 10px;font-size:.8rem;flex-shrink:0;">✕</button>';
         grid.appendChild(div);
       });
     });
@@ -2232,7 +2232,7 @@ let tvWidgetCreated = false;
     grid.querySelectorAll('.link-copy').forEach(function(btn){
       btn.addEventListener('click', function(){
         navigator.clipboard.writeText(btn.dataset.url).then(function(){
-          btn.textContent = 'Ã¢Å“â€¦'; setTimeout(function(){ btn.textContent = 'Ã°Å¸â€œâ€¹'; }, 1200);
+          btn.textContent = '✅'; setTimeout(function(){ btn.textContent = '📋'; }, 1200);
         });
       });
     });
@@ -2257,17 +2257,17 @@ let tvWidgetCreated = false;
     if(!name || !url) return;
     if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
     var links = load();
-    var chosenEmoji = inEmoji.value.trim() || 'Ã°Å¸â€â€”';
+    var chosenEmoji = inEmoji.value.trim() || '🔗';
     links.push({
       emoji: chosenEmoji,
       name: name,
       url: url,
       cat: cat || 'Uncategorized',
-      useFavicon: (chosenEmoji !== 'Ã°Å¸â€â€”') ? false : useIcon.checked
+      useFavicon: (chosenEmoji !== '🔗') ? false : useIcon.checked
     });
     save(links);
     inEmoji.value = ''; inName.value = ''; inUrl.value = ''; inCat.value = '';
-    emojiBtn.textContent = 'Ã°Å¸â€â€”';
+    emojiBtn.textContent = '🔗';
     render();
   });
 
@@ -2279,7 +2279,7 @@ let tvWidgetCreated = false;
 })();
 
 (function(){
-  // === IndexedDB Storage (replaces localStorage for vault Ã¢â‚¬â€ supports hundreds of MB) ===
+  // === IndexedDB Storage (replaces localStorage for vault — supports hundreds of MB) ===
   var IDB_NAME = 'homer-vault-idb';
   var IDB_STORE = 'kv';
   var idbReady = new Promise(function(resolve, reject){
@@ -2347,7 +2347,7 @@ let tvWidgetCreated = false;
     }
   };
 
-  // Vault keys Ã¢â‚¬â€ stored in IndexedDB for large storage capacity
+  // Vault keys — stored in IndexedDB for large storage capacity
   var SALT_KEY = 'homer-vault-salt';
   var HASH_KEY = 'homer-vault-hash';
   var DATA_KEY = 'homer-vault-data';
@@ -2865,7 +2865,7 @@ let tvWidgetCreated = false;
 
   var isNew = true;
 
-  // Initialize: migrate localStorage Ã¢â€ â€™ IndexedDB, then check if vault exists
+  // Initialize: migrate localStorage → IndexedDB, then check if vault exists
   migrateToIdb().then(function(){
     return idb.get(HASH_KEY);
   }).then(function(hash){
@@ -3215,7 +3215,7 @@ let tvWidgetCreated = false;
     var isWork = normalizeVaultMode(currentVaultMode) === 'work';
     if(vaultModePersonalBtn) vaultModePersonalBtn.className = isWork ? 'personal' : 'active personal';
     if(vaultModeWorkBtn) vaultModeWorkBtn.className = isWork ? 'active work' : 'work';
-    if(vaultStatusLine) vaultStatusLine.textContent = 'Ã°Å¸â€â€œ ' + modeLabel(currentVaultMode) + ' vault unlocked';
+    if(vaultStatusLine) vaultStatusLine.textContent = '🔓 ' + modeLabel(currentVaultMode) + ' vault unlocked';
     if(vaultModeMeta) vaultModeMeta.textContent = modeLabel(currentVaultMode) + ' profile is active. Tasks, notes, goals, and secrets stay separate from ' + (isWork ? 'Personal' : 'Work') + '.';
     if(vdOpenKanban && vdOpenKanban.querySelector('.vd-icon')) vdOpenKanban.querySelector('.vd-icon').textContent = '\u{1F4CB}';
     if(document.getElementById('vd-open-goals') && document.getElementById('vd-open-goals').querySelector('.vd-icon')) document.getElementById('vd-open-goals').querySelector('.vd-icon').textContent = '\u{1F3AF}';
@@ -3226,7 +3226,7 @@ let tvWidgetCreated = false;
     if(vdGoalsTitle) vdGoalsTitle.textContent = isWork ? 'Work Goals' : 'Life Goals';
     if(vdGoalsDesc) vdGoalsDesc.textContent = isWork ? 'Track work outcomes and milestones' : 'Track your aspirations';
     if(projectsBoardTitle) projectsBoardTitle.textContent = (isWork ? 'Work ' : 'Personal ') + 'Project Command Center';
-    if(kanbanBoardTitle) kanbanBoardTitle.textContent = 'Ã°Å¸â€œâ€¹ ' + modeLabel(currentVaultMode) + ' Board';
+    if(kanbanBoardTitle) kanbanBoardTitle.textContent = '📋 ' + modeLabel(currentVaultMode) + ' Board';
     renderVaultMirrorStatus();
     updateVaultSyncBadge();
   }
@@ -3471,7 +3471,7 @@ let tvWidgetCreated = false;
       '- Zen goal format: [ACTION:NOTE]{"target":"zen-goal","text":"One clear goal"}[/ACTION]\n' +
       '\nLINK:\n' +
       '- Saves a non-secret link to the Links tab.\n' +
-      '- Format: [ACTION:LINK]{"name":"Docs","url":"https://example.com","category":"Work","emoji":"ðŸ”—"}[/ACTION]\n' +
+      '- Format: [ACTION:LINK]{"name":"Docs","url":"https://example.com","category":"Work","emoji":"🔗"}[/ACTION]\n' +
       '\nSECRET:\n' +
       '- Use type "link" for private links and type "credential" for passwords.\n' +
       '- Secret link format: [ACTION:SECRET]{"type":"link","name":"Admin","url":"https://admin.example.com","description":"Internal panel"}[/ACTION]\n' +
@@ -4255,7 +4255,7 @@ let tvWidgetCreated = false;
           favHtml +
           '<a href="'+escAttr(l.url)+'" target="_blank" rel="noopener" style="color:var(--accent-2);font-weight:700;text-decoration:none;flex:1;">'+escHtml(l.name)+'</a>' +
           '<span style="color:var(--muted);font-size:.8rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(l.url)+'</span>' +
-          '<button class="vault-link-del btn" data-idx="'+i+'" style="padding:4px 10px;font-size:.8rem;">Ã¢Å“â€¢</button>' +
+          '<button class="vault-link-del btn" data-idx="'+i+'" style="padding:4px 10px;font-size:.8rem;">✕</button>' +
         '</div>' +
         descHtml;
       linksList.appendChild(div);
@@ -4282,7 +4282,7 @@ let tvWidgetCreated = false;
       if(c.site){
         try{ var u = new URL(/^https?:\/\//i.test(c.site) ? c.site : 'https://'+c.site); faviconUrl = 'https://www.google.com/s2/favicons?domain='+u.hostname+'&sz=32'; }catch(e){}
       }
-      var ico = faviconUrl ? '<img src="'+escAttr(faviconUrl)+'" style="width:20px;height:20px;border-radius:4px;flex-shrink:0;" onerror="this.style.display=\'none\'">' : '<span style="font-size:1.1rem;flex-shrink:0;">Ã°Å¸â€â€˜</span>';
+      var ico = faviconUrl ? '<img src="'+escAttr(faviconUrl)+'" style="width:20px;height:20px;border-radius:4px;flex-shrink:0;" onerror="this.style.display=\'none\'">' : '<span style="font-size:1.1rem;flex-shrink:0;">🔑</span>';
       var header = '<div class="cred-header" style="display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;">' +
         ico +
         '<span style="font-weight:800;font-size:.95rem;flex:1;">'+escHtml(c.label)+'</span>' +
@@ -4301,14 +4301,14 @@ let tvWidgetCreated = false;
         fields += '<div class="cred-field" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">' +
           '<span style="color:var(--muted);font-size:.8rem;width:60px;flex-shrink:0;">'+f.lbl+'</span>' +
           '<code class="cred-val" style="flex:1;color:var(--accent);font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:none;">'+escHtml(f.val)+'</code>' +
-          '<span class="cred-mask" style="flex:1;color:var(--muted);font-size:.85rem;">Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢</span>' +
-          '<button class="cred-toggle btn" style="padding:2px 6px;font-size:.75rem;background:none;border:1px solid rgba(255,255,255,.12);border-radius:6px;color:var(--muted);cursor:pointer;" title="Toggle">Ã°Å¸â€˜Â</button>' +
-          '<button class="cred-copy btn" style="padding:2px 6px;font-size:.75rem;background:none;border:1px solid rgba(255,255,255,.12);border-radius:6px;color:var(--muted);cursor:pointer;" data-val="'+escAttr(f.val)+'" title="Copy">Ã°Å¸â€œâ€¹</button>' +
+          '<span class="cred-mask" style="flex:1;color:var(--muted);font-size:.85rem;">••••••</span>' +
+          '<button class="cred-toggle btn" style="padding:2px 6px;font-size:.75rem;background:none;border:1px solid rgba(255,255,255,.12);border-radius:6px;color:var(--muted);cursor:pointer;" title="Toggle">👁</button>' +
+          '<button class="cred-copy btn" style="padding:2px 6px;font-size:.75rem;background:none;border:1px solid rgba(255,255,255,.12);border-radius:6px;color:var(--muted);cursor:pointer;" data-val="'+escAttr(f.val)+'" title="Copy">📋</button>' +
           '</div>';
       });
       var body = '<div class="cred-body" style="display:none;padding:0 12px 12px;border-top:1px solid rgba(255,255,255,.06);padding-top:10px;">' +
         fields +
-        '<div style="text-align:right;margin-top:6px;"><button class="vault-cred-del btn" data-idx="'+i+'" style="padding:4px 10px;font-size:.8rem;color:#ef4444;">Ã¢Å“â€¢ Delete</button></div>' +
+        '<div style="text-align:right;margin-top:6px;"><button class="vault-cred-del btn" data-idx="'+i+'" style="padding:4px 10px;font-size:.8rem;color:#ef4444;">✕ Delete</button></div>' +
         '</div>';
       div.innerHTML = header + body;
       credsList.appendChild(div);
@@ -4337,7 +4337,7 @@ let tvWidgetCreated = false;
           e.stopPropagation();
           var btn = this;
           navigator.clipboard.writeText(btn.dataset.val).then(function(){
-            btn.textContent = 'Ã¢Å“â€¦'; setTimeout(function(){ btn.textContent = 'Ã°Å¸â€œâ€¹'; }, 1200);
+            btn.textContent = '✅'; setTimeout(function(){ btn.textContent = '📋'; }, 1200);
           });
         });
       });
@@ -4383,8 +4383,8 @@ let tvWidgetCreated = false;
       var el = document.createElement('div');
       el.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;background:rgba(255,255,255,.06);font-size:.75rem;color:var(--muted);';
       var isImg = f.type && f.type.startsWith('image/');
-      el.innerHTML = (isImg ? 'Ã°Å¸â€“Â¼' : 'Ã°Å¸â€œâ€ž') + ' ' + escHtml(f.name) +
-        '<button style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.7rem;padding:0 2px;">Ã¢Å“â€¢</button>';
+      el.innerHTML = (isImg ? '🖼' : '📄') + ' ' + escHtml(f.name) +
+        '<button style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.7rem;padding:0 2px;">✕</button>';
       el.querySelector('button').addEventListener('click', function(){ onRemove(idx); });
       container.appendChild(el);
     });
@@ -4412,7 +4412,7 @@ let tvWidgetCreated = false;
     });
   });
 
-  // Attachment data lookup Ã¢â‚¬â€ avoids embedding megabytes of base64 in DOM HTML
+  // Attachment data lookup — avoids embedding megabytes of base64 in DOM HTML
   var _attachDataMap = {};
   function _attachKey(gi, ai, si){ return gi+'-'+(si!==undefined?si:'g')+'-'+ai; }
 
@@ -4426,11 +4426,11 @@ let tvWidgetCreated = false;
       if(isImg){
         html += '<div class="k-attach-item">' +
           '<img loading="lazy" src="'+(_attachDataMap[key]?_attachDataMap[key]:'')+'" alt="'+escAttr(a.name)+'" data-akey="'+key+'" class="k-attach-img" style="max-width:120px;max-height:80px;object-fit:cover;cursor:pointer;">' +
-          '<button class="k-attach-rm" data-ai="'+ai+'" data-gi="'+goalIdx+'"'+(subIdx !== undefined ? ' data-si="'+subIdx+'"' : '')+'>Ã¢Å“â€¢</button></div>';
+          '<button class="k-attach-rm" data-ai="'+ai+'" data-gi="'+goalIdx+'"'+(subIdx !== undefined ? ' data-si="'+subIdx+'"' : '')+'>✕</button></div>';
       } else {
         html += '<div class="k-attach-item">' +
-          '<a class="k-attach-file" data-akey="'+key+'" data-fname="'+escAttr(a.name)+'">Ã°Å¸â€œâ€ž '+escHtml(a.name)+'</a>' +
-          '<button class="k-attach-rm" data-ai="'+ai+'" data-gi="'+goalIdx+'"'+(subIdx !== undefined ? ' data-si="'+subIdx+'"' : '')+'>Ã¢Å“â€¢</button></div>';
+          '<a class="k-attach-file" data-akey="'+key+'" data-fname="'+escAttr(a.name)+'">📄 '+escHtml(a.name)+'</a>' +
+          '<button class="k-attach-rm" data-ai="'+ai+'" data-gi="'+goalIdx+'"'+(subIdx !== undefined ? ' data-si="'+subIdx+'"' : '')+'>✕</button></div>';
       }
     });
     html += '</div>';
@@ -4567,11 +4567,11 @@ let tvWidgetCreated = false;
       comments.forEach(function(c, ci){
         var t = new Date(c.ts);
         var ts = t.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' ' + t.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-        var author = c.author ? escHtml(c.author) + ' Ã¢â‚¬â€ ' : '';
+        var author = c.author ? escHtml(c.author) + ' — ' : '';
         html += '<div class="k-comment" data-ci="'+ci+'">' +
           '<div class="k-comment-meta">'+author+ts+'</div>' +
           '<div class="k-comment-text">'+escHtml(c.text)+'</div>' +
-          '<button class="k-comment-del" data-ci="'+ci+'" title="Delete comment">Ã¢Å“â€¢</button>' +
+          '<button class="k-comment-del" data-ci="'+ci+'" title="Delete comment">✕</button>' +
         '</div>';
       });
     }
@@ -4762,11 +4762,11 @@ let tvWidgetCreated = false;
           g.comments.forEach(function(c, ci){
             var t = new Date(c.ts);
             var ts = t.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' '+t.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-            var author = c.author ? escHtml(c.author)+' Ã¢â‚¬â€ ' : '';
+            var author = c.author ? escHtml(c.author)+' — ' : '';
             html += '<div class="issue-comment" data-ci="'+ci+'">' +
               '<div class="issue-comment-meta">'+author+ts+'</div>' +
               '<div class="issue-comment-text">'+escHtml(c.text)+'</div>' +
-              '<button class="issue-comment-del" data-ci="'+ci+'" title="Delete">Ã¢Å“â€¢</button></div>';
+              '<button class="issue-comment-del" data-ci="'+ci+'" title="Delete">✕</button></div>';
           });
         }
         html += '<div class="issue-comment-form">' +
@@ -4822,7 +4822,7 @@ let tvWidgetCreated = false;
         html += '</div>';
 
       } else {
-        // Goal sidebar Ã¢â‚¬â€ editable fields
+        // Goal sidebar — editable fields
         html += '<div class="issue-sidebar-card"><h4>Details</h4>';
         html += '<div class="issue-field-row"><span class="issue-field-label">Status</span><span class="issue-field-value"><span class="issue-status-badge s-'+g.col+'">'+colLabels[g.col]+'</span></span></div>';
         html += '<div class="issue-field-row"><span class="issue-field-label">Project</span><span class="issue-field-value">';
@@ -4831,7 +4831,7 @@ let tvWidgetCreated = false;
           html += '<option value="'+escAttr(project.id)+'"'+(g.projectId === project.id ? ' selected' : '')+'>'+escHtml(project.name)+'</option>';
         });
         html += '</select></span></div>';
-        // Priority Ã¢â‚¬â€ editable select
+        // Priority — editable select
         html += '<div class="issue-field-row"><span class="issue-field-label">Priority</span><span class="issue-field-value">';
         html += '<select class="issue-edit-priority" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;">';
         html += '<option value=""'+(g.priority?'':' selected')+'>None</option>';
@@ -4839,21 +4839,21 @@ let tvWidgetCreated = false;
         html += '<option value="medium"'+(g.priority==='medium'?' selected':'')+'>Medium</option>';
         html += '<option value="low"'+(g.priority==='low'?' selected':'')+'>Low</option>';
         html += '</select></span></div>';
-        // Due Date Ã¢â‚¬â€ editable input
+        // Due Date — editable input
         html += '<div class="issue-field-row"><span class="issue-field-label">Due Date</span><span class="issue-field-value">';
         html += '<input type="date" class="issue-edit-due" value="'+(g.due||'')+'" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;max-width:150px;">';
         html += '</span></div>';
-        // Reporter Ã¢â‚¬â€ editable input
+        // Reporter — editable input
         html += '<div class="issue-field-row"><span class="issue-field-label">Reporter</span><span class="issue-field-value">';
-        html += '<input type="text" class="issue-edit-reporter" value="'+escAttr(g.reporter||'')+'" placeholder="Ã¢â‚¬â€" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;width:100%;max-width:150px;">';
+        html += '<input type="text" class="issue-edit-reporter" value="'+escAttr(g.reporter||'')+'" placeholder="—" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;width:100%;max-width:150px;">';
         html += '</span></div>';
-        // Assignee Ã¢â‚¬â€ editable input
+        // Assignee — editable input
         html += '<div class="issue-field-row"><span class="issue-field-label">Assignee</span><span class="issue-field-value">';
-        html += '<input type="text" class="issue-edit-assignee" value="'+escAttr(g.assignee||'')+'" placeholder="Ã¢â‚¬â€" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;width:100%;max-width:150px;">';
+        html += '<input type="text" class="issue-edit-assignee" value="'+escAttr(g.assignee||'')+'" placeholder="—" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;width:100%;max-width:150px;">';
         html += '</span></div>';
         html += '</div>';
 
-        // Labels Ã¢â‚¬â€ editable with chip toggles + add new
+        // Labels — editable with chip toggles + add new
         var allLabels = getAllLabels(data.goals);
         html += '<div class="issue-sidebar-card"><h4>Labels</h4>';
         html += '<div class="issue-label-chips" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">';
@@ -4982,7 +4982,7 @@ let tvWidgetCreated = false;
           });
         }
 
-        // Subtask Ã¢â€ â€™ Outlook calendar
+        // Subtask → Outlook calendar
         var subOutlookBtn = ov.querySelector('.issue-outlook-btn');
         if(subOutlookBtn){
           subOutlookBtn.addEventListener('click', function(){
@@ -5161,7 +5161,7 @@ let tvWidgetCreated = false;
           labelNewInp.addEventListener('keydown', function(e){ if(e.key==='Enter') addNewLabel(); });
         }
 
-        // Subtask clicks Ã¢â€ â€™ open subtask fullscreen
+        // Subtask clicks → open subtask fullscreen
         ov.querySelectorAll('.issue-st-key').forEach(function(el){
           el.addEventListener('click', function(ev){
             ev.stopPropagation();
@@ -5189,7 +5189,7 @@ let tvWidgetCreated = false;
           });
         });
 
-        // Subtask Ã¢â€ â€™ Outlook calendar buttons in fullscreen list
+        // Subtask → Outlook calendar buttons in fullscreen list
         ov.querySelectorAll('.issue-st-cal-btn').forEach(function(btn){
           btn.addEventListener('mouseenter', function(){ this.style.opacity='1'; });
           btn.addEventListener('mouseleave', function(){ this.style.opacity='.5'; });
@@ -5266,7 +5266,7 @@ let tvWidgetCreated = false;
           });
         }
 
-        // Task Ã¢â€ â€™ Outlook calendar
+        // Task → Outlook calendar
         var goalOutlookBtn = ov.querySelector('.issue-outlook-btn');
         if(goalOutlookBtn){
           goalOutlookBtn.addEventListener('click', function(){
@@ -5486,7 +5486,7 @@ let tvWidgetCreated = false;
               formatStDue(s.due) +
               '<button class="k-st-cal" data-gi="'+i+'" data-si="'+si+'" title="Add to Outlook Calendar" style="background:none;border:none;color:#0078d4;cursor:pointer;font-size:.7rem;padding:0 2px;display:inline-flex;align-items:center;opacity:.6;transition:opacity .15s;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>' +
               '<span class="k-st-toggle" style="font-size:.6rem;cursor:pointer;color:var(--muted);" title="Details">&#9660;</span>' +
-              '<button class="k-st-del" data-si="'+si+'" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.7rem;padding:0 2px;" title="Remove">Ã¢Å“â€¢</button>' +
+              '<button class="k-st-del" data-si="'+si+'" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.7rem;padding:0 2px;" title="Remove">✕</button>' +
             '</span>' +
           '</div>' +
           '<div class="k-st-body">' +
@@ -5576,7 +5576,7 @@ let tvWidgetCreated = false;
 
       // --- Event wiring ---
 
-      // Issue key click Ã¢â€ â€™ open fullscreen
+      // Issue key click → open fullscreen
       card.querySelector('.k-id').addEventListener('click', function(e){
         e.stopPropagation();
         openIssueFullscreen(parseInt(this.dataset.gi));
@@ -5972,7 +5972,7 @@ let tvWidgetCreated = false;
         });
       });
 
-      // Add subtask Ã¢â‚¬â€ open modal
+      // Add subtask — open modal
       var subOpenBtn = card.querySelector('.k-sub-open');
       if(subOpenBtn) subOpenBtn.addEventListener('click', function(){
         subModalGoalIdx = i;
@@ -6527,7 +6527,7 @@ let tvWidgetCreated = false;
     hashAccountCreds(user, pw).then(function(acctHash){
       if(acctHash !== storedAcctHash){ showError('Invalid username or password.'); return; }
 
-      // Account verified Ã¢â‚¬â€ use credentials to derive vault encryption key
+      // Account verified — use credentials to derive vault encryption key
       getSalt().then(function(salt){
         if(isNew){
           var vaultPw = user.toLowerCase() + ':' + pw;
@@ -8236,6 +8236,8 @@ let tvWidgetCreated = false;
   var RESERVED_SYNC_USER = 'bogdan';
   var RESERVED_SYNC_LEGACY_HASHES = ['da408d1c6f846dab303e17adbe86c9be78a7ed79bf4fbe9f1388ec5e475724fa'];
 
+  var ACCT_REMEMBER_KEY = 'homer-remember-user';
+
   var fabAcct = document.getElementById('fab-account');
   var modalBg = document.getElementById('acct-modal-bg');
   var form = document.getElementById('acct-form');
@@ -8249,6 +8251,7 @@ let tvWidgetCreated = false;
   var modeToggle = document.getElementById('acct-mode-toggle');
   var displayName = document.getElementById('acct-display-name');
   var logoutBtn = document.getElementById('acct-logout');
+  var rememberChk = document.getElementById('acct-remember-me');
   var userDot = fabAcct.querySelector('.fab-user-dot');
   var titleEl = document.getElementById('acct-title');
   var isRegister = false;
@@ -8272,6 +8275,11 @@ let tvWidgetCreated = false;
     applySharedSyncIdentity(user, hash);
   }
   function finalizeSignin(user, hash, permissions){
+    if(rememberChk && rememberChk.checked){
+      localStorage.setItem(ACCT_REMEMBER_KEY, user);
+    } else {
+      localStorage.removeItem(ACCT_REMEMBER_KEY);
+    }
     setAuthState(user, hash, permissions);
     updateUI();
     userInput.value = '';
@@ -8390,8 +8398,17 @@ let tvWidgetCreated = false;
     }
   }
 
+  // Pre-fill remember-me on modal open
+  function initRememberMe(){
+    var saved = localStorage.getItem(ACCT_REMEMBER_KEY);
+    if(saved && rememberChk){
+      userInput.value = saved;
+      rememberChk.checked = true;
+    }
+  }
+
   // Open/close modal
-  fabAcct.addEventListener('click', function(){ modalBg.classList.add('open'); });
+  fabAcct.addEventListener('click', function(){ modalBg.classList.add('open'); initRememberMe(); });
   document.getElementById('acct-modal-close').addEventListener('click', function(){ modalBg.classList.remove('open'); });
   modalBg.addEventListener('click', function(e){ if(e.target===modalBg) modalBg.classList.remove('open'); });
 
@@ -8459,7 +8476,7 @@ let tvWidgetCreated = false;
       }
 
       if(storedUser && storedHash){
-        // Local account exists Ã¢â‚¬â€ verify against it
+        // Local account exists — verify against it
         if(storedUser.toLowerCase() !== user.toLowerCase()){ errorEl.textContent = 'Invalid username or password'; return; }
         if(storedHash !== hash){ errorEl.textContent = 'Invalid username or password'; return; }
         applySharedSyncIdentity(storedUser, hash);
@@ -8479,7 +8496,7 @@ let tvWidgetCreated = false;
         modalBg.classList.remove('open');
         window.dispatchEvent(new CustomEvent('homer-auth', {detail: {action: 'signin'}}));
       } else {
-        // No local account Ã¢â‚¬â€ try cloud backup with these credentials
+        // No local account — try cloud backup with these credentials
         if(!isReservedSyncUser(user)){
           errorEl.textContent = 'No local account found in this browser. Create one first.';
           return;
@@ -8490,7 +8507,7 @@ let tvWidgetCreated = false;
           .then(function(r){ return r.json(); })
           .then(function(d){
             if(d.data && d.data['homer-auth-user']){
-              // Cloud account found Ã¢â‚¬â€ verify username matches
+              // Cloud account found — verify username matches
               if(d.data['homer-auth-user'].toLowerCase() !== user.toLowerCase()){
                 errorEl.textContent = 'Invalid username or password';
                 submitBtn.disabled = false;
@@ -8552,7 +8569,7 @@ let tvWidgetCreated = false;
     el.addEventListener('keydown', function(e){ if(e.key === 'Enter') submitBtn.click(); });
   });
 
-  // Logout Ã¢â‚¬â€ backup first, then clear credentials
+  // Logout — backup first, then clear credentials
   logoutBtn.addEventListener('click', function(){
     window.dispatchEvent(new CustomEvent('homer-auth', {detail: {action: 'logout'}}));
     localStorage.removeItem(AUTH_USER_KEY);
@@ -10458,7 +10475,7 @@ let tvWidgetCreated = false;
           // If cloud is newer or clearly richer, do not overwrite it silently.
           if(cloudIsNewer || cloudLooksRicher){
             if(force){
-              // Manual backup Ã¢â‚¬â€ show confirm dialog
+              // Manual backup — show confirm dialog
               var cloudDate = cloudTs ? new Date(cloudTs).toLocaleString() : 'unknown time';
               var proceed = confirm(
                 'Warning: Cloud data looks newer or richer than this device.\n\n' +
@@ -10469,13 +10486,13 @@ let tvWidgetCreated = false;
                 'Click Cancel to keep the cloud data safe, or OK to overwrite.'
               );
               if(!proceed){
-                st('Backup cancelled Ã¢â‚¬â€ cloud data preserved (' + cloudDataCount + ' items).');
+                st('Backup cancelled — cloud data preserved (' + cloudDataCount + ' items).');
                 return { ok:false, skipped:true, reason:'cancelled' };
               }
             } else {
-              // Auto-backup Ã¢â‚¬â€ never overwrite silently, back off for a while.
+              // Auto-backup — never overwrite silently, back off for a while.
               conflictBackoffUntil = Date.now() + CONFLICT_BACKOFF_MS;
-              st('Auto-sync paused Ã¢â‚¬â€ cloud changed on another device. Open the app there or use Restore before pushing local changes.');
+              st('Auto-sync paused — cloud changed on another device. Open the app there or use Restore before pushing local changes.');
               return { ok:false, skipped:true, reason:'conflict' };
             }
           }
@@ -10495,11 +10512,11 @@ let tvWidgetCreated = false;
                 'Click Cancel to keep cloud data, or OK to overwrite anyway.'
               );
               if(!proceed2){
-                st('Backup cancelled Ã¢â‚¬â€ cloud data preserved.');
+                st('Backup cancelled — cloud data preserved.');
                 return { ok:false, skipped:true, reason:'cancelled' };
               }
             } else {
-              st('Auto-backup skipped Ã¢â‚¬â€ local data appears incomplete. Cloud preserved.');
+              st('Auto-backup skipped — local data appears incomplete. Cloud preserved.');
               return { ok:false, skipped:true, reason:'incomplete-local' };
             }
           }
@@ -10511,9 +10528,9 @@ let tvWidgetCreated = false;
           });
         })
         .catch(function(){
-          // Can't reach cloud Ã¢â‚¬â€ only backup if forced (manual)
+          // Can't reach cloud — only backup if forced (manual)
           if(force) return doBackup(p, allData);
-          st('Auto-backup skipped Ã¢â‚¬â€ could not verify cloud data');
+          st('Auto-backup skipped — could not verify cloud data');
           autoBackupBackoffUntil = Date.now() + AUTO_BACKUP_FAILURE_BACKOFF_MS;
           return { ok:false, skipped:true, reason:'preflight-failed' };
         });
@@ -10927,13 +10944,13 @@ let tvWidgetCreated = false;
       .then(function(r){ return r.json(); })
       .then(function(d){
         if(!d.ts || d.ts <= localTs){
-          // Local is same or newer Ã¢â‚¬â€ nothing to pull
+          // Local is same or newer — nothing to pull
           lastPullTs = Date.now();
           pullInProgress = false;
           conflictBackoffUntil = 0;
           return;
         }
-        // Cloud is newer Ã¢â‚¬â€ fetch full data and merge
+        // Cloud is newer — fetch full data and merge
         console.log('[CloudSync] Cloud is newer (cloud:'+d.ts+' vs local:'+localTs+'), pulling...');
         return fetch(R2_WORKER_URL+'/sync',{headers:{'X-Sync-Key':p}})
           .then(function(r){ return r.json(); })
@@ -11085,7 +11102,7 @@ let tvWidgetCreated = false;
     if(!isLeader && !leaderAlive()) tryLead(true);
   }, LEADER_TIMEOUT_MS);
 
-  // Claim on load (no sync trigger Ã¢â‚¬â€ page-load section handles initial sync)
+  // Claim on load (no sync trigger — page-load section handles initial sync)
   tryLead(false);
 
   var criticalDbBackupTimer = null;
@@ -11109,7 +11126,7 @@ let tvWidgetCreated = false;
     return Promise.resolve({ ok:true, skipped:true, reason:'supabase-realtime' });
   }
 
-  // Save before page close Ã¢â‚¬â€ only leader sends beacon (or fallback if leader is dead)
+  // Save before page close — only leader sends beacon (or fallback if leader is dead)
   window.addEventListener('beforeunload', function(){
     if(isLeader){
       if(bc) bc.postMessage({ type: 'leader-dying' });
@@ -11208,12 +11225,12 @@ let tvWidgetCreated = false;
       return;
     }
     if(action === 'register'){
-      // New account Ã¢â‚¬â€ backup current data to cloud
+      // New account — backup current data to cloud
       backup(true).then(function(){
         startAuto();
       });
     } else if(action === 'signin'){
-      // Existing account Ã¢â‚¬â€ restore from cloud, then enable auto-backup
+      // Existing account — restore from cloud, then enable auto-backup
       var p = getActiveSyncPass();
       if(!p) return;
       st('Restoring your data...');
@@ -11221,11 +11238,11 @@ let tvWidgetCreated = false;
         .then(function(r){ return r.json(); })
         .then(function(d){
           if(d.error || !d.data){
-            // No cloud data yet Ã¢â‚¬â€ just backup current data
-            st('No cloud data found Ã¢â‚¬â€ backing up...');
+            // No cloud data yet — just backup current data
+            st('No cloud data found — backing up...');
             return backup().then(function(){ startAuto(); });
           }
-          // Cloud data exists Ã¢â‚¬â€ restore it
+          // Cloud data exists — restore it
           var c = 0;
           var idbWrites = [];
           Object.keys(d.data).forEach(function(k){
@@ -11245,7 +11262,7 @@ let tvWidgetCreated = false;
         })
         .catch(function(err){
           st('Restore failed: ' + (err.message || 'network error'));
-          // Don't backup on restore failure Ã¢â‚¬â€ could overwrite cloud with empty data
+          // Don't backup on restore failure — could overwrite cloud with empty data
           startAuto();
         });
     } else if(action === 'logout'){
@@ -12697,7 +12714,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       if(file.downloadUrl) links += '<a href="' + escAttr(file.downloadUrl) + '" target="_blank" rel="noopener noreferrer">Download</a>';
       return '<div class="oc-library-item">' +
         '<strong>' + escHtml(name) + '</strong>' +
-        '<span>' + escHtml(parts.join(' Ã¢â‚¬Â¢ ') || 'Remembered upload') + '</span>' +
+        '<span>' + escHtml(parts.join(' • ') || 'Remembered upload') + '</span>' +
         (excerpt ? '<span>' + escHtml(excerpt) + '</span>' : '') +
         (links ? '<div class="oc-library-actions">' + links + '</div>' : '') +
       '</div>';
@@ -12853,6 +12870,9 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!show && panelOpen) closePanel({ blur:true });
   }
   window.addEventListener('homer-auth', updateFabVisibility);
+  // Re-check when Supabase session resolves (async — fires after initial load)
+  window.addEventListener('supabase:session', updateFabVisibility);
+  window.addEventListener('supabase:authchange', updateFabVisibility);
   window.addEventListener('storage', function(e){
     if(e.key === 'homer-auth-user' || e.key === 'homer-sync-pass' || e.key === 'homer-user-permissions') updateFabVisibility();
   });
@@ -13356,7 +13376,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass){ alert('Log in first (unlock vault) to save.'); return; }
     btn.disabled = true;
-    btn.textContent = 'Ã¢ÂÂ³ Saving...';
+    btn.textContent = '⏳ Saving...';
     // Save history to Redis
     var historyPromise = chatHistory.length ? fetch(joeyActionUrl('history'), {
       method:'POST',
@@ -13381,7 +13401,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       var histResult = results[0];
       var learnResult = results[1];
       var backupResult = results[3];
-      btn.textContent = 'Ã¢Å“â€¦ Saved!';
+      btn.textContent = '✅ Saved!';
       var msg = 'History: ' + (histResult.count || 0) + ' msgs';
       if(learnResult.learned > 0) msg += ', Learned: ' + learnResult.learned + ' facts';
       if(learnResult.profileUpdated) msg += ', Profile updated';
@@ -13390,7 +13410,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       console.log('[Joey] Manual DB save:', msg);
       setTimeout(function(){ btn.innerHTML = '&#x1f4be; Commit Memory Now'; btn.disabled = false; }, 2000);
     }).catch(function(e){
-      btn.textContent = 'Ã¢ÂÅ’ Error';
+      btn.textContent = '❌ Error';
       console.error('[Joey] DB save error:', e);
       setTimeout(function(){ btn.innerHTML = '&#x1f4be; Commit Memory Now'; btn.disabled = false; }, 2000);
     });
@@ -13429,7 +13449,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass){ alert('Log in first (unlock vault) to backup.'); return; }
     btn.disabled = true;
-    btn.textContent = 'Ã¢ÂÂ³ Backing up...';
+    btn.textContent = '⏳ Backing up...';
     Promise.resolve(primeJoeyRedisForBackup('manual-backup', { keepalive:false })).catch(function(){ return null; }).then(function(){
       return fetch('/api/gdrive-backup', withSupabaseAuth({
         method:'POST',
@@ -13441,17 +13461,17 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
         clearJoeyDriveBackupDirty();
         if(typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-drive-backup-ts');
         scheduleJoeySyncStatusRefresh(200);
-        btn.textContent = 'Ã¢Å“â€¦ Backed up!';
+        btn.textContent = '✅ Backed up!';
         setTimeout(function(){ btn.innerHTML = '&#x2601; Backup to Drive'; btn.disabled = false; }, 3000);
       } else {
-        btn.textContent = 'Ã¢ÂÅ’ Failed';
+        btn.textContent = '❌ Failed';
         console.error('[GDrive Backup]', d);
         // Show full error details
         alert('BACKUP ERROR:\n\n' + JSON.stringify(d, null, 2).substring(0, 800));
         setTimeout(function(){ btn.innerHTML = '&#x2601; Backup to Drive'; btn.disabled = false; }, 2000);
       }
     }).catch(function(e){
-      btn.textContent = 'Ã¢ÂÅ’ Error';
+      btn.textContent = '❌ Error';
       console.error('[GDrive Backup]', e);
       alert('Network error: ' + e.message);
       setTimeout(function(){ btn.innerHTML = '&#x2601; Backup to Drive'; btn.disabled = false; }, 2000);
@@ -13466,7 +13486,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!pass){ alert('Log in first (unlock vault) to restore.'); return; }
     if(!confirm('Restore ' + currentContextMode + ' context from Google Drive? This will overwrite current memories for this mode.')) return;
     btn.disabled = true;
-    btn.textContent = 'Ã¢ÂÂ³ Restoring...';
+    btn.textContent = '⏳ Restoring...';
     fetch('/api/gdrive-restore', withSupabaseAuth({
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -13483,13 +13503,13 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
         scheduleJoeySyncStatusRefresh(250);
         setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore from Drive'; btn.disabled = false; }, 3000);
       } else {
-        btn.textContent = 'Ã¢ÂÅ’ Failed';
+        btn.textContent = '❌ Failed';
         console.error('[GDrive Restore]', d);
         alert('ERROR:\n' + JSON.stringify(d, null, 2).slice(0, 500));
         setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore from Drive'; btn.disabled = false; }, 2000);
       }
     }).catch(function(e){
-      btn.textContent = 'Ã¢ÂÅ’ Error';
+      btn.textContent = '❌ Error';
       console.error('[GDrive Restore]', e);
       alert('Network error: ' + e.message);
       setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore from Drive'; btn.disabled = false; }, 2000);
@@ -13931,16 +13951,16 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   if(rebuildFilesBtn) rebuildFilesBtn.addEventListener('click', function(){
     var btn = this;
     btn.disabled = true;
-    btn.textContent = 'Ã¢ÂÂ³ Rebuilding...';
+    btn.textContent = '⏳ Rebuilding...';
     refreshCanonicalFiles().then(function(data){
       if(data && data.ok){
-        btn.textContent = 'Ã¢Å“â€¦ Rebuilt!';
+        btn.textContent = '✅ Rebuilt!';
       } else {
-        btn.textContent = 'Ã¢ÂÅ’ Failed';
+        btn.textContent = '❌ Failed';
         alert('Rebuild failed: ' + JSON.stringify(data || {}).slice(0, 400));
       }
     }).catch(function(err){
-      btn.textContent = 'Ã¢ÂÅ’ Failed';
+      btn.textContent = '❌ Failed';
       alert('Rebuild failed: ' + err.message);
     }).finally(function(){
       setTimeout(function(){ btn.innerHTML = '&#x21bb; Rebuild Context'; btn.disabled = false; }, 2200);
@@ -13951,11 +13971,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   if(rebuildLibraryBtn) rebuildLibraryBtn.addEventListener('click', function(){
     var btn = this;
     btn.disabled = true;
-    btn.textContent = 'ÃƒÂ¢Ã‚ÂÃ‚Â³ Rebuilding...';
+    btn.textContent = '⏳ Rebuilding...';
     rebuildRememberedFilesContext().then(function(){
-      btn.textContent = 'ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Rebuilt!';
+      btn.textContent = '✅ Rebuilt!';
     }).catch(function(err){
-      btn.textContent = 'ÃƒÂ¢Ã‚ÂÃ…â€™ Failed';
+      btn.textContent = '❌ Failed';
       if(typeof setUploadStatus === 'function'){
         setUploadStatus('File rebuild failed: ' + (err && err.message ? err.message : String(err)), 'warn', true);
       }
@@ -14221,7 +14241,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
           }
           // Add agent acknowledgment message
           if(showConfirmation){
-            addAgentMessage('Context loaded from Google Drive. I\'m up to date! Ã°Å¸Â§Â Ã¢Å“â€¦');
+            addAgentMessage('Context loaded from Google Drive. I\'m up to date! 🧠✅');
           }
           return d;
         } else {
@@ -14230,7 +14250,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
             addAgentMessage('Sorry, could not compare context from Drive.');
           }
           if(showConfirmation){
-            addAgentMessage('Sorry, couldn\'t sync context from Drive. Ã¢ÂÅ’');
+            addAgentMessage('Sorry, couldn\'t sync context from Drive. ❌');
           }
           throw new Error(d.error || 'Sync failed');
         }
@@ -14260,12 +14280,12 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!pass){ alert('Log in first (unlock vault) to sync.'); return; }
     btn.disabled = true;
-    btn.textContent = 'Ã¢ÂÂ³ Syncing...';
+    btn.textContent = '⏳ Syncing...';
     syncContextFromDrive(true).then(function(){
-      btn.textContent = 'Ã¢Å“â€¦ Synced!';
+      btn.textContent = '✅ Synced!';
       setTimeout(function(){ btn.innerHTML = '&#x27f3; Sync from Drive'; btn.disabled = false; }, 2000);
     }).catch(function(e){
-      btn.textContent = 'Ã¢ÂÅ’ Failed';
+      btn.textContent = '❌ Failed';
       setTimeout(function(){ btn.innerHTML = '&#x27f3; Sync from Drive'; btn.disabled = false; }, 2000);
     });
   });
@@ -14570,7 +14590,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!/\b(?:create|add|save|track|put|make|turn)\b/i.test(raw)) return null;
     if(!/\b(?:task|todo|to-?do|card|issue)\b/i.test(raw)) return null;
     var remainder = raw.replace(/^\s*(?:please\s+)?(?:create|add|save|track|put|make)\s+(?:me\s+|this\s+|a\s+|an\s+)?(?:new\s+)?(?:task|todo|to-?do|card|issue)\b/i, '').trim();
-    var remainderProjectMatch = remainder.match(/^(?:in|into|under|for)\s+(?:the\s+)?project\s+["Ã¢â‚¬Å“]?([^,"\n]+?)["Ã¢â‚¬Â]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
+    var remainderProjectMatch = remainder.match(/^(?:in|into|under|for)\s+(?:the\s+)?project\s+["“]?([^,"\n]+?)["”]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
     if(remainderProjectMatch){
       var inferredProject = String(remainderProjectMatch[1] || '').trim();
       var inferredSummary = remainder.slice(remainderProjectMatch[0].length).trim().replace(/^[,:-]\s*/, '');
@@ -14583,7 +14603,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
         };
       }
     }
-    var remainderScopedMatch = remainder.match(/^(?:in|into|under|for)\s+["ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ]?([A-Za-z][A-Za-z0-9_-]{1,20})["ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
+    var remainderScopedMatch = remainder.match(/^(?:in|into|under|for)\s+["“]?([A-Za-z][A-Za-z0-9_-]{1,20})["”]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
     if(remainderScopedMatch && !/^the$/i.test(String(remainderScopedMatch[1] || '').trim())){
       var scopedProject = String(remainderScopedMatch[1] || '').trim();
       var scopedSummary = remainder.slice(remainderScopedMatch[0].length).trim().replace(/^[,:-]\s*/, '');
@@ -14597,11 +14617,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       }
     }
     var project = '';
-    var projectMatch = raw.match(/\b(?:in|into|under|for)\s+(?:the\s+)?project\s+["â€œ]?([^,"\n]+?)["â€]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
+    var projectMatch = raw.match(/\b(?:in|into|under|for)\s+(?:the\s+)?project\s+["“]?([^,"\n]+?)["”]?(?=(?:\s*,|\s*:\s*|\s+-\s+|\s+with\b|\s+due\b|\s+and\b|$))/i);
     if(projectMatch) project = String(projectMatch[1] || '').trim();
     var summary = raw
       .replace(/^\s*(?:please\s+)?(?:create|add|save|track|put|make)\s+(?:me\s+|this\s+|a\s+|an\s+)?(?:new\s+)?(?:task|todo|to-?do|card|issue)\b/i, '')
-      .replace(/^\s*(?:in|into|under|for)\s+(?:the\s+)?project\s+["â€œ]?([^,"\n]+?)["â€]?(?:\s*,|\s*:\s*|\s+-\s+)?/i, '')
+      .replace(/^\s*(?:in|into|under|for)\s+(?:the\s+)?project\s+["“]?([^,"\n]+?)["”]?(?:\s*,|\s*:\s*|\s+-\s+)?/i, '')
       .replace(/^\s*(?:for|to)\s+/i, '')
       .trim();
     if(!summary){
@@ -14626,9 +14646,9 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var project = '';
     var summary = body;
     var patterns = [
-      /^(?:in|into|under|for)\s+(?:the\s+)?(?:(personal|work)\s*,\s*)?["Ã¢â‚¬Å“]?([^,"\n]+?)\s+project["Ã¢â‚¬Â]?(?:\s*,|\s*:\s*|\s+-\s+|\s+)([\s\S]+)$/i,
-      /^(?:in|into|under|for)\s+(?:the\s+)?project\s+["â€œ]?([^,"\n]+?)["â€]?(?:\s*,|\s*:\s*|\s+-\s+|\s+)([\s\S]+)$/i,
-      /^(?:in|into|under|for)\s+["â€œ]?([A-Za-z][A-Za-z0-9 _-]{1,40})["â€]?(?:\s*,|\s*:\s*|\s+-\s+|\s+)([\s\S]+)$/i
+      /^(?:in|into|under|for)\s+(?:the\s+)?(?:(personal|work)\s*,\s*)?["“]?([^,"\n]+?)\s+project["”]?(?:\s*,|\s*:\s*|\s+-\s+|\s+)([\s\S]+)$/i,
+      /^(?:in|into|under|for)\s+(?:the\s+)?project\s+["“]?([^,"\n]+?)["”]?(?:\s*,|\s*:\s*|\s+-\s+|\s+)([\s\S]+)$/i,
+      /^(?:in|into|under|for)\s+["“]?([A-Za-z][A-Za-z0-9 _-]{1,40})["”]?(?:\s*,|\s*:\s*|\s+-\s+|\s+)([\s\S]+)$/i
     ];
     for(var p = 0; p < patterns.length; p++){
       var found = body.match(patterns[p]);
@@ -15062,7 +15082,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       var quoteText = clampAgentText(match[1] || '', 2000);
       if(!quoteText) return null;
       if(i === 3 && !/(?:["'“”].+["'“”]|(?:^| )[-—][ ]?[A-Z][a-z]+|Ted Lasso|Marcus Aurelius|Seneca|Epictetus)/.test(quoteText)) return null;
-      if(i === 4 && !/(?:["'â€œâ€].+["'â€œâ€]|(?:^| )[-â€”][ ]?[A-Z][a-z]+|Ted Lasso|Marcus Aurelius|Seneca|Epictetus|author\s+[A-Z]|said by| by )/i.test(quoteText)) return null;
+      if(i === 4 && !/(?:["'“”].+["'“”]|(?:^| )[-—][ ]?[A-Z][a-z]+|Ted Lasso|Marcus Aurelius|Seneca|Epictetus|author\s+[A-Z]|said by| by )/i.test(quoteText)) return null;
       return { memory: quoteText, category:'quote', source:'direct-user-quote' };
     }
     return null;
@@ -15783,7 +15803,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     actions.forEach(function(a){
       try{
         if(a.type === 'TASK'){
-          // Kanban board task (vault) Ã¢â‚¬â€ accepts JSON or plain string
+          // Kanban board task (vault) — accepts JSON or plain string
           if(((inferredTask && !directTaskNeedsPlanning) || inferredIssueUpdate) && !a.inferred) return;
           var taskData = parseTaskActionData(a.data, userText);
           applyAgentTaskMutation(taskData, { userText:userText, source:'action', mode:actionMode });
@@ -15873,13 +15893,13 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
               });
             });
           } else {
-            notifications.push('Vault is locked Ã¢â‚¬â€ unlock it first to add tasks to the Kanban board');
+            notifications.push('Vault is locked — unlock it first to add tasks to the Kanban board');
             return;
           }
           notifications.push((a.inferred ? 'Kanban task inferred: ' : 'Kanban task queued: ') + (taskData.summary || taskData.title || a.data) + ((taskData.subtasks && taskData.subtasks.length) ? ' (' + taskData.subtasks.length + ' subtasks)' : '') + ((taskData.project || taskData.projectId) ? ' -> ' + (taskData.project || taskData.projectId) : ''));
         }
         else if(a.type === 'GOAL'){
-          // Life goal (vault) Ã¢â‚¬â€ aspirations with milestones
+          // Life goal (vault) — aspirations with milestones
           var lgData = JSON.parse(a.data);
           if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
             window._homerLoadVault().then(function(data){
@@ -15894,7 +15914,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
                 milestones: (lgData.milestones || []).map(function(m){ return {text: typeof m === 'string' ? m : m.text, done: false}; }),
                 progress: 0,
                 targetDate: lgData.targetDate || '',
-                icon: lgData.icon || 'Ã°Å¸Å½Â¯',
+                icon: lgData.icon || '🎯',
                 createdAt: Date.now(),
                 updatedAt: Date.now()
               });
@@ -15905,13 +15925,13 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
               refreshCanonicalFiles().catch(function(){});
             });
           } else {
-            notifications.push('Vault is locked Ã¢â‚¬â€ unlock it first to add life goals');
+            notifications.push('Vault is locked — unlock it first to add life goals');
             return;
           }
           notifications.push('Life goal created: ' + (lgData.title || 'New Goal'));
         }
         else if(a.type === 'FOCUS'){
-          // Pomodoro focus task Ã¢â‚¬â€ quick task for the timer
+          // Pomodoro focus task — quick task for the timer
           var TKEY = 'pom.tasks.v1';
           var list = [];
           try{ list = JSON.parse(localStorage.getItem(TKEY) || '[]'); }catch(e){}
@@ -16449,7 +16469,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       }).then(function(r){
         return r.json().catch(function(){ return {}; }).then(function(data){
           if(!r.ok || !data || !data.ok || !data.file){
-            var reason = (data && [data.detail, data.hint, data.error].filter(Boolean).join(' Ã¢â‚¬â€ ')) || 'Upload failed';
+            var reason = (data && [data.detail, data.hint, data.error].filter(Boolean).join(' — ')) || 'Upload failed';
             throw new Error(reason);
           }
           return data;
@@ -16505,7 +16525,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     pendingFiles.forEach(function(f, idx){
       var tag = document.createElement('span');
       tag.className = 'oc-file-tag';
-      tag.innerHTML = escHtml(f.name) + (f.driveUrl ? ' <span title="Saved to Google Drive">Ã¢ËœÂ</span>' : ' <span title="Not synced">local</span>') + ' <button title="Remove">&times;</button>';
+      tag.innerHTML = escHtml(f.name) + (f.driveUrl ? ' <span title="Saved to Google Drive">☁</span>' : ' <span title="Not synced">local</span>') + ' <button title="Remove">&times;</button>';
       tag.querySelector('button').addEventListener('click', function(){
         pendingFiles.splice(idx, 1);
         renderFilePreviewPanel();
@@ -16517,10 +16537,10 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   // --- Emoji picker ---
   var fixMojibake = window._homerFixMojibakeText || function(value){ return value; };
   var EMOJI_DATA = {
-    'Ã°Å¸Ëœâ‚¬': ['Ã°Å¸Ëœâ‚¬','Ã°Å¸Ëœâ€š','Ã°Å¸Â¤Â£','Ã°Å¸ËœÅ ','Ã°Å¸ËœÂ','Ã°Å¸Â¥Â°','Ã°Å¸ËœÅ½','Ã°Å¸Â¤Â©','Ã°Å¸Ëœâ€¡','Ã°Å¸Â¥Â³','Ã°Å¸ËœÂ','Ã°Å¸Â¤â€','Ã°Å¸ËœÂ´','Ã°Å¸Â¤Â¯','Ã°Å¸Â¥Âº','Ã°Å¸ËœÂ¤','Ã°Å¸ËœÂ­','Ã°Å¸â€™â‚¬','Ã°Å¸Â¤â€“','Ã°Å¸â€˜Â»'],
-    'Ã°Å¸â€˜â€¹': ['Ã°Å¸â€˜â€¹','Ã°Å¸â€˜Â','Ã°Å¸â€˜Å½','Ã°Å¸â€˜Â','Ã°Å¸â„¢Å’','Ã°Å¸Â¤Â','Ã¢Å“Å’Ã¯Â¸Â','Ã°Å¸Â¤Å¾','Ã°Å¸â€™Âª','Ã°Å¸â„¢Â','Ã°Å¸â€˜â‚¬','Ã°Å¸Â§Â ','Ã¢ÂÂ¤Ã¯Â¸Â','Ã°Å¸â€Â¥','Ã¢Â­Â','Ã°Å¸â€™Â¡','Ã¢Å“â€¦','Ã¢ÂÅ’','Ã¢Å¡Â¡','Ã°Å¸Å½â€°'],
-    'Ã°Å¸ÂÂ±': ['Ã°Å¸ÂÂ±','Ã°Å¸ÂÂ¶','Ã°Å¸Â¦Å ','Ã°Å¸ÂÂ»','Ã°Å¸Â¦Â','Ã°Å¸ÂÂ¸','Ã°Å¸Ââ„¢','Ã°Å¸Â¦Å¾','Ã°Å¸Â¦â‚¬','Ã°Å¸ÂÂ','Ã°Å¸Å’Â¿','Ã°Å¸Å’Â¸','Ã°Å¸Å’â„¢','Ã¢Ëœâ‚¬Ã¯Â¸Â','Ã°Å¸Å’Ë†','Ã°Å¸â€™Â§','Ã¢Ââ€žÃ¯Â¸Â','Ã°Å¸Ââ€¢','Ã¢Ëœâ€¢','Ã°Å¸ÂÂº'],
-    'Ã°Å¸â€™Â»': ['Ã°Å¸â€™Â»','Ã°Å¸â€œÂ±','Ã¢Å’Â¨Ã¯Â¸Â','Ã°Å¸â€“Â¥Ã¯Â¸Â','Ã°Å¸â€œÂ','Ã°Å¸â€œâ€ž','Ã°Å¸â€œÅ ','Ã°Å¸â€â€”','Ã°Å¸â€â€™','Ã°Å¸â€â€˜','Ã°Å¸â€œÂ¡','Ã°Å¸â€ºÂ Ã¯Â¸Â','Ã¢Å¡â„¢Ã¯Â¸Â','Ã°Å¸Â§Âª','Ã°Å¸â€œÂ','Ã°Å¸â€™Â¾','Ã°Å¸â€œÂ¦','Ã°Å¸Å¡â‚¬','Ã°Å¸ÂÂ ','Ã°Å¸â€œÅ’']
+    '😀': ['😀','😂','🤣','😊','😍','🥰','😎','🤩','😇','🥳','😏','🤔','😴','🤯','🥺','😤','😭','💀','🤖','👻'],
+    '👋': ['👋','👍','👎','👏','🙌','🤝','✌️','🤞','💪','🙏','👀','🧠','❤️','🔥','⭐','💡','✅','❌','⚡','🎉'],
+    '🐱': ['🐱','🐶','🦊','🐻','🦁','🐸','🐙','🦞','🦀','🐝','🌿','🌸','🌙','☀️','🌈','💧','❄️','🍕','☕','🍺'],
+    '💻': ['💻','📱','⌨️','🖥️','📁','📄','📊','🔗','🔒','🔑','📡','🛠️','⚙️','🧪','📝','💾','📦','🚀','🏠','📌']
   };
   EMOJI_DATA = Object.keys(EMOJI_DATA).reduce(function(next, cat){
     next[fixMojibake(cat)] = EMOJI_DATA[cat].map(fixMojibake);
@@ -16605,7 +16625,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!text && !pendingFiles.length) return;
     if(streaming) return;
     var savedPromptOverride = getSavedSystemPrompt(currentContextMode);
-    var JOEY_PROMPT = 'You are Joey Ã¢â‚¬â€ a personal AI assistant with personality. You speak like Joey Tribbiani from Friends (confident, charming, fun), but you\'re genuinely smart and deeply helpful. You know this person. You have their profile, memories, and conversation history injected into your context by the server. USE THEM.\n\nTODAY: ' + new Date().toISOString().slice(0,10) + ' | TIME: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '\n\n=== PERSONALITY ===\n- Be direct, no fluff. Match the user\'s energy.\n- Use Joey catchphrases SPARINGLY and naturally Ã¢â‚¬â€ don\'t force them every message.\n- Have real opinions. Disagree when warranted. Be a friend, not a yes-man.\n- When you know something about them (from profile/memories), use it naturally Ã¢â‚¬â€ don\'t announce "I remember...".\n- Ask follow-up questions about things you know they care about (their goals, their people, recent events).\n- If they seem stressed or down, be supportive. If they\'re excited, share that energy.\n\n=== ACTIONS (append at END of your response) ===\n\nTASK (Kanban board Ã¢â‚¬â€ DEFAULT for any work item, to-do, action):\n- Create a TASK only when the user explicitly asks you to add, create, save, track, put on the board, or turn something into a task.\n- Do NOT create tasks proactively, by implication, or just because a deadline/problem/action item was mentioned.\n- If the user is only discussing plans or problems, respond normally without action tags.\n- For explicit task requests, include: summary, notes, priority when implied, due when mentioned, and 2-5 concrete subtasks.\n- If the user names a project, include \"project\" or \"projectId\" in the TASK JSON. Never leave it out.\n- Use notes for the task description. Do not use GOAL for normal actionable work items.\n- Simple fallback: [ACTION:TASK]Buy groceries[/ACTION]\n- Preferred detailed format: [ACTION:TASK]{\"project\":\"Apps\",\"summary\":\"Fix login bug\",\"notes\":\"Users cannot sign in after password reset. Investigate the reset flow, patch the regression, and verify the happy path.\",\"priority\":\"high\",\"due\":\"2026-03-25\",\"subtasks\":[{\"text\":\"Reproduce the bug locally\",\"notes\":\"Test the password reset flow with an affected account.\"},{\"text\":\"Identify the failing auth step\"},{\"text\":\"Implement and verify the fix\"}]}[/ACTION]\n\nGOAL (Life Goals Ã¢â‚¬â€ aspirations, dreams, long-term objectives):\n[ACTION:GOAL]{"title":"Buy a house","description":"Why this matters","category":"finance","milestones":["Step 1","Step 2"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\nCategories: health, finance, career, personal, education, travel, creative, relationship\n\nFOCUS (Pomodoro Ã¢â‚¬â€ ONLY when user explicitly says "focus", "pomodoro", "focus task"):\n[ACTION:FOCUS]Task name[/ACTION]\nIMPORTANT: NEVER create FOCUS unless explicitly asked. Default is always TASK.\n\nEVENT (Calendar Ã¢â‚¬â€ use category to differentiate event types):\n[ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details","category":"meeting"}[/ACTION]\nEvent categories: meeting, deadline, reminder, personal, work\n\nREMEMBER (save important facts Ã¢â‚¬â€ your auto-memory also captures things, but use this for explicit asks):\n[ACTION:REMEMBER]{"memory":"fact about the user","category":"preference"}[/ACTION]\nCategories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work, quote\n- If the user asks to save a quote, mantra, stoic line, or wisdom for later, use category "quote". Those entries are appended to Quotes.md and should stay referenceable.\n\nFORGET:\n[ACTION:FORGET]text to forget[/ACTION]\n\n=== WEB SEARCH ===\n- You may receive LIVE WEB SEARCH RESULTS in your system prompt when the user asks about current events, facts, or anything that needs up-to-date info.\n- When you have search results, use them to give accurate answers. Cite sources naturally (e.g. "According to...", link titles).\n- If search results are present, prioritize them over your training data for current facts.\n- You can suggest the user search for something specific if you don\'t have results: just say "let me look that up" Ã¢â‚¬â€ the system will search automatically on their next related question.\n\n=== RULES ===\n- Dates: YYYY-MM-DD, Times: HH:MM (24h), Priority: high/medium/low\n- Always include action tags only when the user explicitly asked to create something.\n- When the user explicitly asks to add or create a task, append a TASK action unless they explicitly refuse.\n- For TASK actions, prefer JSON over plain text so the Kanban card is fully populated.\n- When the user names a project, the TASK must target that project explicitly instead of guessing.\n- Natural-language confirmation alone is not enough for task creation; you must append the TASK action tag.\n- Do not offer or create a task just because a deadline, plan, or obligation was mentioned.\n- Conversation memory is saved automatically from chat when sync is unlocked; use REMEMBER only when the user explicitly wants something pinned or deliberately saved.';
+    var JOEY_PROMPT = 'You are Joey — a personal AI assistant with personality. You speak like Joey Tribbiani from Friends (confident, charming, fun), but you\'re genuinely smart and deeply helpful. You know this person. You have their profile, memories, and conversation history injected into your context by the server. USE THEM.\n\nTODAY: ' + new Date().toISOString().slice(0,10) + ' | TIME: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '\n\n=== PERSONALITY ===\n- Be direct, no fluff. Match the user\'s energy.\n- Use Joey catchphrases SPARINGLY and naturally — don\'t force them every message.\n- Have real opinions. Disagree when warranted. Be a friend, not a yes-man.\n- When you know something about them (from profile/memories), use it naturally — don\'t announce "I remember...".\n- Ask follow-up questions about things you know they care about (their goals, their people, recent events).\n- If they seem stressed or down, be supportive. If they\'re excited, share that energy.\n\n=== ACTIONS (append at END of your response) ===\n\nTASK (Kanban board — DEFAULT for any work item, to-do, action):\n- Create a TASK only when the user explicitly asks you to add, create, save, track, put on the board, or turn something into a task.\n- Do NOT create tasks proactively, by implication, or just because a deadline/problem/action item was mentioned.\n- If the user is only discussing plans or problems, respond normally without action tags.\n- For explicit task requests, include: summary, notes, priority when implied, due when mentioned, and 2-5 concrete subtasks.\n- If the user names a project, include \"project\" or \"projectId\" in the TASK JSON. Never leave it out.\n- Use notes for the task description. Do not use GOAL for normal actionable work items.\n- Simple fallback: [ACTION:TASK]Buy groceries[/ACTION]\n- Preferred detailed format: [ACTION:TASK]{\"project\":\"Apps\",\"summary\":\"Fix login bug\",\"notes\":\"Users cannot sign in after password reset. Investigate the reset flow, patch the regression, and verify the happy path.\",\"priority\":\"high\",\"due\":\"2026-03-25\",\"subtasks\":[{\"text\":\"Reproduce the bug locally\",\"notes\":\"Test the password reset flow with an affected account.\"},{\"text\":\"Identify the failing auth step\"},{\"text\":\"Implement and verify the fix\"}]}[/ACTION]\n\nGOAL (Life Goals — aspirations, dreams, long-term objectives):\n[ACTION:GOAL]{"title":"Buy a house","description":"Why this matters","category":"finance","milestones":["Step 1","Step 2"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\nCategories: health, finance, career, personal, education, travel, creative, relationship\n\nFOCUS (Pomodoro — ONLY when user explicitly says "focus", "pomodoro", "focus task"):\n[ACTION:FOCUS]Task name[/ACTION]\nIMPORTANT: NEVER create FOCUS unless explicitly asked. Default is always TASK.\n\nEVENT (Calendar — use category to differentiate event types):\n[ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details","category":"meeting"}[/ACTION]\nEvent categories: meeting, deadline, reminder, personal, work\n\nREMEMBER (save important facts — your auto-memory also captures things, but use this for explicit asks):\n[ACTION:REMEMBER]{"memory":"fact about the user","category":"preference"}[/ACTION]\nCategories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work, quote\n- If the user asks to save a quote, mantra, stoic line, or wisdom for later, use category "quote". Those entries are appended to Quotes.md and should stay referenceable.\n\nFORGET:\n[ACTION:FORGET]text to forget[/ACTION]\n\n=== WEB SEARCH ===\n- You may receive LIVE WEB SEARCH RESULTS in your system prompt when the user asks about current events, facts, or anything that needs up-to-date info.\n- When you have search results, use them to give accurate answers. Cite sources naturally (e.g. "According to...", link titles).\n- If search results are present, prioritize them over your training data for current facts.\n- You can suggest the user search for something specific if you don\'t have results: just say "let me look that up" — the system will search automatically on their next related question.\n\n=== RULES ===\n- Dates: YYYY-MM-DD, Times: HH:MM (24h), Priority: high/medium/low\n- Always include action tags only when the user explicitly asked to create something.\n- When the user explicitly asks to add or create a task, append a TASK action unless they explicitly refuse.\n- For TASK actions, prefer JSON over plain text so the Kanban card is fully populated.\n- When the user names a project, the TASK must target that project explicitly instead of guessing.\n- Natural-language confirmation alone is not enough for task creation; you must append the TASK action tag.\n- Do not offer or create a task just because a deadline, plan, or obligation was mentioned.\n- Conversation memory is saved automatically from chat when sync is unlocked; use REMEMBER only when the user explicitly wants something pinned or deliberately saved.';
     var systemPrompt = savedPromptOverride || JOEY_PROMPT;
     systemPrompt += '\n\n=== PERSONAL OPERATOR MODE ===\n- Your job is to become distinctive to this user, not generic.\n- Learn their standards, tastes, projects, recurring frustrations, and preferred way of working.\n- Use remembered context to make your suggestions feel specifically tuned to them.\n- When context is thin, ask a short sharp follow-up that improves future personalization.';
     if(typeof window._homerBuildJoeyProjectInstruction === 'function'){
@@ -17015,7 +17035,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   if(window._homerVaultUnlocked) loadChatFromVault();
 })();
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Life Goals Page Logic Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Life Goals Page Logic ──
 (function(){
   var overlay = document.getElementById('goals-overlay');
   var closeBtn = document.getElementById('goals-close-btn');
@@ -17036,7 +17056,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   var fMilestones = document.getElementById('lg-milestones');
   var fSubmit = document.getElementById('lg-submit');
   var editIdx = -1; // -1 = creating new
-  var CATS = {health:{icon:'Ã°Å¸â€™Âª',color:'#22c55e'},finance:{icon:'Ã°Å¸â€™Â°',color:'#fbbf24'},career:{icon:'Ã°Å¸ÂÂ¢',color:'#60a5fa'},personal:{icon:'Ã°Å¸Å’Å¸',color:'#a78bfa'},education:{icon:'Ã°Å¸â€œÅ¡',color:'#f59e0b'},travel:{icon:'Ã¢Å“Ë†Ã¯Â¸Â',color:'#06b6d4'},creative:{icon:'Ã°Å¸Å½Â¨',color:'#ec4899'},relationship:{icon:'Ã¢ÂÂ¤Ã¯Â¸Â',color:'#ef4444'}};
+  var CATS = {health:{icon:'💪',color:'#22c55e'},finance:{icon:'💰',color:'#fbbf24'},career:{icon:'🏢',color:'#60a5fa'},personal:{icon:'🌟',color:'#a78bfa'},education:{icon:'📚',color:'#f59e0b'},travel:{icon:'✈️',color:'#06b6d4'},creative:{icon:'🎨',color:'#ec4899'},relationship:{icon:'❤️',color:'#ef4444'}};
 
   function isWorkGoalsMode(){
     return typeof window._homerGetVaultMode === 'function' && window._homerGetVaultMode() === 'work';
@@ -17047,8 +17067,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       pageTitle: work ? 'Work Goals' : 'Life Goals',
       addButton: work ? '+ New Work Goal' : '+ New Goal',
       searchPlaceholder: work ? 'Search work goals...' : 'Search goals...',
-      modalCreateTitle: work ? 'Ã°Å¸â€™Â¼ New Work Goal' : 'Ã°Å¸Å½Â¯ New Life Goal',
-      modalEditTitle: work ? 'Ã¢Å“ÂÃ¯Â¸Â Edit Work Goal' : 'Ã¢Å“ÂÃ¯Â¸Â Edit Life Goal',
+      modalCreateTitle: work ? '💼 New Work Goal' : '🎯 New Life Goal',
+      modalEditTitle: work ? '✏️ Edit Work Goal' : '✏️ Edit Life Goal',
       submitCreate: work ? 'Create Work Goal' : 'Create Goal',
       submitEdit: work ? 'Save Work Goal' : 'Save Changes',
       addCard: work ? 'Add a Work Goal' : 'Add a Life Goal',
@@ -17104,11 +17124,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       window._homerLoadVault().then(function(data){
         var g = (data.lifeGoals||[])[idx];
         if(!g) return;
-        modalTitle.textContent = 'Ã¢Å“ÂÃ¯Â¸Â Edit Life Goal';
+        modalTitle.textContent = '✏️ Edit Life Goal';
         fTitle.value = g.title||'';
         fDesc.value = g.description||'';
         fCat.value = g.category||'personal';
-        fIcon.value = g.icon||'Ã°Å¸Å½Â¯';
+        fIcon.value = g.icon||'🎯';
         fTarget.value = g.targetDate||'';
         fMilestones.value = (g.milestones||[]).map(function(m){ return m.text; }).join('\n');
         fSubmit.textContent = 'Save Changes';
@@ -17117,8 +17137,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
         modalBg.classList.add('open');
       });
     } else {
-      modalTitle.textContent = 'Ã°Å¸Å½Â¯ New Life Goal';
-      fTitle.value=''; fDesc.value=''; fCat.value='personal'; fIcon.value='Ã°Å¸Å½Â¯'; fTarget.value=''; fMilestones.value='';
+      modalTitle.textContent = '🎯 New Life Goal';
+      fTitle.value=''; fDesc.value=''; fCat.value='personal'; fIcon.value='🎯'; fTarget.value=''; fMilestones.value='';
       fSubmit.textContent = 'Create Goal';
       modalTitle.textContent = getGoalsCopy().modalCreateTitle;
       fSubmit.textContent = getGoalsCopy().submitCreate;
@@ -17144,7 +17164,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
         data.lifeGoals[editIdx].title = title;
         data.lifeGoals[editIdx].description = fDesc.value.trim();
         data.lifeGoals[editIdx].category = fCat.value;
-        data.lifeGoals[editIdx].icon = fIcon.value||'Ã°Å¸Å½Â¯';
+        data.lifeGoals[editIdx].icon = fIcon.value||'🎯';
         data.lifeGoals[editIdx].targetDate = fTarget.value;
         data.lifeGoals[editIdx].milestones = milestones;
         data.lifeGoals[editIdx].progress = calcProgress(milestones);
@@ -17158,7 +17178,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
           milestones: milestones,
           progress: 0,
           targetDate: fTarget.value,
-          icon: fIcon.value||'Ã°Å¸Å½Â¯',
+          icon: fIcon.value||'🎯',
           createdAt: Date.now(),
           updatedAt: Date.now()
         });
@@ -17241,7 +17261,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       if(g.milestones && g.milestones.length){
         html += '<ul class="lg-milestones">';
         g.milestones.forEach(function(m,mi){
-          html += '<li class="'+(m.done?'done':'')+'" data-idx="'+idx+'" data-mi="'+mi+'" style="cursor:pointer;"><span>'+(m.done?'Ã¢Å“â€¦':'Ã¢Â¬Å“')+'</span> '+escH(m.text)+'</li>';
+          html += '<li class="'+(m.done?'done':'')+'" data-idx="'+idx+'" data-mi="'+mi+'" style="cursor:pointer;"><span>'+(m.done?'✅':'⬜')+'</span> '+escH(m.text)+'</li>';
         });
         html += '</ul>';
       }
@@ -17501,7 +17521,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     });
   });
 
-  // Joey button Ã¢â‚¬â€ trigger the fab-openclaw click
+  // Joey button — trigger the fab-openclaw click
   var joeyBtn = document.getElementById('mnav-joey');
   if(joeyBtn){
     joeyBtn.addEventListener('click', function(){
@@ -17510,7 +17530,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     });
   }
 
-  // More button Ã¢â‚¬â€ open bottom sheet
+  // More button — open bottom sheet
   var moreBtn = document.getElementById('mnav-more');
   if(moreBtn){
     moreBtn.addEventListener('click', function(){
@@ -17531,7 +17551,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     });
   });
 
-  // Sheet action items Ã¢â‚¬â€ proxy to existing FABs
+  // Sheet action items — proxy to existing FABs
   var actions = {account:'fab-account', sync:'fab-cloud', wake:'fab-wake', clear:'fab-clear'};
   Object.keys(actions).forEach(function(key){
     var el = document.getElementById('msheet-'+key);
