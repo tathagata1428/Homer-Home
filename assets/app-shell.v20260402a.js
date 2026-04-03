@@ -12066,12 +12066,14 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     });
   });
 
-  if(toggleTrack) toggleTrack.addEventListener('click', function(){
+  if(toggleTrack) toggleTrack.addEventListener('click', function(e){
+    if(e){ e.preventDefault(); e.stopPropagation(); }
     runJoeyInitStep('toggleProvider', function(){
       applyProvider(currentProvider === 'joey' ? 'nemoclaw' : 'joey');
     });
   });
-  if(alicloudPowerBtn) alicloudPowerBtn.addEventListener('click', function(){
+  if(alicloudPowerBtn) alicloudPowerBtn.addEventListener('click', function(e){
+    if(e){ e.preventDefault(); e.stopPropagation(); }
     runJoeyInitStep('toggleAliCloud', function(){
       if(currentProvider === 'alicloud'){
         var prev = localStorage.getItem('homer-oc-pre-alicloud-provider') || 'joey';
