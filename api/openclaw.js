@@ -201,8 +201,8 @@ function buildOpenClawSystemParts(context) {
 
   if (largeContext) {
     systemParts.push(`
-=== MIMO LARGE-CONTEXT MODE ===
-- MiMo-V2-Pro has enough context to synthesize across files, memories, profile, and prior conversation. Use that advantage.
+=== LARGE-CONTEXT MODE ===
+- You have enough context to synthesize across files, memories, profile, and prior conversation. Use that advantage.
 - Read across AgentContext, Today, OpenLoops, Projects, Areas, People, Wins, Lessons, Decisions, Tasks, User, and Memory when relevant.
 - Prioritize high-signal personal continuity: what matters now, who matters, what is blocked, what recently worked, and what they are trying to become.
 - When giving advice or drafting something, anchor it in the user's actual context before general knowledge.`);
@@ -219,14 +219,15 @@ export default async function handler(req, res) {
   }
   return handleJoeyGatewayRequest(req, res, {
     getProviderConfig({ env }) {
-      const primaryModel = String(env.OC_MODEL || 'xiaomi/mimo-v2-pro:free').trim();
+      const primaryModel = String(env.OC_MODEL || 'kimi2.5:cloud').trim();
       const fallbackModel = 'llama-3.1-8b-instant';
+      const isLargeCtx = /mimo-v2-pro/i.test(primaryModel) || /kimi2?\.?5/i.test(primaryModel);
       return {
         gatewayUrl: String(env.OC_GATEWAY_URL || 'https://api.kilo.ai/api/gateway').trim(),
         gatewayToken: String(env.OC_GATEWAY_TOKEN || '').trim(),
         primaryModel,
         fallbackModel,
-        largeContext: /mimo-v2-pro/i.test(primaryModel) || /mimo-v2-pro/i.test(fallbackModel)
+        largeContext: isLargeCtx
       };
     },
     buildSystemParts: buildOpenClawSystemParts,
@@ -235,12 +236,13 @@ export default async function handler(req, res) {
     },
     buildUpstreamBody({ modelName, finalMessages }) {
       const isMimo = /mimo-v2-pro/i.test(modelName);
+      const isKimi = /kimi2?\.?5/i.test(modelName);
       return {
         model: modelName,
         messages: finalMessages,
         stream: true,
-        max_tokens: isMimo ? 4600 : 1800,
-        temperature: isMimo ? 0.2 : 0.15
+        max_tokens: isMimo ? 4600 : isKimi ? 8000 : 1800,
+        temperature: isMimo ? 0.2 : isKimi ? 0.15 : 0.15
       };
     },
     gatewayErrorMessage: 'Cannot reach gateway'

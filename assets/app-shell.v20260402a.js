@@ -1674,10 +1674,8 @@ function createPlayer(k) {
       onReady: e => {
         const volEl = t.vol ? document.getElementById(t.vol) : null;
         if(volEl) e.target.setVolume(+volEl.value);
-        // FIX: If the user toggled it off before it even finished loading, pause it immediately
-        if(!t.isPlaying) {
-            e.target.pauseVideo();
-        }
+        if(t.isPlaying) { e.target.playVideo(); }
+        else { e.target.pauseVideo(); }
       }
     }
   });
@@ -2380,6 +2378,8 @@ let tvWidgetCreated = false;
   var content = document.getElementById('vault-content');
   var vaultUserInput = document.getElementById('vault-pw-user');
   var pwInput = document.getElementById('vault-pw');
+  var vaultRememberMe = document.getElementById('vault-remember-me');
+  var VAULT_REMEMBER_KEY = 'homer-vault-remember-pw';
   var vaultNoAccount = document.getElementById('vault-no-account');
   var vaultLoginFields = document.getElementById('vault-login-fields');
   var lockLabel = document.getElementById('vault-lock-label');
@@ -2880,6 +2880,14 @@ let tvWidgetCreated = false;
       if(isNew){
         lockLabel.textContent = 'Create Vault';
         unlockBtn.textContent = 'Create Vault';
+      }
+      // Remember-me: restore checkbox state and auto-unlock if password is saved
+      var savedPw = localStorage.getItem(VAULT_REMEMBER_KEY);
+      if(savedPw && vaultRememberMe){
+        vaultRememberMe.checked = true;
+        pwInput.value = savedPw;
+        _pendingRememberPw = savedPw; // keep remember flag so re-save on unlock
+        setTimeout(function(){ unlockBtn.click(); }, 80);
       }
     } else {
       vaultNoAccount.style.display = '';
@@ -6499,12 +6507,16 @@ let tvWidgetCreated = false;
     });
   }
 
+  // Holds the password for remember-me until unlock() fires, then clears
+  var _pendingRememberPw = null;
+
   unlockBtn.addEventListener('click', function(){
     hideError();
     var user = vaultUserInput.value.trim();
     var pw = pwInput.value;
     if(!user){ showError('Please enter your username.'); return; }
     if(!pw){ showError('Please enter your password.'); return; }
+    _pendingRememberPw = (vaultRememberMe && vaultRememberMe.checked) ? pw : null;
 
     // Verify against stored account credentials
     var storedUser = localStorage.getItem('homer-auth-user');
@@ -6559,6 +6571,8 @@ let tvWidgetCreated = false;
   pwInput.addEventListener('keydown', function(e){ if(e.key==='Enter') unlockBtn.click(); });
 
   function unlock(){
+    if(_pendingRememberPw){ try{ localStorage.setItem(VAULT_REMEMBER_KEY, _pendingRememberPw); }catch(_e){} }
+    _pendingRememberPw = null;
     pwInput.value = '';
     lockScreen.style.display = 'none';
     content.style.display = 'block';
@@ -6571,6 +6585,9 @@ let tvWidgetCreated = false;
   }
 
   lockBtn.addEventListener('click', function(){
+    // Clear remembered password on explicit lock
+    try{ localStorage.removeItem(VAULT_REMEMBER_KEY); }catch(_e){}
+    if(vaultRememberMe) vaultRememberMe.checked = false;
     cryptoKey = null; _vaultRootCache = null;
     content.style.display = 'none';
     lockScreen.style.display = 'block';
@@ -9090,6 +9107,7 @@ let tvWidgetCreated = false;
   var FIELD_SYNC_CLIENT_SEQ_KEY = 'homer-field-sync-client-seq';
   var FIELD_SYNC_PUSH_DELAY = 350;
   var FIELD_SYNC_PULL_INTERVAL = 2000;
+  var FIELD_SYNC_SB_POLL_INTERVAL = 30000; // Supabase fallback poll — catches missed Realtime events
   var fieldSyncPendingMap = new Map();
   var fieldSyncPushTimer = null;
   var fieldSyncPushInFlight = null;
@@ -9458,8 +9476,13 @@ let tvWidgetCreated = false;
     stopFieldSyncLoop();
     var jwt = getSyncJwt();
     if(jwt){
-      // Supabase mode: load full state once; Realtime pushes handle subsequent updates
+      // Supabase mode: full pull on start + Realtime for live updates
+      // + fallback poll every 30s to catch any missed Realtime events (last-edit-wins)
       hydrateFieldSyncState(true);
+      fieldSyncPullTimer = setInterval(function(){
+        if(document.hidden || !isFieldSyncReady()) return;
+        hydrateFieldSyncState(false);
+      }, FIELD_SYNC_SB_POLL_INTERVAL);
       return;
     }
     if(!isFieldSyncReady()) return;
@@ -11123,7 +11146,8 @@ let tvWidgetCreated = false;
       return;
     }
     if(document.visibilityState === 'visible'){
-      hydrateFieldSyncState(false);
+      // In Supabase mode force a full re-hydrate on tab focus — catches any events missed while hidden
+      hydrateFieldSyncState(!!getSyncJwt());
       // Claim leadership if current leader is dead
       if(!isLeader && !leaderAlive()) tryLead(true);
       if(getActiveSyncPass() && localStorage.getItem(SYNC_AUTO_KEY) === 'true'){
@@ -11778,14 +11802,14 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   var modelBadge = document.getElementById('oc-model-badge');
   function getProviderDisplayName(provider, mode){
     var activeMode = mode === 'work' ? 'work' : 'personal';
-    if(provider !== 'nemoclaw') return 'Joey Kilo';
+    if(provider !== 'nemoclaw') return 'Joey Kimi';
     return activeMode === 'work' ? 'Joey Max' : 'Joey Titan';
   }
   function getProviderFallbackLabel(provider, mode){
     return getProviderDisplayName(provider, mode);
   }
   function getProviderDefaultModel(provider, mode){
-    if(provider !== 'nemoclaw') return 'MiMo-V2-Pro';
+    if(provider !== 'nemoclaw') return mode === 'work' ? 'MiMo-V2-Pro' : 'kimi2.5:cloud';
     return mode === 'work' ? 'minimax-m2.7:cloud' : 'Nemotron 3 Super';
   }
   function normalizeModelLabel(raw){
@@ -11795,6 +11819,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(/mimo-v2-pro/i.test(value)) return 'MiMo-V2-Pro';
     if(/nemotron-?3-?super(?::cloud)?/i.test(value)) return 'Nemotron 3 Super';
     if(/minimax-m2\.7:cloud/i.test(value)) return 'minimax-m2.7:cloud';
+    if(/kimi2?\.?5(?::cloud)?/i.test(value)) return 'kimi2.5:cloud';
     value = value.replace(/:(cloud|free)$/i, '');
     return value;
   }
@@ -11828,7 +11853,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!mobileMenu) return;
     if(mobileProviderJoeyBtn){
       mobileProviderJoeyBtn.classList.toggle('active', currentProvider === 'joey');
-      mobileProviderJoeyBtn.textContent = 'MiMo-V2-Pro';
+      mobileProviderJoeyBtn.textContent = getProviderDefaultModel('joey', currentContextMode);
     }
     if(mobileProviderNemoclawBtn){
       mobileProviderNemoclawBtn.classList.toggle('active', currentProvider === 'nemoclaw');
@@ -11863,7 +11888,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     syncMobileMenuUi();
     inputEl.placeholder = isNemo
       ? 'Message ' + providerLabel + '...'
-      : 'Message Joey Kilo...';
+      : 'Message Joey Kimi...';
     syncVoiceUi();
   }
   function applyProvider(p){
