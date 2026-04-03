@@ -1672,7 +1672,8 @@
     }
     #fab-clear svg{ width:16px; height:16px; stroke:var(--muted); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
     #fab-clear:hover svg{ stroke:var(--text); }
-    body.zen-active .fab-cluster{ display:none!important; }
+    body.zen-active .fab-cluster,
+    body.zen-active #fab-openclaw{ display:none!important; }
     .fab-overlay{
       display:none; position:fixed; inset:0; z-index:950;
       background:rgba(0,0,0,.6); backdrop-filter:blur(4px); place-items:center;
@@ -2036,32 +2037,147 @@
     }
     /* Provider toggle bar */
     .oc-provider-bar{
-      display:flex !important; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap;
+      display:flex !important; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap;
       padding:10px 16px; border-bottom:2px solid rgba(118,185,0,.4);
       background:linear-gradient(135deg,rgba(234,88,12,.08),rgba(118,185,0,.08));
       min-height:38px;
+      position:relative;
+      z-index:2;
     }
-    .oc-provider-bar label{
+    .oc-toggle-row{
+      display:inline-flex; align-items:center; gap:10px; flex-wrap:nowrap;
+    }
+    .oc-mode-row{ gap:8px; }
+    .oc-alicloud-row{ gap:8px; }
+    .oc-provider-bar.alicloud-on .oc-toggle-row[aria-label="Joey model"]{
+      opacity:.28;
+      filter:grayscale(1) saturate(.2);
+      pointer-events:none;
+    }
+    .oc-provider-bar.alicloud-on .oc-toggle-row[aria-label="Joey model"] .oc-label-btn{
+      color:rgba(148,163,184,.55) !important;
+    }
+    .oc-provider-bar.alicloud-on .oc-toggle-row[aria-label="Joey model"] .oc-toggle-track{
+      background:linear-gradient(135deg,#475569,#334155) !important;
+      box-shadow:none;
+      cursor:not-allowed;
+    }
+    .oc-provider-bar.alicloud-on .oc-toggle-row[aria-label="Joey model"] .oc-toggle-thumb{
+      background:rgba(226,232,240,.78);
+      box-shadow:none;
+    }
+    .oc-label-btn{
+      appearance:none; background:none; border:none; padding:0;
       font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
-      color:var(--muted); cursor:pointer; transition:color .2s; user-select:none;
+      color:var(--muted); cursor:default; transition:color .2s, opacity .2s; user-select:none;
+      position:relative; z-index:2;
+      pointer-events:none;
     }
-    .oc-provider-bar label.active{ color:#fff; }
-    .oc-provider-bar label.active.joey-active{ color:#ea580c; }
-    .oc-provider-bar label.active.nemo-active{ color:#76b900; }
+    .oc-label-btn.active{ color:#fff; }
+    .oc-label-btn.active.joey-active{ color:#ea580c; }
+    .oc-label-btn.active.nemo-active{ color:#76b900; }
+    .oc-label-btn.mode-active{ color:#60a5fa; }
+    .oc-label-btn.mode-work-active{ color:#2dd4bf; }
     .oc-toggle-track{
       position:relative; width:40px; height:22px; border-radius:11px; cursor:pointer;
       background:linear-gradient(135deg,#ea580c,#c2410c); transition:background .3s;
-      flex-shrink:0;
+      flex-shrink:0; border:none; padding:0;
     }
     .oc-toggle-track.nemoclaw{
       background:linear-gradient(135deg,#76b900,#4a8500);
+    }
+    .oc-mode-toggle-track{
+      background:linear-gradient(135deg,#2563eb,#1d4ed8);
+    }
+    .oc-mode-toggle-track.work{
+      background:linear-gradient(135deg,#0f766e,#0d9488);
     }
     .oc-toggle-thumb{
       position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%;
       background:#fff; transition:transform .25s cubic-bezier(.4,0,.2,1);
       box-shadow:0 1px 4px rgba(0,0,0,.3);
+      pointer-events:none;
     }
-    .oc-toggle-track.nemoclaw .oc-toggle-thumb{ transform:translateX(18px); }
+    .oc-toggle-track.nemoclaw .oc-toggle-thumb,
+    .oc-mode-toggle-track.work .oc-toggle-thumb{ transform:translateX(18px); }
+    /* ── Joey Q light-switch button ── */
+    .oc-alicloud-power{
+      appearance:none; display:inline-flex; align-items:center; gap:8px;
+      padding:4px 10px 4px 5px; border-radius:8px;
+      border:1.5px solid rgba(71,85,105,.55);
+      background:linear-gradient(160deg,#1a2537 0%,#0d1626 100%);
+      color:#94a3b8; cursor:pointer;
+      transition:border-color .22s, box-shadow .22s, background .22s, color .22s;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 2px 8px rgba(0,0,0,.38);
+      position:relative;
+    }
+    .oc-alicloud-power:hover:not([aria-pressed="true"]){
+      border-color:rgba(148,163,184,.55); color:#e2e8f0;
+    }
+
+    /* The rocker/paddle */
+    .oc-alicloud-power-light{
+      position:relative; width:30px; height:22px; border-radius:5px; flex-shrink:0;
+      background:linear-gradient(175deg,#253348 0%,#111e2e 100%);
+      border:1.5px solid rgba(71,85,105,.65);
+      box-shadow:inset 0 -2px 4px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
+      transition:transform .18s cubic-bezier(.4,0,.2,1), background .18s, border-color .18s, box-shadow .18s;
+      transform:perspective(40px) rotateX(-5deg); /* OFF: top tilted toward viewer */
+      transform-origin:center center;
+    }
+    /* Paddle centre ridge */
+    .oc-alicloud-power-light::before{
+      content:''; position:absolute;
+      width:16px; height:3px; border-radius:2px;
+      top:50%; left:50%; transform:translate(-50%,-50%);
+      background:rgba(100,116,139,.55);
+      transition:background .18s, box-shadow .18s;
+    }
+    /* LED dot */
+    .oc-alicloud-power-light::after{
+      content:''; position:absolute;
+      width:5px; height:5px; border-radius:50%;
+      bottom:3px; right:4px;
+      background:#334155;
+      box-shadow:0 0 0 1px rgba(0,0,0,.6);
+      transition:background .18s, box-shadow .18s;
+    }
+
+    /* ON state ─ paddle flips the other way + amber glow */
+    .oc-alicloud-power[aria-pressed="true"]{
+      border-color:rgba(249,115,22,.78);
+      background:linear-gradient(160deg,#2d1100 0%,#4a1c00 50%,#7c2d12 100%);
+      color:#fed7aa;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.04),
+        0 0 0 1px rgba(249,115,22,.15),
+        0 0 18px rgba(249,115,22,.32),
+        0 0 38px rgba(249,115,22,.14),
+        0 2px 8px rgba(0,0,0,.38);
+    }
+    .oc-alicloud-power[aria-pressed="true"] .oc-alicloud-power-light{
+      background:linear-gradient(175deg,#7c2d12 0%,#ea580c 60%,#f97316 100%);
+      border-color:rgba(249,115,22,.82);
+      transform:perspective(40px) rotateX(5deg); /* ON: bottom tilted toward viewer */
+      box-shadow:
+        inset 0 1px 4px rgba(0,0,0,.3),
+        inset 0 -1px 0 rgba(255,190,80,.12),
+        0 0 10px rgba(249,115,22,.55),
+        0 0 20px rgba(249,115,22,.28);
+    }
+    .oc-alicloud-power[aria-pressed="true"] .oc-alicloud-power-light::before{
+      background:rgba(254,215,170,.88);
+      box-shadow:0 0 4px rgba(249,115,22,.85), 0 0 10px rgba(249,115,22,.45);
+    }
+    .oc-alicloud-power[aria-pressed="true"] .oc-alicloud-power-light::after{
+      background:#fb923c;
+      box-shadow:0 0 5px rgba(251,146,60,.95), 0 0 10px rgba(249,115,22,.55);
+    }
+
+    .oc-alicloud-power-text{
+      font-size:.72rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
+      white-space:nowrap; transition:color .22s;
+    }
     .oc-header-actions{ display:flex; gap:4px; position:relative; z-index:1; }
     .oc-header-actions button{
       background:none; border:none; color:var(--muted); cursor:pointer; padding:4px 8px;
@@ -2785,7 +2901,6 @@
           radial-gradient(circle at 80% 10%, rgba(255,255,255,.02), transparent 20%);
       }
       .oc-msg-actions,
-      .oc-joey-avatar,
       .oc-msg.bot .oc-model-tag{display:none!important;}
       .oc-msg{
         max-width:82%!important;
@@ -2838,6 +2953,7 @@
       body.mobile-shell.oc-panel-open::before{display:none!important;}
       body.mobile-shell.oc-panel-open .shell,
       body.mobile-shell.oc-panel-open .fab-cluster,
+      body.mobile-shell.oc-panel-open #fab-openclaw,
       body.mobile-shell.oc-panel-open #mobile-nav,
       body.mobile-shell.oc-panel-open #mobile-overlay-dock,
       body.mobile-shell.oc-panel-open #mobile-sheet{display:none!important;}
@@ -2943,7 +3059,6 @@
     body.mobile-shell .oc-provider-bar,
     body.mobile-shell #oc-settings-row,
     body.mobile-shell .oc-msg-actions,
-    body.mobile-shell .oc-joey-avatar,
     body.mobile-shell .oc-msg.bot .oc-model-tag{display:none!important;}
     body.mobile-shell #oc-settings-btn{
       display:flex!important;
@@ -3113,6 +3228,7 @@
     body.mobile-shell.oc-panel-open::before{display:none!important;}
     body.mobile-shell.oc-panel-open .shell,
     body.mobile-shell.oc-panel-open .fab-cluster,
+    body.mobile-shell.oc-panel-open #fab-openclaw,
     body.mobile-shell.oc-panel-open #mobile-nav,
     body.mobile-shell.oc-panel-open #mobile-overlay-dock,
     body.mobile-shell.oc-panel-open #mobile-sheet{display:none!important;}

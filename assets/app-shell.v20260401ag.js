@@ -11481,14 +11481,23 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!rawUser){
       return { ok:false, message:'This feature is available only for Bogdan. Log in as Bogdan to use Joey.' };
     }
-    if(rawUser.toLowerCase() !== ALLOWED_USER){
+    var normalizedUser = rawUser.toLowerCase();
+    if(normalizedUser !== ALLOWED_USER){
       return { ok:false, message:'This feature is available only for Bogdan.' };
+    }
+    // Bogdan is the reserved owner account; don't let a stale cached permissions blob hide Joey.
+    if(normalizedUser === ALLOWED_USER){
+      return {
+        ok:true,
+        user:rawUser,
+        memoryEnabled: !!String(localStorage.getItem('homer-sync-pass') || '').trim()
+      };
     }
     var perms = localStorage.getItem('homer-user-permissions');
     if(perms){
       try{
         var parsed = JSON.parse(perms);
-        if(parsed.joey !== true){
+        if(parsed && Object.prototype.hasOwnProperty.call(parsed, 'joey') && parsed.joey !== true){
           return { ok:false, message:'This feature is available only for Bogdan.' };
         }
       }catch(e){}
@@ -11530,23 +11539,23 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   var modelBadge = document.getElementById('oc-model-badge');
   function getProviderDisplayName(provider, mode){
     var activeMode = mode === 'work' ? 'work' : 'personal';
-    if(provider !== 'nemoclaw') return 'Joey Kilo';
-    return activeMode === 'work' ? 'Joey Max' : 'Joey Titan';
+    if(provider !== 'nemoclaw') return activeMode === 'work' ? 'Joey Max' : 'Joey Kimi';
+    return 'Joey Titan';
   }
   function getProviderFallbackLabel(provider, mode){
     return getProviderDisplayName(provider, mode);
   }
   function getProviderDefaultModel(provider, mode){
-    if(provider !== 'nemoclaw') return 'MiMo-V2-Pro';
-    return mode === 'work' ? 'minimax-m2.7:cloud' : 'Nemotron 3 Super';
+    if(provider !== 'nemoclaw') return mode === 'work' ? 'minimax-m2.7:cloud' : 'kimi2.5:cloud';
+    return 'nemotron-3-super:cloud';
   }
   function normalizeModelLabel(raw){
     var value = String(raw || '').trim();
     if(!value) return '';
     value = value.split('/').pop();
-    if(/mimo-v2-pro/i.test(value)) return 'MiMo-V2-Pro';
-    if(/nemotron-?3-?super(?::cloud)?/i.test(value)) return 'Nemotron 3 Super';
+    if(/nemotron-?3-?super(?::cloud)?/i.test(value)) return 'nemotron-3-super:cloud';
     if(/minimax-m2\.7:cloud/i.test(value)) return 'minimax-m2.7:cloud';
+    if(/kimi2?\.?5(?::cloud)?/i.test(value)) return 'kimi2.5:cloud';
     value = value.replace(/:(cloud|free)$/i, '');
     return value;
   }
@@ -11580,7 +11589,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!mobileMenu) return;
     if(mobileProviderJoeyBtn){
       mobileProviderJoeyBtn.classList.toggle('active', currentProvider === 'joey');
-      mobileProviderJoeyBtn.textContent = 'MiMo-V2-Pro';
+      mobileProviderJoeyBtn.textContent = getProviderDefaultModel('joey', currentContextMode);
     }
     if(mobileProviderNemoclawBtn){
       mobileProviderNemoclawBtn.classList.toggle('active', currentProvider === 'nemoclaw');
@@ -11615,7 +11624,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     syncMobileMenuUi();
     inputEl.placeholder = isNemo
       ? 'Message ' + providerLabel + '...'
-      : 'Message Joey Kilo...';
+      : 'Message ' + providerLabel + '...';
     syncVoiceUi();
   }
   function applyProvider(p){
@@ -17056,12 +17065,19 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       if(!scroller) return;
       var maxScroll = Math.max(0, scroller.scrollHeight - window.innerHeight);
       if(maxScroll <= 0) return;
-      var top = scroller.scrollTop;
-      var nextTop = Math.max(0, Math.min(maxScroll, top + e.deltaY));
-      if(nextTop === top) return;
-      e.preventDefault();
-      scroller.scrollTop = nextTop;
-    }, { passive:false, capture:true });
+      var beforeTop = scroller.scrollTop;
+      var nextTop = Math.max(0, Math.min(maxScroll, beforeTop + e.deltaY));
+      if(nextTop === beforeTop) return;
+      requestAnimationFrame(function(){
+        var currentTop = scroller.scrollTop;
+        if(Math.abs(currentTop - beforeTop) > 1) return;
+        if(scroller === document.body || scroller === document.documentElement || scroller === document.scrollingElement){
+          window.scrollTo(0, nextTop);
+          return;
+        }
+        scroller.scrollTop = nextTop;
+      });
+    }, { passive:true, capture:true });
   }
   function initPageScrollLockObserver(){
     if(scrollLockObserverStarted || !document.body || typeof MutationObserver === 'undefined') return;

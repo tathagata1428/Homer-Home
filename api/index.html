@@ -20,7 +20,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
 
-  <link rel="stylesheet" href="/assets/app-shell.v20260331.css">
+  <link rel="stylesheet" href="/assets/app-shell.v20260331.css?v=20260403u">
 </head>
 <body>
 
@@ -931,13 +931,13 @@
     <svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
     <span class="fab-dot off"></span>
   </button>
-
   <button id="fab-openclaw" class="fab-btn" title="Joey AI">
     <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     <span class="fab-dot off"></span>
     <span id="oc-unread-badge" class="oc-unread-badge">1</span>
     <div class="oc-pulse"></div>
   </button>
+
   <button id="fab-wake" class="fab-btn" title="Keep Awake">
     <svg viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 7.66l-.71-.71M4.05 4.05l-.71-.71"/><circle cx="12" cy="12" r="4"/></svg>
     <span class="fab-dot off"></span>
@@ -950,7 +950,7 @@
 <!-- OpenClaw Chat Panel -->
 <div id="oc-panel">
   <div id="oc-panel-header">
-    <h3><span id="oc-provider-icon">&#127821;</span> <span id="oc-provider-name">Joey Kilo</span> <span class="oc-model-badge" id="oc-model-badge">MiMo-V2-Pro</span></h3>
+    <h3><span id="oc-provider-icon">&#127821;</span> <span id="oc-provider-name">Joey Kimi</span> <span class="oc-model-badge" id="oc-model-badge">kimi-k2.5:cloud</span></h3>
     <div class="oc-header-actions">
       <button type="button" id="oc-export-btn" title="Export chat">&#8615;</button>
       <button type="button" id="oc-settings-btn" title="Settings">&#9881;</button>
@@ -963,8 +963,8 @@
   <div id="oc-mobile-menu" aria-hidden="true">
     <div class="oc-mobile-menu-section">
       <span class="oc-mobile-menu-label">Model</span>
-      <button type="button" id="oc-mobile-provider-joey">MiMo-V2-Pro</button>
-      <button type="button" id="oc-mobile-provider-nemoclaw">Nemotron 3 Super</button>
+      <button type="button" id="oc-mobile-provider-joey">kimi-k2.5:cloud</button>
+      <button type="button" id="oc-mobile-provider-nemoclaw">nemotron-3-super:cloud</button>
     </div>
     <div class="oc-mobile-menu-section">
       <span class="oc-mobile-menu-label">Memory</span>
@@ -986,14 +986,28 @@
     </div>
   </div>
   <div class="oc-provider-bar">
-    <label id="oc-label-joey" class="active joey-active">Joey Kilo</label>
-    <div id="oc-toggle-track" class="oc-toggle-track" title="Switch AI provider">
-      <div class="oc-toggle-thumb"></div>
+    <div class="oc-toggle-row" aria-label="Joey model">
+      <button type="button" id="oc-label-joey" class="oc-label-btn active joey-active" aria-pressed="true">Joey Kimi</button>
+      <button type="button" id="oc-toggle-track" class="oc-toggle-track" title="Switch Joey model">
+        <span class="oc-toggle-thumb"></span>
+      </button>
+      <button type="button" id="oc-label-nemoclaw" class="oc-label-btn" aria-pressed="false">Joey Nemotron</button>
     </div>
-    <label id="oc-label-nemoclaw">Joey Titan</label>
-    <span id="oc-mode-hint" style="font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-left:8px;">Memory</span>
-    <button type="button" id="oc-mode-personal" style="padding:6px 12px;border-radius:999px;border:1px solid rgba(148,163,184,.25);background:rgba(15,23,42,.82);color:#e2e8f0;font-weight:700;font-size:.76rem;cursor:pointer;">Personal</button>
-    <button type="button" id="oc-mode-work" style="padding:6px 12px;border-radius:999px;border:1px solid rgba(148,163,184,.25);background:rgba(15,23,42,.82);color:#e2e8f0;font-weight:700;font-size:.76rem;cursor:pointer;">Work</button>
+    <div class="oc-toggle-row oc-mode-row" aria-label="Joey memory mode">
+      <span id="oc-mode-hint" style="font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);">Memory</span>
+      <button type="button" id="oc-mode-personal" class="oc-label-btn active mode-active" aria-pressed="true">Personal</button>
+      <button type="button" id="oc-mode-toggle-track" class="oc-toggle-track oc-mode-toggle-track" title="Switch Joey memory mode">
+        <span class="oc-toggle-thumb"></span>
+      </button>
+      <button type="button" id="oc-mode-work" class="oc-label-btn" aria-pressed="false">Work</button>
+    </div>
+    <div class="oc-toggle-row oc-alicloud-row" aria-label="Joey Alibaba">
+      <span style="font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);">Alibaba</span>
+      <button type="button" id="oc-alicloud-power" class="oc-alicloud-power" aria-pressed="false" title="Toggle Joey Alibaba">
+        <span class="oc-alicloud-power-light" aria-hidden="true"></span>
+        <span class="oc-alicloud-power-text">Joey Alibaba</span>
+      </button>
+    </div>
   </div>
   <div id="oc-settings-row">
     <div class="oc-settings-copy">
@@ -1289,6 +1303,6 @@
   </div>
 </div>
 
-    <script src="/assets/app-shell.v20260402a.js?v=20260402d"></script>
+    <script src="/assets/app-shell.v20260402a.js?v=20260403u"></script>
 </body>
 </html>

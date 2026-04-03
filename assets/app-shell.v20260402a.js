@@ -8305,11 +8305,11 @@ let tvWidgetCreated = false;
           };
           iReq.onerror = res;
         }));
-      } else {
+      } else if(k !== AUTH_USER_KEY && k !== AUTH_HASH_KEY && k !== 'homer-user-permissions' && k !== 'homer-sync-pass' && k !== 'homer-sync-auto') {
         localStorage.setItem(k, data[k]);
       }
     });
-    setAuthState((data && data[AUTH_USER_KEY]) || fallbackUser, hash, permissions);
+    setAuthState(fallbackUser, hash, permissions);
     updateUI();
     userInput.value = '';
     passInput.value = '';
@@ -8318,11 +8318,36 @@ let tvWidgetCreated = false;
     modalBg.classList.remove('open');
     return Promise.all(idbW).then(function(){ location.reload(); });
   }
+  function hydrateSupabaseSession(session){
+    if(!session || typeof session !== 'object') return Promise.resolve();
+    try{
+      window.__sbSession = session;
+      window.dispatchEvent(new CustomEvent('supabase:session', { detail: session }));
+    }catch(_err){}
+    try{
+      if(window.__supabase && window.__supabase.auth && typeof window.__supabase.auth.setSession === 'function'){
+        var accessToken = String(session.access_token || '').trim();
+        var refreshToken = String(session.refresh_token || '').trim();
+        if(accessToken && refreshToken){
+          return window.__supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          }).then(function(result){
+            if(result && result.data && result.data.session){
+              window.__sbSession = result.data.session;
+              window.dispatchEvent(new CustomEvent('supabase:session', { detail: result.data.session }));
+            }
+          }).catch(function(){});
+        }
+      }
+    }catch(_err){}
+    return Promise.resolve();
+  }
   function verifyReservedAccount(user, pass){
     var email = 'bogdan.radu@b4it.ro';
     if(typeof window.supabaseSignIn === 'function'){
       return window.supabaseSignIn(email, pass).then(function(result){
-        return {
+        var payload = {
           ok: true,
           username: user,
           email: email,
@@ -8330,6 +8355,7 @@ let tvWidgetCreated = false;
           session: result && result.session ? result.session : null,
           userData: result && result.user ? result.user : null
         };
+        return hydrateSupabaseSession(payload.session).then(function(){ return payload; });
       }).catch(function(err){
         throw new Error(err && err.message ? err.message : 'Invalid username or password');
       });
@@ -8340,7 +8366,7 @@ let tvWidgetCreated = false;
       body: JSON.stringify({action:'signIn', email: email, password: pass})
     }).then(function(r){ return r.json(); }).then(function(d){
       if(d && d.ok) {
-        return {
+        var payload = {
           ok: true,
           username: user,
           email: email,
@@ -8348,6 +8374,7 @@ let tvWidgetCreated = false;
           session: d.session || null,
           userData: d.user || null
         };
+        return hydrateSupabaseSession(payload.session).then(function(){ return payload; });
       }
       throw new Error((d && d.error) || 'Invalid username or password');
     });
@@ -8375,6 +8402,29 @@ let tvWidgetCreated = false;
     localStorage.removeItem('homer-sync-pass');
     localStorage.removeItem('homer-sync-auto');
   }
+  function syncJoeyEntrypointsFromAuth(){
+    var rawUser = String(localStorage.getItem(AUTH_USER_KEY) || '').trim().toLowerCase();
+    var showJoey = rawUser === RESERVED_SYNC_USER && !!localStorage.getItem(AUTH_HASH_KEY);
+    var perms = localStorage.getItem('homer-user-permissions');
+    if(showJoey && perms){
+      try{
+        var parsedPerms = JSON.parse(perms);
+        if(parsedPerms && Object.prototype.hasOwnProperty.call(parsedPerms, 'joey') && parsedPerms.joey !== true){
+          showJoey = false;
+        }
+      }catch(_err){}
+    }
+    var joeyFab = document.getElementById('fab-openclaw');
+    if(joeyFab){
+      joeyFab.classList.toggle('visible', showJoey);
+      joeyFab.style.display = showJoey ? 'flex' : 'none';
+    }
+    var joeyMobile = document.getElementById('mnav-joey');
+    if(joeyMobile){
+      joeyMobile.classList.toggle('visible', showJoey);
+      joeyMobile.style.display = showJoey ? 'flex' : 'none';
+    }
+  }
 
   function updateUI(){
     var user = localStorage.getItem(AUTH_USER_KEY);
@@ -8396,6 +8446,7 @@ let tvWidgetCreated = false;
       localStorage.removeItem('homer-sync-pass');
       localStorage.removeItem('homer-sync-auto');
     }
+    syncJoeyEntrypointsFromAuth();
   }
 
   // Pre-fill remember-me on modal open
@@ -8532,15 +8583,12 @@ let tvWidgetCreated = false;
                     };
                     iReq.onerror = res;
                   }));
-                } else {
+                } else if(k !== AUTH_USER_KEY && k !== AUTH_HASH_KEY && k !== 'homer-user-permissions' && k !== 'homer-sync-pass' && k !== 'homer-sync-auto') {
                   localStorage.setItem(k, d.data[k]);
                 }
               });
-              // Ensure auth credentials are set (even if missing from cloud data)
-              localStorage.setItem(AUTH_USER_KEY, d.data[AUTH_USER_KEY] || user);
-              localStorage.setItem(AUTH_HASH_KEY, hash);
-              localStorage.removeItem('homer-user-permissions');
-              applySharedSyncIdentity(d.data[AUTH_USER_KEY] || user, hash);
+              // Keep the verified Bogdan session; never let cloud restore overwrite live auth state.
+              setAuthState(user, hash, { vault: true, joey: true });
               updateUI();
               userInput.value = ''; passInput.value = '';
               submitBtn.disabled = false;
@@ -8571,14 +8619,23 @@ let tvWidgetCreated = false;
 
   // Logout — backup first, then clear credentials
   logoutBtn.addEventListener('click', function(){
-    window.dispatchEvent(new CustomEvent('homer-auth', {detail: {action: 'logout'}}));
-    localStorage.removeItem(AUTH_USER_KEY);
-    localStorage.removeItem(AUTH_HASH_KEY);
-    localStorage.removeItem('homer-user-permissions');
-    localStorage.removeItem('homer-sync-pass');
-    localStorage.removeItem('homer-sync-auto');
-    updateUI();
-    modalBg.classList.remove('open');
+    function finishLogout(){
+      window.dispatchEvent(new CustomEvent('homer-auth', {detail: {action: 'logout'}}));
+      localStorage.removeItem(AUTH_USER_KEY);
+      localStorage.removeItem(AUTH_HASH_KEY);
+      localStorage.removeItem('homer-user-permissions');
+      localStorage.removeItem('homer-sync-pass');
+      localStorage.removeItem('homer-sync-auto');
+      updateUI();
+      modalBg.classList.remove('open');
+    }
+    try{
+      if(window.__supabase && window.__supabase.auth && typeof window.__supabase.auth.signOut === 'function'){
+        window.__supabase.auth.signOut().catch(function(){}).finally(finishLogout);
+        return;
+      }
+    }catch(_err){}
+    finishLogout();
   });
 
   // Init
@@ -9304,7 +9361,7 @@ let tvWidgetCreated = false;
       value: value,
       deleted: shouldTreatFieldAsCleared(el, value),
       source: 'autosave-input',
-      scope: getDbBackupMode(),
+      scope: (typeof getDbBackupMode === 'function' ? getDbBackupMode() : 'local'),
       clientTs: Date.now(),
       clientSeq: nextFieldSyncClientSeq(),
       deviceId: getFieldSyncDeviceId()
@@ -9321,7 +9378,7 @@ let tvWidgetCreated = false;
       value: String(value == null ? '' : value),
       deleted: String(value == null ? '' : value) === '',
       source: reason || 'focus-lab',
-      scope: getDbBackupMode(),
+      scope: (typeof getDbBackupMode === 'function' ? getDbBackupMode() : 'local'),
       clientTs: Date.now(),
       clientSeq: nextFieldSyncClientSeq(),
       deviceId: getFieldSyncDeviceId()
@@ -9350,7 +9407,7 @@ let tvWidgetCreated = false;
       value: String(value == null ? '' : value),
       deleted: false,
       source: 'ls-change',
-      scope: getDbBackupMode ? getDbBackupMode() : 'local',
+      scope: (typeof getDbBackupMode === 'function' ? getDbBackupMode() : 'local'),
       clientTs: Date.now(),
       clientSeq: nextFieldSyncClientSeq(),
       deviceId: getFieldSyncDeviceId()
@@ -9863,7 +9920,7 @@ let tvWidgetCreated = false;
   function collectJoeyBundles(passphrase){
     if(!passphrase) return Promise.resolve({ bundles:{}, errors:['Missing passphrase'] });
     return Promise.all(JOEY_BUNDLE_MODES.map(function(mode){
-      return fetchJson(buildJoeyActionUrl('bundle', passphrase, mode), { cache:'no-store' })
+      return fetchJson(buildJoeyActionUrl('bundle', passphrase, mode), withSupabaseAuth({ cache:'no-store' }))
         .then(function(data){ return { mode:mode, bundle:data.bundle || null }; })
         .catch(function(err){ return { mode:mode, error:err && err.message ? err.message : String(err) }; });
     })).then(function(results){
@@ -9883,11 +9940,11 @@ let tvWidgetCreated = false;
     var modes = Object.keys(bundles || {});
     if(!passphrase || !modes.length) return Promise.resolve({ ok:true, restored:[] });
     return Promise.all(modes.map(function(mode){
-      return fetchJson(buildJoeyActionUrl('bundle', '', mode), {
+      return fetchJson(buildJoeyActionUrl('bundle', '', mode), withSupabaseAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ passphrase:passphrase, mode:mode, bundle:bundles[mode] })
-      }).then(function(data){
+      })).then(function(data){
         return { ok:true, mode:mode, data:data };
       }).catch(function(err){
         return { ok:false, mode:mode, error:err && err.message ? err.message : String(err) };
@@ -9962,11 +10019,11 @@ let tvWidgetCreated = false;
   }
   function restoreDriveBundles(passphrase){
     return Promise.all(JOEY_BUNDLE_MODES.map(function(mode){
-      return fetchJson('/api/gdrive-restore', {
+      return fetchJson('/api/gdrive-restore', withSupabaseAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ passphrase:passphrase, mode:mode })
-      }).then(function(data){
+      })).then(function(data){
         return { mode:mode, ok:true, data:data };
       }).catch(function(err){
         return { mode:mode, ok:false, error:err && err.message ? err.message : String(err) };
@@ -10416,7 +10473,7 @@ let tvWidgetCreated = false;
       var snapshot = Object.assign({}, allData || {});
       var manifest = buildBackupManifest(snapshot, IDB_KEYS.filter(function(key){ return snapshot[key] != null; }));
       snapshot[BACKUP_MANIFEST_KEY] = JSON.stringify(manifest);
-      return fetchJson('/api/gdrive-backup', {
+      return fetchJson('/api/gdrive-backup', withSupabaseAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
@@ -10431,7 +10488,7 @@ let tvWidgetCreated = false;
             mode: String(localStorage.getItem('homer-vault-mode') || 'personal').trim().toLowerCase() === 'work' ? 'work' : 'personal'
           }
         })
-      }).then(function(result){
+      })).then(function(result){
         setRuntimeMarker(BACKUP_EMERGENCY_DRIVE_TS_KEY, Date.now());
         return result;
       });
@@ -10989,6 +11046,7 @@ let tvWidgetCreated = false;
   var origRemoveItem = localStorage.removeItem.bind(localStorage);
   var syncMetaKeys = [
     'homer-sync-pass', 'homer-sync-auto', 'homer-auth-hash',
+    'homer-auth-user', 'homer-user-permissions',
     LEADER_KEY, LEADER_HB_KEY, FIELD_SYNC_CURSOR_KEY, FIELD_SYNC_DEVICE_KEY,
     'motivator.savedQuotes.v1', 'motivator.savedQuotes.pendingSync'
   ];
@@ -11249,7 +11307,7 @@ let tvWidgetCreated = false;
             c++;
             if(IDB_KEYS.indexOf(k) >= 0){
               idbWrites.push(syncIdbSet(k, d.data[k]));
-            } else {
+            } else if(k !== 'homer-auth-user' && k !== 'homer-auth-hash' && k !== 'homer-user-permissions' && k !== 'homer-sync-pass' && k !== 'homer-sync-auto') {
               tryStoreSyncValue(k, d.data[k]);
             }
           });
@@ -11732,27 +11790,19 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
   }
   function getJoeyAccessState(){
-    var sbSession = window.__sbSession && typeof window.__sbSession === 'object' ? window.__sbSession : null;
-    var sbUser = sbSession && sbSession.user && typeof sbSession.user === 'object' ? sbSession.user : null;
-    if(sbUser && (sbUser.id || sbUser.email)){
-      return {
-        ok:true,
-        user:String(sbUser.email || sbUser.id || 'supabase-user'),
-        memoryEnabled: hasJoeyRemoteAuth()
-      };
-    }
     var rawUser = String(localStorage.getItem('homer-auth-user') || '').trim();
     if(!rawUser){
       return { ok:false, message:'This feature is available only for Bogdan. Log in as Bogdan to use Joey.' };
     }
-    if(rawUser.toLowerCase() !== ALLOWED_USER){
+    var normalizedUser = rawUser.toLowerCase();
+    if(normalizedUser !== ALLOWED_USER){
       return { ok:false, message:'This feature is available only for Bogdan.' };
     }
     var perms = localStorage.getItem('homer-user-permissions');
     if(perms){
       try{
         var parsed = JSON.parse(perms);
-        if(parsed.joey !== true){
+        if(parsed && Object.prototype.hasOwnProperty.call(parsed, 'joey') && parsed.joey !== true){
           return { ok:false, message:'This feature is available only for Bogdan.' };
         }
       }catch(e){}
@@ -11779,7 +11829,26 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   function getSupabaseAuthHeaderValue(){
     try{
       if(typeof window.supabaseAuthHeader === 'function'){
-        return String(window.supabaseAuthHeader() || '').trim();
+        var direct = String(window.supabaseAuthHeader() || '').trim();
+        if(direct) return direct;
+      }
+    }catch(_err){}
+    try{
+      var storedRaw = localStorage.getItem('homer_sb_session') || '';
+      if(storedRaw){
+        var stored = JSON.parse(storedRaw);
+        var accessToken = String(
+          (stored && stored.access_token) ||
+          (stored && stored.currentSession && stored.currentSession.access_token) ||
+          (stored && stored.session && stored.session.access_token) ||
+          ''
+        ).trim();
+        if(accessToken){
+          if(!window.__sbSession || !window.__sbSession.access_token){
+            window.__sbSession = (stored && stored.currentSession) || (stored && stored.session) || stored;
+          }
+          return 'Bearer ' + accessToken;
+        }
       }
     }catch(_err){}
     return '';
@@ -11809,8 +11878,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   var storedContextMode = localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode');
   var currentContextMode = storedContextMode === 'work' ? 'work' : DEFAULT_CONTEXT_MODE;
   var toggleTrack = document.getElementById('oc-toggle-track');
+  var modeToggleTrack = document.getElementById('oc-mode-toggle-track');
+  var providerBar = document.querySelector('.oc-provider-bar');
   var labelJoey = document.getElementById('oc-label-joey');
   var labelNemoclaw = document.getElementById('oc-label-nemoclaw');
+  var alicloudPowerBtn = document.getElementById('oc-alicloud-power');
   var modePersonalBtn = document.getElementById('oc-mode-personal');
   var modeWorkBtn = document.getElementById('oc-mode-work');
   var modeHint = document.getElementById('oc-mode-hint');
@@ -11818,25 +11890,27 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   var providerName = document.getElementById('oc-provider-name');
   var modelBadge = document.getElementById('oc-model-badge');
   function getProviderDisplayName(provider, mode){
+    if(provider === 'alicloud') return 'Joey Q';
     var activeMode = mode === 'work' ? 'work' : 'personal';
-    if(provider !== 'nemoclaw') return 'Joey Kimi';
-    return activeMode === 'work' ? 'Joey Max' : 'Joey Titan';
+    if(provider !== 'nemoclaw') return activeMode === 'work' ? 'Joey Minimax' : 'Joey Kimi';
+    return 'Joey Nemotron';
   }
   function getProviderFallbackLabel(provider, mode){
     return getProviderDisplayName(provider, mode);
   }
   function getProviderDefaultModel(provider, mode){
-    if(provider !== 'nemoclaw') return mode === 'work' ? 'MiMo-V2-Pro' : 'kimi2.5:cloud';
-    return mode === 'work' ? 'minimax-m2.7:cloud' : 'Nemotron 3 Super';
+    if(provider === 'alicloud') return 'Qwen3:cloud';
+    if(provider !== 'nemoclaw') return mode === 'work' ? 'minimax-m2.7:cloud' : 'kimi-k2.5:cloud';
+    return 'nemotron-3-super:cloud';
   }
   function normalizeModelLabel(raw){
     var value = String(raw || '').trim();
     if(!value) return '';
     value = value.split('/').pop();
-    if(/mimo-v2-pro/i.test(value)) return 'MiMo-V2-Pro';
-    if(/nemotron-?3-?super(?::cloud)?/i.test(value)) return 'Nemotron 3 Super';
+    if(/nemotron-?3-?super(?::cloud)?/i.test(value)) return 'nemotron-3-super:cloud';
     if(/minimax-m2\.7:cloud/i.test(value)) return 'minimax-m2.7:cloud';
-    if(/kimi2?\.?5(?::cloud)?/i.test(value)) return 'kimi2.5:cloud';
+    if(/kimi(?:-k)?2?\.?5(?::cloud)?/i.test(value)) return 'kimi-k2.5:cloud';
+    if(/qwen(?:3|-3)(?:-coder)?(?::480b-cloud|-coder:480b-cloud)?/i.test(value)) return 'Qwen3:cloud';
     value = value.replace(/:(cloud|free)$/i, '');
     return value;
   }
@@ -11870,52 +11944,86 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!mobileMenu) return;
     if(mobileProviderJoeyBtn){
       mobileProviderJoeyBtn.classList.toggle('active', currentProvider === 'joey');
-      mobileProviderJoeyBtn.textContent = getProviderDefaultModel('joey', currentContextMode);
+      mobileProviderJoeyBtn.textContent = getProviderDisplayName('joey', currentContextMode);
     }
     if(mobileProviderNemoclawBtn){
       mobileProviderNemoclawBtn.classList.toggle('active', currentProvider === 'nemoclaw');
-      mobileProviderNemoclawBtn.textContent = getProviderDefaultModel('nemoclaw', currentContextMode);
+      mobileProviderNemoclawBtn.textContent = getProviderDisplayName('nemoclaw', currentContextMode);
     }
     if(mobileModePersonalBtn) mobileModePersonalBtn.classList.toggle('active', currentContextMode !== 'work');
     if(mobileModeWorkBtn) mobileModeWorkBtn.classList.toggle('active', currentContextMode === 'work');
   }
   function syncProviderUi(){
     var isNemo = currentProvider === 'nemoclaw';
+    var isAliCloud = currentProvider === 'alicloud';
     var isWork = currentContextMode === 'work';
     var providerLabel = getProviderDisplayName(currentProvider, currentContextMode);
+    var joeyLabel = getProviderDisplayName('joey', currentContextMode);
     var nemoLabel = getProviderDisplayName('nemoclaw', currentContextMode);
-    toggleTrack.classList.toggle('nemoclaw', isNemo);
-    labelJoey.className = isNemo ? '' : 'active joey-active';
-    labelNemoclaw.className = isNemo ? 'active nemo-active' : '';
-    labelNemoclaw.textContent = nemoLabel;
+    if(toggleTrack) toggleTrack.classList.toggle('nemoclaw', isNemo && !isAliCloud);
+    if(modeToggleTrack) modeToggleTrack.classList.toggle('work', isWork);
+    if(alicloudPowerBtn){
+      alicloudPowerBtn.classList.toggle('alicloud', isAliCloud);
+      alicloudPowerBtn.setAttribute('aria-pressed', isAliCloud ? 'true' : 'false');
+    }
+    if(providerBar) providerBar.classList.toggle('alicloud-on', isAliCloud);
+    if(toggleTrack){
+      toggleTrack.disabled = !!isAliCloud;
+      toggleTrack.setAttribute('aria-disabled', isAliCloud ? 'true' : 'false');
+    }
+    if(labelJoey){
+      labelJoey.className = (isNemo || isAliCloud) ? 'oc-label-btn' : 'oc-label-btn active joey-active';
+      labelJoey.textContent = joeyLabel;
+      labelJoey.setAttribute('aria-pressed', (isNemo || isAliCloud) ? 'false' : 'true');
+    }
+    if(labelNemoclaw){
+      labelNemoclaw.className = (isNemo && !isAliCloud) ? 'oc-label-btn active nemo-active' : 'oc-label-btn';
+      labelNemoclaw.textContent = nemoLabel;
+      labelNemoclaw.setAttribute('aria-pressed', (isNemo && !isAliCloud) ? 'true' : 'false');
+    }
     if(modePersonalBtn){
-      modePersonalBtn.style.background = isWork ? 'rgba(15,23,42,.82)' : 'linear-gradient(135deg,#2563eb,#1d4ed8)';
-      modePersonalBtn.style.color = isWork ? '#e2e8f0' : '#fff';
-      modePersonalBtn.style.borderColor = isWork ? 'rgba(148,163,184,.25)' : 'rgba(59,130,246,.55)';
+      modePersonalBtn.className = isWork ? 'oc-label-btn' : 'oc-label-btn active mode-active';
+      modePersonalBtn.setAttribute('aria-pressed', isWork ? 'false' : 'true');
     }
     if(modeWorkBtn){
-      modeWorkBtn.style.background = isWork ? 'linear-gradient(135deg,#0f766e,#0d9488)' : 'rgba(15,23,42,.82)';
-      modeWorkBtn.style.color = isWork ? '#fff' : '#e2e8f0';
-      modeWorkBtn.style.borderColor = isWork ? 'rgba(13,148,136,.55)' : 'rgba(148,163,184,.25)';
+      modeWorkBtn.className = isWork ? 'oc-label-btn active mode-work-active' : 'oc-label-btn';
+      modeWorkBtn.setAttribute('aria-pressed', isWork ? 'true' : 'false');
     }
     if(modeHint) modeHint.textContent = 'Memory';
-    providerIcon.textContent = isNemo ? '\u{1F7E2}' : '\u{1F355}';
+    providerIcon.textContent = isAliCloud ? '\u{1F7E0}' : (isNemo ? '\u{1F7E2}' : '\u{1F355}');
     providerName.textContent = providerLabel;
     applyModelBadge();
     syncMobileMenuUi();
     inputEl.placeholder = isNemo
       ? 'Message ' + providerLabel + '...'
-      : 'Message Joey Kimi...';
+      : 'Message ' + providerLabel + '...';
     syncVoiceUi();
   }
   function applyProvider(p){
-    currentProvider = p;
-    localStorage.setItem('homer-oc-provider', p);
-    rememberModelLabel(currentProvider, currentContextMode, getProviderDefaultModel(currentProvider, currentContextMode));
+    if(p === 'alicloud'){
+      if(currentProvider !== 'alicloud') localStorage.setItem('homer-oc-pre-alicloud-provider', currentProvider);
+      currentProvider = 'alicloud';
+    } else {
+      currentProvider = p === 'nemoclaw' ? 'nemoclaw' : 'joey';
+    }
+    localStorage.setItem('homer-oc-provider', currentProvider);
+    if(!normalizeModelLabel(localStorage.getItem(getModelStorageKey(currentProvider, currentContextMode)))){
+      rememberModelLabel(currentProvider, currentContextMode, getProviderDefaultModel(currentProvider, currentContextMode));
+    }
     syncProviderUi();
     renderMessages();
   }
-  applyProvider(currentProvider);
+  function runJoeyInitStep(label, fn){
+    try{
+      return fn();
+    }catch(err){
+      console.error('[Joey] Init step failed: ' + label, err);
+      return null;
+    }
+  }
+  runJoeyInitStep('applyProvider', function(){
+    applyProvider(currentProvider);
+  });
   function applyContextMode(mode, options){
     options = options || {};
     currentContextMode = mode === 'work' ? 'work' : 'personal';
@@ -11940,25 +12048,87 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       }, 20);
     }
   }
-  applyContextMode(currentContextMode, { skipReload:true });
+  runJoeyInitStep('applyContextMode', function(){
+    applyContextMode(currentContextMode, { skipReload:true });
+  });
   window._homerApplyContextMode = function(mode, options){
-    applyContextMode(mode, options || {});
+    return runJoeyInitStep('externalContextMode', function(){
+      applyContextMode(mode, options || {});
+    });
   };
   window.addEventListener('homer-context-mode-changed', function(e){
     var detail = e && e.detail || {};
     if(detail.source === 'joey') return;
     var nextMode = detail.mode === 'work' ? 'work' : 'personal';
     if(nextMode === currentContextMode) return;
-    applyContextMode(nextMode, { silent:true, source:'vault' });
+    runJoeyInitStep('vaultContextMode', function(){
+      applyContextMode(nextMode, { silent:true, source:'vault' });
+    });
   });
 
-  toggleTrack.addEventListener('click', function(){
-    applyProvider(currentProvider === 'joey' ? 'nemoclaw' : 'joey');
+  if(toggleTrack) toggleTrack.addEventListener('click', function(){
+    runJoeyInitStep('toggleProvider', function(){
+      applyProvider(currentProvider === 'joey' ? 'nemoclaw' : 'joey');
+    });
   });
-  labelJoey.addEventListener('click', function(){ applyProvider('joey'); });
-  labelNemoclaw.addEventListener('click', function(){ applyProvider('nemoclaw'); });
-  if(modePersonalBtn) modePersonalBtn.addEventListener('click', function(){ applyContextMode('personal'); });
-  if(modeWorkBtn) modeWorkBtn.addEventListener('click', function(){ applyContextMode('work'); });
+  if(alicloudPowerBtn) alicloudPowerBtn.addEventListener('click', function(){
+    runJoeyInitStep('toggleAliCloud', function(){
+      if(currentProvider === 'alicloud'){
+        var prev = localStorage.getItem('homer-oc-pre-alicloud-provider') || 'joey';
+        applyProvider(prev);
+      } else {
+        applyProvider('alicloud');
+      }
+    });
+  });
+  if(modeToggleTrack) modeToggleTrack.addEventListener('click', function(e){
+    if(e){
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    runJoeyInitStep('toggleContextMode', function(){
+      applyContextMode(currentContextMode === 'work' ? 'personal' : 'work');
+    });
+  });
+  if(providerBar && !providerBar.dataset.switchBound){
+    providerBar.dataset.switchBound = '1';
+    providerBar.addEventListener('click', function(e){
+      var target = e && e.target && e.target.closest ? e.target.closest('#oc-toggle-track, #oc-mode-toggle-track, #oc-alicloud-power') : null;
+      if(!target) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if(target.id === 'oc-toggle-track'){
+        runJoeyInitStep('delegateToggleProvider', function(){ applyProvider(currentProvider === 'joey' ? 'nemoclaw' : 'joey'); });
+        return;
+      }
+      if(target.id === 'oc-mode-toggle-track'){
+        runJoeyInitStep('delegateToggleContextMode', function(){ applyContextMode(currentContextMode === 'work' ? 'personal' : 'work'); });
+        return;
+      }
+      if(target.id === 'oc-alicloud-power'){
+        runJoeyInitStep('delegateToggleAliCloud', function(){
+          if(currentProvider === 'alicloud'){
+            var prev = localStorage.getItem('homer-oc-pre-alicloud-provider') || 'joey';
+            applyProvider(prev);
+          } else {
+            applyProvider('alicloud');
+          }
+        });
+      }
+    });
+  }
+  window._homerSetJoeyProvider = function(provider){
+    return runJoeyInitStep('externalSetProvider', function(){
+      applyProvider(provider === 'alicloud' ? 'alicloud' : (provider === 'nemoclaw' ? 'nemoclaw' : 'joey'));
+      return { provider: currentProvider, mode: currentContextMode };
+    });
+  };
+  window._homerSetJoeyMode = function(mode){
+    return runJoeyInitStep('externalSetMode', function(){
+      applyContextMode(mode === 'work' ? 'work' : 'personal');
+      return { provider: currentProvider, mode: currentContextMode };
+    });
+  };
 
   function joeyActionUrl(action, passphrase, modeOverride){
     var activeMode = modeOverride === 'work'
@@ -12038,11 +12208,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     renderJoeySyncStatusState('Checking Redis and Google Drive for ' + (currentContextMode === 'work' ? 'Work' : 'Personal') + ' mode...', [], []);
     joeySyncStatusInFlight = Promise.all([
       fetch(joeyActionUrl('sync-meta', pass), withSupabaseAuth({ cache:'no-store' })).then(function(r){ return r.json(); }),
-      fetch('/api/gdrive-reconcile', {
+      fetch('/api/gdrive-reconcile', withSupabaseAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(withContextMode({ passphrase: pass, compareOnly: true }))
-      }).then(parseJoeyJsonResponse)
+      })).then(parseJoeyJsonResponse)
     ]).then(function(results){
       var syncResp = results[0] || {};
       var compareResp = results[1] || {};
@@ -12865,14 +13035,31 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var show = !!access.ok;
     console.log('[Joey] Checking visibility - user:', (access.user || '').toLowerCase(), 'show:', show);
     fabBtn.classList.toggle('visible', show);
+    fabBtn.style.display = show ? 'flex' : 'none';
     var mnavJoey = document.getElementById('mnav-joey');
-    if(mnavJoey) mnavJoey.classList.toggle('visible', show);
+    if(mnavJoey){
+      mnavJoey.classList.toggle('visible', show);
+      mnavJoey.style.display = show ? 'flex' : 'none';
+    }
     if(!show && panelOpen) closePanel({ blur:true });
   }
   window.addEventListener('homer-auth', updateFabVisibility);
   // Re-check when Supabase session resolves (async — fires after initial load)
   window.addEventListener('supabase:session', updateFabVisibility);
   window.addEventListener('supabase:authchange', updateFabVisibility);
+  var fabVisibilityTimer = 0;
+  function scheduleFabVisibilitySync(delay){
+    if(fabVisibilityTimer) window.clearTimeout(fabVisibilityTimer);
+    fabVisibilityTimer = window.setTimeout(function(){
+      fabVisibilityTimer = 0;
+      updateFabVisibility();
+    }, typeof delay === 'number' ? delay : 0);
+  }
+  window.addEventListener('focus', function(){ scheduleFabVisibilitySync(0); });
+  window.addEventListener('pageshow', function(){ scheduleFabVisibilitySync(0); });
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden) scheduleFabVisibilitySync(0);
+  });
   window.addEventListener('storage', function(e){
     if(e.key === 'homer-auth-user' || e.key === 'homer-sync-pass' || e.key === 'homer-user-permissions') updateFabVisibility();
   });
@@ -12882,6 +13069,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   } else {
     updateFabVisibility();
   }
+  window.setInterval(function(){
+    if(document.hidden) return;
+    updateFabVisibility();
+  }, 1500);
+  window._homerUpdateJoeyVisibility = updateFabVisibility;
   applyDesktopWindowState();
   setUnreadCount(0);
   updateMobileViewport();
@@ -12914,6 +13106,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     setTimeout(updateMobileViewport, 120);
   });
   // --- Panel toggle ---
+  fabBtn.dataset.joeyBound = '1';
   fabBtn.addEventListener('click', function(){
     if(panelOpen) closePanel();
     else openPanel();
@@ -13757,11 +13950,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
     joeyDriveBackupInFlight = true;
     return Promise.resolve(primeJoeyRedisForBackup(reason || 'auto-backup', { keepalive:false })).catch(function(){ return null; }).then(function(){
-      return fetch('/api/gdrive-backup', {
+      return fetch('/api/gdrive-backup', withSupabaseAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(withContextMode({ passphrase: pass, redisOnly:true }))
-      });
+      }));
     }).then(function(r){ return r.json(); })
       .then(function(d){
         if(d && d.ok){
@@ -13821,11 +14014,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       return collectTaskSnapshot();
     }).then(function(tasks){
       var savedQuotesContent = buildSavedQuotesMarkdown(loadSaved());
-      return fetch(joeyActionUrl('files'), {
+      return fetch(joeyActionUrl('files'), withSupabaseAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(withContextMode({ passphrase:pass, tasks:tasks, savedQuotesContent:savedQuotesContent }))
-      }).then(function(r){ return r.json(); }).catch(function(){});
+      })).then(function(r){ return r.json(); }).catch(function(){});
     });
   }
   function rebuildRememberedFilesContext(){
@@ -14215,11 +14408,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!pass) return Promise.reject('No passphrase');
 
     console.log('[Joey] Reconciling context from Google Drive...');
-    return fetch('/api/gdrive-reconcile', {
+    return fetch('/api/gdrive-reconcile', withSupabaseAuth({
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(withContextMode({ passphrase: pass }))
-    }).then(function(r){ return r.json(); })
+    })).then(function(r){ return r.json(); })
       .then(function(d){
         if(d.ok){
           joeyLastDriveReconcileAt = Date.now();
@@ -16836,6 +17029,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       var syncPass = localStorage.getItem('homer-sync-pass') || '';
       var apiEndpoint = currentProvider === 'nemoclaw' ? '/api/nemoclaw' : '/api/openclaw';
       console.log('[Joey/NemoClaw] provider=' + currentProvider + ' endpoint=' + apiEndpoint);
+      var aliCloudHint = currentProvider === 'alicloud' ? 'alicloud' : undefined;
       var streamController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
       var streamIdleTimer = null;
       var streamSawContent = false;
@@ -16865,7 +17059,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
           chatClearedAt: getChatClearedAt(currentContextMode),
           savedQuotesContent: (typeof buildSavedQuotesMarkdown === 'function' && typeof loadSaved === 'function')
             ? buildSavedQuotesMarkdown(loadSaved())
-            : ''
+            : '',
+          ...(aliCloudHint ? { providerHint: aliCloudHint } : {})
         }))
       }));
       var activeModel = res.headers.get('X-OpenClaw-Model') || '';
@@ -17372,12 +17567,19 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       if(!scroller) return;
       var maxScroll = Math.max(0, scroller.scrollHeight - window.innerHeight);
       if(maxScroll <= 0) return;
-      var top = scroller.scrollTop;
-      var nextTop = Math.max(0, Math.min(maxScroll, top + e.deltaY));
-      if(nextTop === top) return;
-      e.preventDefault();
-      scroller.scrollTop = nextTop;
-    }, { passive:false, capture:true });
+      var beforeTop = scroller.scrollTop;
+      var nextTop = Math.max(0, Math.min(maxScroll, beforeTop + e.deltaY));
+      if(nextTop === beforeTop) return;
+      requestAnimationFrame(function(){
+        var currentTop = scroller.scrollTop;
+        if(Math.abs(currentTop - beforeTop) > 1) return;
+        if(scroller === document.body || scroller === document.documentElement || scroller === document.scrollingElement){
+          window.scrollTo(0, nextTop);
+          return;
+        }
+        scroller.scrollTop = nextTop;
+      });
+    }, { passive:true, capture:true });
   }
   function initPageScrollLockObserver(){
     if(scrollLockObserverStarted || !document.body || typeof MutationObserver === 'undefined') return;
@@ -17587,4 +17789,39 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     syncActive(document.body.dataset.activeTab || 'home', !!(e.detail && e.detail.open));
   });
   syncActive(document.body.dataset.activeTab || 'home', false);
+})();
+
+(function(){
+  function bindJoeyFallbackEntrypoints(){
+    var toggle = window._homerToggleJoeyPanel;
+    if(typeof toggle !== 'function') return false;
+    var fab = document.getElementById('fab-openclaw');
+    if(fab && fab.dataset.joeyBound !== '1'){
+      fab.dataset.joeyBound = 'fallback';
+      fab.addEventListener('click', function(e){
+        e.preventDefault();
+        toggle();
+      });
+    }
+    var mobileJoey = document.getElementById('mnav-joey');
+    if(mobileJoey && mobileJoey.dataset.joeyBound !== '1'){
+      mobileJoey.dataset.joeyBound = 'fallback';
+      mobileJoey.addEventListener('click', function(e){
+        e.preventDefault();
+        var sheet = document.getElementById('mobile-sheet');
+        if(sheet) sheet.classList.remove('open');
+        toggle();
+      });
+    }
+    return true;
+  }
+  function ensureJoeyFallbackEntrypoints(){
+    if(bindJoeyFallbackEntrypoints()) return;
+    window.setTimeout(ensureJoeyFallbackEntrypoints, 250);
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', ensureJoeyFallbackEntrypoints, { once:true });
+  } else {
+    ensureJoeyFallbackEntrypoints();
+  }
 })();

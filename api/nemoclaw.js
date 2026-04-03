@@ -79,9 +79,9 @@ export default async function handler(req, res) {
         gatewayUrl: String(env.NEMOCLAW_GATEWAY_URL || 'http://localhost:11434').trim(),
         gatewayToken: String(env.NEMOCLAW_GATEWAY_TOKEN || '').trim(),
         primaryModel: mode === 'work'
-          ? String(env.NEMOCLAW_WORK_MODEL || env.NEMOCLAW_MODEL || 'minimax-m2.7:cloud').trim()
+          ? String(env.NEMOCLAW_WORK_MODEL || 'nemotron-3-super:cloud').trim()
           : String(env.NEMOCLAW_PERSONAL_MODEL || 'nemotron-3-super:cloud').trim(),
-        fallbackModel: 'llama-3.1-8b-instant',
+        fallbackModel: '',
         largeContext: true
       };
     },

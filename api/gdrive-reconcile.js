@@ -11,6 +11,13 @@ import {
   saveRedisJson,
   verifyJoeyPassphrase
 } from '../lib/joey-server.js';
+import {
+  isSupabaseConfigured,
+  createAdminClient,
+  createUserClient,
+  verifySupabaseJwt
+} from '../lib/supabase-server.js';
+import { createSupabaseRedisFetch } from '../lib/supabase-redis-compat.js';
 
 const MAX_HISTORY = 100;
 const MAX_MEMORIES = 320;
@@ -348,7 +355,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.query && req.query.action === 'file') {
@@ -359,7 +366,9 @@ export default async function handler(req, res) {
   const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
   const { passphrase } = body;
   const compareOnly = !!body.compareOnly;
-  if (!passphrase) return res.status(401).json({ error: 'Missing passphrase' });
+  const authHeader = String(req.headers.authorization || '');
+  const jwtToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+  if (!passphrase && !jwtToken) return res.status(401).json({ error: 'Missing credentials' });
 
   const mode = getJoeyMode(req);
   const { MEMORY_KEY, PROFILE_KEY, HISTORY_KEY, FILES_KEY, FILE_LIBRARY_KEY, CUSTOM_FILES_KEY, JOURNAL_KEY, SYNC_META_KEY } = getJoeyContextKeys(mode);
@@ -367,13 +376,42 @@ export default async function handler(req, res) {
   if (!gdriveWebhook) return res.status(500).json({ error: 'GDRIVE_WEBHOOK_URL not configured' });
   if (!gdriveSecret) return res.status(500).json({ error: 'GDRIVE_SECRET not configured' });
 
-  const redisFetch = createRedisFetch();
+  let redisFetch = null;
+  const rawRedisFetch = createRedisFetch();
   const { url: redisUrl, token: redisToken } = getRedisConfig();
-  if (!redisUrl || !redisToken || !redisFetch) return res.status(500).json({ error: 'Redis not configured' });
+  const supabaseEnabled = isSupabaseConfigured();
+  if (!supabaseEnabled && (!redisUrl || !redisToken || !rawRedisFetch)) {
+    return res.status(500).json({ error: 'Redis not configured' });
+  }
 
   try {
-    const isValid = await verifyJoeyPassphrase(passphrase, redisFetch);
+    let isValid = false;
+    if (jwtToken && supabaseEnabled) {
+      const user = await verifySupabaseJwt(jwtToken).catch(() => null);
+      if (user) {
+        redisFetch = createSupabaseRedisFetch(createUserClient(jwtToken), user.id);
+        isValid = true;
+      }
+    }
+
+    if (!isValid && passphrase) {
+      const adminHash = String(process.env.HOMER_ADMIN_HASH || '').trim();
+      const ownerId = String(process.env.SUPABASE_OWNER_ID || '').trim();
+      isValid = !!adminHash && String(passphrase || '').trim() === adminHash;
+      if (!isValid && rawRedisFetch) {
+        isValid = await verifyJoeyPassphrase(passphrase, rawRedisFetch);
+      }
+      if (isValid) {
+        if (supabaseEnabled && ownerId) redisFetch = createSupabaseRedisFetch(createAdminClient(), ownerId);
+        else redisFetch = rawRedisFetch;
+      }
+    }
+
     if (!isValid) return res.status(403).json({ error: 'Forbidden' });
+    if (!redisFetch) {
+      if (!redisUrl || !redisToken || !rawRedisFetch) return res.status(500).json({ error: 'Redis not configured' });
+      redisFetch = rawRedisFetch;
+    }
 
     const drive = await fetchDriveBundle(mode, gdriveWebhook, gdriveSecret);
     if (!drive.ok) {

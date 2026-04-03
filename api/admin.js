@@ -125,6 +125,11 @@ export default async function handler(req, res) {
         if (permUsersData.result) {
           try { permUsers = JSON.parse(permUsersData.result); } catch (e) {}
         }
+        var ensuredPermUsers = ensureReservedUser(permUsers);
+        permUsers = ensuredPermUsers.users;
+        if (ensuredPermUsers.changed) {
+          await redis(['SET', 'homer:users', JSON.stringify(permUsers)]);
+        }
 
         var permUser = permUsers.find(function(u) { return u.username.toLowerCase() === permUsername.toLowerCase(); });
         if (!permUser) return res.status(404).json({ error: 'User not found' });
