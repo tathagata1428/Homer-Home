@@ -3033,6 +3033,7 @@ let tvWidgetCreated = false;
       _vaultRootCache = nextRoot;
       return encrypt(cryptoKey, JSON.stringify(nextRoot)).then(function(enc){
         return idb.set(DATA_KEY, enc).then(function(result){
+          try{ window._cachedVaultDataForBeacon = enc; }catch(_e){}
           if(typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-local-save-ts');
           if(typeof window._homerScheduleDbBackup === 'function') window._homerScheduleDbBackup('vault-save');
           if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('vault-save', 1800);
@@ -11006,7 +11007,8 @@ let tvWidgetCreated = false;
     if(!getActiveSyncPass()) return;
     if(Date.now() < conflictBackoffUntil) return;
     if(Date.now() < autoBackupBackoffUntil) return;
-    if(lastSyncTs && (Date.now() - lastSyncTs) < AUTO_BACKUP_MIN_INTERVAL_MS) return;
+    // Always allow backup when dirty (user made real changes); only throttle safety-net (clean) backups
+    if(!dirty && lastSyncTs && (Date.now() - lastSyncTs) < AUTO_BACKUP_MIN_INTERVAL_MS) return;
     backup().then(function(){
       updDot();
     });
@@ -11227,7 +11229,10 @@ let tvWidgetCreated = false;
         if(isLocalOnlyBackupKey(k) || BACKUP_RUNTIME_KEYS.indexOf(k) >= 0) continue;
         d[k] = localStorage.getItem(k);
       }
-      d[BACKUP_MANIFEST_KEY] = JSON.stringify(buildBackupManifest(d, []));
+      // Include cached vault IDB data so kanban/goals survive tab close
+      var beaconIdbKeys = [];
+      if(window._cachedVaultDataForBeacon){ d['homer-vault-data'] = window._cachedVaultDataForBeacon; beaconIdbKeys.push('homer-vault-data'); }
+      d[BACKUP_MANIFEST_KEY] = JSON.stringify(buildBackupManifest(d, beaconIdbKeys));
       d['homer-backup-ts'] = Date.now().toString();
       d['homer-backup-keys'] = Object.keys(d).length.toString();
       d['homer-backup-source'] = 'beforeunload';
@@ -11261,6 +11266,25 @@ let tvWidgetCreated = false;
   window.addEventListener('pagehide', function(){
     flushFieldSyncOps('pagehide');
     flushDbBackupNow('pagehide');
+    // On mobile PWA, pagehide fires when switching away — send beacon with vault data if dirty
+    if(!dirty || !getActiveSyncPass()) return;
+    if(Date.now() < conflictBackoffUntil) return;
+    if(!isLeader && leaderAlive()) return;
+    try {
+      var p = getActiveSyncPass();
+      var ph = {};
+      for(var i=0; i<localStorage.length; i++){
+        var k = localStorage.key(i);
+        if(isLocalOnlyBackupKey(k) || BACKUP_RUNTIME_KEYS.indexOf(k) >= 0) continue;
+        ph[k] = localStorage.getItem(k);
+      }
+      var phIdbKeys = [];
+      if(window._cachedVaultDataForBeacon){ ph['homer-vault-data'] = window._cachedVaultDataForBeacon; phIdbKeys.push('homer-vault-data'); }
+      ph[BACKUP_MANIFEST_KEY] = JSON.stringify(buildBackupManifest(ph, phIdbKeys));
+      ph['homer-backup-ts'] = Date.now().toString();
+      ph['homer-backup-source'] = 'pagehide';
+      navigator.sendBeacon(R2_WORKER_URL+'/sync', new Blob([JSON.stringify({ key: p, data: ph })], { type: 'application/json' }));
+    } catch(e){}
   });
 
   // Detect changes from other tabs + leadership handoff
