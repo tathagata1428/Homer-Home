@@ -6519,77 +6519,51 @@ let tvWidgetCreated = false;
     if(!pw){ showError('Please enter your password.'); return; }
     _pendingRememberPw = (vaultRememberMe && vaultRememberMe.checked) ? pw : null;
 
-    // Supabase session can bypass the local account-hash pre-check
-    var sbSess = window.__sbSession && typeof window.__sbSession === 'object' ? window.__sbSession : null;
-    var sbSessUser = sbSess && sbSess.user && typeof sbSess.user === 'object' ? sbSess.user : null;
-    var hasSbAuth = !!(sbSessUser && (sbSessUser.id || sbSessUser.email));
-
-    // Verify against stored account credentials (skipped when Supabase session active)
+    // Username sanity check only — vault crypto validates the password directly
     var storedUser = localStorage.getItem('homer-auth-user');
-    var storedAcctHash = localStorage.getItem('homer-auth-hash');
-    if(!hasSbAuth){
-      if(!storedUser || !storedAcctHash){ showError('No account found. Sign in via the Account button first.'); return; }
-      if(storedUser.toLowerCase() !== user.toLowerCase()){ showError('Invalid username or password.'); return; }
+    if(storedUser && storedUser.toLowerCase() !== user.toLowerCase()){
+      showError('Invalid username or password.');
+      return;
     }
 
-    var doVaultUnlock = function(){
-      // Account verified — use credentials to derive vault encryption key
-      getSalt().then(function(salt){
-        if(isNew){
-          var vaultPw = user.toLowerCase() + ':' + pw;
-          hashPassword(vaultPw, salt).then(function(h){
-            return idb.set(HASH_KEY, h).then(function(){ return deriveKey(vaultPw, salt); });
-          }).then(function(key){
-            cryptoKey = key;
-            return saveVault(defaultData(currentVaultMode));
-          }).then(function(){ unlock(); });
-        } else {
-          deriveVaultSession(user, pw, salt).then(function(session){
-            cryptoKey = session.key;
-            _vaultRootCache = session.root;
-            unlock();
-          }).catch(function(){
-            var legacyPasswords = getReservedVaultLegacyPasswords(user);
-            if(!legacyPasswords.length){
+    // Derive vault key and decrypt — this is the real auth step
+    getSalt().then(function(salt){
+      if(isNew){
+        var vaultPw = user.toLowerCase() + ':' + pw;
+        hashPassword(vaultPw, salt).then(function(h){
+          return idb.set(HASH_KEY, h).then(function(){ return deriveKey(vaultPw, salt); });
+        }).then(function(key){
+          cryptoKey = key;
+          return saveVault(defaultData(currentVaultMode));
+        }).then(function(){ unlock(); });
+      } else {
+        deriveVaultSession(user, pw, salt).then(function(session){
+          cryptoKey = session.key;
+          _vaultRootCache = session.root;
+          unlock();
+        }).catch(function(){
+          var legacyPasswords = getReservedVaultLegacyPasswords(user);
+          if(!legacyPasswords.length){
+            showError('Vault password could not unlock existing data.');
+            return;
+          }
+          var tryLegacy = function(index){
+            if(index >= legacyPasswords.length){
               showError('Vault password could not unlock existing data.');
               return;
             }
-            var tryLegacy = function(index){
-              if(index >= legacyPasswords.length){
-                showError('Vault password could not unlock existing data.');
-                return;
-              }
-              deriveVaultSession(user, legacyPasswords[index], salt).then(function(session){
-                return rekeyVaultRoot(session.root, user, pw, salt).then(function(){
-                  unlock();
-                });
-              }).catch(function(){
-                tryLegacy(index + 1);
+            deriveVaultSession(user, legacyPasswords[index], salt).then(function(session){
+              return rekeyVaultRoot(session.root, user, pw, salt).then(function(){
+                unlock();
               });
-            };
-            tryLegacy(0);
-          });
-        }
-      });
-    };
-
-    if(hasSbAuth){
-      doVaultUnlock();
-    } else {
-      hashAccountCreds(user, pw).then(function(acctHash){
-        if(acctHash !== storedAcctHash){
-          // Stale remember-me password — clear it so it doesn't loop on reload
-          if(vaultRememberMe && vaultRememberMe.checked){
-            try{ localStorage.removeItem(VAULT_REMEMBER_KEY); }catch(_e){}
-            vaultRememberMe.checked = false;
-          }
-          _pendingRememberPw = null;
-          showError('Invalid username or password.');
-          return;
-        }
-        doVaultUnlock();
-      });
-    }
+            }).catch(function(){
+              tryLegacy(index + 1);
+            });
+          };
+          tryLegacy(0);
+        });
+      }
+    });
   });
   vaultUserInput.addEventListener('keydown', function(e){ if(e.key==='Enter') unlockBtn.click(); });
   pwInput.addEventListener('keydown', function(e){ if(e.key==='Enter') unlockBtn.click(); });
@@ -11597,6 +11571,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   var mobileMenu = document.getElementById('oc-mobile-menu');
   var mobileProviderJoeyBtn = document.getElementById('oc-mobile-provider-joey');
   var mobileProviderNemoclawBtn = document.getElementById('oc-mobile-provider-nemoclaw');
+  var mobileProviderAliCloudBtn = document.getElementById('oc-mobile-provider-alicloud');
   var mobileModePersonalBtn = document.getElementById('oc-mobile-mode-personal');
   var mobileModeWorkBtn = document.getElementById('oc-mobile-mode-work');
   var mobileEditPromptBtn = document.getElementById('oc-mobile-edit-prompt');
@@ -11885,9 +11860,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       showError(message);
       return;
     }
-    // On mobile, open account modal to let the user log in instead of showing a dead-end alert
+    // On mobile, open account modal so the user can log in directly.
+    // Set a flag so Joey auto-opens once sign-in succeeds.
     var acctModal = document.getElementById('acct-modal-bg');
     if(acctModal){
+      window._homerJoeyOpenAfterAuth = true;
       acctModal.classList.add('open');
       var userInput = document.getElementById('acct-user');
       if(userInput) setTimeout(function(){ try{ userInput.focus(); }catch(_){} }, 200);
@@ -11950,8 +11927,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   // --- Provider toggle ---
   var currentProvider = localStorage.getItem('homer-oc-provider') || 'joey';
   var DEFAULT_CONTEXT_MODE = 'personal';
-  var storedContextMode = localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode');
-  var currentContextMode = storedContextMode === 'work' ? 'work' : DEFAULT_CONTEXT_MODE;
+  var currentContextMode = DEFAULT_CONTEXT_MODE;
   var toggleTrack = document.getElementById('oc-toggle-track');
   var modeToggleTrack = document.getElementById('oc-mode-toggle-track');
   var providerBar = document.querySelector('.oc-provider-bar');
@@ -11964,6 +11940,9 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   var providerIcon = document.getElementById('oc-provider-icon');
   var providerName = document.getElementById('oc-provider-name');
   var modelBadge = document.getElementById('oc-model-badge');
+  function getAgentDisplayName(){
+    return 'Joey Tribbiani';
+  }
   function getProviderDisplayName(provider, mode){
     if(provider === 'alicloud') return 'Joey Q';
     var activeMode = mode === 'work' ? 'work' : 'personal';
@@ -12025,6 +12004,10 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       mobileProviderNemoclawBtn.classList.toggle('active', currentProvider === 'nemoclaw');
       mobileProviderNemoclawBtn.textContent = getProviderDisplayName('nemoclaw', currentContextMode);
     }
+    if(mobileProviderAliCloudBtn){
+      mobileProviderAliCloudBtn.classList.toggle('active', currentProvider === 'alicloud');
+      mobileProviderAliCloudBtn.textContent = getProviderDisplayName('alicloud', currentContextMode);
+    }
     if(mobileModePersonalBtn) mobileModePersonalBtn.classList.toggle('active', currentContextMode !== 'work');
     if(mobileModeWorkBtn) mobileModeWorkBtn.classList.toggle('active', currentContextMode === 'work');
   }
@@ -12066,12 +12049,10 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
     if(modeHint) modeHint.textContent = 'Memory';
     providerIcon.textContent = isAliCloud ? '\u{1F7E0}' : (isNemo ? '\u{1F7E2}' : '\u{1F355}');
-    providerName.textContent = providerLabel;
+    providerName.textContent = getAgentDisplayName();
     applyModelBadge();
     syncMobileMenuUi();
-    inputEl.placeholder = isNemo
-      ? 'Message ' + providerLabel + '...'
-      : 'Message ' + providerLabel + '...';
+    inputEl.placeholder = 'Message ' + getAgentDisplayName() + '...';
     syncVoiceUi();
   }
   function applyProvider(p){
@@ -13121,7 +13102,14 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
     if(!show && panelOpen) closePanel({ blur:true });
   }
-  window.addEventListener('homer-auth', updateFabVisibility);
+  window.addEventListener('homer-auth', function(e){
+    updateFabVisibility();
+    // If Joey was blocked by missing auth, auto-open the panel once signed in
+    if(window._homerJoeyOpenAfterAuth && e.detail && e.detail.action === 'signin'){
+      window._homerJoeyOpenAfterAuth = false;
+      setTimeout(function(){ if(!panelOpen) openPanel(); }, 50);
+    }
+  });
   // Re-check when Supabase session resolves (async — fires after initial load)
   window.addEventListener('supabase:session', updateFabVisibility);
   window.addEventListener('supabase:authchange', updateFabVisibility);
@@ -13329,6 +13317,12 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   if(mobileProviderNemoclawBtn){
     mobileProviderNemoclawBtn.addEventListener('click', function(){
       applyProvider('nemoclaw');
+      closeMobileMenu();
+    });
+  }
+  if(mobileProviderAliCloudBtn){
+    mobileProviderAliCloudBtn.addEventListener('click', function(){
+      applyProvider('alicloud');
       closeMobileMenu();
     });
   }
@@ -14758,9 +14752,9 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   // --- Rendering ---
   function getWelcomeHtml(){
     if(currentContextMode === 'work'){
-      return '<div class="oc-welcome"><span class="oc-welcome-icon">\u{1F4BC}</span><strong>' + escHtml(getProviderDisplayName(currentProvider, currentContextMode)) + '</strong> keeps tasks, follow-ups, and decisions straight.<br>What needs tracking?</div>';
+      return '<div class="oc-welcome"><span class="oc-welcome-icon">\u{1F4BC}</span><strong>' + escHtml(getAgentDisplayName()) + '</strong> keeps tasks, follow-ups, and decisions straight.<br>What needs tracking?</div>';
     }
-    return '<div class="oc-welcome"><span class="oc-welcome-icon">\u{1F355}</span><strong>' + escHtml(getProviderDisplayName(currentProvider, currentContextMode)) + '</strong> doesn\'t share food, but shares answers.<br>How you doin\'? Ask me anything.</div>';
+    return '<div class="oc-welcome"><span class="oc-welcome-icon">\u{1F355}</span><strong>' + escHtml(getAgentDisplayName()) + '</strong> doesn\'t share food, but shares answers.<br>How you doin\'? Ask me anything.</div>';
   }
   function getActivePromptHtml(){
     var prompt = getSavedSystemPrompt(currentContextMode);
@@ -17804,6 +17798,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   // Joey button — trigger the fab-openclaw click
   var joeyBtn = document.getElementById('mnav-joey');
   if(joeyBtn){
+    joeyBtn.dataset.joeyBound = '1';
     joeyBtn.addEventListener('click', function(){
       sheet.classList.remove('open');
       toggleJoeyPanel();

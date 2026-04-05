@@ -241,12 +241,12 @@ export default async function handler(req, res) {
         gatewayUrl: String(
           isWork
             ? (env.OC_WORK_GATEWAY_URL || env.OC_GATEWAY_URL || 'https://api.kilo.ai/api/gateway')
-            : (env.OC_PERSONAL_GATEWAY_URL || env.NEMOCLAW_GATEWAY_URL || env.OC_GATEWAY_URL || 'http://localhost:11434')
+            : (env.OC_PERSONAL_GATEWAY_URL || env.OC_GATEWAY_URL || env.NEMOCLAW_GATEWAY_URL || 'http://localhost:11434')
         ).trim(),
         gatewayToken: String(
           isWork
             ? (env.OC_WORK_GATEWAY_TOKEN || env.OC_GATEWAY_TOKEN || '')
-            : (env.OC_PERSONAL_GATEWAY_TOKEN || env.NEMOCLAW_GATEWAY_TOKEN || env.OC_GATEWAY_TOKEN || '')
+            : (env.OC_PERSONAL_GATEWAY_TOKEN || env.OC_GATEWAY_TOKEN || env.NEMOCLAW_GATEWAY_TOKEN || '')
         ).trim(),
         primaryModel,
         fallbackModel,

@@ -1,5 +1,6 @@
 import crypto from 'crypto';
-import { verifySupabaseJwt, createAdminClient, isSupabaseConfigured } from '../lib/supabase-server.js';
+import { verifySupabaseJwt, createAdminClient, isSupabaseConfigured, resolveSupabaseOwnerId } from '../lib/supabase-server.js';
+import { isReservedSyncHash } from '../lib/joey-server.js';
 
 const BACKUP_MANIFEST_KEY = 'homer-backup-manifest';
 const FIELD_OP_BATCH_LIMIT = 100;
@@ -381,6 +382,38 @@ export default async function handler(req, res) {
       }
     } catch (sbErr) {
       return res.status(500).json({ error: sbErr.message || 'Supabase error' });
+    }
+  }
+
+  var maybeBody = null;
+  if (req.method === 'POST') {
+    maybeBody = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+  }
+  var reservedKey = String(
+    req.method === 'GET'
+      ? (req.query && req.query.key)
+      : (maybeBody && maybeBody.key)
+      || ''
+  ).trim();
+  if (!supabaseUser && isSupabaseConfigured() && isReservedSyncHash(reservedKey)) {
+    try {
+      var reservedOwnerId = await resolveSupabaseOwnerId();
+      if (reservedOwnerId) {
+        if (req.method === 'GET') {
+          var reservedAction = req.query.action || 'latest';
+          if (reservedAction === 'field-state') return sbFieldState(reservedOwnerId, res);
+          if (reservedAction === 'field-ops') return sbFieldOps(reservedOwnerId, req, res);
+          if (reservedAction === 'status') {
+            return res.status(200).json({ ok: true, exists: true, ts: Date.now(), fieldVersion: Date.now() });
+          }
+        }
+        if (req.method === 'POST') {
+          var reservedPostAction = (maybeBody && maybeBody.action) || req.query.action || '';
+          if (reservedPostAction === 'field-op') return sbApplyFieldOps(reservedOwnerId, maybeBody || {}, res);
+        }
+      }
+    } catch (reservedErr) {
+      return res.status(500).json({ error: reservedErr.message || 'Supabase error' });
     }
   }
 

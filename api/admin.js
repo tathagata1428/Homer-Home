@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { verifySupabaseJwt, isSupabaseConfigured } from '../lib/supabase-server.js';
+import { verifySupabaseJwt, isSupabaseClientConfigured } from '../lib/supabase-server.js';
 
 const ADMIN_HASH = 'e5d510e7c10f6dbafca09488da4fe64b08518188b9b061c3b5d0ef62a103e914'; // bogdan.radu@b4it.ro:QAZwsx098pl.!
 const RESERVED_USER = 'bogdan';
@@ -66,7 +66,7 @@ export default async function handler(req, res) {
   var authHeader = String(req.headers.authorization || '');
   var jwtToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
   var supabaseUser = null;
-  if (jwtToken && isSupabaseConfigured()) {
+  if (jwtToken && isSupabaseClientConfigured()) {
     supabaseUser = await verifySupabaseJwt(jwtToken);
   }
 

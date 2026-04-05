@@ -14,7 +14,7 @@
  *
  * GET /api/auth?action=user   (requires Authorization: Bearer <token>)
  */
-import { createAdminClient, createUserClient, isSupabaseConfigured, verifySupabaseJwt } from '../lib/supabase-server.js';
+import { createUserClient, isSupabaseClientConfigured, verifySupabaseJwt } from '../lib/supabase-server.js';
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -29,7 +29,7 @@ function setHeaders(res) {
 export default async function handler(req, res) {
   setHeaders(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseClientConfigured()) {
     return res.status(503).json({ error: 'Supabase not configured' });
   }
 

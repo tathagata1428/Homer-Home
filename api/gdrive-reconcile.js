@@ -12,9 +12,11 @@ import {
   verifyJoeyPassphrase
 } from '../lib/joey-server.js';
 import {
+  isSupabaseClientConfigured,
   isSupabaseConfigured,
   createAdminClient,
   createUserClient,
+  resolveSupabaseOwnerId,
   verifySupabaseJwt
 } from '../lib/supabase-server.js';
 import { createSupabaseRedisFetch } from '../lib/supabase-redis-compat.js';
@@ -379,14 +381,15 @@ export default async function handler(req, res) {
   let redisFetch = null;
   const rawRedisFetch = createRedisFetch();
   const { url: redisUrl, token: redisToken } = getRedisConfig();
-  const supabaseEnabled = isSupabaseConfigured();
-  if (!supabaseEnabled && (!redisUrl || !redisToken || !rawRedisFetch)) {
+  const supabaseJwtEnabled = isSupabaseClientConfigured();
+  const supabaseAdminEnabled = isSupabaseConfigured();
+  if (!supabaseAdminEnabled && !supabaseJwtEnabled && (!redisUrl || !redisToken || !rawRedisFetch)) {
     return res.status(500).json({ error: 'Redis not configured' });
   }
 
   try {
     let isValid = false;
-    if (jwtToken && supabaseEnabled) {
+    if (jwtToken && supabaseJwtEnabled) {
       const user = await verifySupabaseJwt(jwtToken).catch(() => null);
       if (user) {
         redisFetch = createSupabaseRedisFetch(createUserClient(jwtToken), user.id);
@@ -396,13 +399,13 @@ export default async function handler(req, res) {
 
     if (!isValid && passphrase) {
       const adminHash = String(process.env.HOMER_ADMIN_HASH || '').trim();
-      const ownerId = String(process.env.SUPABASE_OWNER_ID || '').trim();
+      const ownerId = await resolveSupabaseOwnerId();
       isValid = !!adminHash && String(passphrase || '').trim() === adminHash;
-      if (!isValid && rawRedisFetch) {
+      if (!isValid) {
         isValid = await verifyJoeyPassphrase(passphrase, rawRedisFetch);
       }
       if (isValid) {
-        if (supabaseEnabled && ownerId) redisFetch = createSupabaseRedisFetch(createAdminClient(), ownerId);
+        if (supabaseAdminEnabled && ownerId) redisFetch = createSupabaseRedisFetch(createAdminClient(), ownerId);
         else redisFetch = rawRedisFetch;
       }
     }

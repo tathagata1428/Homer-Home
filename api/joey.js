@@ -1,12 +1,14 @@
 import { buildContextFiles, mergeDerivedFileContext, preserveGeneratedContextFiles } from '../lib/context-files.js';
 import handleJoeyCommit, { runLearnStep } from '../lib/joey-commit-handler.js';
 import { getJoeyContextKeys, getJoeyMode } from '../lib/joey-context.js';
-import { loadRedisJson, saveRedisJson, safeJsonParse } from '../lib/joey-server.js';
+import { loadRedisJson, saveRedisJson, safeJsonParse, verifyJoeyPassphrase } from '../lib/joey-server.js';
 import { computeJoeySyncMeta } from '../lib/joey-sync-meta.js';
 import { createSupabaseRedisFetch } from '../lib/supabase-redis-compat.js';
 import {
+  isSupabaseClientConfigured,
   createAdminClient,
   createUserClient,
+  resolveSupabaseOwnerId,
   verifySupabaseJwt,
   isSupabaseConfigured
 } from '../lib/supabase-server.js';
@@ -477,10 +479,11 @@ export default async function handler(req, res) {
     : null;
 
   // Supabase (new canonical data store)
-  const supabaseConfigured = isSupabaseConfigured();
+  const supabaseJwtConfigured = isSupabaseClientConfigured();
+  const supabaseAdminConfigured = isSupabaseConfigured();
   let supabaseClient = null;
 
-  if (!redisRaw && !supabaseConfigured) {
+  if (!redisRaw && !supabaseJwtConfigured && !supabaseAdminConfigured) {
     return res.status(500).json({ error: 'No data store configured. Set Redis or Supabase env vars.' });
   }
 
@@ -489,7 +492,7 @@ export default async function handler(req, res) {
   let userId  = null;
 
   // 1. Try Supabase JWT first (new auth path)
-  if (jwtToken && supabaseConfigured) {
+  if (jwtToken && supabaseJwtConfigured) {
     const jwtUser = await verifySupabaseJwt(jwtToken);
     if (jwtUser) {
       isValid = true;
@@ -500,19 +503,10 @@ export default async function handler(req, res) {
 
   // 2. Fall back to legacy passphrase
   if (!isValid && passphrase) {
-    const ADMIN_HASH = (process.env.HOMER_ADMIN_HASH || '').trim();
-    if (ADMIN_HASH && passphrase.trim() === ADMIN_HASH) {
-      isValid = true;
-    } else if (redisRaw) {
-      const usersData = await redisRaw(['GET', 'homer:users']);
-      const users = safeJsonParse(usersData && usersData.result, []);
-      for (const user of users) {
-        if (user && user.passwordHash === passphrase.trim()) { isValid = true; break; }
-      }
-    }
+    isValid = await verifyJoeyPassphrase(passphrase, redisRaw);
     if (isValid) {
-      userId = String(process.env.SUPABASE_OWNER_ID || '').trim() || null;
-      if (supabaseConfigured && userId) {
+      userId = await resolveSupabaseOwnerId() || null;
+      if (supabaseAdminConfigured && userId) {
         supabaseClient = createAdminClient();
       }
     }
