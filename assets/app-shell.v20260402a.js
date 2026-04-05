@@ -11853,6 +11853,10 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(sbUser && (sbUser.id || sbUser.email)){
       return { ok:true, user:String(sbUser.email || sbUser.id || 'supabase-user'), memoryEnabled: hasJoeyRemoteAuth() };
     }
+    // homer-sync-pass is Bogdan's credential hash — its presence confirms identity on all devices
+    if(String(localStorage.getItem('homer-sync-pass') || '').trim()){
+      return { ok:true, user:'bogdan', memoryEnabled: true };
+    }
     var rawUser = String(localStorage.getItem('homer-auth-user') || '').trim();
     if(!rawUser){
       return { ok:false, message:'This feature is available only for Bogdan. Log in as Bogdan to use Joey.' };
@@ -11879,6 +11883,14 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   function notifyJoeyAccessDenied(message){
     if(panelOpen && typeof showError === 'function'){
       showError(message);
+      return;
+    }
+    // On mobile, open account modal to let the user log in instead of showing a dead-end alert
+    var acctModal = document.getElementById('acct-modal-bg');
+    if(acctModal){
+      acctModal.classList.add('open');
+      var userInput = document.getElementById('acct-user');
+      if(userInput) setTimeout(function(){ try{ userInput.focus(); }catch(_){} }, 200);
       return;
     }
     alert(message);
