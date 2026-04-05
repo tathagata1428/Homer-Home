@@ -11843,6 +11843,10 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(sbUser && (sbUser.id || sbUser.email)){
       return { ok:true, user:String(sbUser.email || sbUser.id || 'supabase-user'), memoryEnabled: hasJoeyRemoteAuth() };
     }
+    // Vault unlock is a valid auth path — only Bogdan can unlock the vault
+    if(window._homerVaultUnlocked){
+      return { ok:true, user:'bogdan', memoryEnabled: hasJoeyRemoteAuth() };
+    }
     var rawUser = String(localStorage.getItem('homer-auth-user') || '').trim();
     if(!rawUser){
       return { ok:false, message:'This feature is available only for Bogdan. Log in as Bogdan to use Joey.' };
@@ -13100,6 +13104,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!show && panelOpen) closePanel({ blur:true });
   }
   window.addEventListener('homer-auth', updateFabVisibility);
+  // Re-check when vault locks/unlocks (vault unlock = Bogdan authenticated on mobile)
+  window.addEventListener('homer-vault-state', updateFabVisibility);
   // Re-check when Supabase session resolves (async — fires after initial load)
   window.addEventListener('supabase:session', updateFabVisibility);
   window.addEventListener('supabase:authchange', updateFabVisibility);
