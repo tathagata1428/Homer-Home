@@ -8999,6 +8999,10 @@ let tvWidgetCreated = false;
   var LOCAL_ONLY_BACKUP_KEYS = ['homer-pre-restore-backup', 'homer-pre-restore-ts', 'homer-field-sync-version', 'homer-sync-device-id', 'homer-quotes-seen'];
   var LOCAL_ONLY_BACKUP_PREFIXES = ['homer-oc-chat-cache:', 'homer-oc-chat-cleared:'];
   var BACKUP_LOCALSTORAGE_KEYS = LS_KEYS.slice();
+  // Include auth identity keys so they sync to mobile devices (no credentials, just username + permissions)
+  if(BACKUP_LOCALSTORAGE_KEYS.indexOf('homer-auth-user') < 0) BACKUP_LOCALSTORAGE_KEYS.push('homer-auth-user');
+  if(BACKUP_LOCALSTORAGE_KEYS.indexOf('homer-user-permissions') < 0) BACKUP_LOCALSTORAGE_KEYS.push('homer-user-permissions');
+  var AUTH_SYNC_KEYS = ['homer-auth-user', 'homer-user-permissions'];
   var BACKUP_LOCALSTORAGE_PREFIXES = ['homer-oc-config-'];
   var BACKUP_SCHEMA_VERSION = 2;
   // LS field sync: localStorage keys that get pushed to Supabase field_state when Bogdan is logged in
@@ -10428,7 +10432,9 @@ let tvWidgetCreated = false;
       });
     }
     Object.keys(snapshot).forEach(function(key){
-      if(isLocalOnlyBackupKey(key) || syncMetaKeys.indexOf(key) >= 0) return;
+      if(isLocalOnlyBackupKey(key)) return;
+      // Auth identity keys (username, permissions) are allowed through even though they're in syncMetaKeys
+      if(syncMetaKeys.indexOf(key) >= 0 && AUTH_SYNC_KEYS.indexOf(key) < 0) return;
       if(IDB_KEYS.indexOf(key) >= 0){
         idbTasks.push(syncIdbSet(key, snapshot[key]));
         applied++;
@@ -11044,6 +11050,10 @@ let tvWidgetCreated = false;
               conflictBackoffUntil = 0;
               updateLocalBackupMarkers(cd.data, cd.ts || Date.now(), 'pull');
               var merged = result.applied + result.cleared;
+              // If auth identity was pulled, refresh Joey visibility
+              if(Object.keys(cd.data).some(function(k){ return AUTH_SYNC_KEYS.indexOf(k) >= 0; })){
+                if(typeof window._homerUpdateJoeyVisibility === 'function') window._homerUpdateJoeyVisibility();
+              }
               if(merged > 0){
                 console.log('[CloudSync] Pulled ' + merged + ' updated items from cloud');
                 st('Pulled ' + merged + ' changes from cloud');
@@ -11842,10 +11852,6 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var sbUser = sbSession && sbSession.user && typeof sbSession.user === 'object' ? sbSession.user : null;
     if(sbUser && (sbUser.id || sbUser.email)){
       return { ok:true, user:String(sbUser.email || sbUser.id || 'supabase-user'), memoryEnabled: hasJoeyRemoteAuth() };
-    }
-    // Vault unlock is a valid auth path — only Bogdan can unlock the vault
-    if(window._homerVaultUnlocked){
-      return { ok:true, user:'bogdan', memoryEnabled: hasJoeyRemoteAuth() };
     }
     var rawUser = String(localStorage.getItem('homer-auth-user') || '').trim();
     if(!rawUser){
@@ -13104,8 +13110,6 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!show && panelOpen) closePanel({ blur:true });
   }
   window.addEventListener('homer-auth', updateFabVisibility);
-  // Re-check when vault locks/unlocks (vault unlock = Bogdan authenticated on mobile)
-  window.addEventListener('homer-vault-state', updateFabVisibility);
   // Re-check when Supabase session resolves (async — fires after initial load)
   window.addEventListener('supabase:session', updateFabVisibility);
   window.addEventListener('supabase:authchange', updateFabVisibility);
