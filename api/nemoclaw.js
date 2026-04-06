@@ -85,6 +85,13 @@ export default async function handler(req, res) {
         largeContext: true
       };
     },
+    getFallbackGatewayConfig({ env }) {
+      const gatewayUrl = String(env.OC_GATEWAY_URL || '').trim();
+      const gatewayToken = String(env.OC_GATEWAY_TOKEN || '').trim();
+      const primaryModel = String(env.OC_FALLBACK_MODEL || env.OC_MODEL || '').trim();
+      if (!gatewayUrl || !primaryModel) return null;
+      return { gatewayUrl, gatewayToken, primaryModel };
+    },
     buildSystemParts: buildNemoClawSystemParts,
     getBackfillLimit({ forceFullContext }) {
       return forceFullContext ? 60 : 32;

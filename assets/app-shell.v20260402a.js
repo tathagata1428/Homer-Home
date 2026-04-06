@@ -13726,8 +13726,10 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
         clearJoeyDriveBackupDirty();
         if(typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-drive-backup-ts');
         scheduleJoeySyncStatusRefresh(200);
-        btn.textContent = '✅ Backed up!';
-        setTimeout(function(){ btn.innerHTML = '&#x2601; Backup to Drive'; btn.disabled = false; }, 3000);
+        Promise.resolve(backupEmergencySnapshotToDrive(pass)).catch(function(){ return null; }).then(function(){
+          btn.textContent = '✅ Backed up!';
+          setTimeout(function(){ btn.innerHTML = '&#x2601; Backup to Drive'; btn.disabled = false; }, 3000);
+        });
       } else {
         btn.textContent = '❌ Failed';
         console.error('[GDrive Backup]', d);
@@ -13766,6 +13768,32 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
         refreshCanonicalFiles().catch(function(){});
         if(libraryPanel && libraryPanel.classList.contains('open')) fetchFileLibrary({ silent:true });
         scheduleJoeySyncStatusRefresh(250);
+        // Also restore vault snapshot (kanban board + all vault data)
+        Promise.resolve(fetch('/api/gdrive-restore', withSupabaseAuth({
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(withContextMode({ passphrase: pass, kind: 'vault-snapshot' }))
+        })).then(function(r){ return r.json(); }).then(function(vd){
+          if(vd && vd.ok && vd.snapshot){
+            var vaultKeys = ['homer-vault-salt','homer-vault-hash','homer-vault-data'];
+            var idbTasks = [];
+            vaultKeys.forEach(function(k){
+              if(vd.snapshot[k] == null) return;
+              var iReq = indexedDB.open('homer-vault-idb', 1);
+              iReq.onupgradeneeded = function(ev){ ev.target.result.createObjectStore('kv'); };
+              idbTasks.push(new Promise(function(res){
+                iReq.onsuccess = function(ev){
+                  var tx = ev.target.result.transaction('kv','readwrite');
+                  tx.objectStore('kv').put(vd.snapshot[k], k);
+                  tx.oncomplete = res; tx.onerror = res;
+                };
+                iReq.onerror = res;
+              }));
+            });
+            return Promise.all(idbTasks).then(function(){
+              console.log('[GDrive Restore] Vault snapshot restored (re-enter vault password to unlock)');
+            });
+          }
+        })).catch(function(e){ console.warn('[GDrive Restore] Vault snapshot restore:', e && e.message); });
         setTimeout(function(){ btn.innerHTML = '&#x21bb; Restore from Drive'; btn.disabled = false; }, 3000);
       } else {
         btn.textContent = '❌ Failed';

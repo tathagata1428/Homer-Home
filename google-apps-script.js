@@ -241,6 +241,24 @@ function doGet(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    // Restore vault snapshot
+    if ((e.parameter || {}).action === 'restore-vault') {
+      try {
+        var vaultFolderCfg = getVaultEmergencyFolderConfig();
+        var vaultFolder = getTargetFolder(vaultFolderCfg.name, vaultFolderCfg.id);
+        var vaultLatest = vaultFolder.getFilesByName('homer-vault-latest.json');
+        if (!vaultLatest.hasNext()) {
+          return ContentService.createTextOutput(JSON.stringify({ error: 'No vault backup found' }))
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+        var vaultContent = vaultLatest.next().getBlob().getDataAsString();
+        return ContentService.createTextOutput(vaultContent).setMimeType(ContentService.MimeType.JSON);
+      } catch (vErr) {
+        return ContentService.createTextOutput(JSON.stringify({ error: vErr.message }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
     var folder;
     var mode = normalizeMode((e.parameter || {}).mode);
     try {

@@ -235,7 +235,7 @@ export default async function handler(req, res) {
           ? (env.OC_WORK_MODEL || 'minimax-m2.7:cloud')
           : (env.OC_PERSONAL_MODEL || env.KIMI_MODEL || env.OC_MODEL || 'kimi-k2.5:cloud')
       ).trim();
-      const fallbackModel = '';
+      const fallbackModel = String(env.OC_FALLBACK_MODEL || '').trim();
       const isLargeCtx = /minimax-m2\.7:cloud/i.test(primaryModel) || /kimi(?:-k)?2?\.?5/i.test(primaryModel);
       return {
         gatewayUrl: String(

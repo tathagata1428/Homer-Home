@@ -89,6 +89,27 @@ export default async function handler(req, res) {
 
   try {
 
+    // Handle vault snapshot restore — client-side encrypted, just proxy from Drive
+    const requestKind = String((req.body || {}).kind || '').trim().toLowerCase();
+    if (requestKind === 'vault-snapshot') {
+      const vaultUrl = gdriveWebhook + '?action=restore-vault&secret=' + encodeURIComponent(gdriveSecret);
+      const vaultResponse = await fetchWithRedirects(vaultUrl, { method: 'GET' });
+      if (!vaultResponse.text) {
+        return res.status(vaultResponse.status || 502).json({ error: vaultResponse.error || 'No response from Drive' });
+      }
+      let vaultParsed;
+      try { vaultParsed = JSON.parse(vaultResponse.text); } catch {
+        return res.status(502).json({ error: 'Non-JSON response from Drive vault restore' });
+      }
+      if (vaultParsed.error) return res.status(502).json({ error: vaultParsed.error });
+      return res.status(200).json({
+        ok: true,
+        kind: 'vault-snapshot',
+        snapshot: vaultParsed.snapshot || {},
+        exportedAt: vaultParsed.exportedAt || null
+      });
+    }
+
     const restoreUrl = gdriveWebhook + '?action=restore&secret=' + encodeURIComponent(gdriveSecret) + '&mode=' + encodeURIComponent(mode);
     const response = await fetchWithRedirects(restoreUrl, { method: 'GET' });
     const redirectChain = response.redirectChain || [];
