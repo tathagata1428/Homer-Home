@@ -290,7 +290,7 @@ export default async function handler(req, res) {
     ) {
       const nextSyncMeta = {
         ...syncMeta,
-        lastDriveBackupAt: syncMetaStored.lastDriveBackupAt,
+        lastDriveBackupAt: new Date().toISOString(),
         driveExportedAt: syncMetaStored.driveExportedAt || null,
         lastSource: 'gdrive-backup-skip'
       };
