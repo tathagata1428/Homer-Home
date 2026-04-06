@@ -13774,23 +13774,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
           body: JSON.stringify(withContextMode({ passphrase: pass, kind: 'vault-snapshot' }))
         })).then(function(r){ return r.json(); }).then(function(vd){
           if(vd && vd.ok && vd.snapshot){
-            var vaultKeys = ['homer-vault-salt','homer-vault-hash','homer-vault-data'];
-            var idbTasks = [];
-            vaultKeys.forEach(function(k){
-              if(vd.snapshot[k] == null) return;
-              var iReq = indexedDB.open('homer-vault-idb', 1);
-              iReq.onupgradeneeded = function(ev){ ev.target.result.createObjectStore('kv'); };
-              idbTasks.push(new Promise(function(res){
-                iReq.onsuccess = function(ev){
-                  var tx = ev.target.result.transaction('kv','readwrite');
-                  tx.objectStore('kv').put(vd.snapshot[k], k);
-                  tx.oncomplete = res; tx.onerror = res;
-                };
-                iReq.onerror = res;
-              }));
-            });
-            return Promise.all(idbTasks).then(function(){
-              console.log('[GDrive Restore] Vault snapshot restored (re-enter vault password to unlock)');
+            return applyCloudSnapshot(vd.snapshot, { force: true }).then(function(result){
+              console.log('[GDrive Restore] Vault snapshot restored — applied:', result.applied, 'cleared:', result.cleared, '(re-enter vault password to unlock)');
             });
           }
         })).catch(function(e){ console.warn('[GDrive Restore] Vault snapshot restore:', e && e.message); });
