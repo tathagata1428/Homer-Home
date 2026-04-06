@@ -10498,6 +10498,8 @@ let tvWidgetCreated = false;
       });
     });
   }
+  window._homerBackupEmergencySnapshotToDrive = backupEmergencySnapshotToDrive;
+  window._homerApplyCloudSnapshot = applyCloudSnapshot;
 
   function backup(force){
     var p = getActiveSyncPass();
@@ -13726,7 +13728,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
         clearJoeyDriveBackupDirty();
         if(typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-drive-backup-ts');
         scheduleJoeySyncStatusRefresh(200);
-        Promise.resolve(backupEmergencySnapshotToDrive(pass)).catch(function(){ return null; }).then(function(){
+        Promise.resolve(typeof window._homerBackupEmergencySnapshotToDrive === 'function' && window._homerBackupEmergencySnapshotToDrive(pass)).catch(function(){ return null; }).then(function(){
           btn.textContent = '✅ Backed up!';
           setTimeout(function(){ btn.innerHTML = '&#x2601; Backup to Drive'; btn.disabled = false; }, 3000);
         });
@@ -13774,7 +13776,9 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
           body: JSON.stringify(withContextMode({ passphrase: pass, kind: 'vault-snapshot' }))
         })).then(function(r){ return r.json(); }).then(function(vd){
           if(vd && vd.ok && vd.snapshot){
-            return applyCloudSnapshot(vd.snapshot, { force: true }).then(function(result){
+            var applyFn = window._homerApplyCloudSnapshot;
+            if(typeof applyFn !== 'function') return;
+            return applyFn(vd.snapshot, { force: true }).then(function(result){
               console.log('[GDrive Restore] Vault snapshot restored — applied:', result.applied, 'cleared:', result.cleared, '(re-enter vault password to unlock)');
             });
           }
