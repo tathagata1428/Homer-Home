@@ -11955,17 +11955,13 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     return 'Joey Tribbiani';
   }
   function getProviderDisplayName(provider, mode){
-    if(provider === 'alicloud') return 'Joey Q';
-    if(provider !== 'nemoclaw') return 'Joey Pro';
-    return 'Joey Nemotron';
+    return 'Joey';
   }
   function getProviderFallbackLabel(provider, mode){
     return getProviderDisplayName(provider, mode);
   }
   function getProviderDefaultModel(provider, mode){
-    if(provider === 'alicloud') return 'MiMo-V2-Flash';
-    if(provider !== 'nemoclaw') return mode === 'work' ? 'minimax-m2.7:cloud' : 'MiMo-V2-Pro';
-    return 'nemotron-3-super:cloud';
+    return 'kimi-k2.6:cloud';
   }
   function normalizeModelLabel(raw){
     var value = String(raw || '').trim();
@@ -11975,6 +11971,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(/mimo-v2-pro/i.test(value)) return 'MiMo-V2-Pro';
     if(/nemotron-?3-?super(?::cloud)?/i.test(value)) return 'nemotron-3-super:cloud';
     if(/minimax-m2\.7:cloud/i.test(value)) return 'minimax-m2.7:cloud';
+    if(/kimi(?:-k)?2?\.?6(?::cloud)?/i.test(value)) return 'kimi-k2.6:cloud';
     if(/kimi(?:-k)?2?\.?5(?::cloud)?/i.test(value)) return 'kimi-k2.5:cloud';
     if(/qwen(?:3|-3)(?:-coder)?(?::480b-cloud|-coder:480b-cloud)?/i.test(value)) return 'Qwen3:cloud';
     value = value.replace(/:(cloud|free)$/i, '');
@@ -11985,15 +11982,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   }
   function getStoredModelLabel(provider, mode){
     var normalized = normalizeModelLabel(localStorage.getItem(getModelStorageKey(provider, mode)));
-    if(provider !== 'nemoclaw' && mode !== 'work' && normalized === 'kimi-k2.5:cloud') normalized = 'MiMo-V2-Pro';
-    if(provider === 'alicloud' && normalized === 'Qwen3:cloud') normalized = 'MiMo-V2-Flash';
     return normalized || getProviderDefaultModel(provider, mode);
   }
   function rememberModelLabel(provider, mode, label){
     var normalized = normalizeModelLabel(label);
     if(!normalized) return;
-    if(provider !== 'nemoclaw' && mode !== 'work' && normalized === 'kimi-k2.5:cloud') normalized = 'MiMo-V2-Pro';
-    if(provider === 'alicloud' && normalized === 'Qwen3:cloud') normalized = 'MiMo-V2-Flash';
     localStorage.setItem(getModelStorageKey(provider, mode), normalized);
   }
   function applyModelBadge(label){
