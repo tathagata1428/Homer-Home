@@ -9162,7 +9162,16 @@ let tvWidgetCreated = false;
     return fetch(url, options || {}).then(function(r){
       return r.text().then(function(text){
         var data = {};
-        try{ data = text ? JSON.parse(text) : {}; }catch(e){ data = { error:text || ('HTTP ' + r.status) }; }
+        try{
+          data = text ? JSON.parse(text) : {};
+        }catch(e){
+          var trimmed = String(text || '').trim();
+          var isHtml = /^<!doctype|^<html|^</i.test(trimmed);
+          data = {
+            error: isHtml ? 'Unexpected HTML response from server.' : (text || ('HTTP ' + r.status)),
+            detail: isHtml ? 'Expected JSON but received HTML. The API route may be misconfigured or returning an error page.' : ''
+          };
+        }
         if(!r.ok || (data && data.error && !data.ok)) throw new Error((data && (data.detail || data.error || data.reason)) || ('HTTP ' + r.status));
         return data;
       });
@@ -11947,22 +11956,23 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   }
   function getProviderDisplayName(provider, mode){
     if(provider === 'alicloud') return 'Joey Q';
-    var activeMode = mode === 'work' ? 'work' : 'personal';
-    if(provider !== 'nemoclaw') return activeMode === 'work' ? 'Joey Minimax' : 'Joey Kimi';
+    if(provider !== 'nemoclaw') return 'Joey Pro';
     return 'Joey Nemotron';
   }
   function getProviderFallbackLabel(provider, mode){
     return getProviderDisplayName(provider, mode);
   }
   function getProviderDefaultModel(provider, mode){
-    if(provider === 'alicloud') return 'Qwen3:cloud';
-    if(provider !== 'nemoclaw') return mode === 'work' ? 'minimax-m2.7:cloud' : 'kimi-k2.5:cloud';
+    if(provider === 'alicloud') return 'MiMo-V2-Flash';
+    if(provider !== 'nemoclaw') return mode === 'work' ? 'minimax-m2.7:cloud' : 'MiMo-V2-Pro';
     return 'nemotron-3-super:cloud';
   }
   function normalizeModelLabel(raw){
     var value = String(raw || '').trim();
     if(!value) return '';
     value = value.split('/').pop();
+    if(/mimo-v2-flash/i.test(value)) return 'MiMo-V2-Flash';
+    if(/mimo-v2-pro/i.test(value)) return 'MiMo-V2-Pro';
     if(/nemotron-?3-?super(?::cloud)?/i.test(value)) return 'nemotron-3-super:cloud';
     if(/minimax-m2\.7:cloud/i.test(value)) return 'minimax-m2.7:cloud';
     if(/kimi(?:-k)?2?\.?5(?::cloud)?/i.test(value)) return 'kimi-k2.5:cloud';
@@ -11974,11 +11984,16 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     return 'homer-oc-model-label-' + provider + '-' + (mode === 'work' ? 'work' : 'personal');
   }
   function getStoredModelLabel(provider, mode){
-    return normalizeModelLabel(localStorage.getItem(getModelStorageKey(provider, mode))) || getProviderDefaultModel(provider, mode);
+    var normalized = normalizeModelLabel(localStorage.getItem(getModelStorageKey(provider, mode)));
+    if(provider !== 'nemoclaw' && mode !== 'work' && normalized === 'kimi-k2.5:cloud') normalized = 'MiMo-V2-Pro';
+    if(provider === 'alicloud' && normalized === 'Qwen3:cloud') normalized = 'MiMo-V2-Flash';
+    return normalized || getProviderDefaultModel(provider, mode);
   }
   function rememberModelLabel(provider, mode, label){
     var normalized = normalizeModelLabel(label);
     if(!normalized) return;
+    if(provider !== 'nemoclaw' && mode !== 'work' && normalized === 'kimi-k2.5:cloud') normalized = 'MiMo-V2-Pro';
+    if(provider === 'alicloud' && normalized === 'Qwen3:cloud') normalized = 'MiMo-V2-Flash';
     localStorage.setItem(getModelStorageKey(provider, mode), normalized);
   }
   function applyModelBadge(label){
@@ -12051,7 +12066,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
     if(modeHint) modeHint.textContent = 'Memory';
     providerIcon.textContent = isAliCloud ? '\u{1F7E0}' : (isNemo ? '\u{1F7E2}' : '\u{1F355}');
-    providerName.textContent = getAgentDisplayName();
+    providerName.textContent = providerLabel;
     applyModelBadge();
     syncMobileMenuUi();
     inputEl.placeholder = 'Message ' + getAgentDisplayName() + '...';
@@ -13718,12 +13733,12 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     btn.disabled = true;
     btn.textContent = '⏳ Backing up...';
     Promise.resolve(primeJoeyRedisForBackup('manual-backup', { keepalive:false })).catch(function(){ return null; }).then(function(){
-      return fetch('/api/gdrive-backup', withSupabaseAuth({
+      return fetchJson('/api/gdrive-backup', withSupabaseAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(withContextMode({ passphrase: pass, redisOnly:true }))
       }));
-    }).then(function(r){ return r.json(); }).then(function(d){
+    }).then(function(d){
       if(d.ok){
         clearJoeyDriveBackupDirty();
         if(typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-drive-backup-ts');
@@ -13756,11 +13771,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!confirm('Restore ' + currentContextMode + ' context from Google Drive? This will overwrite current memories for this mode.')) return;
     btn.disabled = true;
     btn.textContent = '⏳ Restoring...';
-    fetch('/api/gdrive-restore', withSupabaseAuth({
+    fetchJson('/api/gdrive-restore', withSupabaseAuth({
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(withContextMode({ passphrase: pass }))
-    })).then(function(r){ return r.json(); }).then(function(d){
+    })).then(function(d){
       if(d.ok){
         btn.textContent = '\u2705 Restored!';
         // Reload full Joey bundle (memories, profile, files) into agent context
@@ -13771,10 +13786,10 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
         if(libraryPanel && libraryPanel.classList.contains('open')) fetchFileLibrary({ silent:true });
         scheduleJoeySyncStatusRefresh(250);
         // Also restore vault snapshot (kanban board + all vault data)
-        Promise.resolve(fetch('/api/gdrive-restore', withSupabaseAuth({
+        Promise.resolve(fetchJson('/api/gdrive-restore', withSupabaseAuth({
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify(withContextMode({ passphrase: pass, kind: 'vault-snapshot' }))
-        })).then(function(r){ return r.json(); }).then(function(vd){
+        })).then(function(vd){
           if(vd && vd.ok && vd.snapshot){
             var applyFn = window._homerApplyCloudSnapshot;
             if(typeof applyFn !== 'function') return;
@@ -13871,7 +13886,16 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     return fetch(url, nextOptions).then(function(r){
       return r.text().then(function(text){
         var data = {};
-        try{ data = text ? JSON.parse(text) : {}; }catch(e){ data = { error:text || ('HTTP ' + r.status) }; }
+        try{
+          data = text ? JSON.parse(text) : {};
+        }catch(e){
+          var trimmed = String(text || '').trim();
+          var isHtml = /^<!doctype|^<html|^</i.test(trimmed);
+          data = {
+            error: isHtml ? 'Unexpected HTML response from server.' : (text || ('HTTP ' + r.status)),
+            detail: isHtml ? 'Expected JSON but received HTML. The API route may be misconfigured or returning an error page.' : ''
+          };
+        }
         if(!r.ok || (data && data.error && !data.ok)) throw new Error((data && (data.detail || data.error || data.reason)) || ('HTTP ' + r.status));
         return data;
       });
@@ -14039,13 +14063,12 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
     joeyDriveBackupInFlight = true;
     return Promise.resolve(primeJoeyRedisForBackup(reason || 'auto-backup', { keepalive:false })).catch(function(){ return null; }).then(function(){
-      return fetch('/api/gdrive-backup', withSupabaseAuth({
+      return fetchJson('/api/gdrive-backup', withSupabaseAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(withContextMode({ passphrase: pass, redisOnly:true }))
       }));
-    }).then(function(r){ return r.json(); })
-      .then(function(d){
+    }).then(function(d){
         if(d && d.ok){
           clearJoeyDriveBackupDirty();
           if(typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-drive-backup-ts');
@@ -14497,12 +14520,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!pass) return Promise.reject('No passphrase');
 
     console.log('[Joey] Reconciling context from Google Drive...');
-    return fetch('/api/gdrive-reconcile', withSupabaseAuth({
+    return fetchJson('/api/gdrive-reconcile', withSupabaseAuth({
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(withContextMode({ passphrase: pass }))
-    })).then(function(r){ return r.json(); })
-      .then(function(d){
+    })).then(function(d){
         if(d.ok){
           joeyLastDriveReconcileAt = Date.now();
           console.log('[Joey] Drive reconcile complete:', d.reconciled);
