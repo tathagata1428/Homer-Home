@@ -2,6 +2,9 @@
   "name": "homer-home",
   "private": true,
   "type": "module",
+  "scripts": {
+    "deploy": "wrangler pages deploy ."
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4"
   },
