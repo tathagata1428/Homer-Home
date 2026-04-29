@@ -3,12 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "deploy": "wrangler pages deploy ."
+    "deploy": "npx wrangler pages deploy ."
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4"
   },
   "devDependencies": {
-    "pg": "^8.20.0"
+    "pg": "^8.20.0",
+    "wrangler": "^4.0.0"
   }
 }
