@@ -9,7 +9,6 @@
     "@supabase/supabase-js": "^2.49.4"
   },
   "devDependencies": {
-    "pg": "^8.20.0",
-    "wrangler": "^4.0.0"
+    "pg": "^8.20.0"
   }
 }
