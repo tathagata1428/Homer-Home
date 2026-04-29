@@ -11961,19 +11961,14 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     return getProviderDisplayName(provider, mode);
   }
   function getProviderDefaultModel(provider, mode){
-    return 'kimi-k2.6:cloud';
+    return 'hermes';
   }
   function normalizeModelLabel(raw){
     var value = String(raw || '').trim();
     if(!value) return '';
     value = value.split('/').pop();
-    if(/mimo-v2-flash/i.test(value)) return 'MiMo-V2-Flash';
-    if(/mimo-v2-pro/i.test(value)) return 'MiMo-V2-Pro';
-    if(/nemotron-?3-?super(?::cloud)?/i.test(value)) return 'nemotron-3-super:cloud';
-    if(/minimax-m2\.7:cloud/i.test(value)) return 'minimax-m2.7:cloud';
-    if(/kimi(?:-k)?2?\.?6(?::cloud)?/i.test(value)) return 'kimi-k2.6:cloud';
-    if(/kimi(?:-k)?2?\.?5(?::cloud)?/i.test(value)) return 'kimi-k2.5:cloud';
-    if(/qwen(?:3|-3)(?:-coder)?(?::480b-cloud|-coder:480b-cloud)?/i.test(value)) return 'Qwen3:cloud';
+    if(/hermes/i.test(value)) return 'hermes';
+    if(/kimi(?:-k)?2?\.?6(?::cloud)?/i.test(value)) return 'hermes';
     value = value.replace(/:(cloud|free)$/i, '');
     return value;
   }
