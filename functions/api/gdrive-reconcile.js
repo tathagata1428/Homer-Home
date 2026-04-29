@@ -1,0 +1,401 @@
+import { getJoeyContextKeys, getJoeyMode } from '../../lib/joey-context.js';
+import handleGdriveFile from '../../lib/gdrive-file-handler.js';
+import { createVercelAdapter } from '../../lib/cf-vercel-adapter.js';
+import { compactFileLibraryEntries, mergeDerivedFileContext } from '../../lib/context-files.js';
+import { buildJoeySyncDrift, computeJoeySyncMeta, validateJoeySyncBundleMeta } from '../../lib/joey-sync-meta.js';
+import {
+  createRedisFetch,
+  fetchWithRedirects,
+  getGoogleDriveConfig,
+  getRedisConfig,
+  loadRedisJson,
+  saveRedisJson,
+  verifyJoeyPassphrase
+} from '../../lib/joey-server.js';
+import {
+  isSupabaseClientConfigured,
+  isSupabaseConfigured,
+  createAdminClient,
+  createUserClient,
+  resolveSupabaseOwnerId,
+  verifySupabaseJwt
+} from '../../lib/supabase-server.js';
+import { createSupabaseRedisFetch } from '../../lib/supabase-redis-compat.js';
+
+const MAX_HISTORY = 100;
+const MAX_MEMORIES = 320;
+const MAX_JOURNAL = 1800;
+const SYSTEM_FILE_NAMES = new Set([
+  'AgentContext.md', 'Projects.md', 'Areas.md', 'Resources.md', 'Archive.md',
+  'Wins.md', 'Lessons.md', 'OpenLoops.md', 'People.md', 'Today.md',
+  'WeeklyReview.md', 'Decisions.md', 'PinnedContext.md', 'FilesIndex.md',
+  'User.md', 'Memory.md', 'Tasks.md', 'HistorySummary.md'
+]);
+
+function asObject(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+function isBlank(value) {
+  if (value == null) return true;
+  if (typeof value === 'string') return !value.trim();
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === 'object') return Object.keys(value).length === 0;
+  return false;
+}
+function normalizeText(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+function dedupeMixedArray(items) {
+  const result = [];
+  const seen = new Set();
+  asArray(items).forEach((item) => {
+    const key = typeof item === 'string' ? 's:' + normalizeText(item) : 'j:' + JSON.stringify(item);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    result.push(item);
+  });
+  return result;
+}
+function mergeProfile(currentValue, incomingValue) {
+  const current = asObject(currentValue);
+  const incoming = asObject(incomingValue);
+  const merged = { ...current };
+  Object.keys(incoming).forEach((key) => {
+    const currentEntry = current[key];
+    const incomingEntry = incoming[key];
+    if (Array.isArray(currentEntry) || Array.isArray(incomingEntry)) {
+      merged[key] = dedupeMixedArray([].concat(asArray(currentEntry), asArray(incomingEntry)));
+      return;
+    }
+    if (currentEntry && incomingEntry && typeof currentEntry === 'object' && typeof incomingEntry === 'object' && !Array.isArray(currentEntry) && !Array.isArray(incomingEntry)) {
+      merged[key] = mergeProfile(currentEntry, incomingEntry);
+      return;
+    }
+    merged[key] = isBlank(currentEntry) ? incomingEntry : currentEntry;
+  });
+  return merged;
+}
+function mergeMemories(currentValue, incomingValue) {
+  const merged = new Map();
+  function absorb(item) {
+    if (!item || typeof item !== 'object') return;
+    const text = String(item.text || '').trim();
+    if (!text) return;
+    const key = normalizeText(text);
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, { ...item, text, category: item.category || 'general', ts: item.ts || Date.now() });
+      return;
+    }
+    merged.set(key, {
+      ...existing, ...item,
+      text: text.length > String(existing.text || '').length ? text : existing.text,
+      category: existing.category && existing.category !== 'general' ? existing.category : (item.category || existing.category || 'general'),
+      ts: Math.max(existing.ts || 0, item.ts || 0) || Date.now(),
+      pinned: !!(existing.pinned || item.pinned),
+      confidence: Math.max(typeof existing.confidence === 'number' ? existing.confidence : 0, typeof item.confidence === 'number' ? item.confidence : 0) || undefined
+    });
+  }
+  asArray(currentValue).forEach(absorb);
+  asArray(incomingValue).forEach(absorb);
+  return [...merged.values()].sort((a, b) => (a.ts || 0) - (b.ts || 0)).slice(-MAX_MEMORIES);
+}
+function mergeHistory(currentValue, incomingValue) {
+  function normalize(items) {
+    return asArray(items).filter((item) => item && (item.role === 'user' || item.role === 'assistant'))
+      .map((item) => ({ role: item.role, content: String(item.content || '').trim().slice(0, 2000) }))
+      .filter((item) => item.content);
+  }
+  function historiesEqual(left, right) {
+    if (left.length !== right.length) return false;
+    return left.every((item, index) => right[index] && right[index].role === item.role && right[index].content === item.content);
+  }
+  function isPrefix(prefix, full) {
+    if (prefix.length > full.length) return false;
+    return prefix.every((item, index) => full[index] && full[index].role === item.role && full[index].content === item.content);
+  }
+  const current = normalize(currentValue);
+  const incoming = normalize(incomingValue);
+  if (!incoming.length) return current.slice(-MAX_HISTORY);
+  if (!current.length) return incoming.slice(-MAX_HISTORY);
+  if (historiesEqual(current, incoming)) return current.slice(-MAX_HISTORY);
+  if (isPrefix(current, incoming)) return incoming.slice(-MAX_HISTORY);
+  if (isPrefix(incoming, current)) return current.slice(-MAX_HISTORY);
+  return current.slice(-MAX_HISTORY);
+}
+function mergeJournal(currentValue, incomingValue) {
+  const merged = new Map();
+  function absorb(item) {
+    if (!item || typeof item !== 'object') return;
+    const type = String(item.type || '').trim();
+    const text = String(item.text || '').trim();
+    if (!type && !text) return;
+    const role = String(item.role || '').trim();
+    const category = String(item.category || '').trim();
+    const ts = Number(item.ts || 0) || Date.now();
+    const key = [normalizeText(type), normalizeText(role), normalizeText(text), normalizeText(category), ts].join('::');
+    if (merged.has(key)) return;
+    merged.set(key, { type, role, text: text.slice(0, 2000), category, source: String(item.source || '').trim(), ts });
+  }
+  asArray(currentValue).forEach(absorb);
+  asArray(incomingValue).forEach(absorb);
+  return [...merged.values()].sort((a, b) => (a.ts || 0) - (b.ts || 0)).slice(-MAX_JOURNAL);
+}
+function mergeFileLibrary(currentValue, incomingValue) {
+  const merged = new Map();
+  function absorb(item) {
+    if (!item || typeof item !== 'object') return;
+    const key = String(item.id || item.driveUrl || item.webViewLink || item.name || '').trim();
+    if (!key) return;
+    const existing = merged.get(key);
+    merged.set(key, existing ? { ...item, ...existing } : { ...item });
+  }
+  asArray(incomingValue).forEach(absorb);
+  asArray(currentValue).forEach(absorb);
+  return [...merged.values()];
+}
+function deriveCustomFiles(filesValue) {
+  const files = asObject(filesValue);
+  const derived = {};
+  Object.entries(files).forEach(([name, content]) => {
+    const safeName = String(name || '').trim();
+    if (!safeName || SYSTEM_FILE_NAMES.has(safeName) || /^Uploads\//i.test(safeName) || /^Preserved\//i.test(safeName)) return;
+    if (typeof content !== 'string' || !content.trim()) return;
+    derived[safeName] = content.trim();
+  });
+  return derived;
+}
+function mergeCustomFiles(currentValue, incomingValue, fallbackFiles) {
+  const current = asObject(currentValue);
+  const incoming = asObject(incomingValue);
+  const derived = deriveCustomFiles(fallbackFiles);
+  const merged = { ...incoming, ...derived, ...current };
+  Object.keys(merged).forEach((name) => {
+    if (/^Preserved\//i.test(String(name || '').trim())) { delete merged[name]; return; }
+    if (typeof merged[name] !== 'string' || !merged[name].trim()) delete merged[name];
+  });
+  return merged;
+}
+function mergeFiles(currentValue, incomingValue, mergedCustomFiles) {
+  const current = asObject(currentValue);
+  const incoming = asObject(incomingValue);
+  const merged = { ...incoming, ...current };
+  Object.entries(incoming).forEach(([name, content]) => {
+    if (isBlank(merged[name]) && typeof content === 'string' && content.trim()) merged[name] = content;
+  });
+  Object.entries(mergedCustomFiles || {}).forEach(([name, content]) => {
+    if (!merged[name] || isBlank(merged[name])) merged[name] = content;
+  });
+  return merged;
+}
+function countAddedItems(currentItems, mergedItems, getKey) {
+  const before = new Set(asArray(currentItems).map(getKey).filter(Boolean));
+  let added = 0;
+  asArray(mergedItems).forEach((item) => { const key = getKey(item); if (!key || before.has(key)) return; added += 1; });
+  return added;
+}
+async function fetchDriveBundle(mode, gdriveWebhook, gdriveSecret) {
+  const restoreUrl = gdriveWebhook + '?action=restore&secret=' + encodeURIComponent(gdriveSecret) + '&mode=' + encodeURIComponent(mode);
+  const response = await fetchWithRedirects(restoreUrl, { method: 'GET' });
+  const redirectChain = response.redirectChain || [];
+  if (!response.text) {
+    return { ok: false, error: response.error || 'No response after redirects', status: response.status || 502, redirectChain };
+  }
+  try {
+    const parsed = JSON.parse(response.text);
+    if (parsed && parsed.error) return { ok: false, error: parsed.error, status: response.status || 502, redirectChain };
+    const data = asObject(parsed);
+    const validation = validateJoeySyncBundleMeta({ mode, profile: data.profile, memories: data.memories, history: data.history, files: data.files, fileLibrary: data.fileLibrary, customFiles: data.customFiles, journal: data.journal }, data.syncMeta);
+    if (data.syncMeta && !validation.ok && validation.reason !== 'missing-hashes') {
+      return { ok: false, error: 'Drive bundle failed integrity validation', status: 409, redirectChain, validation };
+    }
+    return { ok: true, data: parsed, status: response.status || 200, redirectChain, validation };
+  } catch (error) {
+    const isHtml = response.text.trim().startsWith('<');
+    return { ok: false, error: isHtml ? 'Google returned HTML instead of JSON' : 'Non-JSON response from Google', status: response.status || 502, redirectChain };
+  }
+}
+
+export async function onRequest(context) {
+  const { request, env } = context;
+
+  const origin = request.headers.get('origin') || '*';
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': origin,
+    'Vary': 'Origin',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers: corsHeaders });
+  }
+
+  const { searchParams } = new URL(request.url);
+  if (searchParams.get('action') === 'file') {
+    if (env && typeof env === 'object') Object.assign(process.env, env);
+    const { req: fileReq, res: fileRes, getResponse: getFileResponse } = await createVercelAdapter(request);
+    await handleGdriveFile(fileReq, fileRes);
+    return getFileResponse();
+  }
+
+  if (request.method !== 'POST') {
+    return Response.json({ error: 'Method not allowed' }, { status: 405, headers: corsHeaders });
+  }
+
+  let body;
+  try { body = await request.json(); } catch (e) { body = {}; }
+  const { passphrase } = body;
+  const compareOnly = !!body.compareOnly;
+  const authHeader = String(request.headers.get('authorization') || '');
+  const jwtToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+  if (!passphrase && !jwtToken) {
+    return Response.json({ error: 'Missing credentials' }, { status: 401, headers: corsHeaders });
+  }
+
+  const mode = getJoeyMode(request);
+  const { MEMORY_KEY, PROFILE_KEY, HISTORY_KEY, FILES_KEY, FILE_LIBRARY_KEY, CUSTOM_FILES_KEY, JOURNAL_KEY, SYNC_META_KEY } = getJoeyContextKeys(mode);
+  const { webhook: gdriveWebhook, secret: gdriveSecret } = getGoogleDriveConfig();
+  if (!gdriveWebhook) return Response.json({ error: 'GDRIVE_WEBHOOK_URL not configured' }, { status: 500, headers: corsHeaders });
+  if (!gdriveSecret) return Response.json({ error: 'GDRIVE_SECRET not configured' }, { status: 500, headers: corsHeaders });
+
+  let redisFetch = null;
+  const rawRedisFetch = createRedisFetch();
+  const { url: redisUrl, token: redisToken } = getRedisConfig();
+  const supabaseJwtEnabled = isSupabaseClientConfigured();
+  const supabaseAdminEnabled = isSupabaseConfigured();
+  if (!supabaseAdminEnabled && !supabaseJwtEnabled && (!redisUrl || !redisToken || !rawRedisFetch)) {
+    return Response.json({ error: 'Redis not configured' }, { status: 500, headers: corsHeaders });
+  }
+
+  try {
+    let isValid = false;
+    if (jwtToken && supabaseJwtEnabled) {
+      const user = await verifySupabaseJwt(jwtToken).catch(() => null);
+      if (user) {
+        redisFetch = createSupabaseRedisFetch(createUserClient(jwtToken), user.id);
+        isValid = true;
+      }
+    }
+
+    if (!isValid && passphrase) {
+      const adminHash = String(env.HOMER_ADMIN_HASH || '').trim();
+      const ownerId = await resolveSupabaseOwnerId();
+      isValid = !!adminHash && String(passphrase || '').trim() === adminHash;
+      if (!isValid) isValid = await verifyJoeyPassphrase(passphrase, rawRedisFetch);
+      if (isValid) {
+        if (supabaseAdminEnabled && ownerId) redisFetch = createSupabaseRedisFetch(createAdminClient(), ownerId);
+        else redisFetch = rawRedisFetch;
+      }
+    }
+
+    if (!isValid) return Response.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders });
+    if (!redisFetch) {
+      if (!redisUrl || !redisToken || !rawRedisFetch) return Response.json({ error: 'Redis not configured' }, { status: 500, headers: corsHeaders });
+      redisFetch = rawRedisFetch;
+    }
+
+    const drive = await fetchDriveBundle(mode, gdriveWebhook, gdriveSecret);
+    if (!drive.ok) {
+      return Response.json({ error: drive.error || 'Drive reconciliation failed', redirectChain: drive.redirectChain || [], validation: drive.validation || null }, { status: drive.status || 502, headers: corsHeaders });
+    }
+
+    const driveData = asObject(drive.data);
+    const driveScope = String(driveData.driveScope || '').trim().toLowerCase();
+    const nowIso = new Date().toISOString();
+    const driveCustomFiles = driveData.customFiles || deriveCustomFiles(driveData.files);
+    const driveFiles = driveScope === 'md-only' ? asObject(driveData.files) : mergeDerivedFileContext(driveData.files, driveData.fileLibrary, driveCustomFiles, nowIso);
+
+    const [currentProfile, currentMemories, currentHistory, currentFiles, currentFileLibrary, currentCustomFiles, currentJournal, storedSyncMeta] = await Promise.all([
+      loadRedisJson(redisFetch, PROFILE_KEY, {}),
+      loadRedisJson(redisFetch, MEMORY_KEY, []),
+      loadRedisJson(redisFetch, HISTORY_KEY, []),
+      loadRedisJson(redisFetch, FILES_KEY, {}),
+      loadRedisJson(redisFetch, FILE_LIBRARY_KEY, []),
+      loadRedisJson(redisFetch, CUSTOM_FILES_KEY, {}),
+      loadRedisJson(redisFetch, JOURNAL_KEY, []),
+      loadRedisJson(redisFetch, SYNC_META_KEY, {})
+    ]);
+
+    const redisBundle = { mode, profile: currentProfile, memories: currentMemories, history: currentHistory, files: currentFiles, fileLibrary: currentFileLibrary, customFiles: currentCustomFiles, journal: currentJournal };
+    const redisMeta = computeJoeySyncMeta(redisBundle, { ...(storedSyncMeta && typeof storedSyncMeta === 'object' ? storedSyncMeta : {}), mode, updatedAt: nowIso, lastSource: 'redis' });
+    const driveMeta = computeJoeySyncMeta({
+      mode,
+      profile: driveScope === 'md-only' ? currentProfile : driveData.profile,
+      memories: driveScope === 'md-only' ? currentMemories : driveData.memories,
+      history: driveScope === 'md-only' ? currentHistory : driveData.history,
+      files: driveFiles,
+      fileLibrary: driveScope === 'md-only' ? currentFileLibrary : driveData.fileLibrary,
+      customFiles: driveCustomFiles,
+      journal: driveScope === 'md-only' ? currentJournal : (driveData.journal || [])
+    }, { ...(driveData.syncMeta && typeof driveData.syncMeta === 'object' ? driveData.syncMeta : {}), mode, updatedAt: nowIso, driveExportedAt: driveData.exportedAt || (driveData.syncMeta && driveData.syncMeta.driveExportedAt) || null, lastSource: 'google-drive' });
+
+    const mergedProfile = mergeProfile(currentProfile, driveData.profile);
+    const mergedMemories = mergeMemories(currentMemories, driveData.memories);
+    const mergedHistory = mergeHistory(currentHistory, driveData.history);
+    const mergedFileLibrary = compactFileLibraryEntries(mergeFileLibrary(currentFileLibrary, driveData.fileLibrary));
+    const mergedCustomFiles = mergeCustomFiles(currentCustomFiles, driveData.customFiles, driveFiles);
+    const mergedFiles = mergeDerivedFileContext(mergeFiles(currentFiles, driveFiles, mergedCustomFiles), mergedFileLibrary, mergedCustomFiles, nowIso);
+    const mergedJournal = mergeJournal(currentJournal, driveData.journal);
+
+    const added = {
+      memories: countAddedItems(currentMemories, mergedMemories, (item) => normalizeText(item && item.text)),
+      history: countAddedItems(currentHistory, mergedHistory, (item) => (item && item.role ? item.role + '::' + normalizeText(item.content) : '')),
+      fileLibrary: countAddedItems(currentFileLibrary, mergedFileLibrary, (item) => String((item && (item.id || item.driveUrl || item.name)) || '').trim()),
+      customFiles: Math.max(0, Object.keys(mergedCustomFiles).length - Object.keys(asObject(currentCustomFiles)).length),
+      files: Math.max(0, Object.keys(mergedFiles).length - Object.keys(asObject(currentFiles)).length),
+      journal: countAddedItems(currentJournal, mergedJournal, (item) => { if (!item) return ''; return [normalizeText(item.type), normalizeText(item.role), normalizeText(item.text), Number(item.ts || 0)].join('::'); })
+    };
+
+    const changed = !!(added.memories || added.history || added.fileLibrary || added.customFiles || added.files || added.journal || JSON.stringify(asObject(currentProfile)) !== JSON.stringify(mergedProfile));
+
+    const mergedMeta = computeJoeySyncMeta({
+      mode, profile: mergedProfile, memories: mergedMemories, history: mergedHistory, files: mergedFiles, fileLibrary: mergedFileLibrary, customFiles: mergedCustomFiles, journal: mergedJournal
+    }, {
+      ...(storedSyncMeta && typeof storedSyncMeta === 'object' ? storedSyncMeta : {}),
+      mode, updatedAt: nowIso, lastDriveReconcileAt: nowIso,
+      driveExportedAt: driveMeta.driveExportedAt || null,
+      lastSource: compareOnly ? 'gdrive-reconcile-preview' : 'gdrive-reconcile'
+    });
+    const driftBefore = buildJoeySyncDrift(redisMeta, driveMeta);
+    const driftAfter = buildJoeySyncDrift(mergedMeta, driveMeta);
+
+    if (!compareOnly) {
+      await Promise.all([
+        saveRedisJson(redisFetch, PROFILE_KEY, mergedProfile),
+        saveRedisJson(redisFetch, MEMORY_KEY, mergedMemories),
+        saveRedisJson(redisFetch, HISTORY_KEY, mergedHistory),
+        saveRedisJson(redisFetch, FILE_LIBRARY_KEY, mergedFileLibrary),
+        saveRedisJson(redisFetch, CUSTOM_FILES_KEY, mergedCustomFiles),
+        saveRedisJson(redisFetch, FILES_KEY, mergedFiles),
+        saveRedisJson(redisFetch, JOURNAL_KEY, mergedJournal),
+        saveRedisJson(redisFetch, SYNC_META_KEY, mergedMeta)
+      ]);
+    }
+
+    return Response.json({
+      ok: true, mode, compareOnly, changed, wouldChange: changed, comparedAt: Date.now(),
+      driveTimestamp: driveData.exportedAt || null,
+      syncMeta: compareOnly ? redisMeta : mergedMeta,
+      driveMeta, drift: { before: driftBefore, after: driftAfter },
+      reconciled: {
+        profile: true,
+        memories: { total: mergedMemories.length, added: added.memories },
+        history: { total: mergedHistory.length, added: added.history },
+        fileLibrary: { total: mergedFileLibrary.length, added: added.fileLibrary },
+        customFiles: { total: Object.keys(mergedCustomFiles).length, added: added.customFiles },
+        files: { total: Object.keys(mergedFiles).length, added: added.files },
+        journal: { total: mergedJournal.length, added: added.journal }
+      },
+      message: compareOnly
+        ? (changed ? 'Compared Drive with Redis. A safe merge would add missing Joey context into Redis without overwriting conflicts.' : (driftBefore.inSync ? 'Compared Drive with Redis. Redis already had the current Joey context.' : 'Compared Drive with Redis. Redis kept its current values where Drive differed.'))
+        : (changed ? 'Compared Drive with Redis and merged missing Joey context into Redis.' : (driftBefore.inSync ? 'Compared Drive with Redis. Redis already had the current Joey context.' : 'Compared Drive with Redis. Redis kept its current values where Drive differed.'))
+    }, { status: 200, headers: corsHeaders });
+  } catch (error) {
+    console.error('[gdrive-reconcile] Exception:', error.message, error.stack);
+    return Response.json({ error: 'Reconciliation failed', detail: error.message }, { status: 500, headers: corsHeaders });
+  }
+}
