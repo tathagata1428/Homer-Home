@@ -222,7 +222,7 @@ export default async function handler(req, res) {
       return {
         gatewayUrl: String(env.OC_PERSONAL_GATEWAY_URL || env.OC_GATEWAY_URL || 'http://localhost:11434').trim(),
         gatewayToken: String(env.OC_PERSONAL_GATEWAY_TOKEN || env.OC_GATEWAY_TOKEN || '').trim(),
-        primaryModel: String(env.OC_MODEL || 'kimi-k2.6:cloud').trim(),
+        primaryModel: String(env.OC_MODEL || 'kimi-k2.6:cloud').trim().replace(/^kimi-k2\.5(:cloud)?$/i, 'kimi-k2.6:cloud'),
         fallbackModel: '',
         largeContext: true
       };
