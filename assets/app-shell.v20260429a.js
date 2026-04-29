@@ -11581,8 +11581,6 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   var libraryMeta = document.getElementById('oc-library-meta');
   var mobileMenu = document.getElementById('oc-mobile-menu');
   var mobileProviderJoeyBtn = document.getElementById('oc-mobile-provider-joey');
-  var mobileProviderNemoclawBtn = document.getElementById('oc-mobile-provider-nemoclaw');
-  var mobileProviderAliCloudBtn = document.getElementById('oc-mobile-provider-alicloud');
   var mobileModePersonalBtn = document.getElementById('oc-mobile-mode-personal');
   var mobileModeWorkBtn = document.getElementById('oc-mobile-mode-work');
   var mobileEditPromptBtn = document.getElementById('oc-mobile-edit-prompt');
@@ -11943,8 +11941,6 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   var modeToggleTrack = document.getElementById('oc-mode-toggle-track');
   var providerBar = document.querySelector('.oc-provider-bar');
   var labelJoey = document.getElementById('oc-label-joey');
-  var labelNemoclaw = document.getElementById('oc-label-nemoclaw');
-  var alicloudPowerBtn = document.getElementById('oc-alicloud-power');
   var modePersonalBtn = document.getElementById('oc-mode-personal');
   var modeWorkBtn = document.getElementById('oc-mode-work');
   var modeHint = document.getElementById('oc-mode-hint');
@@ -12005,44 +12001,16 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       mobileProviderJoeyBtn.classList.toggle('active', currentProvider === 'joey');
       mobileProviderJoeyBtn.textContent = getProviderDisplayName('joey', currentContextMode);
     }
-    if(mobileProviderNemoclawBtn){
-      mobileProviderNemoclawBtn.classList.toggle('active', currentProvider === 'nemoclaw');
-      mobileProviderNemoclawBtn.textContent = getProviderDisplayName('nemoclaw', currentContextMode);
-    }
-    if(mobileProviderAliCloudBtn){
-      mobileProviderAliCloudBtn.classList.toggle('active', currentProvider === 'alicloud');
-      mobileProviderAliCloudBtn.textContent = getProviderDisplayName('alicloud', currentContextMode);
-    }
     if(mobileModePersonalBtn) mobileModePersonalBtn.classList.toggle('active', currentContextMode !== 'work');
     if(mobileModeWorkBtn) mobileModeWorkBtn.classList.toggle('active', currentContextMode === 'work');
   }
   function syncProviderUi(){
-    var isNemo = currentProvider === 'nemoclaw';
-    var isAliCloud = currentProvider === 'alicloud';
     var isWork = currentContextMode === 'work';
-    var providerLabel = getProviderDisplayName(currentProvider, currentContextMode);
-    var joeyLabel = getProviderDisplayName('joey', currentContextMode);
-    var nemoLabel = getProviderDisplayName('nemoclaw', currentContextMode);
-    if(toggleTrack) toggleTrack.classList.toggle('nemoclaw', isNemo && !isAliCloud);
     if(modeToggleTrack) modeToggleTrack.classList.toggle('work', isWork);
-    if(alicloudPowerBtn){
-      alicloudPowerBtn.classList.toggle('alicloud', isAliCloud);
-      alicloudPowerBtn.setAttribute('aria-pressed', isAliCloud ? 'true' : 'false');
-    }
-    if(providerBar) providerBar.classList.toggle('alicloud-on', isAliCloud);
-    if(toggleTrack){
-      toggleTrack.disabled = !!isAliCloud;
-      toggleTrack.setAttribute('aria-disabled', isAliCloud ? 'true' : 'false');
-    }
     if(labelJoey){
-      labelJoey.className = (isNemo || isAliCloud) ? 'oc-label-btn' : 'oc-label-btn active joey-active';
-      labelJoey.textContent = joeyLabel;
-      labelJoey.setAttribute('aria-pressed', (isNemo || isAliCloud) ? 'false' : 'true');
-    }
-    if(labelNemoclaw){
-      labelNemoclaw.className = (isNemo && !isAliCloud) ? 'oc-label-btn active nemo-active' : 'oc-label-btn';
-      labelNemoclaw.textContent = nemoLabel;
-      labelNemoclaw.setAttribute('aria-pressed', (isNemo && !isAliCloud) ? 'true' : 'false');
+      labelJoey.className = 'oc-label-btn active joey-active';
+      labelJoey.textContent = 'Joey';
+      labelJoey.setAttribute('aria-pressed', 'true');
     }
     if(modePersonalBtn){
       modePersonalBtn.className = isWork ? 'oc-label-btn' : 'oc-label-btn active mode-active';
@@ -12053,20 +12021,15 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       modeWorkBtn.setAttribute('aria-pressed', isWork ? 'true' : 'false');
     }
     if(modeHint) modeHint.textContent = 'Memory';
-    providerIcon.textContent = isAliCloud ? '\u{1F7E0}' : (isNemo ? '\u{1F7E2}' : '\u{1F355}');
-    providerName.textContent = providerLabel;
+    if(providerIcon) providerIcon.textContent = '\u{1F355}';
+    if(providerName) providerName.textContent = 'Joey';
     applyModelBadge();
     syncMobileMenuUi();
     inputEl.placeholder = 'Message ' + getAgentDisplayName() + '...';
     syncVoiceUi();
   }
   function applyProvider(p){
-    if(p === 'alicloud'){
-      if(currentProvider !== 'alicloud') localStorage.setItem('homer-oc-pre-alicloud-provider', currentProvider);
-      currentProvider = 'alicloud';
-    } else {
-      currentProvider = p === 'nemoclaw' ? 'nemoclaw' : 'joey';
-    }
+    currentProvider = 'joey';
     localStorage.setItem('homer-oc-provider', currentProvider);
     if(!normalizeModelLabel(localStorage.getItem(getModelStorageKey(currentProvider, currentContextMode)))){
       rememberModelLabel(currentProvider, currentContextMode, getProviderDefaultModel(currentProvider, currentContextMode));
@@ -12127,23 +12090,6 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     });
   });
 
-  if(toggleTrack) toggleTrack.addEventListener('click', function(e){
-    if(e){ e.preventDefault(); e.stopPropagation(); }
-    runJoeyInitStep('toggleProvider', function(){
-      applyProvider(currentProvider === 'joey' ? 'nemoclaw' : 'joey');
-    });
-  });
-  if(alicloudPowerBtn) alicloudPowerBtn.addEventListener('click', function(e){
-    if(e){ e.preventDefault(); e.stopPropagation(); }
-    runJoeyInitStep('toggleAliCloud', function(){
-      if(currentProvider === 'alicloud'){
-        var prev = localStorage.getItem('homer-oc-pre-alicloud-provider') || 'joey';
-        applyProvider(prev);
-      } else {
-        applyProvider('alicloud');
-      }
-    });
-  });
   if(modeToggleTrack) modeToggleTrack.addEventListener('click', function(e){
     if(e){
       e.preventDefault();
@@ -12156,33 +12102,18 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   if(providerBar && !providerBar.dataset.switchBound){
     providerBar.dataset.switchBound = '1';
     providerBar.addEventListener('click', function(e){
-      var target = e && e.target && e.target.closest ? e.target.closest('#oc-toggle-track, #oc-mode-toggle-track, #oc-alicloud-power') : null;
+      var target = e && e.target && e.target.closest ? e.target.closest('#oc-mode-toggle-track') : null;
       if(!target) return;
       e.preventDefault();
       e.stopPropagation();
-      if(target.id === 'oc-toggle-track'){
-        runJoeyInitStep('delegateToggleProvider', function(){ applyProvider(currentProvider === 'joey' ? 'nemoclaw' : 'joey'); });
-        return;
-      }
       if(target.id === 'oc-mode-toggle-track'){
         runJoeyInitStep('delegateToggleContextMode', function(){ applyContextMode(currentContextMode === 'work' ? 'personal' : 'work'); });
-        return;
-      }
-      if(target.id === 'oc-alicloud-power'){
-        runJoeyInitStep('delegateToggleAliCloud', function(){
-          if(currentProvider === 'alicloud'){
-            var prev = localStorage.getItem('homer-oc-pre-alicloud-provider') || 'joey';
-            applyProvider(prev);
-          } else {
-            applyProvider('alicloud');
-          }
-        });
       }
     });
   }
   window._homerSetJoeyProvider = function(provider){
     return runJoeyInitStep('externalSetProvider', function(){
-      applyProvider(provider === 'alicloud' ? 'alicloud' : (provider === 'nemoclaw' ? 'nemoclaw' : 'joey'));
+      applyProvider('joey');
       return { provider: currentProvider, mode: currentContextMode };
     });
   };
@@ -13316,18 +13247,6 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   if(mobileProviderJoeyBtn){
     mobileProviderJoeyBtn.addEventListener('click', function(){
       applyProvider('joey');
-      closeMobileMenu();
-    });
-  }
-  if(mobileProviderNemoclawBtn){
-    mobileProviderNemoclawBtn.addEventListener('click', function(){
-      applyProvider('nemoclaw');
-      closeMobileMenu();
-    });
-  }
-  if(mobileProviderAliCloudBtn){
-    mobileProviderAliCloudBtn.addEventListener('click', function(){
-      applyProvider('alicloud');
       closeMobileMenu();
     });
   }
@@ -17109,7 +17028,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
 
     var apiMessages = [];
-    chatHistory.slice(currentProvider === 'nemoclaw' ? -30 : -20).forEach(function(m){ apiMessages.push({role:m.role, content:m.content}); });
+    chatHistory.slice(-20).forEach(function(m){ apiMessages.push({role:m.role, content:m.content}); });
 
     streaming = true;
     sendBtn.disabled = true;
@@ -17126,9 +17045,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
 
     try{
       var syncPass = localStorage.getItem('homer-sync-pass') || '';
-      var apiEndpoint = currentProvider === 'nemoclaw' ? '/api/nemoclaw' : '/api/openclaw';
-      console.log('[Joey/NemoClaw] provider=' + currentProvider + ' endpoint=' + apiEndpoint);
-      var aliCloudHint = currentProvider === 'alicloud' ? 'alicloud' : undefined;
+      var apiEndpoint = '/api/openclaw';
+      console.log('[Joey] provider=' + currentProvider + ' endpoint=' + apiEndpoint);
       var streamController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
       var streamIdleTimer = null;
       var streamSawContent = false;
@@ -17158,8 +17076,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
           chatClearedAt: getChatClearedAt(currentContextMode),
           savedQuotesContent: (typeof buildSavedQuotesMarkdown === 'function' && typeof loadSaved === 'function')
             ? buildSavedQuotesMarkdown(loadSaved())
-            : '',
-          ...(aliCloudHint ? { providerHint: aliCloudHint } : {})
+            : ''
         }))
       }));
       var activeModel = res.headers.get('X-OpenClaw-Model') || '';
