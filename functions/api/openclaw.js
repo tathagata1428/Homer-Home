@@ -21,7 +21,7 @@ function extractGeminiText(payload) {
   const candidates = Array.isArray(payload && payload.candidates) ? payload.candidates : [];
   for (const candidate of candidates) {
     const parts = Array.isArray(candidate && candidate.content && candidate.content.parts) ? candidate.content.parts : [];
-    const text = parts.map((part) => (part && typeof part.text === 'string' ? part.text : '')).filter(Boolean).join('\n').trim();
+    const text = parts.map((p) => (p && typeof p.text === 'string' ? p.text : '')).filter(Boolean).join('\n').trim();
     if (text) return cleanTranscript(text);
   }
   return '';
@@ -177,27 +177,13 @@ export async function onRequest(context) {
 
   const { req, res, getResponse } = await createVercelAdapter(request);
   await handleJoeyGatewayRequest(req, res, {
-    getProviderConfig({ mode, env: e, providerHint }) {
-      if (providerHint === 'alicloud') {
-        const primaryModel = String(e.OC_ALICLOUD_MODEL || 'mimo-v2-flash').trim();
-        return {
-          gatewayUrl: String(e.OC_ALICLOUD_GATEWAY_URL || 'https://api.xiaomimimo.com/v1').trim(),
-          gatewayToken: String(e.OC_ALICLOUD_GATEWAY_TOKEN || e.OC_ALICLOUD_TOKEN || '').trim(),
-          primaryModel,
-          fallbackModel: '',
-          largeContext: true
-        };
-      }
-      const isWork = mode === 'work';
-      const primaryModel = String(isWork ? (e.OC_WORK_MODEL || 'minimax-m2.7:cloud') : (e.OC_PERSONAL_MODEL || e.OC_MODEL || e.KIMI_MODEL || 'xiaomi/mimo-v2-pro:free')).trim();
-      const fallbackModel = String(e.OC_FALLBACK_MODEL || '').trim();
-      const isLargeCtx = /minimax-m2\.7:cloud/i.test(primaryModel) || /kimi(?:-k)?2?\.?5/i.test(primaryModel);
+    getProviderConfig({ env: e }) {
       return {
-        gatewayUrl: String(isWork ? (e.OC_WORK_GATEWAY_URL || e.OC_GATEWAY_URL || 'https://api.kilo.ai/api/gateway') : (e.OC_PERSONAL_GATEWAY_URL || e.OC_GATEWAY_URL || e.NEMOCLAW_GATEWAY_URL || 'http://localhost:11434')).trim(),
-        gatewayToken: String(isWork ? (e.OC_WORK_GATEWAY_TOKEN || e.OC_GATEWAY_TOKEN || '') : (e.OC_PERSONAL_GATEWAY_TOKEN || e.OC_GATEWAY_TOKEN || e.NEMOCLAW_GATEWAY_TOKEN || '')).trim(),
-        primaryModel,
-        fallbackModel,
-        largeContext: isLargeCtx
+        gatewayUrl: String(e.OC_PERSONAL_GATEWAY_URL || e.OC_GATEWAY_URL || 'http://localhost:11434').trim(),
+        gatewayToken: String(e.OC_PERSONAL_GATEWAY_TOKEN || e.OC_GATEWAY_TOKEN || '').trim(),
+        primaryModel: String(e.OC_MODEL || 'kimi-k2.6:cloud').trim(),
+        fallbackModel: '',
+        largeContext: true
       };
     },
     buildSystemParts: buildOpenClawSystemParts,
@@ -205,15 +191,12 @@ export async function onRequest(context) {
       return forceFullContext ? (largeContext ? 72 : 24) : (largeContext ? 48 : 12);
     },
     buildUpstreamBody({ modelName, finalMessages }) {
-      const isKimi = /kimi(?:-k)?2?\.?5/i.test(modelName);
-      const isMiniMax = /minimax-m2\.7:cloud/i.test(modelName);
-      const isQwen = /qwen/i.test(modelName);
       return {
         model: modelName,
         messages: finalMessages,
         stream: true,
-        max_tokens: isKimi ? 8000 : isMiniMax ? 4600 : isQwen ? 6000 : 1800,
-        temperature: isMiniMax ? 0.2 : isQwen ? 0.1 : 0.15
+        max_tokens: 8000,
+        temperature: 0.15
       };
     },
     gatewayErrorMessage: 'Cannot reach gateway'
