@@ -1,0 +1,7 @@
+{
+  "name": "wrangler",
+  "version": "99.0.0",
+  "bin": {
+    "wrangler": "./index.js"
+  }
+}
