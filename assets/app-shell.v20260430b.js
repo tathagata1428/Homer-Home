@@ -8941,6 +8941,20 @@ let tvWidgetCreated = false;
   var R2_WORKER_URL = 'https://homer-attachments.it-network-drive.workers.dev';
   var DB_BACKUP_URL = '/api/sync';
   var SYNC_PASS_KEY = 'homer-sync-pass';
+  // Local helper — withSupabaseAuth lives in a later IIFE, so resolve JWT lazily via window globals
+  function addJoeyAuth(options){
+    var src = options && typeof options === 'object' ? options : {};
+    var next = Object.assign({}, src);
+    try {
+      var authVal = typeof window.supabaseAuthHeader === 'function' ? window.supabaseAuthHeader() : '';
+      if(!authVal && window.__sbSession && window.__sbSession.access_token) authVal = 'Bearer ' + window.__sbSession.access_token;
+      if(authVal){
+        next.headers = Object.assign({}, src.headers || {});
+        if(!next.headers.Authorization) next.headers.Authorization = authVal;
+      }
+    } catch(_e){}
+    return next;
+  }
   var SYNC_AUTO_KEY = 'homer-sync-auto';
   window._homerSyncPassKey = SYNC_PASS_KEY;
   var setVaultMirrorStatus = window._homerSetVaultMirrorStatus || function(){};
@@ -9932,7 +9946,7 @@ let tvWidgetCreated = false;
   function collectJoeyBundles(passphrase){
     if(!passphrase) return Promise.resolve({ bundles:{}, errors:['Missing passphrase'] });
     return Promise.all(JOEY_BUNDLE_MODES.map(function(mode){
-      return fetchJson(buildJoeyActionUrl('bundle', passphrase, mode), withSupabaseAuth({ cache:'no-store' }))
+      return fetchJson(buildJoeyActionUrl('bundle', passphrase, mode), addJoeyAuth({ cache:'no-store' }))
         .then(function(data){ return { mode:mode, bundle:data.bundle || null }; })
         .catch(function(err){ return { mode:mode, error:err && err.message ? err.message : String(err) }; });
     })).then(function(results){
@@ -9952,7 +9966,7 @@ let tvWidgetCreated = false;
     var modes = Object.keys(bundles || {});
     if(!passphrase || !modes.length) return Promise.resolve({ ok:true, restored:[] });
     return Promise.all(modes.map(function(mode){
-      return fetchJson(buildJoeyActionUrl('bundle', '', mode), withSupabaseAuth({
+      return fetchJson(buildJoeyActionUrl('bundle', '', mode), addJoeyAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ passphrase:passphrase, mode:mode, bundle:bundles[mode] })
@@ -10031,7 +10045,7 @@ let tvWidgetCreated = false;
   }
   function restoreDriveBundles(passphrase){
     return Promise.all(JOEY_BUNDLE_MODES.map(function(mode){
-      return fetchJson('/api/gdrive-restore', withSupabaseAuth({
+      return fetchJson('/api/gdrive-restore', addJoeyAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ passphrase:passphrase, mode:mode })
@@ -10487,7 +10501,7 @@ let tvWidgetCreated = false;
       var snapshot = Object.assign({}, allData || {});
       var manifest = buildBackupManifest(snapshot, IDB_KEYS.filter(function(key){ return snapshot[key] != null; }));
       snapshot[BACKUP_MANIFEST_KEY] = JSON.stringify(manifest);
-      return fetchJson('/api/gdrive-backup', withSupabaseAuth({
+      return fetchJson('/api/gdrive-backup', addJoeyAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
