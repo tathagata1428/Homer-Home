@@ -9944,7 +9944,7 @@ let tvWidgetCreated = false;
     return parts.join(' | ');
   }
   function collectJoeyBundles(passphrase){
-    if(!passphrase) return Promise.resolve({ bundles:{}, errors:['Missing passphrase'] });
+    if(!passphrase && !getSyncJwt()) return Promise.resolve({ bundles:{}, errors:['Missing passphrase'] });
     return Promise.all(JOEY_BUNDLE_MODES.map(function(mode){
       return fetchJson(buildJoeyActionUrl('bundle', passphrase, mode), addJoeyAuth({ cache:'no-store' }))
         .then(function(data){ return { mode:mode, bundle:data.bundle || null }; })
@@ -10780,7 +10780,11 @@ let tvWidgetCreated = false;
 
   function loadVersions(){
     var p = getActiveSyncPass();
-    if(!p) return;
+    if(!p){
+      versionsDiv.style.display = 'block';
+      versionsList.innerHTML = '<div style="font-size:.75rem;color:var(--muted);padding:6px 0;">Backup history requires a sync passphrase. Signed-in users can restore from Drive or Redis instead.</div>';
+      return;
+    }
     versionsDiv.style.display = 'block';
     fetchJson(R2_WORKER_URL + '/versions', { headers:{'X-Sync-Key':p}, cache:'no-store' })
       .then(function(d){
@@ -10859,7 +10863,7 @@ let tvWidgetCreated = false;
   if(restoreDbBtn){
     restoreDbBtn.addEventListener('click', function(){
       var p = getActiveSyncPass();
-      if(!p){ st('Shared restore is available only for Bogdan after unlocking the vault.'); return; }
+      if(!p && !getSyncJwt()){ st('Shared restore is available only for Bogdan after unlocking the vault.'); return; }
       st('Recovering full vault from server mirror...');
       restoreDbMirror(p).then(function(result){
         st('Recovered full vault from server mirror (' + (result.applied + result.cleared) + ' changes). Reloading...');
@@ -10872,7 +10876,7 @@ let tvWidgetCreated = false;
   if(restoreRedisBtn){
     restoreRedisBtn.addEventListener('click', function(){
       var p = getActiveSyncPass();
-      if(!p){ st('Shared restore is available only for Bogdan after unlocking the vault.'); return; }
+      if(!p && !getSyncJwt()){ st('Shared restore is available only for Bogdan after unlocking the vault.'); return; }
       st('Recovering Joey memory from Redis...');
       restoreRedisBundles(p).then(function(result){
         st('Joey memory recovered from Redis: ' + (result.summary || 'context recovered') + '. Reloading...');
@@ -10885,7 +10889,7 @@ let tvWidgetCreated = false;
   if(restoreDriveBtn){
     restoreDriveBtn.addEventListener('click', function(){
       var p = getActiveSyncPass();
-      if(!p){ st('Shared restore is available only for Bogdan after unlocking the vault.'); return; }
+      if(!p && !getSyncJwt()){ st('Shared restore is available only for Bogdan after unlocking the vault.'); return; }
       st('Recovering Joey context from Google Drive...');
       restoreDriveBundles(p).then(function(result){
         st('Google Drive recovery complete for ' + (result.driveModes || []).join(', ') + '. Reloading...');
