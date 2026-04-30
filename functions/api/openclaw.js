@@ -181,7 +181,7 @@ export async function onRequest(context) {
       return {
         gatewayUrl: String(e.OC_PERSONAL_GATEWAY_URL || e.OC_GATEWAY_URL || 'http://localhost:11434').trim(),
         gatewayToken: String(e.OC_PERSONAL_GATEWAY_TOKEN || e.OC_GATEWAY_TOKEN || '').trim(),
-        primaryModel: String(e.OC_MODEL || 'gemma4:e2b').trim().replace(/^kimi-k2\.5(:cloud)?$/i, 'kimi-k2.6:cloud'),
+        primaryModel: String(e.OC_MODEL || 'nemotron-3-super:cloud').trim().replace(/^kimi-k2\.5(:cloud)?$/i, 'kimi-k2.6:cloud'),
         fallbackModel: '',
         largeContext: true
       };
