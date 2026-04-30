@@ -5,6 +5,7 @@
  * GET  /api/auth?action=user
  */
 import { createUserClient, isSupabaseClientConfigured, verifySupabaseJwt } from '../../lib/supabase-server.js';
+import { isReservedSyncHash } from '../../lib/joey-server.js';
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -103,6 +104,19 @@ export async function onRequest(context) {
       });
       if (error) return Response.json({ error: error.message }, { status: 400, headers: CORS });
       return Response.json({ ok: true }, { status: 200, headers: CORS });
+    }
+
+    // ── verifyHash — reserved hash check (no Supabase user needed) ──────────
+    if (action === 'verifyHash') {
+      const { hash } = body;
+      if (!hash || typeof hash !== 'string') {
+        return Response.json({ error: 'Missing hash' }, { status: 400, headers: CORS });
+      }
+      const adminHash = String(env.HOMER_ADMIN_HASH || '').trim();
+      if ((adminHash && hash.trim() === adminHash) || isReservedSyncHash(hash.trim())) {
+        return Response.json({ ok: true }, { status: 200, headers: CORS });
+      }
+      return Response.json({ error: 'Invalid credentials' }, { status: 401, headers: CORS });
     }
 
     return Response.json({ error: 'Unknown action' }, { status: 400, headers: CORS });
