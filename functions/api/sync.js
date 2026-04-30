@@ -444,6 +444,33 @@ export async function onRequest(context) {
     }
   }
 
+  // ── Admin-hash passphrase → Supabase field sync (no Redis needed) ─────
+  if (!supabaseUser && isSupabaseConfigured() && reservedKey) {
+    const adminHash = String(process.env.HOMER_ADMIN_HASH || '').trim();
+    if (adminHash && reservedKey === adminHash) {
+      try {
+        const adminOwnerId = await resolveSupabaseOwnerId();
+        if (adminOwnerId) {
+          if (request.method === 'GET') {
+            const adminAction = searchParams.get('action') || 'latest';
+            if (adminAction === 'field-state') return addCors(await sbFieldState(adminOwnerId), corsHeaders);
+            if (adminAction === 'field-ops') {
+              const since = parseInt(searchParams.get('since') || '0', 10) || 0;
+              return addCors(await sbFieldOps(adminOwnerId, since), corsHeaders);
+            }
+            if (adminAction === 'status') return addCors(Response.json({ ok: true, exists: true, ts: Date.now(), fieldVersion: Date.now() }), corsHeaders);
+          }
+          if (request.method === 'POST') {
+            const adminPostAction = (maybeBody && maybeBody.action) || searchParams.get('action') || '';
+            if (adminPostAction === 'field-op') return addCors(await sbApplyFieldOps(adminOwnerId, maybeBody || {}), corsHeaders);
+          }
+        }
+      } catch (adminErr) {
+        return addCors(Response.json({ error: adminErr.message || 'Supabase error' }, { status: 500 }), corsHeaders);
+      }
+    }
+  }
+
   // ── Redis fallback ─────────────────────────────────────────────────────
   const REDIS_URL = env.KV_REST_API_URL || env.UPSTASH_REDIS_REST_URL;
   const REDIS_TOKEN = env.KV_REST_API_TOKEN || env.UPSTASH_REDIS_REST_TOKEN;

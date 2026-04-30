@@ -10478,7 +10478,7 @@ let tvWidgetCreated = false;
 
   window._homerScheduleDbBackup = scheduleDbBackup;
   window._homerBackupEverythingToDb = function(){
-    return Promise.resolve({ ok:true, skipped:true });
+    return backup(true);
   };
   function backupEmergencySnapshotToDrive(passphrase){
     return getAll().then(function(allData){
