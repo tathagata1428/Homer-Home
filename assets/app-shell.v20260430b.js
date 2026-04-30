@@ -10185,7 +10185,7 @@ let tvWidgetCreated = false;
       if(k === 'homer-vault-data' && window._vaultCloudData){
         return window._vaultCloudData().then(function(v){
           if(v!==null){ d[k]=v; syncedIdbKeys.push(k); }
-        });
+        }).catch(function(){});
       }
       return syncIdbGet(k).then(function(v){
         if(v!==null){ d[k]=v; syncedIdbKeys.push(k); }
