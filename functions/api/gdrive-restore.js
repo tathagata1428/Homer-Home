@@ -56,7 +56,9 @@ export async function onRequest(context) {
   try { body = await request.json(); } catch (e) { body = {}; }
 
   const { passphrase } = body || {};
-  const mode = getJoeyMode(request);
+  // getJoeyMode reads req.body — for CF Pages the body stream is already consumed,
+  // so pass a synthetic req with the pre-parsed body to get the correct mode.
+  const mode = getJoeyMode({ method: request.method, body: body || {} });
   const { MEMORY_KEY, PROFILE_KEY, HISTORY_KEY, FILES_KEY, FILE_LIBRARY_KEY, CUSTOM_FILES_KEY, JOURNAL_KEY, SYNC_META_KEY } = getJoeyContextKeys(mode);
 
   const { webhook: gdriveWebhook, secret: gdriveSecret } = getGoogleDriveConfig();

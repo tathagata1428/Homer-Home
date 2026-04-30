@@ -115,7 +115,13 @@ export async function onRequest(context) {
 
   if (!redis) return Response.json({ error: 'Data store unavailable' }, { status: 500, headers: corsHeaders });
 
-  const mode = getJoeyMode(request);
+  // getJoeyMode reads req.body/req.query — for CF Pages those aren't the parsed values,
+  // so pass a synthetic req with the pre-parsed body and search params.
+  const mode = getJoeyMode({
+    method: request.method,
+    body: body || {},
+    query: Object.fromEntries(searchParams)
+  });
   const { MEMORY_KEY, HISTORY_KEY, PROFILE_KEY, FILES_KEY, FILE_LIBRARY_KEY, CUSTOM_FILES_KEY, JOURNAL_KEY, SYNC_META_KEY } = getJoeyContextKeys(mode);
   const MAX_MEMORIES = 320;
   const MAX_HISTORY = 100;
