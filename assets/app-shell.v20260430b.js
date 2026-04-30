@@ -10469,6 +10469,8 @@ let tvWidgetCreated = false;
           dirty = false;
           conflictBackoffUntil = 0;
           updateLocalBackupMarkers(allData, d.ts || Date.now(), 'cloud');
+          // Refresh version history list if it's currently open
+          if(versionsList && versionsList.style.display !== 'none') loadVersions();
           var msg = 'Synced ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
           if(d.skipped) msg += ' (no changes)';
           else if(d.versionCount) msg += ' (v' + d.versionCount + ')';
