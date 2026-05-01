@@ -52,6 +52,14 @@ export async function onRequest(context) {
     return Response.json({ error: 'Method not allowed' }, { status: 405, headers: corsHeaders });
   }
 
+  // Top-level safety net: any unhandled throw returns JSON instead of CF HTML 502
+  try { return await _onRequest(context, corsHeaders); }
+  catch (e) { return Response.json({ error: 'Unhandled server error', detail: String(e && e.message || e) }, { status: 500, headers: corsHeaders }); }
+}
+
+async function _onRequest(context, corsHeaders) {
+  const { request, env } = context;
+
   let body;
   try { body = await request.json(); } catch (e) { body = {}; }
 
