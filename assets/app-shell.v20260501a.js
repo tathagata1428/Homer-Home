@@ -13665,7 +13665,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     btn.disabled = true;
     btn.textContent = '⏳ Backing up...';
     Promise.resolve(primeJoeyRedisForBackup('manual-backup', { keepalive:false })).catch(function(){ return null; }).then(function(){
-      return fetchJson('/api/gdrive-backup', withSupabaseAuth({
+      return window._homerFetchJson('/api/gdrive-backup', withSupabaseAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(withContextMode({ passphrase: pass, redisOnly:true }))
@@ -13703,7 +13703,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!confirm('Restore ' + currentContextMode + ' context from Google Drive? This will overwrite current memories for this mode.')) return;
     btn.disabled = true;
     btn.textContent = '⏳ Restoring...';
-    fetchJson('/api/gdrive-restore', withSupabaseAuth({
+    window._homerFetchJson('/api/gdrive-restore', withSupabaseAuth({
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(withContextMode({ passphrase: pass }))
@@ -13718,7 +13718,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
         if(libraryPanel && libraryPanel.classList.contains('open')) fetchFileLibrary({ silent:true });
         scheduleJoeySyncStatusRefresh(250);
         // Also restore vault snapshot (kanban board + all vault data)
-        Promise.resolve(fetchJson('/api/gdrive-restore', withSupabaseAuth({
+        Promise.resolve(window._homerFetchJson('/api/gdrive-restore', withSupabaseAuth({
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify(withContextMode({ passphrase: pass, kind: 'vault-snapshot' }))
         })).then(function(vd){
@@ -13995,7 +13995,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
     joeyDriveBackupInFlight = true;
     return Promise.resolve(primeJoeyRedisForBackup(reason || 'auto-backup', { keepalive:false })).catch(function(){ return null; }).then(function(){
-      return fetchJson('/api/gdrive-backup', withSupabaseAuth({
+      return window._homerFetchJson('/api/gdrive-backup', withSupabaseAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(withContextMode({ passphrase: pass, redisOnly:true }))
@@ -14452,7 +14452,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!pass) return Promise.reject('No passphrase');
 
     console.log('[Joey] Reconciling context from Google Drive...');
-    return fetchJson('/api/gdrive-reconcile', withSupabaseAuth({
+    return window._homerFetchJson('/api/gdrive-reconcile', withSupabaseAuth({
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(withContextMode({ passphrase: pass }))
