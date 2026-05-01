@@ -196,34 +196,38 @@
             </div>
 
             <div class="meta-row">
-              <div>Pomodoros: <strong id="pom-count">0</strong></div>
+              <div>Pomodoros: <strong id="pom-count">0</strong> <span id="pom-today" class="muted small"></span></div>
               <div>Cycle: <strong id="pom-cycle">1</strong>/4</div>
               <div><label><input type="checkbox" id="pom-notify"> Notifications</label></div>
-              <div><label><input type="checkbox" id="pom-voice" checked> Voice lines ("D'oh!", "Woo-ho!")</label></div>
-              <div><label><input type="checkbox" id="pom-sfx" checked> Synth beeps</label></div>
+              <div><label><input type="checkbox" id="pom-auto"> Auto-start phases</label></div>
+              <div><label><input type="checkbox" id="pom-voice" checked> Homer voice</label></div>
+              <div><label><input type="checkbox" id="pom-sfx" checked> SFX beeps</label></div>
             </div>
           </div>
         </div>
 
         <div class="pom-side">
           <div class="card tasks">
-            <h2 class="section">Tasks</h2>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <h2 class="section" style="margin:0">Tasks</h2>
+              <button id="task-clear-done" class="btn ghost" style="font-size:.8rem;padding:4px 10px">Clear done</button>
+            </div>
             <div class="task-row">
-              <input id="task-input" type="text" placeholder="Add a task...">
+              <input id="task-input" type="text" placeholder="Add a task for this session...">
               <button id="task-add" class="btn">Add</button>
             </div>
             <ul id="task-list"></ul>
-            <div class="small" style="margin-top:8px">Tip: plan one task per focus session.</div>
           </div>
 
           <div class="card" style="margin-top:18px">
-            <h2 class="section">Hints</h2>
-            <div class="muted" style="font-size:.95rem">
-              &bull; 25/5 is classic: 25 min focus -> 5 min short break; every 4th break is long.<br>
-              &bull; Write a tiny task for each focus block to stay laser-focused.<br>
-              &bull; Enable notifications to get alerted on phase changes.<br>
-              &bull; Use "Skip Phase" if you finish early or need to switch.<br>
-             <strong>Bonus:</strong> Keep everything in a single "today's goal" list so you're always working toward a tangible outcome. Happy ticking!
+            <h2 class="section">Tips</h2>
+            <div class="muted" style="font-size:.93rem;line-height:1.7">
+              &bull; <strong>25/5</strong> is classic — 25 min focus, 5 min short break, long break every 4th cycle.<br>
+              &bull; Add <strong>one task per focus block</strong> before you start — it keeps you locked in.<br>
+              &bull; Enable <strong>Notifications</strong> to get alerted when a phase ends.<br>
+              &bull; Enable <strong>Auto-start phases</strong> so breaks and focus sessions begin automatically.<br>
+              &bull; Press <strong>Space</strong> to start / pause while on this tab.<br>
+              &bull; <strong>Reset</strong> restores defaults (25/5/15) and clears the count.
             </div>
           </div>
         </div>
@@ -1485,7 +1489,7 @@
   </div>
 </div>
 
-    <script src="/assets/app-shell.v20260501d.js?v=20260501d"></script>
+    <script src="/assets/app-shell.v20260501e.js?v=20260501e"></script>
 
 <!-- ── Supabase client (loaded after app bundle so window globals are ready) ── -->
 <script src="/api/config?format=js"></script>
