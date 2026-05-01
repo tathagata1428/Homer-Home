@@ -59,6 +59,7 @@ export async function onRequest(context) {
 
 async function _onRequest(context, corsHeaders) {
   const { request, env } = context;
+  console.log('[gdrive-restore] _onRequest started', request.method, request.url);
 
   let body;
   try { body = await request.json(); } catch (e) { body = {}; }
@@ -111,7 +112,7 @@ async function _onRequest(context, corsHeaders) {
     const requestKind = String((body || {}).kind || '').trim().toLowerCase();
     if (requestKind === 'vault-snapshot') {
       const vaultUrl = gdriveWebhook + '?action=restore-vault&secret=' + encodeURIComponent(gdriveSecret);
-      const vaultResponse = await fetchWithRedirects(vaultUrl, { method: 'GET' });
+      const vaultResponse = await fetchWithRedirects(vaultUrl, { method: 'GET', timeoutMs: 25000 });
       if (!vaultResponse.text) {
         return Response.json({ error: vaultResponse.error || 'No response from Drive' }, { status: vaultResponse.status || 502, headers: corsHeaders });
       }
@@ -129,7 +130,7 @@ async function _onRequest(context, corsHeaders) {
     }
 
     const restoreUrl = gdriveWebhook + '?action=restore&secret=' + encodeURIComponent(gdriveSecret) + '&mode=' + encodeURIComponent(mode);
-    const response = await fetchWithRedirects(restoreUrl, { method: 'GET' });
+    const response = await fetchWithRedirects(restoreUrl, { method: 'GET', timeoutMs: 25000 });
     const redirectChain = response.redirectChain || [];
 
     if (!response.text) {
