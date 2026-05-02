@@ -258,7 +258,7 @@ export async function onRequest(context) {
 
   const mode = getJoeyMode(request);
   const { MEMORY_KEY, PROFILE_KEY, HISTORY_KEY, FILES_KEY, FILE_LIBRARY_KEY, CUSTOM_FILES_KEY, JOURNAL_KEY, SYNC_META_KEY } = getJoeyContextKeys(mode);
-  const { webhook: gdriveWebhook, secret: gdriveSecret } = getGoogleDriveConfig();
+  const { webhook: gdriveWebhook, secret: gdriveSecret } = getGoogleDriveConfig(env);
   if (!gdriveWebhook) return Response.json({ error: 'GDRIVE_WEBHOOK_URL not configured' }, { status: 500, headers: corsHeaders });
   if (!gdriveSecret) return Response.json({ error: 'GDRIVE_SECRET not configured' }, { status: 500, headers: corsHeaders });
 
