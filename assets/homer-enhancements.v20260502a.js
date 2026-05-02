@@ -1,5 +1,5 @@
 /* ====================================================================
- * Homer Enhancements  v20260502a  (rev 4)
+ * Homer Enhancements  v20260502a  (rev 5)
  *
  *  UI / Navigation
  *   1.  Command Palette        — Ctrl+K
@@ -7,9 +7,9 @@
  *   3.  Tab Hotkeys            — Alt+1-8
  *   4.  Smooth Tab Transitions — CSS fade
  *   5.  Mobile Bottom Sheet    — swipe-up + drag-to-dismiss
- *   6.  FAB Tray               — bottom-center pill; Capture + Focus
- *                                always visible, others behind a tray
- *   7.  Remove Floating Widgets — hides floating clock + weather
+ *   6.  Sidebar Tools          — Capture / Pomodoro / Inbox injected
+ *                                into sidebar as action items with badge
+ *   7.  Remove Floating Widgets — clock, weather widget, theme toggle
  *
  *  Productivity
  *   8.  Pomodoro Title         — live countdown in browser tab
@@ -39,10 +39,10 @@
     else document.addEventListener('DOMContentLoaded', fn);
   }
   function esc(s) {
-    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
   function toast(msg, type, dur) {
-    if (typeof window._homerToast === 'function') { window._homerToast({ message:msg, type:type||'info', duration:dur||3500 }); return; }
+    if (typeof window._homerToast === 'function') { window._homerToast({message:msg,type:type||'info',duration:dur||3500}); return; }
     var el=document.createElement('div');
     el.style.cssText='position:fixed;bottom:80px;right:20px;z-index:99999;background:#1e293b;border:1px solid rgba(255,255,255,.15);color:#e5e7eb;padding:12px 16px;border-radius:12px;font-size:.88rem;font-weight:600;box-shadow:0 8px 32px rgba(0,0,0,.4);cursor:pointer;max-width:320px;';
     el.textContent=msg;
@@ -50,30 +50,56 @@
     document.body.appendChild(el);
     setTimeout(function(){el.parentNode&&el.parentNode.removeChild(el);},dur||3500);
   }
-  function clickEl(id){ var el=document.getElementById(id); if(el) el.click(); }
-  function waitForEl(sel, cb, limit) {
-    var el = sel.startsWith('#') ? document.getElementById(sel.slice(1)) : document.querySelector(sel);
-    if (el) { cb(el); return; }
-    var tries=0, max=limit||40, iv=setInterval(function(){
-      el = sel.startsWith('#') ? document.getElementById(sel.slice(1)) : document.querySelector(sel);
-      if (el || ++tries >= max) { clearInterval(iv); if (el) cb(el); }
-    }, 400);
+  function clickEl(id){var el=document.getElementById(id);if(el)el.click();}
+  function waitForEl(id, cb, limit) {
+    var el=document.getElementById(id);
+    if(el){cb(el);return;}
+    var tries=0,max=limit||50,iv=setInterval(function(){
+      el=document.getElementById(id);
+      if(el||++tries>=max){clearInterval(iv);if(el)cb(el);}
+    },300);
   }
   function switchTab(name){
     var btn=document.querySelector('.sb-item[data-tab="'+name+'"]')||document.querySelector('.tab-btn[data-tab="'+name+'"]');
-    if(btn) btn.click();
+    if(btn)btn.click();
   }
-  function safeJson(s,fb){ try{return s?JSON.parse(s):fb;}catch(_){return fb;} }
-
+  function safeJson(s,fb){try{return s?JSON.parse(s):fb;}catch(_){return fb;}}
   function isBogdan(){
     var u=localStorage.getItem('homer-auth-user');
-    if(u&&u.toLowerCase()==='bogdan') return true;
+    if(u&&u.toLowerCase()==='bogdan')return true;
     var sess=window.__sbSession;
     return !!(sess&&sess.user&&(sess.user.email||'').toLowerCase().includes('bogdan'));
   }
 
   /* ── CSS ───────────────────────────────────────────────────────────── */
   var CSS=[
+    /* Force dark theme always — kill light theme and theme toggle */
+    'body.theme-light{--bg:#0f172a!important;--text:#e5e7eb!important;--muted:#94a3b8!important;--card-a:rgba(255,255,255,.04)!important;--card-b:rgba(255,255,255,.02)!important;background:#0f172a!important;color:#e5e7eb!important;}',
+    '#homer-theme-btn{display:none!important;}',
+
+    /* Hide original floating FABs on desktop (sidebar has them now) */
+    '@media(min-width:901px){',
+    '#homer-capture-btn,#homer-pomo-fab,#homer-habits-fab,#homer-expense-fab,#homer-brief-fab,#homer-memory-fab{display:none!important;}',
+    '#he-fab-tray{display:none!important;}',
+    '}',
+
+    /* Sidebar tool section */
+    '#he-sb-tools{border-top:1px solid rgba(255,255,255,.06);margin-top:8px;padding-top:4px;}',
+    '.he-sb-action{position:relative;}',
+    '.he-sb-capture{color:#60a5fa!important;}',
+    '.he-sb-capture:hover{background:rgba(96,165,250,.1)!important;}',
+    '.he-sb-pomo{color:#f87171!important;}',
+    '.he-sb-pomo:hover{background:rgba(239,68,68,.09)!important;}',
+    '.he-sb-inbox{color:#a78bfa!important;}',
+    '.he-sb-inbox:hover{background:rgba(167,139,250,.09)!important;}',
+    /* Inbox count badge */
+    '.he-sb-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;border-radius:9px;background:#a78bfa;color:#fff;font-size:.6rem;font-weight:800;padding:0 4px;margin-left:auto;line-height:1;flex-shrink:0;}',
+    '#desktop-sidebar.collapsed .he-sb-badge{display:none;}',
+    /* Running dot on pomo when active */
+    '.he-pomo-dot{width:7px;height:7px;border-radius:50%;background:#ef4444;margin-left:auto;flex-shrink:0;animation:he-pomo-pulse 1.2s ease-in-out infinite;}',
+    '@keyframes he-pomo-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}',
+    '#desktop-sidebar.collapsed .he-pomo-dot{margin:0;}',
+
     /* Command Palette */
     '#he-cmd-overlay{position:fixed;inset:0;z-index:999998;background:rgba(0,0,0,.65);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding-top:14vh;opacity:0;pointer-events:none;transition:opacity .15s}',
     '#he-cmd-overlay.open{opacity:1;pointer-events:all}',
@@ -109,6 +135,9 @@
     '.he-sheet-handle{width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.18);margin:10px auto 6px;cursor:grab;flex-shrink:0}',
     '@media(max-width:640px){.he-bs{position:fixed!important;left:0!important;right:0!important;bottom:0!important;top:auto!important;width:100%!important;max-width:100%!important;max-height:82vh!important;border-radius:20px 20px 0 0!important;border-left:none!important;border-right:none!important;transform:translateY(110%)!important;transition:transform .32s cubic-bezier(.4,0,.2,1)!important;}.he-bs.open{transform:translateY(0)!important;}}',
 
+    /* On mobile keep the capture + pomo FABs visible (no sidebar) */
+    '@media(max-width:900px){#homer-capture-btn,#homer-pomo-fab{display:flex!important;}}',
+
     /* Links live search */
     '#he-links-search-wrap{margin-bottom:16px}',
     '#he-links-search{width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-size:.9rem;font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .2s}',
@@ -125,7 +154,7 @@
     '.he-bar-val{width:66px;font-size:.7rem;color:#94a3b8;font-weight:700;text-align:right;white-space:nowrap;flex-shrink:0}',
 
     /* Supabase sync badge */
-    '#he-sync-badge{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);z-index:9988;font-size:.68rem;font-weight:700;color:#64748b;background:rgba(15,23,42,.85);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:3px 10px;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap}',
+    '#he-sync-badge{position:fixed;bottom:16px;right:16px;z-index:9988;font-size:.68rem;font-weight:700;color:#64748b;background:rgba(15,23,42,.85);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:3px 10px;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap}',
     '#he-sync-badge.visible{opacity:1}',
     '#he-sync-badge.syncing{color:#60a5fa}',
     '#he-sync-badge.synced{color:#34d399}',
@@ -166,8 +195,6 @@
     '.he-ledger-del{background:none;border:none;color:#475569;cursor:pointer;font-size:.85rem;padding:4px;border-radius:6px;transition:color .15s}',
     '.he-ledger-del:hover{color:#f87171}',
     '.he-ledger-empty{text-align:center;color:#475569;padding:40px;font-size:.9rem}',
-
-    /* Inbox section inside ledger */
     '#he-ledger-inbox{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px}',
     '#he-ledger-inbox h3{margin:0 0 12px;font-size:.78rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.08em}',
     '.he-inbox-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.84rem;color:#cbd5e1}',
@@ -178,7 +205,7 @@
     '.he-inbox-empty{color:#475569;font-size:.84rem;padding:8px 0}',
 
     /* Session log badge */
-    '#he-session-log{position:fixed;bottom:72px;left:16px;z-index:9990;background:rgba(15,23,42,.9);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:6px 12px;font-size:.72rem;color:#94a3b8;font-weight:700;opacity:0;pointer-events:none;transition:opacity .3s;white-space:nowrap}',
+    '#he-session-log{position:fixed;bottom:16px;left:16px;z-index:9990;background:rgba(15,23,42,.9);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:6px 12px;font-size:.72rem;color:#94a3b8;font-weight:700;opacity:0;pointer-events:none;transition:opacity .3s;white-space:nowrap}',
     '#he-session-log.visible{opacity:1}',
 
     /* Inbox action buttons */
@@ -194,16 +221,17 @@
     '.he-iab-expense:hover{background:rgba(251,191,36,.18);}',
     '.he-iab-btn:disabled{opacity:.4;pointer-events:none;}',
 
-    /* Inline weather forecast toggle */
-    '#he-wx-toggle-btn{margin-top:10px;background:none;border:1px solid rgba(96,165,250,.25);color:#60a5fa;font-size:.72rem;font-weight:700;padding:4px 12px;border-radius:20px;cursor:pointer;transition:background .15s;font-family:inherit;}',
+    /* Inline weather forecast */
+    '#he-wx-toggle-btn{margin-top:10px;background:none;border:1px solid rgba(96,165,250,.22);color:#60a5fa;font-size:.72rem;font-weight:700;padding:4px 12px;border-radius:20px;cursor:pointer;transition:background .15s;font-family:inherit;}',
     '#he-wx-toggle-btn:hover{background:rgba(96,165,250,.1);}',
     '#he-wx-forecast{display:none;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.07);}',
     '.he-wx-day-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);}',
     '.he-wx-day-row:last-child{border:none;}',
-    '.he-wx-day-name{width:38px;font-size:.72rem;color:#94a3b8;font-weight:700;flex-shrink:0;}',
-    '.he-wx-day-icon{width:22px;font-size:.9rem;flex-shrink:0;}',
+    '.he-wx-day-name{width:40px;font-size:.72rem;color:#94a3b8;font-weight:700;flex-shrink:0;}',
+    '.he-wx-day-icon{width:22px;font-size:.9rem;flex-shrink:0;text-align:center;}',
     '.he-wx-day-desc{flex:1;font-size:.68rem;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
     '.he-wx-day-temp{font-size:.75rem;font-weight:800;color:#e5e7eb;white-space:nowrap;}',
+    '.he-wx-day-lo{font-weight:400;color:#64748b;}',
     '.he-wx-city{font-size:.68rem;color:#60a5fa;font-weight:700;margin-bottom:8px;letter-spacing:.03em;}',
 
     /* Mobile */
@@ -218,12 +246,12 @@
   /* ── Boot ──────────────────────────────────────────────────────────── */
   ready(function(){
     removeFloatingWidgets();
+    initSidebarTools();
     initCommandPalette();
     initKeyboardShortcutsPanel();
     initTabHotkeys();
     initSmoothTabTransitions();
     initMobileBottomSheet();
-    initFabTray();
     initPomodoroTitleCountdown();
     initPomodoroSessionLogger();
     initLinksSearch();
@@ -237,10 +265,10 @@
   });
 
   /* ═══════════════════════════════════════════════════════════════════
-   * 7. REMOVE FLOATING WIDGETS  (clock + weather floating overlays)
+   * 7. REMOVE FLOATING WIDGETS  (clock, weather widget, theme toggle)
    * ═══════════════════════════════════════════════════════════════════ */
   function removeFloatingWidgets(){
-    var IDS=['homer-clock-widget','homer-weather-widget'];
+    var IDS=['homer-clock-widget','homer-weather-widget','homer-theme-btn'];
     function tryRemove(){
       IDS.forEach(function(id){var el=document.getElementById(id);if(el)el.remove();});
     }
@@ -250,6 +278,86 @@
     new MutationObserver(function(){
       IDS.forEach(function(id){var el=document.getElementById(id);if(el)el.remove();});
     }).observe(document.body,{childList:true,subtree:true});
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+   * 6. SIDEBAR TOOLS
+   *    Injects Quick Capture, Pomodoro, and Inbox as action items
+   *    above the spacer in the desktop sidebar. Shows icon-only when
+   *    collapsed, full label + badge when expanded.
+   * ═══════════════════════════════════════════════════════════════════ */
+  function initSidebarTools(){
+    waitForEl('desktop-sidebar',function(sidebar){
+      if(sidebar.querySelector('#he-sb-tools'))return;
+
+      var spacer=sidebar.querySelector('.sb-spacer');
+      if(!spacer)return;
+
+      var section=document.createElement('div');
+      section.id='he-sb-tools';
+
+      // SVG icons
+      var svgCapture='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>';
+      var svgPomo='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 3h6"/><path d="M12 3v2"/></svg>';
+      var svgInbox='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>';
+
+      section.innerHTML=
+        '<div class="sb-section-title">Quick Actions</div>'+
+        '<button class="sb-item he-sb-action he-sb-capture" id="he-sb-capture-btn" title="Quick Capture (Alt+C)">'+
+          svgCapture+'<span class="sb-label">Quick Capture</span>'+
+        '</button>'+
+        '<button class="sb-item he-sb-action he-sb-pomo" id="he-sb-pomo-btn" title="Pomodoro Timer">'+
+          svgPomo+'<span class="sb-label">Pomodoro</span>'+
+        '</button>'+
+        '<button class="sb-item he-sb-action he-sb-inbox" id="he-sb-inbox-btn" title="Inbox">'+
+          svgInbox+'<span class="sb-label">Inbox</span>'+
+        '</button>';
+
+      sidebar.insertBefore(section,spacer);
+
+      // Wire up clicks
+      document.getElementById('he-sb-capture-btn').addEventListener('click',function(){
+        clickEl('homer-capture-btn');
+      });
+      document.getElementById('he-sb-pomo-btn').addEventListener('click',function(){
+        clickEl('homer-pomo-fab');
+      });
+      document.getElementById('he-sb-inbox-btn').addEventListener('click',function(){
+        if(typeof window._homerOpenInbox==='function')window._homerOpenInbox();
+      });
+
+      // Inbox badge: show count
+      function refreshBadge(){
+        var btn=document.getElementById('he-sb-inbox-btn');if(!btn)return;
+        var count=safeJson(localStorage.getItem('homer-inbox'),[]).length;
+        var badge=btn.querySelector('.he-sb-badge');
+        if(count>0){
+          if(!badge){badge=document.createElement('span');badge.className='he-sb-badge';btn.appendChild(badge);}
+          badge.textContent=count>99?'99+':String(count);
+        }else{
+          if(badge)badge.remove();
+        }
+      }
+      refreshBadge();
+      setInterval(refreshBadge,2000);
+      window.addEventListener('storage',refreshBadge);
+
+      // Pomodoro running dot: watch #homer-pomo-fab for .running class
+      waitForEl('homer-pomo-fab',function(fab){
+        var pomoBtn=document.getElementById('he-sb-pomo-btn');
+        new MutationObserver(function(){
+          if(!pomoBtn)return;
+          var running=fab.classList.contains('running');
+          var dot=pomoBtn.querySelector('.he-pomo-dot');
+          if(running&&!dot){
+            dot=document.createElement('span');dot.className='he-pomo-dot';
+            pomoBtn.appendChild(dot);
+          }else if(!running&&dot){
+            dot.remove();
+          }
+        }).observe(fab,{attributes:true,attributeFilter:['class']});
+      });
+    });
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -268,14 +376,12 @@
       {g:'Tabs',icon:'🔗',label:'Links',hint:'Alt+6',fn:function(){switchTab('links');}},
       {g:'Tabs',icon:'📰',label:'News',hint:'Alt+7',fn:function(){switchTab('news');}},
       {g:'Tabs',icon:'🔒',label:'Vault',hint:'Alt+8',fn:function(){switchTab('vault');}},
-      {g:'Features',icon:'📥',label:'Quick Capture',hint:'Alt+C',fn:function(){clickEl('homer-capture-btn');}},
-      {g:'Features',icon:'✅',label:'Habits',hint:'',fn:function(){clickEl('homer-habits-fab');}},
-      {g:'Features',icon:'💰',label:'Expense Ledger',hint:'',fn:function(){openLedger();}},
-      {g:'Features',icon:'📋',label:'Daily Brief',hint:'',fn:function(){clickEl('homer-brief-fab');}},
-      {g:'Features',icon:'🧠',label:'Joey Memories',hint:'',fn:function(){clickEl('homer-memory-fab');}},
-      {g:'Actions',icon:'💡',label:'New Quote',hint:'',fn:function(){clickEl('refresh');}},
-      {g:'Actions',icon:'💾',label:'Save Quote',hint:'',fn:function(){clickEl('save');}},
-      {g:'Actions',icon:'📋',label:'Copy Quote',hint:'',fn:function(){clickEl('copy');}},
+      {g:'Actions',icon:'📥',label:'Quick Capture',hint:'Alt+C',fn:function(){clickEl('homer-capture-btn');}},
+      {g:'Actions',icon:'📬',label:'Inbox',hint:'',fn:function(){if(typeof window._homerOpenInbox==='function')window._homerOpenInbox();}},
+      {g:'Actions',icon:'✅',label:'Habits',hint:'',fn:function(){clickEl('homer-habits-fab');}},
+      {g:'Actions',icon:'💰',label:'Expense Ledger',hint:'',fn:function(){openLedger();}},
+      {g:'Actions',icon:'📋',label:'Daily Brief',hint:'',fn:function(){clickEl('homer-brief-fab');}},
+      {g:'Actions',icon:'🧠',label:'Joey Memories',hint:'',fn:function(){clickEl('homer-memory-fab');}},
       {g:'Help',icon:'⌨',label:'Keyboard Shortcuts',hint:'?',fn:function(){openShortcutsPanel();}},
     ];
     var recent=[],activeIdx=0,filtered=CMDS.slice();
@@ -316,7 +422,12 @@
   function initKeyboardShortcutsPanel(){
     function kRow(d){var k=Array.prototype.slice.call(arguments,1);return'<div class="he-key-row"><span class="he-key-desc">'+esc(d)+'</span><span class="he-key-combo">'+k.map(function(x){return'<span class="he-kbd">'+esc(x)+'</span>';}).join(' + ')+'</span></div>';}
     var ov=document.createElement('div');ov.id='he-keys-overlay';
-    ov.innerHTML='<div id="he-keys-box"><h2>Keyboard Shortcuts</h2><div class="he-key-section">Navigation</div>'+kRow('Command palette','Ctrl','K')+kRow('Switch tab 1-8','Alt','1-8')+kRow('Shortcuts panel','?')+'<div class="he-key-section">Pomodoro</div>'+kRow('Start / Pause','Space')+'<div class="he-key-section">Capture</div>'+kRow('Quick capture','Alt','C')+kRow('Save entry','Ctrl','Enter')+'<div class="he-key-section">General</div>'+kRow('Close any panel','Esc')+kRow('Expand 7-day forecast','Click weather')+'<button id="he-keys-close-btn">Close</button></div>';
+    ov.innerHTML='<div id="he-keys-box"><h2>Keyboard Shortcuts</h2>'+
+      '<div class="he-key-section">Navigation</div>'+kRow('Command palette','Ctrl','K')+kRow('Switch tab 1-8','Alt','1-8')+kRow('Shortcuts panel','?')+
+      '<div class="he-key-section">Pomodoro</div>'+kRow('Start / Pause','Space')+
+      '<div class="he-key-section">Capture</div>'+kRow('Quick capture','Alt','C')+kRow('Save entry','Ctrl','Enter')+
+      '<div class="he-key-section">General</div>'+kRow('Close any panel','Esc')+kRow('Expand 7-day forecast','Click weather')+
+      '<button id="he-keys-close-btn">Close</button></div>';
     document.body.appendChild(ov);
     function close(){ov.classList.remove('open');}
     document.getElementById('he-keys-close-btn').addEventListener('click',close);
@@ -363,7 +474,7 @@
    * ═══════════════════════════════════════════════════════════════════ */
   function initMobileBottomSheet(){
     ['homer-expense-panel','homer-memory-panel','homer-inbox-panel'].forEach(function(id){
-      waitForEl('#'+id,function(el){if(window.innerWidth<=640)makeSheet(el);});
+      waitForEl(id,function(el){if(window.innerWidth<=640)makeSheet(el);});
     });
     window.addEventListener('resize',function(){
       if(window.innerWidth>640)return;
@@ -380,107 +491,52 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-   * 6. FAB TRAY  — bottom-center pill bar
-   *    Capture + Pomodoro always visible; Habits / Brief / Memory
-   *    behind tray toggle
-   * ═══════════════════════════════════════════════════════════════════ */
-  function initFabTray(){
-    var s=document.createElement('style');
-    s.textContent=[
-      '#he-fab-tray{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:9992;display:flex;align-items:center;gap:6px;background:rgba(9,15,30,.9);border:1px solid rgba(255,255,255,.11);border-radius:40px;padding:5px 10px;backdrop-filter:blur(12px);box-shadow:0 4px 24px rgba(0,0,0,.45);}',
-      '.he-fab{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.95rem;cursor:pointer;border:1px solid rgba(255,255,255,.1);transition:background .2s,transform .2s;-webkit-tap-highlight-color:transparent;background:rgba(255,255,255,.06);}',
-      '.he-fab:hover{transform:scale(1.12);background:rgba(255,255,255,.13);}',
-      '#he-fab-more{background:rgba(255,255,255,.04);color:#64748b;font-size:.85rem;letter-spacing:.05em;}',
-      '#he-fab-more:hover{background:rgba(255,255,255,.1);color:#94a3b8;}',
-      '#he-fab-tray-sep{width:1px;height:22px;background:rgba(255,255,255,.1);flex-shrink:0;margin:0 2px;}',
-      '#he-fab-extras{display:flex;gap:6px;align-items:center;overflow:hidden;max-width:0;transition:max-width .3s cubic-bezier(.4,0,.2,1),opacity .25s;opacity:0;pointer-events:none;}',
-      '#he-fab-extras.open{max-width:220px;opacity:1;pointer-events:all;}',
-    ].join('');
-    document.head.appendChild(s);
-
-    var tray=document.createElement('div');tray.id='he-fab-tray';
-    tray.innerHTML='<div id="he-fab-extras"></div><div id="he-fab-tray-sep"></div><button id="he-fab-more" class="he-fab" title="More tools">&#8943;</button>';
-    document.body.appendChild(tray);
-
-    var extrasOpen=false;
-    document.getElementById('he-fab-more').addEventListener('click',function(){
-      extrasOpen=!extrasOpen;
-      document.getElementById('he-fab-extras').classList.toggle('open',extrasOpen);
-      this.textContent=extrasOpen?'\u00d7':'&#8943;';
-      this.innerHTML=extrasOpen?'&times;':'&#8943;';
-    });
-
-    var REPARENT=[
-      {id:'homer-capture-btn',always:true},
-      {id:'homer-pomo-fab',always:true},
-      {id:'homer-habits-fab',always:false},
-      {id:'homer-expense-fab',always:false},
-      {id:'homer-brief-fab',always:false},
-      {id:'homer-memory-fab',always:false},
-    ];
-    function tryReparent(){
-      REPARENT.forEach(function(cfg){
-        var el=document.getElementById(cfg.id);
-        if(!el||el.dataset.heParented)return;
-        el.dataset.heParented='1';
-        el.style.position='';el.style.bottom='';el.style.left='';el.style.top='';el.style.right='';el.style.zIndex='';
-        el.classList.add('he-fab');
-        if(cfg.always){
-          var sep=document.getElementById('he-fab-tray-sep');
-          tray.insertBefore(el,sep||tray.firstChild);
-        } else {
-          document.getElementById('he-fab-extras').appendChild(el);
-        }
-      });
-    }
-    tryReparent();
-    new MutationObserver(tryReparent).observe(document.body,{childList:true,subtree:false});
-  }
-
-  /* ═══════════════════════════════════════════════════════════════════
    * 8. POMODORO TITLE COUNTDOWN
    * ═══════════════════════════════════════════════════════════════════ */
   function initPomodoroTitleCountdown(){
-    var orig=document.title,pomTimeEl=document.getElementById('pom-time'),pomModeEl=document.getElementById('pom-mode');
-    if(!pomTimeEl)return;
-    var prev='',last='';
-    new MutationObserver(function(){
-      var t=(pomTimeEl.textContent||'').trim(),m=(pomModeEl?pomModeEl.textContent:'').toLowerCase();
-      if(t&&t!==last){prev=last;last=t;if(!(/^(25|5|15):00$/.test(t)&&!prev)){document.title=(m.includes('break')?'\uD83D\uDFE2':'\uD83C\uDF45')+' '+t+' \u2014 Homer';return;}}
-      document.title=orig;
-    }).observe(pomTimeEl,{childList:true,subtree:true,characterData:true});
-    var rb=document.getElementById('pom-reset');
-    if(rb)rb.addEventListener('click',function(){prev='';last='';document.title=orig;});
+    var orig=document.title;
+    waitForEl('pom-time',function(pomTimeEl){
+      var pomModeEl=document.getElementById('pom-mode');
+      var prev='',last='';
+      new MutationObserver(function(){
+        var t=(pomTimeEl.textContent||'').trim(),m=(pomModeEl?pomModeEl.textContent:'').toLowerCase();
+        if(t&&t!==last){prev=last;last=t;if(!(/^(25|5|15):00$/.test(t)&&!prev)){document.title=(m.includes('break')?'\uD83D\uDFE2':'\uD83C\uDF45')+' '+t+' \u2014 Homer';return;}}
+        document.title=orig;
+      }).observe(pomTimeEl,{childList:true,subtree:true,characterData:true});
+      var rb=document.getElementById('pom-reset');
+      if(rb)rb.addEventListener('click',function(){prev='';last='';document.title=orig;});
+    });
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-   * 9. POMODORO SESSION LOGGER  (localStorage + Supabase)
+   * 9. POMODORO SESSION LOGGER
    * ═══════════════════════════════════════════════════════════════════ */
   function initPomodoroSessionLogger(){
-    var pomModeEl=document.getElementById('pom-mode');if(!pomModeEl)return;
-    var lastMode='',sessionStart=null,STORAGE_KEY='homer-focus-sessions';
-    var badge=document.createElement('div');badge.id='he-session-log';document.body.appendChild(badge);
-    function showBadge(t){badge.textContent=t;badge.classList.add('visible');setTimeout(function(){badge.classList.remove('visible');},3000);}
-    function todayCount(){var today=new Date().toISOString().slice(0,10);return safeJson(localStorage.getItem(STORAGE_KEY),[]).filter(function(s){return(s.ts||'').startsWith(today);}).length;}
-    new MutationObserver(function(){
-      var mode=(pomModeEl.textContent||'').trim().toLowerCase();
-      if(mode===lastMode)return;var prev=lastMode;lastMode=mode;
-      if(prev==='focus'&&mode!=='focus'){
-        var dur=sessionStart?Math.round((Date.now()-sessionStart)/1000):null;
-        if(!dur||dur<60)return;
-        var task='';var te=document.getElementById('pom-task')||document.getElementById('task-input');if(te)task=(te.value||'').trim();
-        var sess={ts:new Date().toISOString(),duration_secs:dur,task:task||null};
-        var sessions=safeJson(localStorage.getItem(STORAGE_KEY),[]);sessions.push(sess);if(sessions.length>500)sessions=sessions.slice(-500);
-        try{localStorage.setItem(STORAGE_KEY,JSON.stringify(sessions));}catch(_){}
-        if(isBogdan()){
-          var client=window.__supabase;
-          if(client){var uid=window.__sbSession&&window.__sbSession.user&&window.__sbSession.user.id;client.from('focus_sessions').insert({created_at:sess.ts,duration_secs:dur,task_label:task||null,user_id:uid||null}).then(function(r){if(r.error)console.debug('[homer] focus_sessions:',r.error.message);});}
+    waitForEl('pom-mode',function(pomModeEl){
+      var lastMode='',sessionStart=null,STORAGE_KEY='homer-focus-sessions';
+      var badge=document.createElement('div');badge.id='he-session-log';document.body.appendChild(badge);
+      function showBadge(t){badge.textContent=t;badge.classList.add('visible');setTimeout(function(){badge.classList.remove('visible');},3000);}
+      function todayCount(){var today=new Date().toISOString().slice(0,10);return safeJson(localStorage.getItem(STORAGE_KEY),[]).filter(function(s){return(s.ts||'').startsWith(today);}).length;}
+      new MutationObserver(function(){
+        var mode=(pomModeEl.textContent||'').trim().toLowerCase();
+        if(mode===lastMode)return;var prev=lastMode;lastMode=mode;
+        if(prev==='focus'&&mode!=='focus'){
+          var dur=sessionStart?Math.round((Date.now()-sessionStart)/1000):null;
+          if(!dur||dur<60)return;
+          var task='';var te=document.getElementById('pom-task')||document.getElementById('task-input');if(te)task=(te.value||'').trim();
+          var sess={ts:new Date().toISOString(),duration_secs:dur,task:task||null};
+          var sessions=safeJson(localStorage.getItem(STORAGE_KEY),[]);sessions.push(sess);if(sessions.length>500)sessions=sessions.slice(-500);
+          try{localStorage.setItem(STORAGE_KEY,JSON.stringify(sessions));}catch(_){}
+          if(isBogdan()){
+            var client=window.__supabase;
+            if(client){var uid=window.__sbSession&&window.__sbSession.user&&window.__sbSession.user.id;client.from('focus_sessions').insert({created_at:sess.ts,duration_secs:dur,task_label:task||null,user_id:uid||null}).then(function(r){if(r.error)console.debug('[homer] focus_sessions:',r.error.message);});}
+          }
+          toast('\uD83C\uDF45 Session \u2014 '+Math.round(dur/60)+' min logged','success',2500);
+          showBadge('\uD83C\uDF45 '+todayCount()+' sessions today');sessionStart=null;
         }
-        toast('\uD83C\uDF45 Session logged \u2014 '+Math.round(dur/60)+' min','success',2500);
-        showBadge('\uD83C\uDF45 '+todayCount()+' sessions today');sessionStart=null;
-      }
-      if(mode==='focus')sessionStart=Date.now();
-    }).observe(pomModeEl,{childList:true,subtree:true,characterData:true});
+        if(mode==='focus')sessionStart=Date.now();
+      }).observe(pomModeEl,{childList:true,subtree:true,characterData:true});
+    });
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -549,9 +605,8 @@
 
   /* ═══════════════════════════════════════════════════════════════════
    * 13. INLINE WEATHER FORECAST
-   *     Enhances the existing Home tab weather card (span-6 card)
-   *     with a collapsible 7-day forecast section.
-   *     Click toggle -> location prompt -> Nominatim -> open-meteo
+   *     Adds a toggle button below the existing Home tab weather card.
+   *     Click -> optional location prompt -> 7-day open-meteo data.
    * ═══════════════════════════════════════════════════════════════════ */
   function initInlineWeatherForecast(){
     var WI={0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',61:'🌧',63:'🌧',65:'🌧',71:'🌨',73:'🌨',75:'❄️',80:'🌦',81:'🌧',82:'⛈',95:'⛈',96:'⛈',99:'⛈'};
@@ -559,16 +614,14 @@
     var DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     var CACHE_KEY='he-wx-inline-cache';
 
-    // Wait for the inline weather card to be ready
     var attempts=0;
-    (function tryInit(){
-      if(++attempts>20)return;
+    (function tryAttach(){
+      if(++attempts>30)return;
       var wxEl=document.getElementById('wx-icon');
-      var card=wxEl&&(wxEl.closest?wxEl.closest('.card'):null);
-      if(!card||card.querySelector('#he-wx-forecast')){
-        if(!card) setTimeout(tryInit,600);
-        return;
-      }
+      if(!wxEl){setTimeout(tryAttach,500);return;}
+      var card=wxEl.closest?wxEl.closest('.card'):null;
+      if(!card){setTimeout(tryAttach,500);return;}
+      if(card.querySelector('#he-wx-forecast')){return;} // already done
 
       var toggleBtn=document.createElement('button');
       toggleBtn.id='he-wx-toggle-btn';
@@ -578,36 +631,46 @@
       forecastDiv.id='he-wx-forecast';
 
       var poweredBy=card.querySelector('.muted');
-      if(poweredBy){card.insertBefore(toggleBtn,poweredBy);card.insertBefore(forecastDiv,poweredBy);}
-      else{card.appendChild(toggleBtn);card.appendChild(forecastDiv);}
+      if(poweredBy){
+        card.insertBefore(toggleBtn,poweredBy);
+        card.insertBefore(forecastDiv,poweredBy);
+      }else{
+        card.appendChild(toggleBtn);
+        card.appendChild(forecastDiv);
+      }
 
       var expanded=false,loaded=false;
-      var lat=44.4268,lon=26.1025,tz='Europe/Bucharest',city='Bucharest';
+      var lat=44.4268,lon=26.1025,city='Bucharest';
       var locState='unasked';
+
+      function getTimezone(){
+        try{return Intl.DateTimeFormat().resolvedOptions().timeZone||'Europe/Bucharest';}
+        catch(_){return'Europe/Bucharest';}
+      }
 
       toggleBtn.addEventListener('click',function(){
         expanded=!expanded;
-        forecastDiv.style.display=expanded?'':'none';
+        forecastDiv.style.display=expanded?'block':'none';
         toggleBtn.textContent=(expanded?'\u25b4':'\u25be')+' 7-day forecast';
         if(expanded&&!loaded){
-          if(locState==='unasked')showLocationPrompt();
+          if(locState==='unasked')showLocPrompt();
           else fetchForecast();
         }
       });
 
-      function showLocationPrompt(){
+      function showLocPrompt(){
         locState='asking';
         forecastDiv.innerHTML=
           '<div style="text-align:center;padding:10px 0;">'+
-          '<p style="font-size:.78rem;color:#94a3b8;margin:0 0 10px;line-height:1.4">Use your location for accurate weather?</p>'+
-          '<button id="he-wx-allow" style="padding:5px 14px;border-radius:8px;border:none;background:#3b82f6;color:#fff;font-size:.75rem;font-weight:700;cursor:pointer;margin-right:6px">&#x1F4CD; My Location</button>'+
-          '<button id="he-wx-skip" style="padding:5px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:none;color:#94a3b8;font-size:.75rem;cursor:pointer">Bucharest</button>'+
+            '<p style="font-size:.78rem;color:#94a3b8;margin:0 0 10px;line-height:1.4">Use your location for accurate weather?</p>'+
+            '<button id="he-wx-allow" style="padding:5px 14px;border-radius:8px;border:none;background:#3b82f6;color:#fff;font-size:.75rem;font-weight:700;cursor:pointer;margin-right:6px">&#x1F4CD; My Location</button>'+
+            '<button id="he-wx-skip" style="padding:5px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:none;color:#94a3b8;font-size:.75rem;cursor:pointer">Bucharest</button>'+
           '</div>';
-        document.getElementById('he-wx-allow').addEventListener('click',requestLocation);
+        document.getElementById('he-wx-allow').addEventListener('click',requestLoc);
         document.getElementById('he-wx-skip').addEventListener('click',function(){locState='denied';fetchForecast();});
       }
 
-      function requestLocation(){
+      function requestLoc(){
         locState='requesting';
         forecastDiv.innerHTML='<div style="text-align:center;padding:12px;color:#64748b;font-size:.75rem">Requesting location\u2026</div>';
         if(!navigator.geolocation){locState='denied';fetchForecast();return;}
@@ -617,7 +680,11 @@
             fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lon,
               {headers:{'User-Agent':'HomerHome/1.0','Accept-Language':'en'}})
               .then(function(r){return r.json();})
-              .then(function(d){var a=d.address||{};city=a.city||a.town||a.village||a.county||'Your Location';fetchForecast();})
+              .then(function(d){
+                var a=d.address||{};
+                city=a.city||a.town||a.village||a.county||'Your Location';
+                fetchForecast();
+              })
               .catch(function(){fetchForecast();});
           },
           function(){locState='denied';fetchForecast();}
@@ -625,47 +692,84 @@
       }
 
       function fetchForecast(){
-        forecastDiv.innerHTML='<div style="text-align:center;padding:8px;color:#64748b;font-size:.75rem">Loading\u2026</div>';
+        forecastDiv.innerHTML='<div style="text-align:center;padding:8px;color:#64748b;font-size:.75rem">Loading forecast\u2026</div>';
+
+        // Check cache
         var cached=safeJson(localStorage.getItem(CACHE_KEY),null);
-        if(cached&&Math.abs(cached.lat-lat)<0.01&&Math.abs(cached.lon-lon)<0.01&&Date.now()-cached.ts<3600000){
+        if(cached&&
+           Math.abs(cached.lat-lat)<0.05&&
+           Math.abs(cached.lon-lon)<0.05&&
+           Date.now()-cached.ts<3600000){
           renderForecast(cached.data);return;
         }
-        var url='https://api.open-meteo.com/v1/forecast?latitude='+lat.toFixed(4)+'&longitude='+lon.toFixed(4)+'&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone='+encodeURIComponent(tz)+'&forecast_days=7';
+
+        var tz=getTimezone();
+        var url='https://api.open-meteo.com/v1/forecast'+
+          '?latitude='+lat.toFixed(4)+
+          '&longitude='+lon.toFixed(4)+
+          '&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max'+
+          '&timezone='+encodeURIComponent(tz)+
+          '&forecast_days=7';
+
         fetch(url)
-          .then(function(r){return r.json();})
+          .then(function(r){
+            if(!r.ok)throw new Error('HTTP '+r.status);
+            return r.json();
+          })
           .then(function(d){
             try{localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),lat:lat,lon:lon,data:d}));}catch(_){}
             renderForecast(d);
           })
-          .catch(function(){forecastDiv.innerHTML='<div style="color:#f87171;font-size:.75rem;text-align:center;padding:8px">Could not load forecast</div>';});
+          .catch(function(err){
+            forecastDiv.innerHTML='<div style="color:#f87171;font-size:.75rem;text-align:center;padding:10px">Could not load forecast. Try again later.</div>';
+            console.debug('[homer] weather fetch error:',err);
+          });
       }
 
       function renderForecast(d){
         loaded=true;
-        var days=d.daily||{};
-        var today=new Date().toISOString().slice(0,10);
+        var daily=d.daily;
+        if(!daily||!daily.time||!daily.time.length){
+          forecastDiv.innerHTML='<div style="color:#64748b;font-size:.75rem;text-align:center;padding:8px">No forecast data</div>';
+          return;
+        }
+
+        var todayStr=new Date().toISOString().slice(0,10);
         var html='<div class="he-wx-city">&#x1F4CD; '+esc(city)+'</div>';
-        (days.time||[]).forEach(function(date,i){
-          var dt=new Date(date+'T12:00:00');
-          var name=date===today?'Today':DAYS[dt.getDay()];
-          var code=(days.weathercode||[])[i]||0;
-          var hi=Math.round((days.temperature_2m_max||[])[i]||0);
-          var lo=Math.round((days.temperature_2m_min||[])[i]||0);
+
+        daily.time.forEach(function(dateStr,i){
+          var dt=new Date(dateStr+'T12:00:00');
+          var dayName=dateStr===todayStr?'Today':DAYS[dt.getDay()];
+          var code=daily.weathercode[i]||0;
+          var hi=daily.temperature_2m_max[i]!=null?Math.round(daily.temperature_2m_max[i]):null;
+          var lo=daily.temperature_2m_min[i]!=null?Math.round(daily.temperature_2m_min[i]):null;
+          var precip=daily.precipitation_sum?daily.precipitation_sum[i]:null;
+          var wind=daily.windspeed_10m_max?daily.windspeed_10m_max[i]:null;
+
+          var tempStr='';
+          if(hi!=null)tempStr+='<strong>'+hi+'&deg;</strong>';
+          if(lo!=null)tempStr+=' <span class="he-wx-day-lo">/ '+lo+'&deg;</span>';
+
+          var extras='';
+          if(precip&&precip>0.5)extras+=' <span style="font-size:.65rem;color:#60a5fa">\uD83D\uDCA7 '+precip.toFixed(1)+'mm</span>';
+          if(wind&&wind>20)extras+=' <span style="font-size:.65rem;color:#94a3b8">\uD83D\uDCA8 '+Math.round(wind)+'km/h</span>';
+
           html+=
             '<div class="he-wx-day-row">'+
-              '<span class="he-wx-day-name">'+esc(name)+'</span>'+
+              '<span class="he-wx-day-name">'+esc(dayName)+'</span>'+
               '<span class="he-wx-day-icon">'+(WI[code]||'🌡')+'</span>'+
-              '<span class="he-wx-day-desc">'+esc(WD[code]||'')+'</span>'+
-              '<span class="he-wx-day-temp">'+hi+'&deg; <span style="font-weight:400;color:#64748b">/ '+lo+'&deg;</span></span>'+
+              '<span class="he-wx-day-desc">'+esc(WD[code]||'')+extras+'</span>'+
+              '<span class="he-wx-day-temp">'+tempStr+'</span>'+
             '</div>';
         });
-        forecastDiv.innerHTML=html||'<div style="color:#64748b;font-size:.75rem">No data available</div>';
+
+        forecastDiv.innerHTML=html;
       }
     })();
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-   * 14. EXPENSE CATEGORY CHART  (inside the quick-add panel)
+   * 14. EXPENSE CATEGORY CHART
    * ═══════════════════════════════════════════════════════════════════ */
   function initExpenseChart(){
     var CC={food:'#fb7185',transport:'#fbbf24',work:'#60a5fa',health:'#34d399',entertainment:'#a78bfa',other:'#94a3b8'};
@@ -691,19 +795,18 @@
 
   /* ═══════════════════════════════════════════════════════════════════
    * 15. SUPABASE DATA SYNC  (Bogdan-only)
-   *     Pulls on load, pushes on change, 30-s periodic backup
    * ═══════════════════════════════════════════════════════════════════ */
   var _syncDirty={};
 
   function initSupabaseDataSync(){
-    if(!isBogdan()) return; // localStorage-only for other users
+    if(!isBogdan())return;
 
     var badge=document.createElement('div');badge.id='he-sync-badge';document.body.appendChild(badge);
     function showBadge(txt,cls){badge.className=cls;badge.textContent=txt;badge.classList.add('visible');if(cls==='synced')setTimeout(function(){badge.classList.remove('visible');},3000);}
 
     function getClient(){return window.__supabase||null;}
     function getUid(){return window.__sbSession&&window.__sbSession.user&&window.__sbSession.user.id||null;}
-    function isLoggedIn(){return !!getUid();}
+    function isLoggedIn(){return!!getUid();}
 
     function pushKey(key){
       var client=getClient(),uid=getUid();if(!client||!uid)return;
@@ -746,7 +849,7 @@
     window.addEventListener('beforeunload',pushDirty);
 
     ['homer-expense-panel','homer-habits-panel','homer-inbox-panel'].forEach(function(id){
-      waitForEl('#'+id,function(el){
+      waitForEl(id,function(el){
         new MutationObserver(function(){if(!el.classList.contains('open'))pushDirty();}).observe(el,{attributes:true,attributeFilter:['class']});
       });
     });
@@ -756,7 +859,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-   * 16. EXPENSE LEDGER  — full-page sortable/filterable table
+   * 16. EXPENSE LEDGER
    * ═══════════════════════════════════════════════════════════════════ */
   var _ledgerOpen=false;
   var CAT_COLOR={food:'#fb7185',transport:'#fbbf24',work:'#60a5fa',health:'#34d399',entertainment:'#a78bfa',other:'#94a3b8'};
@@ -906,7 +1009,6 @@
         });
       });
     }
-
     renderLedgerInbox();
   }
 
@@ -920,7 +1022,7 @@
       return'<div class="he-inbox-item" data-idx="'+i+'">'+
         '<span class="he-inbox-type" style="background:'+tc+'22;color:'+tc+'">'+esc(item.type||'thought')+'</span>'+
         '<span class="he-inbox-text">'+esc((item.text||'').slice(0,120))+'</span>'+
-        '<button class="he-inbox-del" title="Remove">\u00d7</button>'+
+        '<button class="he-inbox-del">\u00d7</button>'+
       '</div>';
     }).join('');
     el.querySelectorAll('.he-inbox-del').forEach(function(btn){
@@ -934,32 +1036,21 @@
     });
   }
 
-  // Override expense FAB to open ledger
-  (function(){
+  function initExpenseLedger(){
+    // Override expense FAB to open ledger
     var tries=0,iv=setInterval(function(){
       var fab=document.getElementById('homer-expense-fab');
       if(fab||++tries>20){clearInterval(iv);
         if(fab&&!fab.dataset.heLedger){fab.dataset.heLedger='1';fab.addEventListener('click',function(e){e.stopImmediatePropagation();openLedger();});}
       }
     },400);
-  })();
-
-  function initExpenseLedger(){
-    // Ledger is opened via expense FAB override and command palette.
-    // Nothing to init here; buildLedger is called lazily on first open.
   }
 
   /* ═══════════════════════════════════════════════════════════════════
    * 17. INBOX ACTIONS
-   *     Patches the existing Quick Capture inbox panel to add
-   *     per-type action buttons below each item.
-   *     Thought -> Joey (save memory)
-   *     Task    -> Kanban Organize Life project (add issue)
-   *     Link    -> Links tab (prompt for name)
-   *     Expense -> Expense Ledger (pre-fill form)
    * ═══════════════════════════════════════════════════════════════════ */
   function initInboxActions(){
-    waitForEl('#homer-inbox-list',function(list){
+    waitForEl('homer-inbox-list',function(list){
       new MutationObserver(function(){addActionBtns(list);}).observe(list,{childList:true});
       addActionBtns(list);
     });
@@ -972,33 +1063,15 @@
       var inbox=safeJson(localStorage.getItem('homer-inbox'),[]);
       var entry=inbox.find(function(x){return x.id===id;});
       if(!entry)return;
-
       var type=entry.type||'thought';
-      var btnMap={
-        thought:{label:'🧠 Save to Joey',cls:'he-iab-joey'},
-        task:   {label:'📋 Add to Kanban',cls:'he-iab-kanban'},
-        link:   {label:'🔗 Save to Links',cls:'he-iab-links'},
-        expense:{label:'💰 Open in Ledger',cls:'he-iab-expense'}
-      };
-      var cfg=btnMap[type];if(!cfg)return;
-
-      var bar=document.createElement('div');
-      bar.className='he-iab-bar';
-      var btn=document.createElement('button');
-      btn.className='he-iab-btn '+cfg.cls;
-      btn.innerHTML=cfg.label;
+      var map={thought:{label:'🧠 Save to Joey',cls:'he-iab-joey'},task:{label:'📋 Add to Kanban',cls:'he-iab-kanban'},link:{label:'🔗 Save to Links',cls:'he-iab-links'},expense:{label:'💰 Open in Ledger',cls:'he-iab-expense'}};
+      var cfg=map[type];if(!cfg)return;
+      var bar=document.createElement('div');bar.className='he-iab-bar';
+      var btn=document.createElement('button');btn.className='he-iab-btn '+cfg.cls;btn.innerHTML=cfg.label;
       bar.appendChild(btn);
-
-      // Insert below the meta row
       var meta=item.querySelector('.homer-inbox-item-meta');
-      if(meta)meta.insertAdjacentElement('afterend',bar);
-      else item.appendChild(bar);
-
-      btn.addEventListener('click',function(e){
-        e.stopPropagation();
-        btn.disabled=true;
-        dispatchInboxAction(type,entry.text||'',entry.id,btn,item);
-      });
+      if(meta)meta.insertAdjacentElement('afterend',bar);else item.appendChild(bar);
+      btn.addEventListener('click',function(e){e.stopPropagation();btn.disabled=true;dispatchInboxAction(type,entry.text||'',entry.id,btn,item);});
     });
   }
 
@@ -1006,16 +1079,14 @@
     if(type==='thought'){
       saveToJoey(text,function(ok){
         if(ok){removeInboxEntry(entryId);fadeItem(item);toast('Thought saved to Joey memories','success');}
-        else{btn.disabled=false;toast('Could not reach Joey \u2014 are you signed in?','error');}
+        else{btn.disabled=false;toast('Could not reach Joey \u2014 check your connection','error');}
       });
-    }
-    else if(type==='task'){
+    }else if(type==='task'){
       addToKanban(text,function(ok){
-        if(ok){removeInboxEntry(entryId);fadeItem(item);toast('Task added to Organize Life in Kanban','success');}
+        if(ok){removeInboxEntry(entryId);fadeItem(item);toast('Task added to Organize Life','success');}
         else{btn.disabled=false;toast('Vault must be unlocked to add tasks','warn',5000);}
       });
-    }
-    else if(type==='link'){
+    }else if(type==='link'){
       var url=text.trim();
       if(!/^https?:\/\//i.test(url))url='https://'+url;
       var defaultName='';
@@ -1027,17 +1098,13 @@
         if(res&&res.ok){removeInboxEntry(entryId);fadeItem(item);switchTab('links');toast('Link "'+name+'" saved','success');}
         else{btn.disabled=false;toast((res&&res.error)||'Could not add link','error');}
       }else{btn.disabled=false;toast('Links not ready yet','warn');}
-    }
-    else if(type==='expense'){
+    }else if(type==='expense'){
       openLedger();
       setTimeout(function(){
         var descEl=document.getElementById('he-l-desc');
         if(descEl)descEl.value=text;
         var amtMatch=text.match(/\b(\d[\d.,]*)\s*(?:ron|lei|usd|\$|\u20ac|eur|gbp)?\b/i);
-        if(amtMatch){
-          var amtEl=document.getElementById('he-l-amt');
-          if(amtEl)amtEl.value=parseFloat(amtMatch[1].replace(',','.')).toFixed(2);
-        }
+        if(amtMatch){var amtEl=document.getElementById('he-l-amt');if(amtEl)amtEl.value=parseFloat(amtMatch[1].replace(',','.')).toFixed(2);}
         if(descEl)descEl.focus();
       },350);
       removeInboxEntry(entryId);fadeItem(item);
@@ -1046,56 +1113,31 @@
   }
 
   function fadeItem(item){
-    item.style.transition='opacity .4s';
-    item.style.opacity='0';
+    item.style.transition='opacity .4s';item.style.opacity='0';
     setTimeout(function(){if(item.parentNode)item.parentNode.removeChild(item);},450);
   }
-
   function removeInboxEntry(id){
     var inbox=safeJson(localStorage.getItem('homer-inbox'),[]);
     localStorage.setItem('homer-inbox',JSON.stringify(inbox.filter(function(x){return x.id!==id;})));
   }
 
-  /* ── Joey: save thought as memory ─────────────────────────────────── */
   function saveToJoey(text,cb){
     var headers={'Content-Type':'application/json'};
     var authH=typeof window.supabaseAuthHeader==='function'?window.supabaseAuthHeader():null;
     if(authH)headers['Authorization']=authH;
-    fetch('/api/joey',{
-      method:'POST',
-      headers:headers,
-      body:JSON.stringify({action:'memory',memory:text,source:'inbox',category:'thought'})
-    })
-    .then(function(r){return r.json();})
-    .then(function(d){cb(!d.error);})
-    .catch(function(){cb(false);});
+    fetch('/api/joey',{method:'POST',headers:headers,body:JSON.stringify({action:'memory',memory:text,source:'inbox',category:'thought'})})
+      .then(function(r){return r.json();}).then(function(d){cb(!d.error);}).catch(function(){cb(false);});
   }
 
-  /* ── Kanban: add task to Organize Life project ─────────────────────── */
   function addToKanban(text,cb){
     if(!window._homerLoadVault||!window._homerVaultUnlocked){cb(false);return;}
     window._homerLoadVault().then(function(data){
       if(!data){cb(false);return;}
       var projs=data.projects||[];
-      var organizeProj=projs.find(function(p){
-        return p.id==='organize-life'||(p.name||'').toLowerCase().replace(/\s/g,'').includes('organizelife');
-      });
-      var projId=organizeProj?organizeProj.id:(projs[0]?projs[0].id:'organize-life');
+      var proj=projs.find(function(p){return p.id==='organize-life'||(p.name||'').toLowerCase().replace(/\s/g,'').includes('organizelife');});
+      var projId=proj?proj.id:(projs[0]?projs[0].id:'organize-life');
       if(!data.goals)data.goals=[];
-      data.goals.push({
-        id:Date.now(),
-        summary:text,
-        desc:'',
-        projectId:projId,
-        col:'todo',
-        priority:'medium',
-        labels:['inbox'],
-        subtasks:[],
-        attachments:[],
-        comments:[],
-        customFields:{},
-        log:[{action:'Added from Quick Capture inbox',ts:Date.now()}]
-      });
+      data.goals.push({id:Date.now(),summary:text,desc:'',projectId:projId,col:'todo',priority:'medium',labels:['inbox'],subtasks:[],attachments:[],comments:[],customFields:{},log:[{action:'Added from Quick Capture inbox',ts:Date.now()}]});
       window._homerSaveVault(data).then(function(){cb(true);}).catch(function(){cb(false);});
     }).catch(function(){cb(false);});
   }
