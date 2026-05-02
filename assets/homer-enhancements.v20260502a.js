@@ -1,33 +1,34 @@
 /* ====================================================================
- * Homer Enhancements  v20260502a  (rev 3)
+ * Homer Enhancements  v20260502a  (rev 4)
  *
  *  UI / Navigation
  *   1.  Command Palette        — Ctrl+K
  *   2.  Keyboard Shortcuts     — press ?
- *   3.  Tab Hotkeys            — Alt+1–8
- *   4.  Smooth Tab Transitions — CSS fade between panels
+ *   3.  Tab Hotkeys            — Alt+1-8
+ *   4.  Smooth Tab Transitions — CSS fade
  *   5.  Mobile Bottom Sheet    — swipe-up + drag-to-dismiss
- *   6.  FAB Tray               — Quick Capture + Focus always visible;
- *                                others collapse behind a ⋯ button
- *   7.  Remove Floating Clock  — keep only the inline Home-tab clock
+ *   6.  FAB Tray               — bottom-center pill; Capture + Focus
+ *                                always visible, others behind a tray
+ *   7.  Remove Floating Widgets — hides floating clock + weather
  *
  *  Productivity
  *   8.  Pomodoro Title         — live countdown in browser tab
  *   9.  Pomodoro Session Log   — localStorage + Supabase focus_sessions
  *   10. Links Live Search      — filter by name / URL / category
  *   11. Smart Capture Auto-tag — expense / link / task / thought
- *   12. Habit Morning Reminder — 8–11 AM toast
+ *   12. Habit Morning Reminder — 8-11 AM toast
  *
  *  Widgets
- *   13. Weather Panel          — click → location prompt → city + local
- *                                time + current conditions + 7-day
- *   14. Expense Category Chart — bar chart inside expense panel
+ *   13. Inline Weather Forecast — click existing weather card to expand
+ *                                 7-day forecast with geolocation
+ *   14. Expense Category Chart  — bar chart inside expense panel
  *
  *  Data
- *   15. Supabase Data Sync     — push/pull expenses, habits, inbox
- *                                for authenticated users; sync badge
- *   16. Expense Ledger         — full-page table overlay (sortable,
- *                                filterable, with inbox section)
+ *   15. Supabase Data Sync     — Bogdan-only: push/pull expenses,
+ *                                habits, inbox via field_state table
+ *   16. Expense Ledger         — full-page sortable/filterable table
+ *   17. Inbox Actions          — Thought->Joey, Task->Kanban,
+ *                                Link->Links, Expense->Ledger
  * ==================================================================== */
 (function () {
   'use strict';
@@ -50,18 +51,26 @@
     setTimeout(function(){el.parentNode&&el.parentNode.removeChild(el);},dur||3500);
   }
   function clickEl(id){ var el=document.getElementById(id); if(el) el.click(); }
-  function waitForEl(id,cb,limit){
-    var el=document.getElementById(id); if(el){cb(el);return;}
-    var tries=0,max=limit||30,iv=setInterval(function(){
-      el=document.getElementById(id);
-      if(el||++tries>=max){clearInterval(iv);if(el)cb(el);}
-    },500);
+  function waitForEl(sel, cb, limit) {
+    var el = sel.startsWith('#') ? document.getElementById(sel.slice(1)) : document.querySelector(sel);
+    if (el) { cb(el); return; }
+    var tries=0, max=limit||40, iv=setInterval(function(){
+      el = sel.startsWith('#') ? document.getElementById(sel.slice(1)) : document.querySelector(sel);
+      if (el || ++tries >= max) { clearInterval(iv); if (el) cb(el); }
+    }, 400);
   }
   function switchTab(name){
     var btn=document.querySelector('.sb-item[data-tab="'+name+'"]')||document.querySelector('.tab-btn[data-tab="'+name+'"]');
     if(btn) btn.click();
   }
   function safeJson(s,fb){ try{return s?JSON.parse(s):fb;}catch(_){return fb;} }
+
+  function isBogdan(){
+    var u=localStorage.getItem('homer-auth-user');
+    if(u&&u.toLowerCase()==='bogdan') return true;
+    var sess=window.__sbSession;
+    return !!(sess&&sess.user&&(sess.user.email||'').toLowerCase().includes('bogdan'));
+  }
 
   /* ── CSS ───────────────────────────────────────────────────────────── */
   var CSS=[
@@ -106,33 +115,6 @@
     '#he-links-search:focus{border-color:rgba(96,165,250,.5)}',
     '#he-links-search-count{font-size:.75rem;color:#64748b;margin-top:6px;min-height:1em}',
 
-    /* Weather panel */
-    '#he-wx-panel{position:fixed;top:72px;right:16px;z-index:99985;background:#0b1220;border:1px solid rgba(255,255,255,.14);border-radius:20px;width:320px;box-shadow:0 20px 60px rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;transform:translateY(-8px);overflow:hidden}',
-    '#he-wx-panel.open{opacity:1;pointer-events:all;transform:translateY(0)}',
-    '#he-wx-panel-hdr{padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between}',
-    '#he-wx-panel-hdr h4{margin:0;font-size:.72rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.1em}',
-    '#he-wx-panel-close{background:none;border:none;color:#64748b;cursor:pointer;font-size:1rem;padding:0;line-height:1}',
-    '#he-wx-panel-body{padding:18px;max-height:70vh;overflow-y:auto}',
-    '.he-wx-current{display:flex;align-items:center;gap:14px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.07)}',
-    '.he-wx-current-icon{font-size:2.8rem;line-height:1}',
-    '.he-wx-current-city{font-size:1.05rem;font-weight:800;color:#e5e7eb}',
-    '.he-wx-current-time{font-size:.78rem;color:#60a5fa;margin-top:2px}',
-    '.he-wx-current-temp{font-size:1.6rem;font-weight:900;color:#e5e7eb;margin-top:4px}',
-    '.he-wx-current-meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}',
-    '.he-wx-meta-pill{font-size:.7rem;color:#94a3b8;background:rgba(255,255,255,.06);border-radius:20px;padding:2px 8px}',
-    '.he-wx-day{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)}',
-    '.he-wx-day:last-child{border:none}',
-    '.he-wx-day-name{width:38px;font-weight:700;color:#94a3b8;font-size:.82rem;flex-shrink:0}',
-    '.he-wx-day-icon{width:22px;text-align:center;flex-shrink:0}',
-    '.he-wx-day-desc{flex:1;color:#64748b;font-size:.74rem}',
-    '.he-wx-day-temp{font-weight:800;color:#e5e7eb;font-size:.82rem;white-space:nowrap}',
-    '.he-wx-day-lo{color:#64748b;font-weight:400}',
-    '.he-wx-location-prompt{text-align:center;padding:8px 0 12px}',
-    '.he-wx-prompt-icon{font-size:2rem;margin-bottom:10px}',
-    '.he-wx-prompt-p{font-size:.88rem;color:#cbd5e1;margin-bottom:14px;line-height:1.5}',
-    '.he-wx-btn-pri{padding:9px 18px;border-radius:10px;border:none;background:#3b82f6;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer;margin-right:8px}',
-    '.he-wx-btn-sec{padding:9px 18px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:none;color:#94a3b8;font-size:.85rem;font-weight:600;cursor:pointer}',
-
     /* Expense chart */
     '#he-exp-chart-wrap{padding:12px 16px 0;border-top:1px solid rgba(255,255,255,.06)}',
     '#he-exp-chart-wrap h4{font-size:.68rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.1em;margin:0 0 10px}',
@@ -143,7 +125,7 @@
     '.he-bar-val{width:66px;font-size:.7rem;color:#94a3b8;font-weight:700;text-align:right;white-space:nowrap;flex-shrink:0}',
 
     /* Supabase sync badge */
-    '#he-sync-badge{position:fixed;bottom:68px;right:16px;z-index:9988;font-size:.68rem;font-weight:700;color:#64748b;background:rgba(15,23,42,.85);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:3px 10px;pointer-events:none;opacity:0;transition:opacity .3s}',
+    '#he-sync-badge{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);z-index:9988;font-size:.68rem;font-weight:700;color:#64748b;background:rgba(15,23,42,.85);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:3px 10px;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap}',
     '#he-sync-badge.visible{opacity:1}',
     '#he-sync-badge.syncing{color:#60a5fa}',
     '#he-sync-badge.synced{color:#34d399}',
@@ -156,7 +138,6 @@
     '#he-ledger-topbar h2{margin:0;font-size:1.1rem;font-weight:800;color:#e5e7eb}',
     '#he-ledger-close{padding:7px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:none;color:#94a3b8;font-size:.85rem;font-weight:700;cursor:pointer}',
     '#he-ledger-body{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:20px}',
-    /* Add form */
     '#he-ledger-add{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px}',
     '#he-ledger-add h3{margin:0 0 12px;font-size:.78rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.08em}',
     '.he-ledger-add-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}',
@@ -167,15 +148,12 @@
     '.he-ledger-input-date{width:130px;flex-shrink:0}',
     '.he-ledger-input-cat{flex:1;min-width:110px}',
     '.he-ledger-add-btn{padding:8px 18px;border-radius:9px;border:none;background:#3b82f6;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0}',
-    /* Summary */
     '#he-ledger-summary{display:flex;gap:12px;flex-wrap:wrap}',
     '.he-ledger-stat{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:12px 16px;flex:1;min-width:130px}',
     '.he-ledger-stat-val{font-size:1.3rem;font-weight:900;color:#e5e7eb}',
     '.he-ledger-stat-lbl{font-size:.7rem;color:#64748b;font-weight:700;text-transform:uppercase;margin-top:2px}',
-    /* Filters */
     '#he-ledger-filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap}',
     '.he-ledger-filter{padding:7px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#e5e7eb;font-size:.85rem;font-family:inherit;outline:none;cursor:pointer}',
-    /* Table */
     '#he-ledger-table-wrap{overflow-x:auto;border-radius:12px;border:1px solid rgba(255,255,255,.08)}',
     '#he-ledger-table{width:100%;border-collapse:collapse;font-size:.85rem}',
     '#he-ledger-table th{padding:10px 14px;text-align:left;font-size:.68rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid rgba(255,255,255,.08);cursor:pointer;user-select:none;white-space:nowrap;background:rgba(255,255,255,.03)}',
@@ -188,9 +166,10 @@
     '.he-ledger-del{background:none;border:none;color:#475569;cursor:pointer;font-size:.85rem;padding:4px;border-radius:6px;transition:color .15s}',
     '.he-ledger-del:hover{color:#f87171}',
     '.he-ledger-empty{text-align:center;color:#475569;padding:40px;font-size:.9rem}',
-    /* Inbox section */
+
+    /* Inbox section inside ledger */
     '#he-ledger-inbox{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px}',
-    '#he-ledger-inbox h3{margin:0 0 12px;font-size:.78rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.08em;display:flex;justify-content:space-between;align-items:center}',
+    '#he-ledger-inbox h3{margin:0 0 12px;font-size:.78rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.08em}',
     '.he-inbox-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.84rem;color:#cbd5e1}',
     '.he-inbox-item:last-child{border:none}',
     '.he-inbox-type{padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700;flex-shrink:0}',
@@ -199,11 +178,36 @@
     '.he-inbox-empty{color:#475569;font-size:.84rem;padding:8px 0}',
 
     /* Session log badge */
-    '#he-session-log{position:fixed;bottom:68px;left:116px;z-index:9990;background:rgba(15,23,42,.9);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:6px 12px;font-size:.72rem;color:#94a3b8;font-weight:700;opacity:0;pointer-events:none;transition:opacity .3s;white-space:nowrap}',
+    '#he-session-log{position:fixed;bottom:72px;left:16px;z-index:9990;background:rgba(15,23,42,.9);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:6px 12px;font-size:.72rem;color:#94a3b8;font-weight:700;opacity:0;pointer-events:none;transition:opacity .3s;white-space:nowrap}',
     '#he-session-log.visible{opacity:1}',
 
+    /* Inbox action buttons */
+    '.he-iab-bar{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;}',
+    '.he-iab-btn{padding:3px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);font-size:.72rem;font-weight:700;cursor:pointer;transition:all .15s;line-height:1.6;}',
+    '.he-iab-joey{border-color:rgba(167,139,250,.35);color:#a78bfa;background:rgba(167,139,250,.07);}',
+    '.he-iab-joey:hover{background:rgba(167,139,250,.18);}',
+    '.he-iab-kanban{border-color:rgba(52,211,153,.35);color:#34d399;background:rgba(52,211,153,.07);}',
+    '.he-iab-kanban:hover{background:rgba(52,211,153,.18);}',
+    '.he-iab-links{border-color:rgba(96,165,250,.35);color:#60a5fa;background:rgba(96,165,250,.07);}',
+    '.he-iab-links:hover{background:rgba(96,165,250,.18);}',
+    '.he-iab-expense{border-color:rgba(251,191,36,.35);color:#fbbf24;background:rgba(251,191,36,.07);}',
+    '.he-iab-expense:hover{background:rgba(251,191,36,.18);}',
+    '.he-iab-btn:disabled{opacity:.4;pointer-events:none;}',
+
+    /* Inline weather forecast toggle */
+    '#he-wx-toggle-btn{margin-top:10px;background:none;border:1px solid rgba(96,165,250,.25);color:#60a5fa;font-size:.72rem;font-weight:700;padding:4px 12px;border-radius:20px;cursor:pointer;transition:background .15s;font-family:inherit;}',
+    '#he-wx-toggle-btn:hover{background:rgba(96,165,250,.1);}',
+    '#he-wx-forecast{display:none;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.07);}',
+    '.he-wx-day-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);}',
+    '.he-wx-day-row:last-child{border:none;}',
+    '.he-wx-day-name{width:38px;font-size:.72rem;color:#94a3b8;font-weight:700;flex-shrink:0;}',
+    '.he-wx-day-icon{width:22px;font-size:.9rem;flex-shrink:0;}',
+    '.he-wx-day-desc{flex:1;font-size:.68rem;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
+    '.he-wx-day-temp{font-size:.75rem;font-weight:800;color:#e5e7eb;white-space:nowrap;}',
+    '.he-wx-city{font-size:.68rem;color:#60a5fa;font-weight:700;margin-bottom:8px;letter-spacing:.03em;}',
+
     /* Mobile */
-    '@media(max-width:600px){#he-cmd-box{margin:0 10px}#he-wx-panel{width:calc(100vw - 24px);right:12px}#he-keys-box{padding:20px}#he-ledger-topbar{padding:12px 16px}#he-ledger-body{padding:14px 12px}}'
+    '@media(max-width:600px){#he-cmd-box{margin:0 10px}#he-keys-box{padding:20px}#he-ledger-topbar{padding:12px 16px}#he-ledger-body{padding:14px 12px}}'
   ].join('');
 
   var styleEl=document.createElement('style');
@@ -213,7 +217,7 @@
 
   /* ── Boot ──────────────────────────────────────────────────────────── */
   ready(function(){
-    removeClock();
+    removeFloatingWidgets();
     initCommandPalette();
     initKeyboardShortcutsPanel();
     initTabHotkeys();
@@ -225,26 +229,27 @@
     initLinksSearch();
     initSmartCaptureAutoTag();
     initHabitMorningReminder();
-    initEnhancedWeather();
+    initInlineWeatherForecast();
     initExpenseChart();
     initSupabaseDataSync();
     initExpenseLedger();
+    initInboxActions();
   });
 
   /* ═══════════════════════════════════════════════════════════════════
-   * 7. REMOVE FLOATING CLOCK
+   * 7. REMOVE FLOATING WIDGETS  (clock + weather floating overlays)
    * ═══════════════════════════════════════════════════════════════════ */
-  function removeClock(){
+  function removeFloatingWidgets(){
+    var IDS=['homer-clock-widget','homer-weather-widget'];
     function tryRemove(){
-      var cl=document.getElementById('homer-clock-widget');
-      if(cl){cl.remove();return;}
-      new MutationObserver(function(_,o){
-        var el=document.getElementById('homer-clock-widget');
-        if(el){o.disconnect();el.remove();}
-      }).observe(document.body,{childList:true,subtree:true});
+      IDS.forEach(function(id){var el=document.getElementById(id);if(el)el.remove();});
     }
     tryRemove();
-    setTimeout(tryRemove,800);
+    setTimeout(tryRemove,600);
+    setTimeout(tryRemove,1400);
+    new MutationObserver(function(){
+      IDS.forEach(function(id){var el=document.getElementById(id);if(el)el.remove();});
+    }).observe(document.body,{childList:true,subtree:true});
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -311,7 +316,7 @@
   function initKeyboardShortcutsPanel(){
     function kRow(d){var k=Array.prototype.slice.call(arguments,1);return'<div class="he-key-row"><span class="he-key-desc">'+esc(d)+'</span><span class="he-key-combo">'+k.map(function(x){return'<span class="he-kbd">'+esc(x)+'</span>';}).join(' + ')+'</span></div>';}
     var ov=document.createElement('div');ov.id='he-keys-overlay';
-    ov.innerHTML='<div id="he-keys-box"><h2>Keyboard Shortcuts</h2><div class="he-key-section">Navigation</div>'+kRow('Command palette','Ctrl','K')+kRow('Switch tab 1–8','Alt','1–8')+kRow('Shortcuts panel','?')+'<div class="he-key-section">Pomodoro</div>'+kRow('Start / Pause','Space')+'<div class="he-key-section">Capture</div>'+kRow('Quick capture','Alt','C')+kRow('Save entry','Ctrl','Enter')+'<div class="he-key-section">General</div>'+kRow('Close any panel','Esc')+kRow('7-day forecast','Click weather')+'<button id="he-keys-close-btn">Close</button></div>';
+    ov.innerHTML='<div id="he-keys-box"><h2>Keyboard Shortcuts</h2><div class="he-key-section">Navigation</div>'+kRow('Command palette','Ctrl','K')+kRow('Switch tab 1-8','Alt','1-8')+kRow('Shortcuts panel','?')+'<div class="he-key-section">Pomodoro</div>'+kRow('Start / Pause','Space')+'<div class="he-key-section">Capture</div>'+kRow('Quick capture','Alt','C')+kRow('Save entry','Ctrl','Enter')+'<div class="he-key-section">General</div>'+kRow('Close any panel','Esc')+kRow('Expand 7-day forecast','Click weather')+'<button id="he-keys-close-btn">Close</button></div>';
     document.body.appendChild(ov);
     function close(){ov.classList.remove('open');}
     document.getElementById('he-keys-close-btn').addEventListener('click',close);
@@ -326,7 +331,7 @@
   function openShortcutsPanel(){var el=document.getElementById('he-keys-overlay');if(el)el.classList.add('open');}
 
   /* ═══════════════════════════════════════════════════════════════════
-   * 3. TAB HOTKEYS  (Alt+1–8)
+   * 3. TAB HOTKEYS  (Alt+1-8)
    * ═══════════════════════════════════════════════════════════════════ */
   function initTabHotkeys(){
     var TABS=['home','pomodoro','focuslab','investing','tools','links','news','vault'];
@@ -358,7 +363,7 @@
    * ═══════════════════════════════════════════════════════════════════ */
   function initMobileBottomSheet(){
     ['homer-expense-panel','homer-memory-panel','homer-inbox-panel'].forEach(function(id){
-      waitForEl(id,function(el){if(window.innerWidth<=640)makeSheet(el);});
+      waitForEl('#'+id,function(el){if(window.innerWidth<=640)makeSheet(el);});
     });
     window.addEventListener('resize',function(){
       if(window.innerWidth>640)return;
@@ -375,34 +380,36 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-   * 6. FAB TRAY  — Quick Capture + Focus always visible;
-   *               Habits / Brief / Memory behind ⋯ toggle
+   * 6. FAB TRAY  — bottom-center pill bar
+   *    Capture + Pomodoro always visible; Habits / Brief / Memory
+   *    behind tray toggle
    * ═══════════════════════════════════════════════════════════════════ */
   function initFabTray(){
-    // Inject CSS for the tray
     var s=document.createElement('style');
     s.textContent=[
-      '#he-fab-tray{position:fixed;bottom:20px;left:20px;z-index:9992;display:flex;align-items:flex-end;gap:8px}',
-      '.he-fab{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;cursor:pointer;border:1px solid rgba(255,255,255,.14);transition:background .2s,transform .2s;-webkit-tap-highlight-color:transparent}',
-      '.he-fab:hover{transform:scale(1.1)}',
-      '#he-fab-more{background:rgba(255,255,255,.08);color:#94a3b8}',
-      '#he-fab-more:hover{background:rgba(255,255,255,.15)}',
-      '#he-fab-extras{display:flex;gap:8px;align-items:center;overflow:hidden;max-width:0;transition:max-width .3s cubic-bezier(.4,0,.2,1),opacity .25s;opacity:0;pointer-events:none}',
-      '#he-fab-extras.open{max-width:300px;opacity:1;pointer-events:all}',
+      '#he-fab-tray{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:9992;display:flex;align-items:center;gap:6px;background:rgba(9,15,30,.9);border:1px solid rgba(255,255,255,.11);border-radius:40px;padding:5px 10px;backdrop-filter:blur(12px);box-shadow:0 4px 24px rgba(0,0,0,.45);}',
+      '.he-fab{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.95rem;cursor:pointer;border:1px solid rgba(255,255,255,.1);transition:background .2s,transform .2s;-webkit-tap-highlight-color:transparent;background:rgba(255,255,255,.06);}',
+      '.he-fab:hover{transform:scale(1.12);background:rgba(255,255,255,.13);}',
+      '#he-fab-more{background:rgba(255,255,255,.04);color:#64748b;font-size:.85rem;letter-spacing:.05em;}',
+      '#he-fab-more:hover{background:rgba(255,255,255,.1);color:#94a3b8;}',
+      '#he-fab-tray-sep{width:1px;height:22px;background:rgba(255,255,255,.1);flex-shrink:0;margin:0 2px;}',
+      '#he-fab-extras{display:flex;gap:6px;align-items:center;overflow:hidden;max-width:0;transition:max-width .3s cubic-bezier(.4,0,.2,1),opacity .25s;opacity:0;pointer-events:none;}',
+      '#he-fab-extras.open{max-width:220px;opacity:1;pointer-events:all;}',
     ].join('');
     document.head.appendChild(s);
 
     var tray=document.createElement('div');tray.id='he-fab-tray';
-    tray.innerHTML='<div id="he-fab-extras"></div><button id="he-fab-more" class="he-fab" title="More">⋯</button>';
+    tray.innerHTML='<div id="he-fab-extras"></div><div id="he-fab-tray-sep"></div><button id="he-fab-more" class="he-fab" title="More tools">&#8943;</button>';
     document.body.appendChild(tray);
 
     var extrasOpen=false;
     document.getElementById('he-fab-more').addEventListener('click',function(){
       extrasOpen=!extrasOpen;
       document.getElementById('he-fab-extras').classList.toggle('open',extrasOpen);
+      this.textContent=extrasOpen?'\u00d7':'&#8943;';
+      this.innerHTML=extrasOpen?'&times;':'&#8943;';
     });
 
-    // Reparent existing FABs into our tray
     var REPARENT=[
       {id:'homer-capture-btn',always:true},
       {id:'homer-pomo-fab',always:true},
@@ -416,15 +423,17 @@
         var el=document.getElementById(cfg.id);
         if(!el||el.dataset.heParented)return;
         el.dataset.heParented='1';
-        // Remove inline positioning so our tray controls layout
         el.style.position='';el.style.bottom='';el.style.left='';el.style.top='';el.style.right='';el.style.zIndex='';
         el.classList.add('he-fab');
-        if(cfg.always){tray.insertBefore(el,tray.firstChild);}
-        else{document.getElementById('he-fab-extras').appendChild(el);}
+        if(cfg.always){
+          var sep=document.getElementById('he-fab-tray-sep');
+          tray.insertBefore(el,sep||tray.firstChild);
+        } else {
+          document.getElementById('he-fab-extras').appendChild(el);
+        }
       });
     }
     tryReparent();
-    // FABs from homer-features are created on DOMContentLoaded so may not exist yet
     new MutationObserver(tryReparent).observe(document.body,{childList:true,subtree:false});
   }
 
@@ -463,9 +472,11 @@
         var sess={ts:new Date().toISOString(),duration_secs:dur,task:task||null};
         var sessions=safeJson(localStorage.getItem(STORAGE_KEY),[]);sessions.push(sess);if(sessions.length>500)sessions=sessions.slice(-500);
         try{localStorage.setItem(STORAGE_KEY,JSON.stringify(sessions));}catch(_){}
-        var client=window.__supabase;
-        if(client){var uid=window.__sbSession&&window.__sbSession.user&&window.__sbSession.user.id;client.from('focus_sessions').insert({created_at:sess.ts,duration_secs:dur,task_label:task||null,user_id:uid||null}).then(function(r){if(r.error)console.debug('[homer] focus_sessions:',r.error.message);});}
-        toast('\uD83C\uDF45 Session logged — '+Math.round(dur/60)+' min','success',2500);
+        if(isBogdan()){
+          var client=window.__supabase;
+          if(client){var uid=window.__sbSession&&window.__sbSession.user&&window.__sbSession.user.id;client.from('focus_sessions').insert({created_at:sess.ts,duration_secs:dur,task_label:task||null,user_id:uid||null}).then(function(r){if(r.error)console.debug('[homer] focus_sessions:',r.error.message);});}
+        }
+        toast('\uD83C\uDF45 Session logged \u2014 '+Math.round(dur/60)+' min','success',2500);
         showBadge('\uD83C\uDF45 '+todayCount()+' sessions today');sessionStart=null;
       }
       if(mode==='focus')sessionStart=Date.now();
@@ -513,14 +524,14 @@
   }
   function detectType(s){
     if(/^https?:\/\/\S+/.test(s)||/^www\.\S+\.\S{2,}/.test(s))return'link';
-    if(/\b\d[\d,.]*\s*(ron|lei|usd|\$|€|eur|gbp|£)\b/i.test(s))return'expense';
+    if(/\b\d[\d,.]*\s*(ron|lei|usd|\$|\u20ac|eur|gbp|\u00a3)\b/i.test(s))return'expense';
     if(/^[\d,.]+\s+(lei|ron|usd|eur)\b/i.test(s))return'expense';
     if(/^(todo|task|fix|buy|call|send|check|schedule|write|review|update|build|create|book)\b/i.test(s))return'task';
     return'thought';
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-   * 12. HABIT MORNING REMINDER  (8–11 AM)
+   * 12. HABIT MORNING REMINDER  (8-11 AM)
    * ═══════════════════════════════════════════════════════════════════ */
   function initHabitMorningReminder(){
     var KEY='he-habit-reminded',today=new Date().toISOString().slice(0,10),h=new Date().getHours();
@@ -537,107 +548,120 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-   * 13. ENHANCED WEATHER PANEL
-   *     Click widget → location prompt → city + local time + 7-day
+   * 13. INLINE WEATHER FORECAST
+   *     Enhances the existing Home tab weather card (span-6 card)
+   *     with a collapsible 7-day forecast section.
+   *     Click toggle -> location prompt -> Nominatim -> open-meteo
    * ═══════════════════════════════════════════════════════════════════ */
-  function initEnhancedWeather(){
-    var panel=document.createElement('div');panel.id='he-wx-panel';
-    panel.innerHTML='<div id="he-wx-panel-hdr"><h4>Weather</h4><button id="he-wx-panel-close">✕</button></div><div id="he-wx-panel-body"></div>';
-    document.body.appendChild(panel);
-
-    var isOpen=false,locGranted=false,curLat=44.4268,curLon=26.1025,curCity='Bucharest',curTz='Europe/Bucharest',clockIv=null;
-
-    function openPanel(e){if(e)e.stopPropagation();isOpen=!isOpen;panel.classList.toggle('open',isOpen);if(isOpen)locGranted?fetchWeather():showPrompt();}
-    function closePanel(){isOpen=false;panel.classList.remove('open');if(clockIv){clearInterval(clockIv);clockIv=null;}}
-
-    document.getElementById('he-wx-panel-close').addEventListener('click',closePanel);
-    panel.addEventListener('click',function(e){e.stopPropagation();});
-    document.addEventListener('click',function(){if(isOpen)closePanel();});
-
-    // Attach click to the weather widget (created by homer-features)
-    var attached=false;
-    (function tryAttach(){
-      if(attached)return;
-      // Also try the inline weather card in home tab
-      var wx=document.getElementById('homer-weather-widget')||document.querySelector('.weather');
-      if(!wx){setTimeout(tryAttach,600);return;}
-      attached=true;wx.style.cursor='pointer';wx.title='Click for detailed forecast';
-      wx.addEventListener('click',openPanel);
-    })();
-
-    function showPrompt(){
-      var body=document.getElementById('he-wx-panel-body');
-      body.innerHTML='<div class="he-wx-location-prompt"><div class="he-wx-prompt-icon">\uD83D\uDCCD</div><p class="he-wx-prompt-p">Use your current location for accurate weather?</p><button class="he-wx-btn-pri" id="he-wx-allow">\uD83D\uDCCD Use My Location</button><button class="he-wx-btn-sec" id="he-wx-deny">Use Bucharest</button></div>';
-      document.getElementById('he-wx-allow').addEventListener('click',requestLoc);
-      document.getElementById('he-wx-deny').addEventListener('click',function(){fetchWeather();});
-    }
-
-    function requestLoc(){
-      var body=document.getElementById('he-wx-panel-body');
-      body.innerHTML='<div style="text-align:center;padding:24px;color:#64748b;font-size:.88rem">Requesting location\u2026</div>';
-      if(!navigator.geolocation){fetchWeather();return;}
-      navigator.geolocation.getCurrentPosition(
-        function(pos){
-          curLat=pos.coords.latitude;curLon=pos.coords.longitude;locGranted=true;
-          // Reverse geocode via Nominatim
-          fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+curLat+'&lon='+curLon,{headers:{'Accept-Language':'en','User-Agent':'HomerHome/1.0'}})
-            .then(function(r){return r.json();})
-            .then(function(d){
-              var addr=d.address||{};
-              curCity=addr.city||addr.town||addr.village||addr.county||'Your Location';
-              // Get timezone from browser (best approximation)
-              curTz=Intl.DateTimeFormat().resolvedOptions().timeZone||'Europe/Bucharest';
-              fetchWeather();
-            })
-            .catch(function(){curCity='Your Location';fetchWeather();});
-        },
-        function(){fetchWeather();}  // denied — fall back to Bucharest
-      );
-    }
-
+  function initInlineWeatherForecast(){
     var WI={0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',61:'🌧',63:'🌧',65:'🌧',71:'🌨',73:'🌨',75:'❄️',80:'🌦',81:'🌧',82:'⛈',95:'⛈',96:'⛈',99:'⛈'};
-    var WD={0:'Clear',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Foggy',51:'Drizzle',53:'Drizzle',55:'Heavy drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',71:'Light snow',73:'Snow',75:'Heavy snow',80:'Showers',81:'Heavy showers',82:'Showers',95:'Thunderstorm',96:'Thunderstorm',99:'Thunderstorm'};
-    var DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],CACHE_KEY='he-wx-v2-cache';
+    var WD={0:'Clear',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Icy fog',51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',71:'Light snow',73:'Snow',75:'Heavy snow',80:'Showers',81:'Heavy showers',82:'Violent showers',95:'Thunderstorm',96:'Thunderstorm',99:'Thunderstorm'};
+    var DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    var CACHE_KEY='he-wx-inline-cache';
 
-    function fetchWeather(){
-      var body=document.getElementById('he-wx-panel-body');if(!body)return;
-      body.innerHTML='<div style="padding:20px;text-align:center;color:#64748b;font-size:.85rem">Loading forecast\u2026</div>';
-      var cached=safeJson(localStorage.getItem(CACHE_KEY),null);
-      if(cached&&cached.lat===curLat&&cached.lon===curLon&&Date.now()-cached.ts<3600000){renderWeather(cached.data);return;}
-      var url='https://api.open-meteo.com/v1/forecast?latitude='+curLat+'&longitude='+curLon+'&current=temperature_2m,weathercode,windspeed_10m,relative_humidity_2m&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone='+encodeURIComponent(curTz)+'&forecast_days=7';
-      fetch(url).then(function(r){return r.json();}).then(function(d){
-        try{localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),lat:curLat,lon:curLon,data:d}));}catch(_){}
-        renderWeather(d);
-      }).catch(function(){if(body)body.innerHTML='<div style="color:#f87171;text-align:center;padding:20px;font-size:.85rem">Could not load weather</div>';});
-    }
+    // Wait for the inline weather card to be ready
+    var attempts=0;
+    (function tryInit(){
+      if(++attempts>20)return;
+      var wxEl=document.getElementById('wx-icon');
+      var card=wxEl&&(wxEl.closest?wxEl.closest('.card'):null);
+      if(!card||card.querySelector('#he-wx-forecast')){
+        if(!card) setTimeout(tryInit,600);
+        return;
+      }
 
-    function renderWeather(d){
-      var body=document.getElementById('he-wx-panel-body');if(!body)return;
-      var cur=d.current||{};var code=cur.weathercode||0;
-      var today=new Date().toISOString().slice(0,10);
-      // Local time (live)
-      function localTime(){try{return new Date().toLocaleTimeString('en-GB',{timeZone:curTz,hour:'2-digit',minute:'2-digit'});}catch(_){return'--:--';}}
-      var html='<div class="he-wx-current">'+
-        '<div class="he-wx-current-icon">'+(WI[code]||'🌡')+'</div>'+
-        '<div><div class="he-wx-current-city">'+esc(curCity)+'</div>'+
-        '<div class="he-wx-current-time" id="he-wx-local-time">'+localTime()+'</div>'+
-        '<div class="he-wx-current-temp">'+Math.round(cur.temperature_2m||0)+'°C</div>'+
-        '<div class="he-wx-current-meta">'+
-          '<span class="he-wx-meta-pill">'+esc(WD[code]||'')+'</span>'+
-          (cur.windspeed_10m?'<span class="he-wx-meta-pill">\uD83D\uDCA8 '+Math.round(cur.windspeed_10m)+' km/h</span>':'')+
-          (cur.relative_humidity_2m?'<span class="he-wx-meta-pill">\uD83D\uDCA7 '+cur.relative_humidity_2m+'%</span>':'')+
-        '</div></div>'+
-      '</div>';
-      var days=d.daily||{};
-      (days.time||[]).forEach(function(date,i){
-        var dt=new Date(date+'T12:00:00'),name=date===today?'Today':DAYS[dt.getDay()];
-        html+='<div class="he-wx-day"><span class="he-wx-day-name">'+name+'</span><span class="he-wx-day-icon">'+(WI[days.weathercode[i]]||'🌡')+'</span><span class="he-wx-day-desc">'+esc(WD[days.weathercode[i]]||'')+'</span><span class="he-wx-day-temp">'+Math.round(days.temperature_2m_max[i])+'° <span class="he-wx-day-lo">/ '+Math.round(days.temperature_2m_min[i])+'°</span></span></div>';
+      var toggleBtn=document.createElement('button');
+      toggleBtn.id='he-wx-toggle-btn';
+      toggleBtn.textContent='\u25be 7-day forecast';
+
+      var forecastDiv=document.createElement('div');
+      forecastDiv.id='he-wx-forecast';
+
+      var poweredBy=card.querySelector('.muted');
+      if(poweredBy){card.insertBefore(toggleBtn,poweredBy);card.insertBefore(forecastDiv,poweredBy);}
+      else{card.appendChild(toggleBtn);card.appendChild(forecastDiv);}
+
+      var expanded=false,loaded=false;
+      var lat=44.4268,lon=26.1025,tz='Europe/Bucharest',city='Bucharest';
+      var locState='unasked';
+
+      toggleBtn.addEventListener('click',function(){
+        expanded=!expanded;
+        forecastDiv.style.display=expanded?'':'none';
+        toggleBtn.textContent=(expanded?'\u25b4':'\u25be')+' 7-day forecast';
+        if(expanded&&!loaded){
+          if(locState==='unasked')showLocationPrompt();
+          else fetchForecast();
+        }
       });
-      body.innerHTML=html;
-      // Live clock for the city
-      if(clockIv)clearInterval(clockIv);
-      clockIv=setInterval(function(){var el=document.getElementById('he-wx-local-time');if(el)el.textContent=localTime();},10000);
-    }
+
+      function showLocationPrompt(){
+        locState='asking';
+        forecastDiv.innerHTML=
+          '<div style="text-align:center;padding:10px 0;">'+
+          '<p style="font-size:.78rem;color:#94a3b8;margin:0 0 10px;line-height:1.4">Use your location for accurate weather?</p>'+
+          '<button id="he-wx-allow" style="padding:5px 14px;border-radius:8px;border:none;background:#3b82f6;color:#fff;font-size:.75rem;font-weight:700;cursor:pointer;margin-right:6px">&#x1F4CD; My Location</button>'+
+          '<button id="he-wx-skip" style="padding:5px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:none;color:#94a3b8;font-size:.75rem;cursor:pointer">Bucharest</button>'+
+          '</div>';
+        document.getElementById('he-wx-allow').addEventListener('click',requestLocation);
+        document.getElementById('he-wx-skip').addEventListener('click',function(){locState='denied';fetchForecast();});
+      }
+
+      function requestLocation(){
+        locState='requesting';
+        forecastDiv.innerHTML='<div style="text-align:center;padding:12px;color:#64748b;font-size:.75rem">Requesting location\u2026</div>';
+        if(!navigator.geolocation){locState='denied';fetchForecast();return;}
+        navigator.geolocation.getCurrentPosition(
+          function(pos){
+            lat=pos.coords.latitude;lon=pos.coords.longitude;locState='granted';
+            fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lon,
+              {headers:{'User-Agent':'HomerHome/1.0','Accept-Language':'en'}})
+              .then(function(r){return r.json();})
+              .then(function(d){var a=d.address||{};city=a.city||a.town||a.village||a.county||'Your Location';fetchForecast();})
+              .catch(function(){fetchForecast();});
+          },
+          function(){locState='denied';fetchForecast();}
+        );
+      }
+
+      function fetchForecast(){
+        forecastDiv.innerHTML='<div style="text-align:center;padding:8px;color:#64748b;font-size:.75rem">Loading\u2026</div>';
+        var cached=safeJson(localStorage.getItem(CACHE_KEY),null);
+        if(cached&&Math.abs(cached.lat-lat)<0.01&&Math.abs(cached.lon-lon)<0.01&&Date.now()-cached.ts<3600000){
+          renderForecast(cached.data);return;
+        }
+        var url='https://api.open-meteo.com/v1/forecast?latitude='+lat.toFixed(4)+'&longitude='+lon.toFixed(4)+'&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone='+encodeURIComponent(tz)+'&forecast_days=7';
+        fetch(url)
+          .then(function(r){return r.json();})
+          .then(function(d){
+            try{localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),lat:lat,lon:lon,data:d}));}catch(_){}
+            renderForecast(d);
+          })
+          .catch(function(){forecastDiv.innerHTML='<div style="color:#f87171;font-size:.75rem;text-align:center;padding:8px">Could not load forecast</div>';});
+      }
+
+      function renderForecast(d){
+        loaded=true;
+        var days=d.daily||{};
+        var today=new Date().toISOString().slice(0,10);
+        var html='<div class="he-wx-city">&#x1F4CD; '+esc(city)+'</div>';
+        (days.time||[]).forEach(function(date,i){
+          var dt=new Date(date+'T12:00:00');
+          var name=date===today?'Today':DAYS[dt.getDay()];
+          var code=(days.weathercode||[])[i]||0;
+          var hi=Math.round((days.temperature_2m_max||[])[i]||0);
+          var lo=Math.round((days.temperature_2m_min||[])[i]||0);
+          html+=
+            '<div class="he-wx-day-row">'+
+              '<span class="he-wx-day-name">'+esc(name)+'</span>'+
+              '<span class="he-wx-day-icon">'+(WI[code]||'🌡')+'</span>'+
+              '<span class="he-wx-day-desc">'+esc(WD[code]||'')+'</span>'+
+              '<span class="he-wx-day-temp">'+hi+'&deg; <span style="font-weight:400;color:#64748b">/ '+lo+'&deg;</span></span>'+
+            '</div>';
+        });
+        forecastDiv.innerHTML=html||'<div style="color:#64748b;font-size:.75rem">No data available</div>';
+      }
+    })();
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -666,12 +690,14 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-   * 15. SUPABASE DATA SYNC
+   * 15. SUPABASE DATA SYNC  (Bogdan-only)
    *     Pulls on load, pushes on change, 30-s periodic backup
    * ═══════════════════════════════════════════════════════════════════ */
   var _syncDirty={};
 
   function initSupabaseDataSync(){
+    if(!isBogdan()) return; // localStorage-only for other users
+
     var badge=document.createElement('div');badge.id='he-sync-badge';document.body.appendChild(badge);
     function showBadge(txt,cls){badge.className=cls;badge.textContent=txt;badge.classList.add('visible');if(cls==='synced')setTimeout(function(){badge.classList.remove('visible');},3000);}
 
@@ -690,29 +716,19 @@
         }).catch(function(){showBadge('Sync error','error');});
     }
 
-    function pullKey(key,cb){
-      var client=getClient(),uid=getUid();if(!client||!uid){if(cb)cb(null);return;}
-      client.from('field_state').select('value,updated_at').eq('key','he_'+key).eq('user_id',uid).maybeSingle()
-        .then(function(r){
-          if(r.data&&r.data.value){
-            // merge: Supabase wins if present
-            localStorage.setItem(key,r.data.value);
-          }
-          if(cb)cb(r.data?r.data.value:null);
-        }).catch(function(){if(cb)cb(null);});
+    function pullKey(key){
+      var client=getClient(),uid=getUid();if(!client||!uid)return;
+      client.from('field_state').select('value').eq('key','he_'+key).eq('user_id',uid).maybeSingle()
+        .then(function(r){if(r.data&&r.data.value)localStorage.setItem(key,r.data.value);})
+        .catch(function(){});
     }
 
     var SYNC_KEYS=['homer-expenses','homer-habits','homer-inbox'];
 
-    function pullAll(){
-      if(!isLoggedIn())return;
-      SYNC_KEYS.forEach(function(k){pullKey(k,null);});
-    }
-
+    function pullAll(){if(!isLoggedIn())return;SYNC_KEYS.forEach(pullKey);}
     function markDirty(key){_syncDirty[key]=true;}
-    function pushDirty(){if(!isLoggedIn())return;Object.keys(_syncDirty).forEach(function(k){pushKey(k);});}
+    function pushDirty(){if(!isLoggedIn())return;Object.keys(_syncDirty).forEach(pushKey);}
 
-    // Pull on load (wait for session)
     function waitForSession(){
       if(isLoggedIn()){pullAll();return;}
       window.addEventListener('supabase:session',function(){pullAll();},{once:true});
@@ -720,25 +736,18 @@
     }
     waitForSession();
 
-    // Watch localStorage writes for our keys and mark dirty
     var origSetItem=localStorage.setItem.bind(localStorage);
     localStorage.setItem=function(key,val){
       origSetItem(key,val);
       if(SYNC_KEYS.indexOf(key)!==-1)markDirty(key);
     };
 
-    // Periodic push every 30 s
     setInterval(pushDirty,30000);
-
-    // Push when page unloads
     window.addEventListener('beforeunload',pushDirty);
 
-    // Push when expense / habit panel closes
     ['homer-expense-panel','homer-habits-panel','homer-inbox-panel'].forEach(function(id){
-      waitForEl(id,function(el){
-        new MutationObserver(function(){
-          if(!el.classList.contains('open'))pushDirty();
-        }).observe(el,{attributes:true,attributeFilter:['class']});
+      waitForEl('#'+id,function(el){
+        new MutationObserver(function(){if(!el.classList.contains('open'))pushDirty();}).observe(el,{attributes:true,attributeFilter:['class']});
       });
     });
 
@@ -747,9 +756,11 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-   * 16. EXPENSE LEDGER  — full-page sortable table + inbox section
+   * 16. EXPENSE LEDGER  — full-page sortable/filterable table
    * ═══════════════════════════════════════════════════════════════════ */
   var _ledgerOpen=false;
+  var CAT_COLOR={food:'#fb7185',transport:'#fbbf24',work:'#60a5fa',health:'#34d399',entertainment:'#a78bfa',other:'#94a3b8'};
+  var CAT_LABEL={food:'Food',transport:'Transport',work:'Work',health:'Health',entertainment:'Entertainment',other:'Other'};
 
   function openLedger(){
     var ov=document.getElementById('he-ledger-ov');
@@ -759,16 +770,14 @@
 
   function buildLedger(){
     var ov=document.createElement('div');ov.id='he-ledger-ov';ov.classList.add('hidden');
-    var CAT_OPTS=['food','transport','work','health','entertainment','other'].map(function(c){return'<option value="'+c+'">'+{'food':'Food','transport':'Transport','work':'Work','health':'Health','entertainment':'Entertainment','other':'Other'}[c]+'</option>';}).join('');
+    var CAT_OPTS=['food','transport','work','health','entertainment','other'].map(function(c){return'<option value="'+c+'">'+CAT_LABEL[c]+'</option>';}).join('');
     ov.innerHTML=
       '<div id="he-ledger-topbar">'+
-        '<h2>\uD83D\uDCCA Expense Ledger</h2>'+
+        '<h2>&#x1F4CA; Expense Ledger</h2>'+
         '<button id="he-ledger-close">Close</button>'+
       '</div>'+
       '<div id="he-ledger-body">'+
-        // Add form
-        '<div id="he-ledger-add">'+
-          '<h3>Add Expense</h3>'+
+        '<div id="he-ledger-add"><h3>Add Expense</h3>'+
           '<div class="he-ledger-add-row">'+
             '<input type="text" id="he-l-desc" class="he-ledger-input he-ledger-input-desc" placeholder="Description *">'+
             '<input type="number" id="he-l-amt" class="he-ledger-input he-ledger-input-amt" placeholder="Amount (RON) *" min="0" step="0.01">'+
@@ -777,50 +786,36 @@
             '<button id="he-l-add-btn" class="he-ledger-add-btn">+ Add</button>'+
           '</div>'+
         '</div>'+
-        // Summary stats
         '<div id="he-ledger-summary"></div>'+
-        // Filters
         '<div id="he-ledger-filters">'+
           '<select id="he-l-fmo" class="he-ledger-filter"></select>'+
           '<select id="he-l-fcat" class="he-ledger-filter"><option value="">All categories</option>'+CAT_OPTS+'</select>'+
-          '<input type="search" id="he-l-fsearch" class="he-ledger-input" placeholder="\uD83D\uDD0D Search\u2026" style="flex:1;min-width:150px">'+
+          '<input type="search" id="he-l-fsearch" class="he-ledger-input" placeholder="&#x1F50D; Search\u2026" style="flex:1;min-width:150px">'+
         '</div>'+
-        // Table
         '<div id="he-ledger-table-wrap">'+
-          '<table id="he-ledger-table">'+
-            '<thead><tr>'+
-              '<th data-col="date">Date<span class="he-th-arrow"></span></th>'+
-              '<th data-col="cat">Category<span class="he-th-arrow"></span></th>'+
-              '<th data-col="desc">Description<span class="he-th-arrow"></span></th>'+
-              '<th data-col="amount" style="text-align:right">Amount<span class="he-th-arrow"></span></th>'+
-              '<th style="width:32px"></th>'+
-            '</tr></thead>'+
-            '<tbody id="he-ledger-body-rows"></tbody>'+
-          '</table>'+
+          '<table id="he-ledger-table"><thead><tr>'+
+            '<th data-col="date">Date<span class="he-th-arrow"></span></th>'+
+            '<th data-col="cat">Category<span class="he-th-arrow"></span></th>'+
+            '<th data-col="desc">Description<span class="he-th-arrow"></span></th>'+
+            '<th data-col="amount" style="text-align:right">Amount<span class="he-th-arrow"></span></th>'+
+            '<th style="width:32px"></th>'+
+          '</tr></thead><tbody id="he-ledger-body-rows"></tbody></table>'+
         '</div>'+
-        // Inbox
         '<div id="he-ledger-inbox">'+
-          '<h3>Inbox <span style="font-weight:400;font-size:.78rem;color:#475569">(unprocessed captures)</span></h3>'+
+          '<h3>&#x1F4E5; Inbox <span style="font-weight:400;font-size:.75rem;color:#475569">(unprocessed captures)</span></h3>'+
           '<div id="he-ledger-inbox-items"></div>'+
         '</div>'+
       '</div>';
     document.body.appendChild(ov);
 
-    // Set today's date in date input
     document.getElementById('he-l-date').value=new Date().toISOString().slice(0,10);
-
-    // Close button
     document.getElementById('he-ledger-close').addEventListener('click',function(){ov.classList.add('hidden');_ledgerOpen=false;});
     document.addEventListener('keydown',function(e){if(e.key==='Escape'&&_ledgerOpen){ov.classList.add('hidden');_ledgerOpen=false;}});
 
-    // Build month filter
     buildMonthFilter();
-
-    // Add expense
     document.getElementById('he-l-add-btn').addEventListener('click',addExpense);
     ['he-l-desc','he-l-amt'].forEach(function(id){document.getElementById(id).addEventListener('keydown',function(e){if(e.key==='Enter')addExpense();});});
 
-    // Sort state
     var sortCol='date',sortDir=-1;
     document.getElementById('he-ledger-table').querySelectorAll('th[data-col]').forEach(function(th){
       th.addEventListener('click',function(){
@@ -828,15 +823,11 @@
         renderLedger();
       });
     });
+    ov._sort=function(){return{col:sortCol,dir:sortDir};};
 
-    // Filters
     ['he-l-fmo','he-l-fcat','he-l-fsearch'].forEach(function(id){document.getElementById(id).addEventListener('input',renderLedger);});
-
     ov.classList.remove('hidden');_ledgerOpen=true;
     renderLedger();
-
-    // Expose sort state via closure
-    ov._sort=function(){return{col:sortCol,dir:sortDir};};
 
     function addExpense(){
       var desc=document.getElementById('he-l-desc').value.trim();
@@ -853,15 +844,12 @@
     function buildMonthFilter(){
       var expenses=safeJson(localStorage.getItem('homer-expenses'),[]);
       var months=Array.from(new Set(expenses.map(function(e){return(e.date||'').slice(0,7);}).filter(Boolean))).sort().reverse();
-      var sel=document.getElementById('he-l-fmo');
+      var sel=document.getElementById('he-l-fmo');if(!sel)return;
       var cur=sel.value;
       sel.innerHTML='<option value="">All months</option>'+months.map(function(m){var d=new Date(m+'-01');var label=d.toLocaleDateString('en-GB',{month:'long',year:'numeric'});return'<option value="'+m+'">'+label+'</option>';}).join('');
       if(cur)sel.value=cur;
     }
   }
-
-  var CAT_COLOR={food:'#fb7185',transport:'#fbbf24',work:'#60a5fa',health:'#34d399',entertainment:'#a78bfa',other:'#94a3b8'};
-  var CAT_LABEL={food:'Food',transport:'Transport',work:'Work',health:'Health',entertainment:'Entertainment',other:'Other'};
 
   function renderLedger(){
     var tbody=document.getElementById('he-ledger-body-rows');if(!tbody)return;
@@ -880,52 +868,49 @@
       return true;
     });
 
-    // Sort
     filtered.sort(function(a,b){
       var av=sort.col==='amount'?parseFloat(a.amount||0):String(a[sort.col]||'');
       var bv=sort.col==='amount'?parseFloat(b.amount||0):String(b[sort.col]||'');
       return av<bv?-sort.dir:av>bv?sort.dir:0;
     });
 
-    // Summary
     var total=filtered.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
     var bycat={};filtered.forEach(function(e){var c=e.cat||'other';bycat[c]=(bycat[c]||0)+(parseFloat(e.amount)||0);});
     var summaryEl=document.getElementById('he-ledger-summary');
     if(summaryEl){
-      var statsHtml='<div class="he-ledger-stat"><div class="he-ledger-stat-val">'+total.toFixed(2)+' RON</div><div class="he-ledger-stat-lbl">Total '+(fmo||'all time')+'</div></div>'+
+      var statsHtml='<div class="he-ledger-stat"><div class="he-ledger-stat-val">'+total.toFixed(2)+' RON</div><div class="he-ledger-stat-lbl">Total</div></div>'+
         '<div class="he-ledger-stat"><div class="he-ledger-stat-val">'+filtered.length+'</div><div class="he-ledger-stat-lbl">Transactions</div></div>';
       var topCat=Object.keys(bycat).sort(function(a,b){return bycat[b]-bycat[a];})[0];
-      if(topCat)statsHtml+='<div class="he-ledger-stat"><div class="he-ledger-stat-val">'+bycat[topCat].toFixed(0)+' RON</div><div class="he-ledger-stat-lbl">Largest: '+(CAT_LABEL[topCat]||topCat)+'</div></div>';
+      if(topCat)statsHtml+='<div class="he-ledger-stat"><div class="he-ledger-stat-val">'+bycat[topCat].toFixed(0)+' RON</div><div class="he-ledger-stat-lbl">Top: '+(CAT_LABEL[topCat]||topCat)+'</div></div>';
       summaryEl.innerHTML=statsHtml;
     }
 
-    // Table rows
-    if(!filtered.length){tbody.innerHTML='<tr><td colspan="5" class="he-ledger-empty">No expenses match the filters.</td></tr>';return;}
-    tbody.innerHTML=filtered.map(function(e){
-      var cat=e.cat||'other',col=CAT_COLOR[cat]||'#94a3b8';
-      return'<tr data-id="'+e.id+'">'+
-        '<td>'+esc(e.date||'')+'</td>'+
-        '<td><span class="he-ledger-cat-pill" style="background:'+col+'22;color:'+col+'">'+esc(CAT_LABEL[cat]||cat)+'</span></td>'+
-        '<td>'+esc(e.desc||'')+'</td>'+
-        '<td style="text-align:right;font-weight:700">'+parseFloat(e.amount||0).toFixed(2)+'</td>'+
-        '<td><button class="he-ledger-del" title="Delete">\u2715</button></td>'+
-      '</tr>';
-    }).join('');
-
-    tbody.querySelectorAll('.he-ledger-del').forEach(function(btn){
-      btn.addEventListener('click',function(){
-        var id=parseInt(btn.closest('tr').dataset.id,10);
-        var all=safeJson(localStorage.getItem('homer-expenses'),[]).filter(function(e){return e.id!==id;});
-        localStorage.setItem('homer-expenses',JSON.stringify(all));
-        renderLedger();toast('Expense deleted','info',1500);
+    if(!filtered.length){tbody.innerHTML='<tr><td colspan="5" class="he-ledger-empty">No expenses match the filters.</td></tr>';}
+    else{
+      tbody.innerHTML=filtered.map(function(e){
+        var cat=e.cat||'other',col=CAT_COLOR[cat]||'#94a3b8';
+        return'<tr data-id="'+e.id+'">'+
+          '<td>'+esc(e.date||'')+'</td>'+
+          '<td><span class="he-ledger-cat-pill" style="background:'+col+'22;color:'+col+'">'+esc(CAT_LABEL[cat]||cat)+'</span></td>'+
+          '<td>'+esc(e.desc||'')+'</td>'+
+          '<td style="text-align:right;font-weight:700">'+parseFloat(e.amount||0).toFixed(2)+'</td>'+
+          '<td><button class="he-ledger-del" title="Delete">\u00d7</button></td>'+
+        '</tr>';
+      }).join('');
+      tbody.querySelectorAll('.he-ledger-del').forEach(function(btn){
+        btn.addEventListener('click',function(){
+          var id=parseInt(btn.closest('tr').dataset.id,10);
+          var all=safeJson(localStorage.getItem('homer-expenses'),[]).filter(function(e){return e.id!==id;});
+          localStorage.setItem('homer-expenses',JSON.stringify(all));
+          renderLedger();toast('Expense deleted','info',1500);
+        });
       });
-    });
+    }
 
-    // Inbox section
-    renderInbox();
+    renderLedgerInbox();
   }
 
-  function renderInbox(){
+  function renderLedgerInbox(){
     var el=document.getElementById('he-ledger-inbox-items');if(!el)return;
     var inbox=safeJson(localStorage.getItem('homer-inbox'),[]);
     if(!inbox.length){el.innerHTML='<div class="he-inbox-empty">No items in inbox.</div>';return;}
@@ -935,7 +920,7 @@
       return'<div class="he-inbox-item" data-idx="'+i+'">'+
         '<span class="he-inbox-type" style="background:'+tc+'22;color:'+tc+'">'+esc(item.type||'thought')+'</span>'+
         '<span class="he-inbox-text">'+esc((item.text||'').slice(0,120))+'</span>'+
-        '<button class="he-inbox-del" title="Remove">\u2715</button>'+
+        '<button class="he-inbox-del" title="Remove">\u00d7</button>'+
       '</div>';
     }).join('');
     el.querySelectorAll('.he-inbox-del').forEach(function(btn){
@@ -944,20 +929,175 @@
         var all=safeJson(localStorage.getItem('homer-inbox'),[]);
         all.splice(idx,1);
         localStorage.setItem('homer-inbox',JSON.stringify(all));
-        renderInbox();
+        renderLedgerInbox();
       });
     });
   }
 
-  // Override the expense FAB to open the ledger instead
+  // Override expense FAB to open ledger
   (function(){
-    var tries=0;
-    var iv=setInterval(function(){
+    var tries=0,iv=setInterval(function(){
       var fab=document.getElementById('homer-expense-fab');
       if(fab||++tries>20){clearInterval(iv);
         if(fab&&!fab.dataset.heLedger){fab.dataset.heLedger='1';fab.addEventListener('click',function(e){e.stopImmediatePropagation();openLedger();});}
       }
     },400);
   })();
+
+  function initExpenseLedger(){
+    // Ledger is opened via expense FAB override and command palette.
+    // Nothing to init here; buildLedger is called lazily on first open.
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+   * 17. INBOX ACTIONS
+   *     Patches the existing Quick Capture inbox panel to add
+   *     per-type action buttons below each item.
+   *     Thought -> Joey (save memory)
+   *     Task    -> Kanban Organize Life project (add issue)
+   *     Link    -> Links tab (prompt for name)
+   *     Expense -> Expense Ledger (pre-fill form)
+   * ═══════════════════════════════════════════════════════════════════ */
+  function initInboxActions(){
+    waitForEl('#homer-inbox-list',function(list){
+      new MutationObserver(function(){addActionBtns(list);}).observe(list,{childList:true});
+      addActionBtns(list);
+    });
+  }
+
+  function addActionBtns(list){
+    list.querySelectorAll('.homer-inbox-item:not([data-he-actions])').forEach(function(item){
+      item.dataset.heActions='1';
+      var id=parseInt(item.dataset.id,10);
+      var inbox=safeJson(localStorage.getItem('homer-inbox'),[]);
+      var entry=inbox.find(function(x){return x.id===id;});
+      if(!entry)return;
+
+      var type=entry.type||'thought';
+      var btnMap={
+        thought:{label:'🧠 Save to Joey',cls:'he-iab-joey'},
+        task:   {label:'📋 Add to Kanban',cls:'he-iab-kanban'},
+        link:   {label:'🔗 Save to Links',cls:'he-iab-links'},
+        expense:{label:'💰 Open in Ledger',cls:'he-iab-expense'}
+      };
+      var cfg=btnMap[type];if(!cfg)return;
+
+      var bar=document.createElement('div');
+      bar.className='he-iab-bar';
+      var btn=document.createElement('button');
+      btn.className='he-iab-btn '+cfg.cls;
+      btn.innerHTML=cfg.label;
+      bar.appendChild(btn);
+
+      // Insert below the meta row
+      var meta=item.querySelector('.homer-inbox-item-meta');
+      if(meta)meta.insertAdjacentElement('afterend',bar);
+      else item.appendChild(bar);
+
+      btn.addEventListener('click',function(e){
+        e.stopPropagation();
+        btn.disabled=true;
+        dispatchInboxAction(type,entry.text||'',entry.id,btn,item);
+      });
+    });
+  }
+
+  function dispatchInboxAction(type,text,entryId,btn,item){
+    if(type==='thought'){
+      saveToJoey(text,function(ok){
+        if(ok){removeInboxEntry(entryId);fadeItem(item);toast('Thought saved to Joey memories','success');}
+        else{btn.disabled=false;toast('Could not reach Joey \u2014 are you signed in?','error');}
+      });
+    }
+    else if(type==='task'){
+      addToKanban(text,function(ok){
+        if(ok){removeInboxEntry(entryId);fadeItem(item);toast('Task added to Organize Life in Kanban','success');}
+        else{btn.disabled=false;toast('Vault must be unlocked to add tasks','warn',5000);}
+      });
+    }
+    else if(type==='link'){
+      var url=text.trim();
+      if(!/^https?:\/\//i.test(url))url='https://'+url;
+      var defaultName='';
+      try{defaultName=new URL(url).hostname.replace(/^www\./,'');}catch(_){defaultName=url.slice(0,40);}
+      var name=window.prompt('Name for this link:',defaultName);
+      if(!name){btn.disabled=false;return;}
+      if(window._homerAddSavedLink){
+        var res=window._homerAddSavedLink({name:name,url:url});
+        if(res&&res.ok){removeInboxEntry(entryId);fadeItem(item);switchTab('links');toast('Link "'+name+'" saved','success');}
+        else{btn.disabled=false;toast((res&&res.error)||'Could not add link','error');}
+      }else{btn.disabled=false;toast('Links not ready yet','warn');}
+    }
+    else if(type==='expense'){
+      openLedger();
+      setTimeout(function(){
+        var descEl=document.getElementById('he-l-desc');
+        if(descEl)descEl.value=text;
+        var amtMatch=text.match(/\b(\d[\d.,]*)\s*(?:ron|lei|usd|\$|\u20ac|eur|gbp)?\b/i);
+        if(amtMatch){
+          var amtEl=document.getElementById('he-l-amt');
+          if(amtEl)amtEl.value=parseFloat(amtMatch[1].replace(',','.')).toFixed(2);
+        }
+        if(descEl)descEl.focus();
+      },350);
+      removeInboxEntry(entryId);fadeItem(item);
+      toast('Expense pre-filled in Ledger','info');
+    }
+  }
+
+  function fadeItem(item){
+    item.style.transition='opacity .4s';
+    item.style.opacity='0';
+    setTimeout(function(){if(item.parentNode)item.parentNode.removeChild(item);},450);
+  }
+
+  function removeInboxEntry(id){
+    var inbox=safeJson(localStorage.getItem('homer-inbox'),[]);
+    localStorage.setItem('homer-inbox',JSON.stringify(inbox.filter(function(x){return x.id!==id;})));
+  }
+
+  /* ── Joey: save thought as memory ─────────────────────────────────── */
+  function saveToJoey(text,cb){
+    var headers={'Content-Type':'application/json'};
+    var authH=typeof window.supabaseAuthHeader==='function'?window.supabaseAuthHeader():null;
+    if(authH)headers['Authorization']=authH;
+    fetch('/api/joey',{
+      method:'POST',
+      headers:headers,
+      body:JSON.stringify({action:'memory',memory:text,source:'inbox',category:'thought'})
+    })
+    .then(function(r){return r.json();})
+    .then(function(d){cb(!d.error);})
+    .catch(function(){cb(false);});
+  }
+
+  /* ── Kanban: add task to Organize Life project ─────────────────────── */
+  function addToKanban(text,cb){
+    if(!window._homerLoadVault||!window._homerVaultUnlocked){cb(false);return;}
+    window._homerLoadVault().then(function(data){
+      if(!data){cb(false);return;}
+      var projs=data.projects||[];
+      var organizeProj=projs.find(function(p){
+        return p.id==='organize-life'||(p.name||'').toLowerCase().replace(/\s/g,'').includes('organizelife');
+      });
+      var projId=organizeProj?organizeProj.id:(projs[0]?projs[0].id:'organize-life');
+      if(!data.goals)data.goals=[];
+      data.goals.push({
+        id:Date.now(),
+        summary:text,
+        desc:'',
+        projectId:projId,
+        col:'todo',
+        priority:'medium',
+        labels:['inbox'],
+        subtasks:[],
+        attachments:[],
+        comments:[],
+        customFields:{},
+        log:[{action:'Added from Quick Capture inbox',ts:Date.now()}]
+      });
+      window._homerSaveVault(data).then(function(){cb(true);}).catch(function(){cb(false);});
+    }).catch(function(){cb(false);});
+  }
 
 })();
