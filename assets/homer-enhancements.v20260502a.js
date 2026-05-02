@@ -234,8 +234,44 @@
     '.he-wx-day-lo{font-weight:400;color:#64748b;}',
     '.he-wx-city{font-size:.68rem;color:#60a5fa;font-weight:700;margin-bottom:8px;letter-spacing:.03em;}',
 
+    /* Vault ledger tile accent */
+    '#vd-open-ledger .vd-icon{background:rgba(251,191,36,.1);}',
+    '#vd-open-ledger:hover{border-color:rgba(251,191,36,.25)!important;}',
+    '#vd-open-ledger .vd-badge{background:rgba(251,191,36,.12);color:#fbbf24;}',
+
+    /* Smart insight cards */
+    '#he-ledger-insights{display:flex;gap:10px;flex-wrap:wrap;}',
+    '.he-insight-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:12px 16px;flex:1;min-width:110px;display:flex;flex-direction:column;gap:3px;}',
+    '.he-insight-icon{font-size:1.05rem;line-height:1;}',
+    '.he-insight-val{font-size:1.1rem;font-weight:900;color:#e5e7eb;line-height:1.2;}',
+    '.he-insight-lbl{font-size:.65rem;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.05em;}',
+    '.he-insight-warn{color:#fbbf24!important;}',
+    '.he-insight-ok{color:#34d399!important;}',
+    '.he-insight-bad{color:#f87171!important;}',
+
+    /* Budget envelopes */
+    '#he-ledger-budgets{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px;}',
+    '#he-ledger-budgets h3{margin:0 0 14px;font-size:.78rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;justify-content:space-between;}',
+    '.he-budget-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}',
+    '.he-budget-row:last-child{margin-bottom:0;}',
+    '.he-budget-label{width:90px;font-size:.72rem;font-weight:700;color:#94a3b8;flex-shrink:0;display:flex;align-items:center;gap:4px;}',
+    '.he-budget-track{flex:1;height:9px;border-radius:5px;background:rgba(255,255,255,.07);overflow:hidden;}',
+    '.he-budget-fill{height:100%;border-radius:5px;transition:width .5s cubic-bezier(.4,0,.2,1);}',
+    '.he-budget-fill.over{background:#f87171!important;}',
+    '.he-budget-info{width:96px;font-size:.7rem;color:#64748b;font-weight:600;text-align:right;white-space:nowrap;flex-shrink:0;}',
+    '.he-budget-info.warn{color:#fbbf24;}',
+    '.he-budget-info.bad{color:#f87171;}',
+    '.he-budget-edit-btn{background:none;border:none;color:#475569;cursor:pointer;font-size:.7rem;padding:1px 5px;border-radius:5px;transition:color .15s;}',
+    '.he-budget-edit-btn:hover{color:#94a3b8;background:rgba(255,255,255,.06);}',
+
+    /* Export button + notes */
+    '#he-ledger-export{padding:7px 14px;border-radius:9px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#94a3b8;font-size:.8rem;font-weight:700;cursor:pointer;white-space:nowrap;}',
+    '#he-ledger-export:hover{border-color:rgba(52,211,153,.35);color:#34d399;}',
+    '.he-ledger-input-note{flex:2;min-width:120px;}',
+    '.he-ledger-note-cell{font-size:.75rem;color:#64748b;font-style:italic;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
+
     /* Mobile */
-    '@media(max-width:600px){#he-cmd-box{margin:0 10px}#he-keys-box{padding:20px}#he-ledger-topbar{padding:12px 16px}#he-ledger-body{padding:14px 12px}}'
+    '@media(max-width:600px){#he-cmd-box{margin:0 10px}#he-keys-box{padding:20px}#he-ledger-topbar{padding:12px 16px}#he-ledger-body{padding:14px 12px}#he-ledger-insights{flex-direction:column}}'
   ].join('');
 
   var styleEl=document.createElement('style');
@@ -877,19 +913,25 @@
     ov.innerHTML=
       '<div id="he-ledger-topbar">'+
         '<h2>&#x1F4CA; Expense Ledger</h2>'+
-        '<button id="he-ledger-close">Close</button>'+
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'+
+          '<button id="he-ledger-export">&#x2B07; Export CSV</button>'+
+          '<button id="he-ledger-close">Close</button>'+
+        '</div>'+
       '</div>'+
       '<div id="he-ledger-body">'+
+        '<div id="he-ledger-insights"></div>'+
         '<div id="he-ledger-add"><h3>Add Expense</h3>'+
           '<div class="he-ledger-add-row">'+
             '<input type="text" id="he-l-desc" class="he-ledger-input he-ledger-input-desc" placeholder="Description *">'+
             '<input type="number" id="he-l-amt" class="he-ledger-input he-ledger-input-amt" placeholder="Amount (RON) *" min="0" step="0.01">'+
             '<select id="he-l-cat" class="he-ledger-input he-ledger-input-cat">'+CAT_OPTS+'</select>'+
             '<input type="date" id="he-l-date" class="he-ledger-input he-ledger-input-date">'+
+            '<input type="text" id="he-l-note" class="he-ledger-input he-ledger-input-note" placeholder="Note (optional)">'+
             '<button id="he-l-add-btn" class="he-ledger-add-btn">+ Add</button>'+
           '</div>'+
         '</div>'+
         '<div id="he-ledger-summary"></div>'+
+        '<div id="he-ledger-budgets"></div>'+
         '<div id="he-ledger-filters">'+
           '<select id="he-l-fmo" class="he-ledger-filter"></select>'+
           '<select id="he-l-fcat" class="he-ledger-filter"><option value="">All categories</option>'+CAT_OPTS+'</select>'+
@@ -900,6 +942,7 @@
             '<th data-col="date">Date<span class="he-th-arrow"></span></th>'+
             '<th data-col="cat">Category<span class="he-th-arrow"></span></th>'+
             '<th data-col="desc">Description<span class="he-th-arrow"></span></th>'+
+            '<th>Note</th>'+
             '<th data-col="amount" style="text-align:right">Amount<span class="he-th-arrow"></span></th>'+
             '<th style="width:32px"></th>'+
           '</tr></thead><tbody id="he-ledger-body-rows"></tbody></table>'+
@@ -913,6 +956,7 @@
 
     document.getElementById('he-l-date').value=new Date().toISOString().slice(0,10);
     document.getElementById('he-ledger-close').addEventListener('click',function(){ov.classList.add('hidden');_ledgerOpen=false;});
+    document.getElementById('he-ledger-export').addEventListener('click',exportCSV);
     document.addEventListener('keydown',function(e){if(e.key==='Escape'&&_ledgerOpen){ov.classList.add('hidden');_ledgerOpen=false;}});
 
     buildMonthFilter();
@@ -936,10 +980,12 @@
       var desc=document.getElementById('he-l-desc').value.trim();
       var amt=parseFloat(document.getElementById('he-l-amt').value);
       if(!desc||isNaN(amt)||amt<=0){toast('Enter description and a positive amount','warn');return;}
+      var note=(document.getElementById('he-l-note')||{}).value||'';
       var expenses=safeJson(localStorage.getItem('homer-expenses'),[]);
-      expenses.push({id:Date.now(),desc:desc,amount:amt,cat:document.getElementById('he-l-cat').value,date:document.getElementById('he-l-date').value||new Date().toISOString().slice(0,10)});
+      expenses.push({id:Date.now(),desc:desc,amount:amt,cat:document.getElementById('he-l-cat').value,date:document.getElementById('he-l-date').value||new Date().toISOString().slice(0,10),note:note.trim()||undefined});
       localStorage.setItem('homer-expenses',JSON.stringify(expenses));
       document.getElementById('he-l-desc').value='';document.getElementById('he-l-amt').value='';
+      var noteEl=document.getElementById('he-l-note');if(noteEl)noteEl.value='';
       buildMonthFilter();renderLedger();
       toast('Expense added','success',1800);
     }
@@ -988,7 +1034,10 @@
       summaryEl.innerHTML=statsHtml;
     }
 
-    if(!filtered.length){tbody.innerHTML='<tr><td colspan="5" class="he-ledger-empty">No expenses match the filters.</td></tr>';}
+    renderInsights(expenses);
+    renderBudgets(expenses);
+
+    if(!filtered.length){tbody.innerHTML='<tr><td colspan="6" class="he-ledger-empty">No expenses match the filters.</td></tr>';}
     else{
       tbody.innerHTML=filtered.map(function(e){
         var cat=e.cat||'other',col=CAT_COLOR[cat]||'#94a3b8';
@@ -996,6 +1045,7 @@
           '<td>'+esc(e.date||'')+'</td>'+
           '<td><span class="he-ledger-cat-pill" style="background:'+col+'22;color:'+col+'">'+esc(CAT_LABEL[cat]||cat)+'</span></td>'+
           '<td>'+esc(e.desc||'')+'</td>'+
+          '<td class="he-ledger-note-cell">'+esc(e.note||'')+'</td>'+
           '<td style="text-align:right;font-weight:700">'+parseFloat(e.amount||0).toFixed(2)+'</td>'+
           '<td><button class="he-ledger-del" title="Delete">\u00d7</button></td>'+
         '</tr>';
@@ -1037,6 +1087,7 @@
   }
 
   function initExpenseLedger(){
+    injectVaultTile();
     // Override expense FAB to open ledger
     var tries=0,iv=setInterval(function(){
       var fab=document.getElementById('homer-expense-fab');
@@ -1119,6 +1170,148 @@
   function removeInboxEntry(id){
     var inbox=safeJson(localStorage.getItem('homer-inbox'),[]);
     localStorage.setItem('homer-inbox',JSON.stringify(inbox.filter(function(x){return x.id!==id;})));
+  }
+
+  /* ── Vault Ledger Tile ─────────────────────────────────────────── */
+  function injectVaultTile(){
+    function doInject(){
+      if(document.getElementById('vd-open-ledger'))return;
+      var anchor=document.getElementById('vd-open-notes');
+      if(!anchor)return;
+      var mo=new Date().toISOString().slice(0,7);
+      var count=safeJson(localStorage.getItem('homer-expenses'),[]).filter(function(e){return(e.date||'').startsWith(mo);}).length;
+      var tile=document.createElement('div');
+      tile.className='vd-card';tile.id='vd-open-ledger';
+      tile.innerHTML='<div class="vd-icon">&#x1F4CA;</div>'+
+        '<div class="vd-info"><h3>Expense Ledger</h3><p>Budgets, spending &amp; insights</p></div>'+
+        '<span class="vd-badge" id="vd-ledger-badge">'+count+' this mo.</span>';
+      anchor.insertAdjacentElement('afterend',tile);
+      tile.addEventListener('click',openLedger);
+      setInterval(function(){
+        var b=document.getElementById('vd-ledger-badge');if(!b)return;
+        var m=new Date().toISOString().slice(0,7);
+        var c=safeJson(localStorage.getItem('homer-expenses'),[]).filter(function(e){return(e.date||'').startsWith(m);}).length;
+        b.textContent=c+' this mo.';
+      },5000);
+    }
+    doInject();setTimeout(doInject,800);setTimeout(doInject,2500);
+    // Also re-inject after vault unlock
+    waitForEl('vault-content',function(el){
+      new MutationObserver(function(){if(el.style.display!=='none')doInject();}).observe(el,{attributes:true,attributeFilter:['style']});
+    });
+  }
+
+  /* ── Smart Insights ────────────────────────────────────────────── */
+  function renderInsights(allExpenses){
+    var el=document.getElementById('he-ledger-insights');if(!el)return;
+    var mo=new Date().toISOString().slice(0,7);
+    var thisMonth=allExpenses.filter(function(e){return(e.date||'').startsWith(mo);});
+    var prevMo=new Date(new Date().getFullYear(),new Date().getMonth()-1,1).toISOString().slice(0,7);
+    var lastMonth=allExpenses.filter(function(e){return(e.date||'').startsWith(prevMo);});
+    var total=thisMonth.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+    var lastTotal=lastMonth.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+
+    var today=new Date(),dayOfMonth=today.getDate(),daysInMonth=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
+    var daysLeft=daysInMonth-dayOfMonth;
+    var burnRate=dayOfMonth>0?(total/dayOfMonth):0;
+    var projected=burnRate*daysInMonth;
+    var vsLast=lastTotal>0?((total-lastTotal)/lastTotal*100):null;
+
+    // Top category this month
+    var bycat={};thisMonth.forEach(function(e){var c=e.cat||'other';bycat[c]=(bycat[c]||0)+(parseFloat(e.amount)||0);});
+    var topCat=Object.keys(bycat).sort(function(a,b){return bycat[b]-bycat[a];})[0];
+
+    var cards=[];
+    // Burn rate card
+    cards.push({icon:'&#x1F525;',val:burnRate.toFixed(0)+' RON/day',lbl:'Burn Rate',cls:burnRate>200?'bad':burnRate>100?'warn':'ok'});
+    // Days left
+    cards.push({icon:'&#x1F4C5;',val:daysLeft+' days',lbl:'Left in month',cls:''});
+    // vs Last month
+    if(vsLast!==null){
+      var sign=vsLast>=0?'+':'';
+      cards.push({icon:'&#x2195;',val:sign+Math.round(vsLast)+'%',lbl:'vs Last month',cls:vsLast>15?'bad':vsLast<-5?'ok':'warn'});
+    }
+    // Projected
+    if(projected>0){
+      cards.push({icon:'&#x1F52E;',val:projected.toFixed(0)+' RON',lbl:'Projected total',cls:''});
+    }
+    // Top category
+    if(topCat){
+      cards.push({icon:'&#x1F3C6;',val:CAT_LABEL[topCat]||topCat,lbl:'Top category',cls:''});
+    }
+
+    el.innerHTML=cards.map(function(c){
+      return'<div class="he-insight-card">'+
+        '<div class="he-insight-icon">'+c.icon+'</div>'+
+        '<div class="he-insight-val'+(c.cls?' '+c.cls:'')+'">'+esc(c.val)+'</div>'+
+        '<div class="he-insight-lbl">'+esc(c.lbl)+'</div>'+
+      '</div>';
+    }).join('');
+  }
+
+  /* ── Budget Envelopes ──────────────────────────────────────────── */
+  var BUDGET_KEY='homer-expense-budgets';
+  var DEFAULT_BUDGETS={food:1500,transport:400,work:500,health:300,entertainment:300,other:200};
+
+  function getBudgets(){return safeJson(localStorage.getItem(BUDGET_KEY),DEFAULT_BUDGETS);}
+  function saveBudgets(b){try{localStorage.setItem(BUDGET_KEY,JSON.stringify(b));}catch(_){}}
+
+  function renderBudgets(allExpenses){
+    var el=document.getElementById('he-ledger-budgets');if(!el)return;
+    var budgets=getBudgets();
+    var mo=new Date().toISOString().slice(0,7);
+    var spent={};
+    allExpenses.filter(function(e){return(e.date||'').startsWith(mo);}).forEach(function(e){
+      var c=e.cat||'other';spent[c]=(spent[c]||0)+(parseFloat(e.amount)||0);
+    });
+    var CAT_ICON={food:'&#x1F354;',transport:'&#x1F697;',work:'&#x1F4BC;',health:'&#x1F3E5;',entertainment:'&#x1F3AC;',other:'&#x1F4E6;'};
+    var rows=Object.keys(budgets).map(function(cat){
+      var budget=budgets[cat]||0,s=spent[cat]||0;
+      var pct=budget>0?Math.min(s/budget*100,100):0;
+      var over=s>budget;
+      var col=CAT_COLOR[cat]||'#94a3b8';
+      var infoClass=over?'bad':pct>80?'warn':'';
+      return'<div class="he-budget-row">'+
+        '<span class="he-budget-label">'+(CAT_ICON[cat]||'')+' '+esc(CAT_LABEL[cat]||cat)+'</span>'+
+        '<div class="he-budget-track"><div class="he-budget-fill'+(over?' over':'')+'" style="width:'+pct.toFixed(1)+'%;background:'+col+';"></div></div>'+
+        '<span class="he-budget-info '+(infoClass)+'">'+s.toFixed(0)+' / '+budget+' RON</span>'+
+        '<button class="he-budget-edit-btn" data-cat="'+cat+'" title="Edit budget">&#x270E;</button>'+
+      '</div>';
+    }).join('');
+    var mo2=new Date().toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+    el.innerHTML='<h3>Monthly Budgets <small style="font-size:.65rem;font-weight:400;color:#475569;text-transform:none;letter-spacing:0">'+esc(mo2)+'</small></h3>'+rows;
+    el.querySelectorAll('.he-budget-edit-btn').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var cat=btn.dataset.cat;
+        var cur=getBudgets()[cat]||0;
+        var val=window.prompt('Monthly budget for '+CAT_LABEL[cat]+' (RON):',cur);
+        if(val===null)return;
+        var n=parseFloat(val);
+        if(isNaN(n)||n<0){toast('Invalid amount','warn');return;}
+        var b=getBudgets();b[cat]=n;saveBudgets(b);
+        renderBudgets(safeJson(localStorage.getItem('homer-expenses'),[]));
+        toast(CAT_LABEL[cat]+' budget set to '+n+' RON','success',2000);
+      });
+    });
+  }
+
+  /* ── CSV Export ────────────────────────────────────────────────── */
+  function exportCSV(){
+    var expenses=safeJson(localStorage.getItem('homer-expenses'),[]);
+    var fmo=(document.getElementById('he-l-fmo')||{}).value||'';
+    var rows=fmo?expenses.filter(function(e){return(e.date||'').startsWith(fmo);}):expenses;
+    if(!rows.length){toast('No expenses to export','warn');return;}
+    var lines=['Date,Category,Description,Note,Amount (RON)'];
+    rows.sort(function(a,b){return String(a.date||'').localeCompare(String(b.date||''));}).forEach(function(e){
+      function q(s){return'"'+String(s||'').replace(/"/g,'""')+'"';}
+      lines.push([q(e.date||''),q(CAT_LABEL[e.cat||'other']||e.cat||'other'),q(e.desc||''),q(e.note||''),parseFloat(e.amount||0).toFixed(2)].join(','));
+    });
+    var blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');a.href=url;a.download='expenses-'+(fmo||new Date().toISOString().slice(0,7))+'.csv';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('CSV exported','success',2000);
   }
 
   function saveToJoey(text,cb){
