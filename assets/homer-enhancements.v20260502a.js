@@ -950,14 +950,18 @@
     var badge=document.createElement('div');badge.id='he-sync-badge';document.body.appendChild(badge);
     function showBadge(txt,cls){badge.className=cls;badge.textContent=txt;badge.classList.add('visible');if(cls==='synced')setTimeout(function(){badge.classList.remove('visible');},3000);}
 
-    // Capture origSetItem BEFORE patching so pullKey bypasses the patch entirely
+    // nativeSetItem = Storage prototype directly — bypasses ALL patches (ours + app-shell's).
+    // Used for internal writes (pulls, timestamps) so they don't trigger R2 dirty-marking.
+    // origSetItem = app-shell's patched version — used for user-write forwarding so the
+    // app-shell's LS_FIELD_MAP sync and R2 dirty-marking still fire for actual user changes.
+    var nativeSetItem=Storage.prototype.setItem.bind(localStorage);
     var origSetItem=localStorage.setItem.bind(localStorage);
 
     function getClient(){return window.__supabase||null;}
     function getUid(){return window.__sbSession&&window.__sbSession.user&&window.__sbSession.user.id||null;}
     function canSync(){return isBogdan()&&!!getUid();}
     function getLocalTs(key){return parseInt(localStorage.getItem('_he_ts_'+key)||'0',10);}
-    function setLocalTs(key,ts){origSetItem('_he_ts_'+key,String(ts));}
+    function setLocalTs(key,ts){nativeSetItem('_he_ts_'+key,String(ts));}
 
     function pushKey(key){
       if(!canSync())return;
@@ -986,7 +990,7 @@
           var localTs=getLocalTs(key);
           if(remoteTs>localTs||(localTs===0&&remoteData)){
             // Remote is newer (or no local timestamp yet — trust remote on first sync)
-            origSetItem(key,remoteData);       // bypass patch: not a user write
+            nativeSetItem(key,remoteData);     // native write: bypasses all patches
             setLocalTs(key,remoteTs||Date.now());
           }else if(localTs>remoteTs){
             // Local is newer — push it next cycle
@@ -1001,8 +1005,15 @@
     var _pullDone=false;
     function pullAll(){
       if(!canSync())return;
+      var firstPull=!_pullDone;
       _pullDone=true;
       SYNC_KEYS.forEach(pullKey);
+      if(firstPull){
+        // After first pull, signal vault components to re-read IDB.
+        // This catches the case where the vault was loaded before a restore
+        // and still shows stale cached data in memory.
+        setTimeout(function(){window.dispatchEvent(new Event('vault-goals-changed'));},700);
+      }
     }
     function markDirty(key){_syncDirty[key]=true;}
     function pushDirty(){if(!canSync())return;Object.keys(_syncDirty).forEach(pushKey);}
@@ -1015,11 +1026,13 @@
     setTimeout(function(){if(!_pullDone&&canSync())pullAll();},1500);
     setTimeout(function(){if(!_pullDone&&canSync())pullAll();},5000);
 
-    // Patch setItem: record write timestamp for cross-device conflict resolution
+    // Patch setItem: record write timestamp + mark dirty for our SYNC_KEYS.
+    // Forwards through origSetItem (app-shell's patch) so LS_FIELD_MAP ops and
+    // R2 dirty-marking still fire for the app-shell's own tracked keys.
     localStorage.setItem=function(key,val){
       origSetItem(key,val);
       if(SYNC_KEYS.indexOf(key)!==-1){
-        setLocalTs(key,Date.now());  // anchor this write in time
+        setLocalTs(key,Date.now());  // anchor this write in time (native, no side-effects)
         markDirty(key);
       }
     };
@@ -1044,10 +1057,14 @@
   function initMobileFabFix(){
     function reposition(){
       var nav=document.getElementById('mobile-nav');
-      if(!nav||getComputedStyle(nav).display==='none')return;
+      if(!nav)return;
+      if(getComputedStyle(nav).display==='none')return;
       var rect=nav.getBoundingClientRect();
-      if(!rect||rect.height<1)return;
-      // clearance = how far from viewport bottom the nav top sits, + 14px gap
+      if(rect.height<1){
+        // Layout not ready yet — retry next frame
+        requestAnimationFrame(reposition);
+        return;
+      }
       var clearance=Math.ceil(window.innerHeight-rect.top)+14;
       [['homer-capture-btn',62],['homer-pomo-fab',12]].forEach(function(pair){
         var el=document.getElementById(pair[0]);
@@ -1057,11 +1074,13 @@
         el.style.setProperty('right',pair[1]+'px','important');
       });
     }
-    waitForEl('mobile-nav',function(){
-      reposition();
-      window.addEventListener('resize',reposition);
-      window.addEventListener('orientationchange',function(){setTimeout(reposition,250);});
-    });
+    // #mobile-nav is static HTML — always present. Use RAF to ensure first
+    // layout pass is complete before reading getBoundingClientRect.
+    requestAnimationFrame(reposition);
+    setTimeout(reposition,400);   // belt-and-suspenders for slow paints
+    setTimeout(reposition,1500);  // catch late CSS paint on low-end devices
+    window.addEventListener('resize',reposition);
+    window.addEventListener('orientationchange',function(){setTimeout(reposition,250);});
   }
 
   /* ═══════════════════════════════════════════════════════════════════
