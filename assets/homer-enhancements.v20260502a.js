@@ -157,6 +157,9 @@
     '#mobile-sheet-content{border-radius:26px!important;}'+
     '}',
 
+    /* Desktop: stretch body to full viewport so no gray gap below footer */
+    '@media(min-width:901px){html,body{min-height:100vh!important;}body{background-attachment:fixed!important;}}',
+
     /* Links live search */
     '#he-links-search-wrap{margin-bottom:16px}',
     '#he-links-search{width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-size:.9rem;font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .2s}',
@@ -410,6 +413,7 @@
     initSmoothTabTransitions();
     initMobileBottomSheet();
     initMobileSheetActions();
+    initWideMobileNav();
     initMobileFabFix();
     initPomodoroTitleCountdown();
     initPomodoroSessionLogger();
@@ -466,9 +470,6 @@
         '<button class="sb-item he-sb-action he-sb-capture" id="he-sb-capture-btn" title="Quick Capture (Alt+C)">'+
           svgCapture+'<span class="sb-label">Quick Capture</span>'+
         '</button>'+
-        '<button class="sb-item he-sb-action he-sb-pomo" id="he-sb-pomo-btn" title="Pomodoro Timer">'+
-          svgPomo+'<span class="sb-label">Pomodoro</span>'+
-        '</button>'+
         '<button class="sb-item he-sb-action he-sb-inbox" id="he-sb-inbox-btn" title="Inbox">'+
           svgInbox+'<span class="sb-label">Inbox</span>'+
         '</button>';
@@ -478,9 +479,6 @@
       // Wire up clicks
       document.getElementById('he-sb-capture-btn').addEventListener('click',function(){
         clickEl('homer-capture-btn');
-      });
-      document.getElementById('he-sb-pomo-btn').addEventListener('click',function(){
-        clickEl('homer-pomo-fab');
       });
       document.getElementById('he-sb-inbox-btn').addEventListener('click',function(){
         if(typeof window._homerOpenInbox==='function')window._homerOpenInbox();
@@ -502,21 +500,6 @@
       setInterval(refreshBadge,2000);
       window.addEventListener('storage',refreshBadge);
 
-      // Pomodoro running dot: watch #homer-pomo-fab for .running class
-      waitForEl('homer-pomo-fab',function(fab){
-        var pomoBtn=document.getElementById('he-sb-pomo-btn');
-        new MutationObserver(function(){
-          if(!pomoBtn)return;
-          var running=fab.classList.contains('running');
-          var dot=pomoBtn.querySelector('.he-pomo-dot');
-          if(running&&!dot){
-            dot=document.createElement('span');dot.className='he-pomo-dot';
-            pomoBtn.appendChild(dot);
-          }else if(!running&&dot){
-            dot.remove();
-          }
-        }).observe(fab,{attributes:true,attributeFilter:['class']});
-      });
     });
   }
 
@@ -1112,6 +1095,78 @@
         if(sheet)sheet.classList.remove('open');
         map[id]();
       });
+    });
+  }
+
+  /* ── Wide-phone mobile nav binding ─────────────────────────────────────
+   * app-shell's IIFE exits early when innerWidth > 480, so phones at
+   * 481-600px (e.g. Pixel 10 Pro) never get the More/tab/sheet bindings.
+   * This function fills that gap for any body.mobile-shell device.       */
+  function initWideMobileNav(){
+    if(!document.body.classList.contains('mobile-shell')) return;
+    if(window.innerWidth <= 480) return; // already handled by app-shell IIFE
+    var nav=document.getElementById('mobile-nav');
+    var sheet=document.getElementById('mobile-sheet');
+    if(!nav||!sheet) return;
+
+    function closeJoey(){ if(typeof window._homerCloseJoeyPanel==='function') window._homerCloseJoeyPanel(); }
+    function toggleJoey(){ if(typeof window._homerToggleJoeyPanel==='function') window._homerToggleJoeyPanel(); }
+    function isJoeyOpen(){ return typeof window._homerIsJoeyOpen==='function' && window._homerIsJoeyOpen(); }
+    function syncActive(tab,panelOpen){
+      nav.querySelectorAll('.mnav-btn').forEach(function(b){
+        var active=panelOpen ? b.id==='mnav-joey' : (tab ? b.dataset.tab===tab : false);
+        if(b.id==='mnav-more' && sheet.classList.contains('open')) active=true;
+        b.classList.toggle('active',active);
+      });
+    }
+
+    // Tab buttons
+    nav.querySelectorAll('.mnav-btn[data-tab]').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        closeJoey();
+        if(typeof showTab==='function') showTab(btn.dataset.tab);
+        sheet.classList.remove('open');
+        syncActive(btn.dataset.tab,false);
+        window.scrollTo(0,0);
+      });
+    });
+
+    // Joey button
+    var joeyBtn=document.getElementById('mnav-joey');
+    if(joeyBtn && !joeyBtn.dataset.joeyBound){
+      joeyBtn.dataset.joeyBound='wide';
+      joeyBtn.addEventListener('click',function(){
+        sheet.classList.remove('open');
+        toggleJoey();
+      });
+    }
+
+    // More → toggle sheet
+    var moreBtn=document.getElementById('mnav-more');
+    if(moreBtn){
+      moreBtn.addEventListener('click',function(){
+        sheet.classList.toggle('open');
+        syncActive(document.body.dataset.activeTab||'home',isJoeyOpen());
+      });
+    }
+
+    // Sheet tab items
+    sheet.querySelectorAll('.msheet-item[data-tab]').forEach(function(item){
+      item.addEventListener('click',function(){
+        closeJoey();
+        if(typeof showTab==='function') showTab(item.dataset.tab);
+        sheet.classList.remove('open');
+        syncActive(item.dataset.tab,false);
+        window.scrollTo(0,0);
+      });
+    });
+
+    // Backdrop tap closes sheet
+    sheet.addEventListener('click',function(e){
+      if(e.target===sheet){
+        sheet.classList.remove('open');
+        syncActive(document.body.dataset.activeTab||'home',isJoeyOpen());
+      }
     });
   }
 

@@ -2516,7 +2516,7 @@
     #mobile-sheet{display:none;}
     #mobile-overlay-dock{display:none;}
 
-    @media (hover:none) and (pointer:coarse) and (max-width:500px), (hover:none) and (pointer:coarse) and (max-height:500px){
+    @media (hover:none) and (pointer:coarse) and (max-width:600px), (hover:none) and (pointer:coarse) and (max-height:600px){
       /* Hide desktop UI */
       .tabs{display:none!important;}
       .toolbar{display:none!important;}
