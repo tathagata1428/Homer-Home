@@ -395,6 +395,7 @@
     initTabHotkeys();
     initSmoothTabTransitions();
     initMobileBottomSheet();
+    initMobileFabFix();
     initPomodoroTitleCountdown();
     initPomodoroSessionLogger();
     initLinksSearch();
@@ -943,27 +944,29 @@
   var _syncDirty={};
 
   function initSupabaseDataSync(){
-    // IMPORTANT: do NOT bail on isBogdan() here.
-    // On mobile, window.__sbSession is null at DOMContentLoaded because
-    // client.auth.getSession() is async. We defer the Bogdan check to
-    // the moment the session is actually available.
+    // Do NOT gate on isBogdan() here — session is async on mobile.
+    // All sync operations use canSync() which is evaluated lazily.
 
     var badge=document.createElement('div');badge.id='he-sync-badge';document.body.appendChild(badge);
     function showBadge(txt,cls){badge.className=cls;badge.textContent=txt;badge.classList.add('visible');if(cls==='synced')setTimeout(function(){badge.classList.remove('visible');},3000);}
 
+    // Capture origSetItem BEFORE patching so pullKey bypasses the patch entirely
+    var origSetItem=localStorage.setItem.bind(localStorage);
+
     function getClient(){return window.__supabase||null;}
     function getUid(){return window.__sbSession&&window.__sbSession.user&&window.__sbSession.user.id||null;}
-    // canSync() is evaluated lazily — safe to call after session is established
     function canSync(){return isBogdan()&&!!getUid();}
-
-    var _pulling={};  // keys being actively pulled — suppress dirty-marking during pull
+    function getLocalTs(key){return parseInt(localStorage.getItem('_he_ts_'+key)||'0',10);}
+    function setLocalTs(key,ts){origSetItem('_he_ts_'+key,String(ts));}
 
     function pushKey(key){
       if(!canSync())return;
       var client=getClient(),uid=getUid();if(!client||!uid)return;
       var val=localStorage.getItem(key);if(val===null)return;
+      // Embed timestamp inside the stored value so any device can compare freshness
+      var ts=getLocalTs(key)||Date.now();
       showBadge('Syncing\u2026','syncing');
-      client.from('field_state').upsert({key:'he_'+key,value:val,user_id:uid},{onConflict:'key,user_id'})
+      client.from('field_state').upsert({key:'he_'+key,value:JSON.stringify({_ts:ts,_data:val}),user_id:uid},{onConflict:'key,user_id'})
         .then(function(r){
           if(r.error)showBadge('Sync error','error');
           else{delete _syncDirty[key];showBadge('Synced \u2713','synced');}
@@ -975,10 +978,19 @@
       var client=getClient(),uid=getUid();if(!client||!uid)return;
       client.from('field_state').select('value').eq('key','he_'+key).eq('user_id',uid).maybeSingle()
         .then(function(r){
-          if(r.data&&r.data.value){
-            _pulling[key]=true;
-            localStorage.setItem(key,r.data.value);  // won't mark dirty (guarded by _pulling)
-            _pulling[key]=false;
+          if(!r.data||!r.data.value)return;
+          var parsed=safeJson(r.data.value,null);
+          // Support new {_ts,_data} format AND legacy plain-JSON values
+          var remoteTs=parsed&&typeof parsed._ts==='number'?parsed._ts:0;
+          var remoteData=parsed&&typeof parsed._ts==='number'?parsed._data:r.data.value;
+          var localTs=getLocalTs(key);
+          if(remoteTs>localTs||(localTs===0&&remoteData)){
+            // Remote is newer (or no local timestamp yet — trust remote on first sync)
+            origSetItem(key,remoteData);       // bypass patch: not a user write
+            setLocalTs(key,remoteTs||Date.now());
+          }else if(localTs>remoteTs){
+            // Local is newer — push it next cycle
+            markDirty(key);
           }
         })
         .catch(function(){});
@@ -995,23 +1007,21 @@
     function markDirty(key){_syncDirty[key]=true;}
     function pushDirty(){if(!canSync())return;Object.keys(_syncDirty).forEach(pushKey);}
 
-    // Primary trigger: fires when persisted session is restored (async on mobile)
-    // or when the user signs in. This is the key fix for mobile.
+    // Primary trigger: fires when persisted session restores (async on mobile)
     window.addEventListener('supabase:session',function(e){
       if(e.detail&&!_pullDone&&isBogdan())pullAll();
     });
-
-    // Fast path: session already set (desktop / fast device)
     if(canSync())pullAll();
-    // Fallback retries for slow mobile networks
     setTimeout(function(){if(!_pullDone&&canSync())pullAll();},1500);
     setTimeout(function(){if(!_pullDone&&canSync())pullAll();},5000);
 
-    // Patch localStorage.setItem — mark dirty on writes, skip during active pulls
-    var origSetItem=localStorage.setItem.bind(localStorage);
+    // Patch setItem: record write timestamp for cross-device conflict resolution
     localStorage.setItem=function(key,val){
       origSetItem(key,val);
-      if(SYNC_KEYS.indexOf(key)!==-1&&!_pulling[key])markDirty(key);
+      if(SYNC_KEYS.indexOf(key)!==-1){
+        setLocalTs(key,Date.now());  // anchor this write in time
+        markDirty(key);
+      }
     };
 
     setInterval(pushDirty,30000);
@@ -1025,6 +1035,33 @@
 
     window._heSyncPush=pushKey;
     window._heSyncPullAll=pullAll;
+  }
+
+  /* ── Mobile FAB positioning ─────────────────────────────────────────── */
+  /* The app-shell mobile nav uses (hover:none)and(pointer:coarse) media   */
+  /* query which is independent of our max-width breakpoints. Use JS to    */
+  /* measure the actual #mobile-nav rect and position FABs above it.       */
+  function initMobileFabFix(){
+    function reposition(){
+      var nav=document.getElementById('mobile-nav');
+      if(!nav||getComputedStyle(nav).display==='none')return;
+      var rect=nav.getBoundingClientRect();
+      if(!rect||rect.height<1)return;
+      // clearance = how far from viewport bottom the nav top sits, + 14px gap
+      var clearance=Math.ceil(window.innerHeight-rect.top)+14;
+      [['homer-capture-btn',62],['homer-pomo-fab',12]].forEach(function(pair){
+        var el=document.getElementById(pair[0]);
+        if(!el)return;
+        el.style.setProperty('bottom',clearance+'px','important');
+        el.style.setProperty('left','auto','important');
+        el.style.setProperty('right',pair[1]+'px','important');
+      });
+    }
+    waitForEl('mobile-nav',function(){
+      reposition();
+      window.addEventListener('resize',reposition);
+      window.addEventListener('orientationchange',function(){setTimeout(reposition,250);});
+    });
   }
 
   /* ═══════════════════════════════════════════════════════════════════
