@@ -11807,6 +11807,10 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   }
   function replaceChatHistory(nextHistory, options){
     options = options || {};
+    // Never replace DOM while a response is streaming — renderMessages() would
+    // wipe the in-flight .oc-msg.bot.streaming element and streamRaw would
+    // then corrupt the next appendBotChunk, making the agent "respond twice".
+    if(streaming) return false;
     var normalizedNext = normalizeChatHistoryEntries(nextHistory);
     var normalizedCurrent = normalizeChatHistoryEntries(chatHistory);
     var source = String(options.source || 'unknown');
@@ -14472,6 +14476,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(joeyRealtimeRefreshTimer) clearTimeout(joeyRealtimeRefreshTimer);
     joeyRealtimeRefreshTimer = setTimeout(function(){
       joeyRealtimeRefreshTimer = null;
+      if(streaming) return; // never re-render mid-stream — would corrupt in-flight bot message
       refreshJoeyBundleFromRedis({ forceMode:true, mode:currentContextMode, source: source || 'realtime' }).catch(function(){});
     }, 400);
   }
@@ -17304,8 +17309,15 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }catch(err){
       clearStreamIdleTimer();
       removeTypingIndicator();
+      // Finalize any partial streamed content so streamRaw is reset and the
+      // .streaming element is removed from DOM before the next message starts.
+      var partialContent = finalizeBotMessage();
+      if(partialContent){
+        chatHistory.push({role:'assistant', content:partialContent, provider:currentProvider, mode:currentContextMode, ts:Date.now()});
+        markLocalChatMutation();
+      }
       var errMsg = err && err.message ? err.message : String(err);
-      if(!(streamRaw && /stream-idle-timeout/i.test(errMsg))){
+      if(!(partialContent && /stream-idle-timeout/i.test(errMsg))){
         showError('Connection error: ' + errMsg);
       }
     }

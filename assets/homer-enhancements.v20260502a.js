@@ -1137,9 +1137,9 @@
     // Primary (always visible) go before the separator; secondary go in extras.
     var REPARENT=[
       {id:'homer-capture-btn',always:true},
-      {id:'homer-pomo-fab',   always:true},
+      {id:'homer-expense-fab',always:true},   // budgeting replaces pomo as primary
+      {id:'homer-pomo-fab',   always:false},
       {id:'homer-habits-fab', always:false},
-      {id:'homer-expense-fab',always:false},
       {id:'homer-brief-fab',  always:false},
       {id:'homer-memory-fab', always:false},
     ];
