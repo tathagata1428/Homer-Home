@@ -146,28 +146,15 @@
     '.he-sheet-handle{width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.18);margin:10px auto 6px;cursor:grab;flex-shrink:0}',
     '@media(max-width:640px){.he-bs{position:fixed!important;left:0!important;right:0!important;bottom:0!important;top:auto!important;width:100%!important;max-width:100%!important;max-height:82vh!important;border-radius:20px 20px 0 0!important;border-left:none!important;border-right:none!important;transform:translateY(110%)!important;transition:transform .32s cubic-bezier(.4,0,.2,1)!important;}.he-bs.open{transform:translateY(0)!important;}}',
 
-    /* On mobile: all floating FABs hidden — actions accessed via system tray or More sheet */
+    /* On mobile: all floating FABs + tray are hidden — actions live in the More sheet */
     '@media(max-width:900px){'+
-    '#homer-capture-btn,#homer-pomo-fab,#homer-habits-fab,#homer-expense-fab,#homer-brief-fab,#homer-memory-fab{display:none!important;}'+
+    '#homer-capture-btn,#homer-pomo-fab,#homer-habits-fab,#homer-expense-fab,#homer-brief-fab,#homer-memory-fab,#he-fab-tray{display:none!important;}'+
     '}',
 
     /* On touch devices: sheet sits above nav bar so nav remains visible + tap-able */
     '@media (hover:none) and (pointer:coarse){'+
     '#mobile-sheet{bottom:max(calc(var(--sab,env(safe-area-inset-bottom,0px)) + 68px),80px)!important;}'+
     '#mobile-sheet-content{border-radius:26px!important;}'+
-    '}',
-
-    /* Mobile system tray — shown & positioned on touch devices ≤ 900 px (above the bottom nav) */
-    '@media(hover:none) and (pointer:coarse) and (max-width:900px){'+
-    '#he-fab-tray{'+
-    'position:fixed!important;left:50%!important;transform:translateX(-50%)!important;'+
-    'bottom:80px;z-index:910!important;display:flex!important;flex-direction:row!important;'+
-    'align-items:center!important;gap:8px!important;'+
-    'background:rgba(7,17,31,.88)!important;border:1px solid rgba(148,163,184,.18)!important;'+
-    'border-radius:999px!important;padding:6px 10px!important;'+
-    '-webkit-backdrop-filter:blur(16px) saturate(145%)!important;'+
-    'backdrop-filter:blur(16px) saturate(145%)!important;'+
-    'box-shadow:0 8px 24px rgba(2,6,23,.4)!important;}'+
     '}',
 
     /* Desktop: stretch body to full viewport so no gray gap below footer */
@@ -427,7 +414,6 @@
     initMobileBottomSheet();
     initMobileSheetActions();
     initWideMobileNav();
-    initFabTray();
     initMobileFabFix();
     initPomodoroTitleCountdown();
     initPomodoroSessionLogger();
@@ -1184,7 +1170,7 @@
     });
   }
 
-  /* ── Mobile System Tray — reparents floating FABs into a centered pill above the nav bar */
+  /* ── Mobile Quick Actions Tray (kept for reference, not called on mobile) */
   function initFabTray(){
     // Build tray structure: [extras…] | [sep] | [⋯ more]
     // Primary actions (capture, pomo) are prepended before the separator;
