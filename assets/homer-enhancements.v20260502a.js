@@ -151,6 +151,12 @@
     '#homer-capture-btn,#homer-pomo-fab,#homer-habits-fab,#homer-expense-fab,#homer-brief-fab,#homer-memory-fab,#he-fab-tray{display:none!important;}'+
     '}',
 
+    /* On touch devices: sheet sits above nav bar so nav remains visible + tap-able */
+    '@media (hover:none) and (pointer:coarse){'+
+    '#mobile-sheet{bottom:max(calc(var(--sab,env(safe-area-inset-bottom,0px)) + 68px),80px)!important;}'+
+    '#mobile-sheet-content{border-radius:26px!important;}'+
+    '}',
+
     /* Links live search */
     '#he-links-search-wrap{margin-bottom:16px}',
     '#he-links-search{width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-size:.9rem;font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .2s}',
@@ -1097,7 +1103,6 @@
       'msheet-qa-capture': function(){ clickEl('homer-capture-btn'); },
       'msheet-qa-budget':  function(){ openLedger(); },
       'msheet-qa-inbox':   function(){ if(typeof window._homerOpenInbox==='function')window._homerOpenInbox(); },
-      'msheet-qa-pomo':    function(){ clickEl('homer-pomo-fab'); },
       'msheet-qa-habits':  function(){ clickEl('homer-habits-fab'); },
     };
     Object.keys(map).forEach(function(id){
