@@ -150,6 +150,13 @@
     '@media(max-width:900px){'+
     '#homer-capture-btn,#homer-pomo-fab,#homer-habits-fab,#homer-expense-fab,#homer-brief-fab,#homer-memory-fab,#he-fab-tray{display:none!important;}'+
     '}',
+    /* Belt-and-suspenders: also hide via mobile-shell body class (JS-detected, more reliable) */
+    'body.mobile-shell #homer-capture-btn,body.mobile-shell #homer-pomo-fab,'+
+    'body.mobile-shell #homer-habits-fab,body.mobile-shell #homer-expense-fab,'+
+    'body.mobile-shell #homer-brief-fab,body.mobile-shell #homer-memory-fab,'+
+    'body.mobile-shell #he-fab-tray{display:none!important;}',
+    /* Remove the 10px top gap so content starts right below the Android status bar */
+    '@media(hover:none) and (pointer:coarse){body{padding-top:0!important;}}',
 
     /* On touch devices: sheet sits above nav bar so nav remains visible + tap-able */
     '@media (hover:none) and (pointer:coarse){'+
@@ -1084,6 +1091,7 @@
     var sheet=document.getElementById('mobile-sheet');
     var map={
       'msheet-qa-capture': function(){ clickEl('homer-capture-btn'); },
+      'msheet-qa-pomo':    function(){ clickEl('homer-pomo-fab'); },
       'msheet-qa-budget':  function(){ openLedger(); },
       'msheet-qa-inbox':   function(){ if(typeof window._homerOpenInbox==='function')window._homerOpenInbox(); },
       'msheet-qa-habits':  function(){ clickEl('homer-habits-fab'); },
