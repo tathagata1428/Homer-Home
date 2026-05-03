@@ -3,9 +3,8 @@
   "short_name": "Homer",
   "description": "Personal productivity dashboard",
   "start_url": "/",
-  "display": "fullscreen",
+  "display": "standalone",
   "display_override": [
-    "fullscreen",
     "standalone"
   ],
   "scope": "/",
