@@ -136,7 +136,12 @@
     '@media(max-width:640px){.he-bs{position:fixed!important;left:0!important;right:0!important;bottom:0!important;top:auto!important;width:100%!important;max-width:100%!important;max-height:82vh!important;border-radius:20px 20px 0 0!important;border-left:none!important;border-right:none!important;transform:translateY(110%)!important;transition:transform .32s cubic-bezier(.4,0,.2,1)!important;}.he-bs.open{transform:translateY(0)!important;}}',
 
     /* On mobile keep the capture + pomo FABs visible (no sidebar) */
-    '@media(max-width:900px){#homer-capture-btn,#homer-pomo-fab{display:flex!important;}}',
+    /* On mobile: show FABs above chin bar, anchored bottom-right */
+    '@media(max-width:900px){'+
+    '#homer-capture-btn,#homer-pomo-fab{display:flex!important;bottom:calc(var(--tb,64px) + env(safe-area-inset-bottom,0px) + 14px)!important;left:auto!important;}'+
+    '#homer-capture-btn{right:62px!important;}'+
+    '#homer-pomo-fab{right:12px!important;}'+
+    '}',
 
     /* Links live search */
     '#he-links-search-wrap{margin-bottom:16px}',
@@ -344,7 +349,36 @@
     '.he-cal-dc.empty{background:none;}',
 
     /* Mobile */
-    '@media(max-width:600px){#he-cmd-box{margin:0 10px}#he-keys-box{padding:20px}#he-ledger-topbar{padding:12px 16px}#he-ledger-view{padding:14px 12px}#he-ledger-insights{flex-direction:column}#he-6mo-chart{height:90px}#he-goals-grid{grid-template-columns:1fr}#he-ledger-balance{flex-direction:column;align-items:flex-start}}'
+    '@media(max-width:600px){'+
+    /* Command palette / keyboard shortcuts */
+    '#he-cmd-box{margin:0 10px}#he-keys-box{padding:20px}'+
+    /* Ledger overlay: safe-area-aware top padding for notch/Dynamic Island */
+    '#he-ledger-topbar{padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 12px}'+
+    '#he-ledger-topbar h2{font-size:.95rem}'+
+    '#he-ledger-view{padding:12px 10px}'+
+    /* Add entry form: stack inputs vertically */
+    '.he-ledger-add-row{flex-direction:column;gap:6px}'+
+    '.he-ledger-input{width:100%!important;box-sizing:border-box!important;min-width:unset!important}'+
+    '.he-ledger-input-note{min-width:unset!important}'+
+    '.he-ledger-add-btn{width:100%;padding:10px 0;text-align:center}'+
+    /* Filters row */
+    '#he-ledger-filters{gap:6px}'+
+    '.he-ledger-filter{flex:1;min-width:0}'+
+    /* Nav tabs: tighter */
+    '.he-lnav-btn{padding:8px 8px;font-size:.75rem}'+
+    /* Table: tighter cells */
+    '#he-ledger-table td,#he-ledger-table th{padding:8px 8px;font-size:.78rem}'+
+    /* Overview sections */
+    '#he-ledger-insights{flex-direction:column}'+
+    '#he-6mo-chart{height:90px}'+
+    '#he-goals-grid{grid-template-columns:1fr}'+
+    '#he-ledger-balance{flex-direction:column;align-items:flex-start}'+
+    '.he-balance-amount{font-size:1.6rem}'+
+    /* Sync badge: keep above chin bar */
+    '#he-sync-badge{bottom:calc(var(--tb,64px) + env(safe-area-inset-bottom,0px) + 8px)!important}'+
+    /* Toasts: above FABs and chin bar */
+    '#homer-toasts{bottom:calc(var(--tb,64px) + env(safe-area-inset-bottom,0px) + 72px)!important;right:12px!important;max-width:calc(100vw - 24px)!important}'+
+    '}'
   ].join('');
 
   var styleEl=document.createElement('style');
