@@ -146,10 +146,9 @@
     '.he-sheet-handle{width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.18);margin:10px auto 6px;cursor:grab;flex-shrink:0}',
     '@media(max-width:640px){.he-bs{position:fixed!important;left:0!important;right:0!important;bottom:0!important;top:auto!important;width:100%!important;max-width:100%!important;max-height:82vh!important;border-radius:20px 20px 0 0!important;border-left:none!important;border-right:none!important;transform:translateY(110%)!important;transition:transform .32s cubic-bezier(.4,0,.2,1)!important;}.he-bs.open{transform:translateY(0)!important;}}',
 
-    /* On mobile: Quick Actions tray (desktop hides it via @media above) */
-    /* CSS fallback positioning — JS (initMobileFabFix) overrides bottom precisely */
+    /* On mobile: all floating FABs + tray are hidden — actions live in the More sheet */
     '@media(max-width:900px){'+
-    '#he-fab-tray{display:flex!important;position:fixed!important;left:50%!important;transform:translateX(-50%)!important;z-index:9992!important;align-items:center!important;gap:6px!important;background:rgba(9,15,30,.92)!important;border:1px solid rgba(255,255,255,.13)!important;border-radius:40px!important;padding:5px 10px!important;backdrop-filter:blur(14px)!important;-webkit-backdrop-filter:blur(14px)!important;box-shadow:0 4px 24px rgba(0,0,0,.5)!important;bottom:calc(var(--tb,64px) + env(safe-area-inset-bottom,0px) + 10px)!important;}'+
+    '#homer-capture-btn,#homer-pomo-fab,#homer-habits-fab,#homer-expense-fab,#homer-brief-fab,#homer-memory-fab,#he-fab-tray{display:none!important;}'+
     '}',
 
     /* Links live search */
@@ -404,7 +403,7 @@
     initTabHotkeys();
     initSmoothTabTransitions();
     initMobileBottomSheet();
-    initFabTray();
+    initMobileSheetActions();
     initMobileFabFix();
     initPomodoroTitleCountdown();
     initPomodoroSessionLogger();
@@ -1089,9 +1088,29 @@
     window.addEventListener('orientationchange',function(){setTimeout(reposition,250);});
   }
 
-  /* ── Mobile Quick Actions Tray ──────────────────────────────────────── */
-  /* Collects all FABs into a bottom-centre pill so they never overlap the  */
-  /* chin bar on Android / iOS.  Desktop hides the tray via @media above.  */
+  /* ── Mobile Sheet Quick Actions ──────────────────────────────────────── */
+  /* Wires up the Quick Actions grid added to #mobile-sheet in index.html.  */
+  /* Lives inside the More sheet — zero floating elements, no chin-bar risk. */
+  function initMobileSheetActions(){
+    var sheet=document.getElementById('mobile-sheet');
+    var map={
+      'msheet-qa-capture': function(){ clickEl('homer-capture-btn'); },
+      'msheet-qa-budget':  function(){ openLedger(); },
+      'msheet-qa-inbox':   function(){ if(typeof window._homerOpenInbox==='function')window._homerOpenInbox(); },
+      'msheet-qa-pomo':    function(){ clickEl('homer-pomo-fab'); },
+      'msheet-qa-habits':  function(){ clickEl('homer-habits-fab'); },
+    };
+    Object.keys(map).forEach(function(id){
+      var el=document.getElementById(id);
+      if(!el)return;
+      el.addEventListener('click',function(){
+        if(sheet)sheet.classList.remove('open');
+        map[id]();
+      });
+    });
+  }
+
+  /* ── Mobile Quick Actions Tray (kept for reference, not called on mobile) */
   function initFabTray(){
     // Build tray structure: [extras…] | [sep] | [⋯ more]
     // Primary actions (capture, pomo) are prepended before the separator;
