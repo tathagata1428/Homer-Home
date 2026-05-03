@@ -83,6 +83,17 @@
     '#he-fab-tray{display:none!important;}',
     '}',
 
+    /* Quick Actions FAB tray — shared button styles (tray itself is mobile-only via CSS below) */
+    '.he-fab{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.95rem;cursor:pointer;border:1px solid rgba(255,255,255,.1);transition:background .2s,transform .2s;-webkit-tap-highlight-color:transparent;background:rgba(255,255,255,.06);}',
+    '.he-fab:hover{transform:scale(1.12);background:rgba(255,255,255,.13);}',
+    '#he-fab-more{background:rgba(255,255,255,.04)!important;color:#64748b!important;font-size:1.1rem!important;letter-spacing:.05em!important;}',
+    '#he-fab-more:hover{background:rgba(255,255,255,.1)!important;color:#94a3b8!important;}',
+    '#he-fab-tray-sep{width:1px;height:22px;background:rgba(255,255,255,.1);flex-shrink:0;margin:0 2px;}',
+    '#he-fab-extras{display:flex;gap:6px;align-items:center;overflow:hidden;max-width:0;transition:max-width .3s cubic-bezier(.4,0,.2,1),opacity .25s;opacity:0;pointer-events:none;}',
+    '#he-fab-extras.open{max-width:260px;opacity:1;pointer-events:all;}',
+    /* Strip fixed/absolute positioning from FABs reparented into the tray */
+    '#he-fab-tray button{position:static!important;bottom:auto!important;left:auto!important;right:auto!important;top:auto!important;display:flex!important;width:36px!important;height:36px!important;min-width:0!important;flex-shrink:0!important;}',
+
     /* Sidebar tool section */
     '#he-sb-tools{border-top:1px solid rgba(255,255,255,.06);margin-top:8px;padding-top:4px;}',
     '.he-sb-action{position:relative;}',
@@ -135,12 +146,10 @@
     '.he-sheet-handle{width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.18);margin:10px auto 6px;cursor:grab;flex-shrink:0}',
     '@media(max-width:640px){.he-bs{position:fixed!important;left:0!important;right:0!important;bottom:0!important;top:auto!important;width:100%!important;max-width:100%!important;max-height:82vh!important;border-radius:20px 20px 0 0!important;border-left:none!important;border-right:none!important;transform:translateY(110%)!important;transition:transform .32s cubic-bezier(.4,0,.2,1)!important;}.he-bs.open{transform:translateY(0)!important;}}',
 
-    /* On mobile keep the capture + pomo FABs visible (no sidebar) */
-    /* On mobile: show FABs above chin bar, anchored bottom-right */
+    /* On mobile: Quick Actions tray (desktop hides it via @media above) */
+    /* CSS fallback positioning — JS (initMobileFabFix) overrides bottom precisely */
     '@media(max-width:900px){'+
-    '#homer-capture-btn,#homer-pomo-fab{display:flex!important;bottom:calc(var(--tb,64px) + env(safe-area-inset-bottom,0px) + 14px)!important;left:auto!important;}'+
-    '#homer-capture-btn{right:62px!important;}'+
-    '#homer-pomo-fab{right:12px!important;}'+
+    '#he-fab-tray{display:flex!important;position:fixed!important;left:50%!important;transform:translateX(-50%)!important;z-index:9992!important;align-items:center!important;gap:6px!important;background:rgba(9,15,30,.92)!important;border:1px solid rgba(255,255,255,.13)!important;border-radius:40px!important;padding:5px 10px!important;backdrop-filter:blur(14px)!important;-webkit-backdrop-filter:blur(14px)!important;box-shadow:0 4px 24px rgba(0,0,0,.5)!important;bottom:calc(var(--tb,64px) + env(safe-area-inset-bottom,0px) + 10px)!important;}'+
     '}',
 
     /* Links live search */
@@ -395,6 +404,7 @@
     initTabHotkeys();
     initSmoothTabTransitions();
     initMobileBottomSheet();
+    initFabTray();
     initMobileFabFix();
     initPomodoroTitleCountdown();
     initPomodoroSessionLogger();
@@ -1065,14 +1075,10 @@
         requestAnimationFrame(reposition);
         return;
       }
-      var clearance=Math.ceil(window.innerHeight-rect.top)+14;
-      [['homer-capture-btn',62],['homer-pomo-fab',12]].forEach(function(pair){
-        var el=document.getElementById(pair[0]);
-        if(!el)return;
-        el.style.setProperty('bottom',clearance+'px','important');
-        el.style.setProperty('left','auto','important');
-        el.style.setProperty('right',pair[1]+'px','important');
-      });
+      // Measure actual nav top so tray clears the chin bar on all devices
+      var clearance=Math.ceil(window.innerHeight-rect.top)+10;
+      var tray=document.getElementById('he-fab-tray');
+      if(tray)tray.style.setProperty('bottom',clearance+'px','important');
     }
     // #mobile-nav is static HTML — always present. Use RAF to ensure first
     // layout pass is complete before reading getBoundingClientRect.
@@ -1081,6 +1087,81 @@
     setTimeout(reposition,1500);  // catch late CSS paint on low-end devices
     window.addEventListener('resize',reposition);
     window.addEventListener('orientationchange',function(){setTimeout(reposition,250);});
+  }
+
+  /* ── Mobile Quick Actions Tray ──────────────────────────────────────── */
+  /* Collects all FABs into a bottom-centre pill so they never overlap the  */
+  /* chin bar on Android / iOS.  Desktop hides the tray via @media above.  */
+  function initFabTray(){
+    // Build tray structure: [extras…] | [sep] | [⋯ more]
+    // Primary actions (capture, pomo) are prepended before the separator;
+    // secondary actions (habits, expense, brief, memory) go inside #he-fab-extras.
+    var tray=document.createElement('div');
+    tray.id='he-fab-tray';
+
+    var extrasEl=document.createElement('div');
+    extrasEl.id='he-fab-extras';
+
+    var sep=document.createElement('div');
+    sep.id='he-fab-tray-sep';
+
+    var moreBtn=document.createElement('button');
+    moreBtn.id='he-fab-more';
+    moreBtn.className='he-fab';
+    moreBtn.title='Quick Actions';
+    moreBtn.innerHTML='&#8943;';
+
+    tray.appendChild(extrasEl);
+    tray.appendChild(sep);
+    tray.appendChild(moreBtn);
+    document.body.appendChild(tray);
+
+    // Toggle extras on ⋯ click
+    var extrasOpen=false;
+    moreBtn.addEventListener('click',function(e){
+      e.stopPropagation();
+      extrasOpen=!extrasOpen;
+      extrasEl.classList.toggle('open',extrasOpen);
+      moreBtn.innerHTML=extrasOpen?'&times;':'&#8943;';
+    });
+    // Close on tap outside tray
+    document.addEventListener('click',function(e){
+      if(extrasOpen&&!tray.contains(e.target)){
+        extrasOpen=false;
+        extrasEl.classList.remove('open');
+        moreBtn.innerHTML='&#8943;';
+      }
+    });
+
+    // Reparent FABs from document.body into the tray.
+    // Primary (always visible) go before the separator; secondary go in extras.
+    var REPARENT=[
+      {id:'homer-capture-btn',always:true},
+      {id:'homer-pomo-fab',   always:true},
+      {id:'homer-habits-fab', always:false},
+      {id:'homer-expense-fab',always:false},
+      {id:'homer-brief-fab',  always:false},
+      {id:'homer-memory-fab', always:false},
+    ];
+    function tryReparent(){
+      REPARENT.forEach(function(cfg){
+        var el=document.getElementById(cfg.id);
+        if(!el||el.dataset.heParented)return;
+        el.dataset.heParented='1';
+        el.style.cssText=''; // clear any inline bottom/left/right set by older code
+        el.classList.add('he-fab');
+        if(cfg.always){
+          tray.insertBefore(el,sep); // prepend before separator
+        }else{
+          extrasEl.appendChild(el);
+        }
+      });
+    }
+    tryReparent();
+    setTimeout(tryReparent,600);
+    setTimeout(tryReparent,1500);
+    // Watch for FABs that are created after this script runs
+    new MutationObserver(tryReparent).observe(document.body,{childList:true,subtree:false});
   }
 
   /* ═══════════════════════════════════════════════════════════════════
