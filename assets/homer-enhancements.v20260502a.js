@@ -371,6 +371,7 @@
     initSupabaseDataSync();
     initExpenseLedger();
     initInboxActions();
+    initJoeyCommandBridge();
   });
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -935,7 +936,7 @@
         .catch(function(){});
     }
 
-    var SYNC_KEYS=['homer-expenses','homer-habits','homer-inbox'];
+    var SYNC_KEYS=['homer-expenses','homer-income','homer-expense-goals','homer-expense-templates','homer-expense-budgets','homer-habits','homer-inbox','homer-payday-day'];
 
     function pullAll(){if(!isLoggedIn())return;SYNC_KEYS.forEach(pullKey);}
     function markDirty(key){_syncDirty[key]=true;}
@@ -1671,6 +1672,179 @@
       data.goals.push({id:Date.now(),summary:text,desc:'',projectId:projId,col:'todo',priority:'medium',labels:['inbox'],subtasks:[],attachments:[],comments:[],customFields:{},log:[{action:'Added from Quick Capture inbox',ts:Date.now()}]});
       window._homerSaveVault(data).then(function(){cb(true);}).catch(function(){cb(false);});
     }).catch(function(){cb(false);});
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+   * JOEY COMMAND BRIDGE
+   * Joey embeds [CMD:action:p1:p2] tags in chat responses.
+   * This bridge parses them, executes them, and strips the tags.
+   *
+   * Full command reference (include in Joey's context file):
+   *
+   *  Navigation
+   *    [CMD:navigate:vault]           — switch to any tab
+   *    [CMD:openLedger:reports]       — open ledger (overview/transactions/goals/reports)
+   *    [CMD:openCapture]              — open quick capture panel
+   *    [CMD:openInbox]                — open inbox panel
+   *
+   *  Ledger
+   *    [CMD:addExpense:Coffee:15.5:food]   — add expense (cat: food/transport/work/health/entertainment/other)
+   *    [CMD:addIncome:Salary:5000]         — log income
+   *    [CMD:addGoal:Holiday:3000]          — create savings goal
+   *    [CMD:setPayday:25]                  — set payday to day 25 of month
+   *    [CMD:setBudget:food:1500]           — set monthly category budget
+   *
+   *  Capture & inbox
+   *    [CMD:capture:Buy milk:task]    — add to inbox (types: thought/task/link/expense)
+   *
+   *  Pomodoro
+   *    [CMD:startPomodoro]            — start/resume the pomodoro timer
+   *    [CMD:navigate:pomodoro]        — switch to pomodoro tab
+   *
+   *  Memory
+   *    [CMD:addMemory:I prefer dark UI] — save to Joey memories via API
+   * ═══════════════════════════════════════════════════════════════════ */
+  function initJoeyCommandBridge(){
+    /* ── Register global API ─────────────────────────────────────── */
+    window._joeyAPI={
+      navigate:function(tab){
+        switchTab(tab);
+        toast('&#x1F4CD; Navigating to '+esc(tab),'info',2000);
+      },
+      openLedger:function(view){
+        if(view&&['overview','transactions','goals','reports'].indexOf(view)!==-1)_ledgerView=view;
+        openLedger();
+      },
+      addExpense:function(desc,amount,cat){
+        if(!desc||!amount){toast('Joey: missing expense data','warn');return;}
+        var exp=getExpenses();
+        exp.push({id:Date.now(),desc:String(desc),amount:parseFloat(amount)||0,cat:CAT_LABEL[cat]?cat:'other',date:new Date().toISOString().slice(0,10),note:'Added by Joey'});
+        saveExpenses(exp);
+        toast('&#x1F4CA; Joey added expense: '+esc(String(desc))+' \u2014 '+parseFloat(amount).toFixed(2)+' RON','success',3500);
+      },
+      addIncome:function(desc,amount){
+        if(!desc||!amount){toast('Joey: missing income data','warn');return;}
+        var inc=getIncome();
+        inc.push({id:Date.now(),desc:String(desc),amount:parseFloat(amount)||0,date:new Date().toISOString().slice(0,10),note:'Added by Joey'});
+        saveIncome(inc);
+        toast('&#x2B06; Joey logged income: '+esc(String(desc))+' \u2014 '+parseFloat(amount).toFixed(2)+' RON','success',3500);
+      },
+      addGoal:function(name,target){
+        if(!name||!target){toast('Joey: missing goal data','warn');return;}
+        var gs=getGoals();
+        gs.push({id:Date.now(),name:String(name),target:parseFloat(target)||0,saved:0,color:GOAL_COLORS[gs.length%GOAL_COLORS.length]});
+        saveGoals(gs);
+        toast('&#x1F3AF; Joey created goal: '+esc(String(name)),'success',3000);
+      },
+      setPayday:function(day){
+        var n=parseInt(day,10);
+        if(isNaN(n)||n<1||n>31){toast('Joey: day must be 1\u201331','warn');return;}
+        localStorage.setItem('homer-payday-day',String(n));
+        toast('&#x1F4C5; Joey set payday to day '+n,'success',2000);
+      },
+      setBudget:function(cat,amount){
+        if(!CAT_LABEL[cat]){toast('Joey: unknown category '+esc(String(cat)),'warn');return;}
+        var b=getBudgets();b[cat]=parseFloat(amount)||0;saveBudgets(b);
+        toast('&#x1F4B0; Joey set '+esc(CAT_LABEL[cat])+' budget \u2192 '+parseFloat(amount).toFixed(0)+' RON','success',2500);
+      },
+      capture:function(text,type){
+        if(!text){toast('Joey: no text to capture','warn');return;}
+        var validTypes=['thought','task','link','expense'];
+        var t=validTypes.indexOf(type)!==-1?type:'thought';
+        var inbox=safeJson(localStorage.getItem('homer-inbox'),[]);
+        inbox.push({id:Date.now(),text:String(text),type:t,ts:Date.now()});
+        localStorage.setItem('homer-inbox',JSON.stringify(inbox));
+        toast('&#x1F4E5; Joey captured ('+t+'): '+esc(String(text).slice(0,60)),'success',2500);
+      },
+      openCapture:function(){clickEl('homer-capture-btn');},
+      openInbox:function(){if(typeof window._homerOpenInbox==='function')window._homerOpenInbox();},
+      startPomodoro:function(){
+        switchTab('pomodoro');
+        setTimeout(function(){
+          var btn=document.getElementById('pom-start')||document.getElementById('pom-play')||document.querySelector('[id*="pom"][id*="start"],[id*="pom"][id*="play"]');
+          if(btn)btn.click();
+        },400);
+        toast('&#x1F345; Pomodoro started','success',2000);
+      },
+      addMemory:function(text){
+        if(!text)return;
+        saveToJoey(text,function(ok){
+          toast(ok?'&#x1F9E0; Memory saved to Joey':'&#x26A0; Could not reach Joey',ok?'success':'warn',2500);
+        });
+      }
+    };
+
+    /* ── Command parser ──────────────────────────────────────────── */
+    var CMD_RE=/\[CMD:([^\]]{1,200})\]/g;
+
+    function parseCmds(text){
+      var cmds=[],m;CMD_RE.lastIndex=0;
+      while((m=CMD_RE.exec(text))!==null){
+        var parts=m[1].split(':');
+        cmds.push({action:parts[0],params:parts.slice(1),raw:m[0]});
+      }
+      return cmds;
+    }
+
+    function execCmds(cmds){
+      cmds.forEach(function(cmd){
+        var fn=window._joeyAPI&&window._joeyAPI[cmd.action];
+        if(!fn){console.debug('[joey-cmd] unknown:',cmd.action);return;}
+        try{fn.apply(null,cmd.params);}catch(e){console.debug('[joey-cmd] error:',e.message);}
+      });
+    }
+
+    function processNode(el){
+      if(!el||el._joeyScanned)return;
+      el._joeyScanned=true;
+      var text=el.textContent||'';
+      if(text.indexOf('[CMD:')===-1)return;
+      var cmds=parseCmds(text);
+      if(!cmds.length)return;
+      // Strip tags from rendered HTML
+      try{
+        cmds.forEach(function(cmd){
+          var safe=cmd.raw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+          el.innerHTML=el.innerHTML.replace(new RegExp(safe,'g'),'');
+        });
+      }catch(_){}
+      setTimeout(function(){execCmds(cmds);},300);
+    }
+
+    /* Watch the whole body for Joey assistant message nodes */
+    new MutationObserver(function(mutations){
+      mutations.forEach(function(mu){
+        mu.addedNodes.forEach(function(node){
+          if(node.nodeType!==1)return;
+          // Check the node itself and any descendant that looks like an assistant bubble
+          var els=[node];
+          if(node.querySelectorAll)Array.prototype.push.apply(els,Array.from(node.querySelectorAll('[class*="assistant"],[class*="joey-msg"],[data-role="assistant"],[class*="bubble"],[class*="response"]')));
+          els.forEach(function(el){
+            if((el.textContent||'').indexOf('[CMD:')!==-1)processNode(el);
+          });
+        });
+      });
+    }).observe(document.body,{childList:true,subtree:true});
+
+    /* Expose parseCmds/execCmds for manual use by other scripts */
+    window._joeyExecCmd=function(cmdString){
+      execCmds(parseCmds('[CMD:'+cmdString+']'));
+    };
+
+    /* Teach Joey about commands by injecting a system note into the capture area
+       so the user can paste it into Joey's context if needed */
+    window._joeyCommandRef=
+      'Homer Command Reference (use these tags in your responses):\n'+
+      '[CMD:navigate:vault] — go to any tab (home/pomodoro/focuslab/investing/tools/links/news/vault)\n'+
+      '[CMD:openLedger:reports] — open ledger to a specific view\n'+
+      '[CMD:addExpense:Description:amount:cat] — log expense (cat: food/transport/work/health/entertainment/other)\n'+
+      '[CMD:addIncome:Description:amount] — log income\n'+
+      '[CMD:addGoal:Name:target] — create savings goal\n'+
+      '[CMD:setPayday:25] — set payday day\n'+
+      '[CMD:setBudget:food:1500] — set monthly budget for a category\n'+
+      '[CMD:capture:text:type] — add to inbox (type: thought/task/link/expense)\n'+
+      '[CMD:startPomodoro] — start the pomodoro timer\n'+
+      '[CMD:addMemory:text] — save a memory';
   }
 
 })();
