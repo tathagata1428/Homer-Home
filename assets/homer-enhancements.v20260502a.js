@@ -943,16 +943,23 @@
   var _syncDirty={};
 
   function initSupabaseDataSync(){
-    if(!isBogdan())return;
+    // IMPORTANT: do NOT bail on isBogdan() here.
+    // On mobile, window.__sbSession is null at DOMContentLoaded because
+    // client.auth.getSession() is async. We defer the Bogdan check to
+    // the moment the session is actually available.
 
     var badge=document.createElement('div');badge.id='he-sync-badge';document.body.appendChild(badge);
     function showBadge(txt,cls){badge.className=cls;badge.textContent=txt;badge.classList.add('visible');if(cls==='synced')setTimeout(function(){badge.classList.remove('visible');},3000);}
 
     function getClient(){return window.__supabase||null;}
     function getUid(){return window.__sbSession&&window.__sbSession.user&&window.__sbSession.user.id||null;}
-    function isLoggedIn(){return!!getUid();}
+    // canSync() is evaluated lazily — safe to call after session is established
+    function canSync(){return isBogdan()&&!!getUid();}
+
+    var _pulling={};  // keys being actively pulled — suppress dirty-marking during pull
 
     function pushKey(key){
+      if(!canSync())return;
       var client=getClient(),uid=getUid();if(!client||!uid)return;
       var val=localStorage.getItem(key);if(val===null)return;
       showBadge('Syncing\u2026','syncing');
@@ -964,29 +971,47 @@
     }
 
     function pullKey(key){
+      if(!canSync())return;
       var client=getClient(),uid=getUid();if(!client||!uid)return;
       client.from('field_state').select('value').eq('key','he_'+key).eq('user_id',uid).maybeSingle()
-        .then(function(r){if(r.data&&r.data.value)localStorage.setItem(key,r.data.value);})
+        .then(function(r){
+          if(r.data&&r.data.value){
+            _pulling[key]=true;
+            localStorage.setItem(key,r.data.value);  // won't mark dirty (guarded by _pulling)
+            _pulling[key]=false;
+          }
+        })
         .catch(function(){});
     }
 
     var SYNC_KEYS=['homer-expenses','homer-income','homer-expense-goals','homer-expense-templates','homer-expense-budgets','homer-habits','homer-inbox','homer-payday-day'];
 
-    function pullAll(){if(!isLoggedIn())return;SYNC_KEYS.forEach(pullKey);}
-    function markDirty(key){_syncDirty[key]=true;}
-    function pushDirty(){if(!isLoggedIn())return;Object.keys(_syncDirty).forEach(pushKey);}
-
-    function waitForSession(){
-      if(isLoggedIn()){pullAll();return;}
-      window.addEventListener('supabase:session',function(){pullAll();},{once:true});
-      setTimeout(function(){if(isLoggedIn())pullAll();},2000);
+    var _pullDone=false;
+    function pullAll(){
+      if(!canSync())return;
+      _pullDone=true;
+      SYNC_KEYS.forEach(pullKey);
     }
-    waitForSession();
+    function markDirty(key){_syncDirty[key]=true;}
+    function pushDirty(){if(!canSync())return;Object.keys(_syncDirty).forEach(pushKey);}
 
+    // Primary trigger: fires when persisted session is restored (async on mobile)
+    // or when the user signs in. This is the key fix for mobile.
+    window.addEventListener('supabase:session',function(e){
+      if(e.detail&&!_pullDone&&isBogdan())pullAll();
+    });
+
+    // Fast path: session already set (desktop / fast device)
+    if(canSync())pullAll();
+    // Fallback retries for slow mobile networks
+    setTimeout(function(){if(!_pullDone&&canSync())pullAll();},1500);
+    setTimeout(function(){if(!_pullDone&&canSync())pullAll();},5000);
+
+    // Patch localStorage.setItem — mark dirty on writes, skip during active pulls
     var origSetItem=localStorage.setItem.bind(localStorage);
     localStorage.setItem=function(key,val){
       origSetItem(key,val);
-      if(SYNC_KEYS.indexOf(key)!==-1)markDirty(key);
+      if(SYNC_KEYS.indexOf(key)!==-1&&!_pulling[key])markDirty(key);
     };
 
     setInterval(pushDirty,30000);
