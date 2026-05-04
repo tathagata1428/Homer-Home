@@ -155,8 +155,8 @@
     'body.mobile-shell #homer-habits-fab,body.mobile-shell #homer-expense-fab,'+
     'body.mobile-shell #homer-brief-fab,body.mobile-shell #homer-memory-fab,'+
     'body.mobile-shell #he-fab-tray{display:none!important;}',
-    /* Remove the 10px top gap so content starts right below the Android status bar */
-    '@media(hover:none) and (pointer:coarse){body{padding-top:0!important;}}',
+    /* On touch: pad exactly the status bar height — no more, no less */
+    '@media(hover:none) and (pointer:coarse){body{padding-top:env(safe-area-inset-top,0px)!important;}}',
 
     /* On touch devices: sheet sits above nav bar so nav remains visible + tap-able */
     '@media (hover:none) and (pointer:coarse){'+
@@ -420,6 +420,7 @@
     initSmoothTabTransitions();
     initMobileBottomSheet();
     initMobileSheetActions();
+    initReceiptCapture();
     initWideMobileNav();
     initMobileFabFix();
     initPomodoroTitleCountdown();
@@ -1095,6 +1096,7 @@
       'msheet-qa-budget':  function(){ openLedger(); },
       'msheet-qa-inbox':   function(){ if(typeof window._homerOpenInbox==='function')window._homerOpenInbox(); },
       'msheet-qa-habits':  function(){ clickEl('homer-habits-fab'); },
+      'msheet-qa-receipt': function(){ openReceiptCapture(); },
     };
     Object.keys(map).forEach(function(id){
       var el=document.getElementById(id);
@@ -1103,6 +1105,68 @@
         if(sheet)sheet.classList.remove('open');
         map[id]();
       });
+    });
+  }
+
+  /* ── Receipt Capture + Google Drive Upload ───────────────────────────── */
+  function openReceiptCapture(){
+    var input=document.getElementById('receipt-camera-input');
+    if(!input)return;
+    input.value=''; // allow re-capture of same file
+    input.click();
+  }
+
+  function initReceiptCapture(){
+    var input=document.getElementById('receipt-camera-input');
+    if(!input)return;
+    input.addEventListener('change',function(){
+      var file=input.files&&input.files[0];
+      if(!file)return;
+      var pass=localStorage.getItem('homer-sync-pass')||'';
+      if(!pass){toast('Log in to save receipts to Google Drive','warn',3500);return;}
+      toast('Saving receipt to Drive\u2026','info',5000);
+      var reader=new FileReader();
+      reader.onload=function(e){
+        var result=String(e.target.result||'');
+        var comma=result.indexOf(',');
+        var base64=comma>=0?result.slice(comma+1):result;
+        var ts=new Date();
+        var p=function(n){return String(n).padStart(2,'0');};
+        var ext=(file.type||'image/jpeg').split('/')[1]||'jpg';
+        var name='receipt-'+ts.getFullYear()+'-'+p(ts.getMonth()+1)+'-'+p(ts.getDate())+
+          '-'+p(ts.getHours())+p(ts.getMinutes())+p(ts.getSeconds())+'.'+ext;
+        var payload={
+          passphrase:pass,
+          fileName:name,
+          mimeType:file.type||'image/jpeg',
+          size:file.size,
+          base64Data:base64,
+          source:'receipt-capture'
+        };
+        if(typeof window._homerWithContextMode==='function'){
+          payload=window._homerWithContextMode(payload);
+        }else{
+          payload.mode='personal';
+        }
+        fetch('/api/gdrive-reconcile?action=file',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(payload)
+        }).then(function(r){
+          return r.json().catch(function(){return{};}).then(function(data){
+            if(!r.ok||!data||!data.ok){
+              var msg=(data&&[data.detail,data.error].filter(Boolean).join(' \u2014 '))||'Upload failed';
+              toast('Receipt save failed: '+msg,'error',5000);
+            }else{
+              toast('\u2705 Receipt saved to Google Drive','success',3500);
+            }
+          });
+        }).catch(function(err){
+          toast('Receipt save failed: '+(err.message||'Network error'),'error',5000);
+        });
+      };
+      reader.onerror=function(){toast('Could not read image','error');};
+      reader.readAsDataURL(file);
     });
   }
 

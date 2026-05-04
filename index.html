@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
   <title>Homer</title>
 
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
@@ -21,7 +21,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
 
-  <link rel="stylesheet" href="/assets/app-shell.v20260331.css?v=20260503e">
+  <link rel="stylesheet" href="/assets/app-shell.v20260331.css?v=20260504a">
 </head>
 <body>
 
@@ -1470,6 +1470,7 @@
       <div class="msheet-item" id="msheet-qa-budget"><div class="msheet-icon">&#128176;</div>Budget</div>
       <div class="msheet-item" id="msheet-qa-inbox"><div class="msheet-icon">&#128236;</div>Inbox</div>
       <div class="msheet-item" id="msheet-qa-habits"><div class="msheet-icon">&#9989;</div>Habits</div>
+      <div class="msheet-item" id="msheet-qa-receipt"><div class="msheet-icon">&#129534;</div>Save Receipt</div>
     </div>
     <div class="msheet-sep"></div>
     <div class="msheet-label">Tabs</div>
@@ -1498,10 +1499,11 @@
     </div>
   </div>
 </div>
+<input type="file" id="receipt-camera-input" accept="image/*" capture="environment" style="display:none">
 
-    <script src="/assets/app-shell.v20260501g.js?v=20260503e"></script>
-    <script src="/assets/homer-features.v20260502a.js?v=20260503e"></script>
-    <script src="/assets/homer-enhancements.v20260502a.js?v=20260503e"></script>
+    <script src="/assets/app-shell.v20260501g.js?v=20260504a"></script>
+    <script src="/assets/homer-features.v20260502a.js?v=20260504a"></script>
+    <script src="/assets/homer-enhancements.v20260502a.js?v=20260504a"></script>
 
 <!-- ── Supabase client (loaded after app bundle so window globals are ready) ── -->
 <script src="/api/config?format=js"></script>
