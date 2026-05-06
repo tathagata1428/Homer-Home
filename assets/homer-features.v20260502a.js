@@ -640,6 +640,9 @@
 
     var data = safeJson(localStorage.getItem(SESSIONS_KEY), { sessions: [], cycleCount: 0 });
     var timer = null, running = false, isBreak = false, remaining = WORK, total = WORK;
+    // Wall-clock anchors — the only source of truth for elapsed time.
+    // setInterval alone drifts and catches up chaotically when the tab is hidden.
+    var startedAt = 0, remainingAtStart = WORK;
 
     function fmtTime(s) { return pad(Math.floor(s / 60)) + ':' + pad(s % 60); }
     function save() { localStorage.setItem(SESSIONS_KEY, JSON.stringify(data)); }
@@ -655,8 +658,7 @@
       document.title = running ? fmtTime(remaining) + (isBreak ? ' 🍃' : ' 🍅') + ' · Homer' : 'Homer';
     }
 
-    function tick() {
-      if (remaining > 0) { remaining--; updateDisplay(); return; }
+    function onExpire() {
       clearInterval(timer); timer = null; running = false; fab.classList.remove('running');
       document.getElementById('homer-pomo-start').textContent = '▶ Start';
       if (!isBreak) {
@@ -666,32 +668,53 @@
         save();
         var longBreak = data.cycleCount % 4 === 0;
         isBreak = true; total = remaining = longBreak ? LONG_BREAK : SHORT_BREAK;
+        remainingAtStart = remaining;
         window._homerToast({ message: longBreak ? '🎉 Long break! 15 min' : '✅ Break time! 5 min', type: 'success', duration: 6000 });
         try { if (Notification.permission === 'granted') new Notification('🍅 Pomodoro', { body: 'Time for a break!' }); } catch (_) {}
       } else {
         isBreak = false; total = remaining = WORK;
+        remainingAtStart = remaining;
         window._homerToast({ message: '🍅 Back to work!', type: 'info', duration: 4000 });
       }
       updateDisplay();
     }
 
+    // Fires at 250 ms so it never lags more than a quarter-second behind the
+    // real clock. Elapsed is derived from Date.now(), not tick count, so
+    // browser tab throttling cannot cause multi-second jumps.
+    function tick() {
+      var elapsed = Math.floor((Date.now() - startedAt) / 1000);
+      var newRemaining = Math.max(0, remainingAtStart - elapsed);
+      if (newRemaining === remaining && newRemaining > 0) return; // no visible change yet
+      remaining = newRemaining;
+      if (remaining > 0) { updateDisplay(); return; }
+      onExpire();
+    }
+
     document.getElementById('homer-pomo-start').addEventListener('click', function() {
       if (running) {
+        // Snapshot the exact remaining seconds before stopping the interval
+        remaining = Math.max(0, remainingAtStart - Math.floor((Date.now() - startedAt) / 1000));
         clearInterval(timer); timer = null; running = false; fab.classList.remove('running');
         this.textContent = '▶ Start'; this.classList.add('primary');
+        updateDisplay();
       } else {
-        running = true; timer = setInterval(tick, 1000); fab.classList.add('running');
+        startedAt = Date.now(); remainingAtStart = remaining;
+        running = true; timer = setInterval(tick, 250); fab.classList.add('running');
         this.textContent = '⏸ Pause'; this.classList.remove('primary');
         try { if (Notification.permission !== 'denied') Notification.requestPermission(); } catch (_) {}
       }
     });
     document.getElementById('homer-pomo-reset').addEventListener('click', function() {
       clearInterval(timer); timer = null; running = false; fab.classList.remove('running');
-      isBreak = false; total = remaining = WORK;
+      isBreak = false; total = remaining = WORK; startedAt = 0; remainingAtStart = WORK;
       document.getElementById('homer-pomo-start').textContent = '▶ Start';
       updateDisplay();
     });
-    document.getElementById('homer-pomo-skip').addEventListener('click', function() { remaining = 0; tick(); });
+    document.getElementById('homer-pomo-skip').addEventListener('click', function() {
+      remaining = 0; remainingAtStart = 0; startedAt = 0;
+      onExpire();
+    });
     document.getElementById('homer-pomo-close').addEventListener('click', function() { panel.classList.remove('open'); });
     fab.addEventListener('click', function() { panel.classList.toggle('open'); });
     updateDisplay();
