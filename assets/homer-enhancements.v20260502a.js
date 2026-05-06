@@ -157,6 +157,9 @@
     'body.mobile-shell #he-fab-tray{display:none!important;}',
     /* On touch: pad exactly the status bar height — no more, no less */
     '@media(hover:none) and (pointer:coarse){body{padding-top:env(safe-area-inset-top,0px)!important;}}',
+    /* Status-bar colour overlay — dark fill behind the system bar so Android picks white icons */
+    'body.mobile-shell::before{content:"";position:fixed;top:0;left:0;right:0;'+
+    'height:env(safe-area-inset-top,0px);background:#0a1220;z-index:9999;pointer-events:none;}',
 
     /* On touch devices: sheet sits above nav bar so nav remains visible + tap-able */
     '@media (hover:none) and (pointer:coarse){'+
@@ -1008,12 +1011,54 @@
 
     var SYNC_KEYS=['homer-expenses','homer-income','homer-expense-goals','homer-expense-templates','homer-expense-budgets','homer-habits','homer-inbox','homer-payday-day'];
 
+    // Inbox uses merge-by-ID semantics instead of last-write-wins so items
+    // added on different devices are combined rather than overwriting each other.
+    function mergeInboxArrays(a,b){
+      var seen={},merged=[];
+      a.concat(b).forEach(function(x){if(x&&x.id&&!seen[x.id]){seen[x.id]=true;merged.push(x);}});
+      merged.sort(function(x,y){return x.ts<y.ts?1:-1;});
+      return merged.slice(0,200);
+    }
+    function syncInbox(){
+      if(!canSync())return;
+      var client=getClient(),uid=getUid();if(!client||!uid)return;
+      var key='homer-inbox';
+      var local=safeJson(localStorage.getItem(key),[]);
+      showBadge('Syncing\u2026','syncing');
+      client.from('field_state').select('value').eq('key','he_'+key).eq('user_id',uid).maybeSingle()
+        .then(function(r){
+          var remote=[];
+          if(r.data&&r.data.value){
+            var parsed=safeJson(r.data.value,null);
+            var remoteData=parsed&&typeof parsed._ts==='number'?parsed._data:r.data.value;
+            remote=safeJson(remoteData,[]);
+          }
+          var merged=mergeInboxArrays(local,remote);
+          var mergedStr=JSON.stringify(merged);
+          if(mergedStr!==JSON.stringify(local)){
+            nativeSetItem(key,mergedStr);
+            var mergedTs=Date.now();
+            nativeSetItem('_he_ts_'+key,String(mergedTs));
+            window.dispatchEvent(new Event('homer-inbox-changed'));
+          }
+          var ts=getLocalTs(key)||Date.now();
+          delete _syncDirty[key];
+          return client.from('field_state').upsert({key:'he_'+key,value:JSON.stringify({_ts:ts,_data:mergedStr}),user_id:uid},{onConflict:'key,user_id'});
+        })
+        .then(function(r){
+          if(r&&r.error)showBadge('Sync error','error');
+          else showBadge('Synced \u2713','synced');
+        })
+        .catch(function(){showBadge('Sync error','error');});
+    }
+
     var _pullDone=false;
     function pullAll(){
       if(!canSync())return;
       var firstPull=!_pullDone;
       _pullDone=true;
-      SYNC_KEYS.forEach(pullKey);
+      SYNC_KEYS.filter(function(k){return k!=='homer-inbox';}).forEach(pullKey);
+      syncInbox();
       if(firstPull){
         // After first pull, signal vault components to re-read IDB.
         // This catches the case where the vault was loaded before a restore
@@ -1022,7 +1067,13 @@
       }
     }
     function markDirty(key){_syncDirty[key]=true;}
-    function pushDirty(){if(!canSync())return;Object.keys(_syncDirty).forEach(pushKey);}
+    function pushDirty(){
+      if(!canSync())return;
+      Object.keys(_syncDirty).forEach(function(key){
+        if(key==='homer-inbox')syncInbox();
+        else pushKey(key);
+      });
+    }
 
     // Primary trigger: fires when persisted session restores (async on mobile)
     window.addEventListener('supabase:session',function(e){
@@ -1054,6 +1105,7 @@
 
     window._heSyncPush=pushKey;
     window._heSyncPullAll=pullAll;
+    window._homerSyncInbox=syncInbox;
   }
 
   /* ── Mobile FAB positioning ─────────────────────────────────────────── */
@@ -1116,57 +1168,70 @@
     input.click();
   }
 
+  function compressReceiptImage(file, callback){
+    /* Shrink to max 1600px on the long edge at 82% JPEG quality.
+       Phone camera photos are 3-8 MB; this brings them under ~300 KB. */
+    var MAX=1600, QUALITY=0.82;
+    var url=URL.createObjectURL(file);
+    var img=new Image();
+    img.onload=function(){
+      URL.revokeObjectURL(url);
+      var w=img.naturalWidth, h=img.naturalHeight;
+      if(w>MAX||h>MAX){
+        if(w>=h){h=Math.round(h*MAX/w);w=MAX;}
+        else{w=Math.round(w*MAX/h);h=MAX;}
+      }
+      var canvas=document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      canvas.toBlob(function(blob){
+        var reader=new FileReader();
+        reader.onload=function(ev){
+          var dataUrl=String(ev.target.result||'');
+          var comma=dataUrl.indexOf(',');
+          callback(null,comma>=0?dataUrl.slice(comma+1):dataUrl,'image/jpeg',blob?blob.size:0);
+        };
+        reader.onerror=function(){callback(new Error('Read error'));};
+        reader.readAsDataURL(blob);
+      },'image/jpeg',QUALITY);
+    };
+    img.onerror=function(){URL.revokeObjectURL(url);callback(new Error('Image load error'));};
+    img.src=url;
+  }
+
   function initReceiptCapture(){
     var input=document.getElementById('receipt-camera-input');
     if(!input)return;
     input.addEventListener('change',function(){
       var file=input.files&&input.files[0];
       if(!file)return;
-      var pass=localStorage.getItem('homer-sync-pass')||'';
-      if(!pass){toast('Log in to save receipts to Google Drive','warn',3500);return;}
-      toast('Saving receipt to Drive\u2026','info',5000);
-      var reader=new FileReader();
-      reader.onload=function(e){
-        var result=String(e.target.result||'');
-        var comma=result.indexOf(',');
-        var base64=comma>=0?result.slice(comma+1):result;
-        var ts=new Date();
-        var p=function(n){return String(n).padStart(2,'0');};
-        var ext=(file.type||'image/jpeg').split('/')[1]||'jpg';
-        var name='receipt-'+ts.getFullYear()+'-'+p(ts.getMonth()+1)+'-'+p(ts.getDate())+
-          '-'+p(ts.getHours())+p(ts.getMinutes())+p(ts.getSeconds())+'.'+ext;
-        var payload={
-          passphrase:pass,
-          fileName:name,
-          mimeType:file.type||'image/jpeg',
-          size:file.size,
-          base64Data:base64,
-          source:'receipt-capture'
-        };
-        if(typeof window._homerWithContextMode==='function'){
-          payload=window._homerWithContextMode(payload);
-        }else{
-          payload.mode='personal';
-        }
-        fetch('/api/gdrive-reconcile?action=file',{
+      toast('Compressing and saving receipt\u2026','info',8000);
+      var ts=new Date();
+      var p=function(n){return String(n).padStart(2,'0');};
+      var name='receipt-'+ts.getFullYear()+'-'+p(ts.getMonth()+1)+'-'+p(ts.getDate())+
+        '-'+p(ts.getHours())+p(ts.getMinutes())+p(ts.getSeconds())+'.jpg';
+      compressReceiptImage(file,function(err,base64,mimeType,size){
+        if(err){toast('Receipt: could not compress image','error',5000);return;}
+        var payload={fileName:name,mimeType:mimeType||'image/jpeg',size:size,base64Data:base64};
+        fetch('/api/receipt',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body:JSON.stringify(payload)
         }).then(function(r){
           return r.json().catch(function(){return{};}).then(function(data){
+            console.log('[receipt] status='+r.status,JSON.stringify(data).slice(0,200));
             if(!r.ok||!data||!data.ok){
-              var msg=(data&&[data.detail,data.error].filter(Boolean).join(' \u2014 '))||'Upload failed';
-              toast('Receipt save failed: '+msg,'error',5000);
+              var msg=(data&&[data.detail,data.error,data.responsePreview].filter(Boolean).join(' \u2014 '))||'Upload failed (HTTP '+r.status+')';
+              toast('Receipt: '+msg,'error',8000);
             }else{
               toast('\u2705 Receipt saved to Google Drive','success',3500);
             }
           });
         }).catch(function(err){
-          toast('Receipt save failed: '+(err.message||'Network error'),'error',5000);
+          console.error('[receipt] fetch error',err);
+          toast('Receipt: '+(err.message||'Network error'),'error',8000);
         });
-      };
-      reader.onerror=function(){toast('Could not read image','error');};
-      reader.readAsDataURL(file);
+      });
     });
   }
 

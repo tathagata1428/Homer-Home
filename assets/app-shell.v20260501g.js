@@ -3835,6 +3835,11 @@ let tvWidgetCreated = false;
       return { ok:false, error: err && err.message ? err.message : String(err) };
     });
   }
+  function resolveAgentActionMode(options, requestedMode){
+    var optionMode = options && options.mode;
+    var inferredMode = requestedMode || optionMode || currentVaultMode || ((localStorage.getItem('homer-vault-mode') || localStorage.getItem('homer-oc-mode')) === 'work' ? 'work' : 'personal');
+    return inferredMode === 'work' ? 'work' : 'personal';
+  }
   function createProjectEntry(projectData, options){
     var mode = resolveAgentActionMode(options);
     return loadVaultForMode(mode).then(function(data){
@@ -4175,7 +4180,7 @@ let tvWidgetCreated = false;
     var backupBtn = document.getElementById('project-dashboard-backup');
     if(backupBtn) backupBtn.addEventListener('click', function(){ backupProjectsNow(this); });
     var addCard = document.getElementById('project-dashboard-add');
-    if(addCard) addCard.addEventListener('click', openProjectModal);
+    if(addCard) addCard.addEventListener('click', function(){ openProjectModal(); });
   }
 
   function renderKanbanHero(goals, projects){
@@ -6317,8 +6322,8 @@ let tvWidgetCreated = false;
     if(projectFieldsModalBg) projectFieldsModalBg.classList.remove('open');
   }
 
-  if(projectAddOpenBtn) projectAddOpenBtn.addEventListener('click', openProjectModal);
-  if(goalProjectAddBtn) goalProjectAddBtn.addEventListener('click', openProjectModal);
+  if(projectAddOpenBtn) projectAddOpenBtn.addEventListener('click', function(){ openProjectModal(); });
+  if(goalProjectAddBtn) goalProjectAddBtn.addEventListener('click', function(){ openProjectModal(); });
   if(projectModalClose) projectModalClose.addEventListener('click', closeProjectModal);
   if(projectModalBg) projectModalBg.addEventListener('click', function(e){ if(e.target === projectModalBg) closeProjectModal(); });
   if(projectFieldsModalClose) projectFieldsModalClose.addEventListener('click', closeProjectFieldsModal);

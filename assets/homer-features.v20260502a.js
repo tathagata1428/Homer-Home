@@ -370,10 +370,15 @@
     }
     function tick() {
       var now = new Date();
-      document.getElementById('homer-clock-time').textContent = fmt(now, 'Europe/Bucharest');
-      document.getElementById('homer-clock-date').textContent = fmtDate(now, 'Europe/Bucharest');
-      document.getElementById('homer-clock-utc').textContent = 'UTC  ' + fmt(now, 'UTC');
-      document.getElementById('homer-clock-nyc').textContent = 'NYC  ' + fmt(now, 'America/New_York');
+      var elTime = document.getElementById('homer-clock-time');
+      if(!elTime) return;
+      elTime.textContent = fmt(now, 'Europe/Bucharest');
+      var elDate = document.getElementById('homer-clock-date');
+      if(elDate) elDate.textContent = fmtDate(now, 'Europe/Bucharest');
+      var elUtc = document.getElementById('homer-clock-utc');
+      if(elUtc) elUtc.textContent = 'UTC  ' + fmt(now, 'UTC');
+      var elNyc = document.getElementById('homer-clock-nyc');
+      if(elNyc) elNyc.textContent = 'NYC  ' + fmt(now, 'America/New_York');
     }
     tick();
     setInterval(tick, 1000);
@@ -414,15 +419,19 @@
           render(data);
         })
         .catch(function() {
-          document.getElementById('homer-weather-icon').textContent = '?';
-          document.getElementById('homer-weather-temp').textContent = '--°C';
-          document.getElementById('homer-weather-desc').textContent = 'N/A';
+          var icon = document.getElementById('homer-weather-icon');
+          var temp = document.getElementById('homer-weather-temp');
+          var desc = document.getElementById('homer-weather-desc');
+          if(icon) icon.textContent = '?';
+          if(temp) temp.textContent = '--°C';
+          if(desc) desc.textContent = 'N/A';
         });
     }
     function render(data) {
       var icon = document.getElementById('homer-weather-icon');
       var temp = document.getElementById('homer-weather-temp');
       var desc = document.getElementById('homer-weather-desc');
+      if(!icon || !temp || !desc) return;
       icon.className = ''; icon.textContent = WMO[data.code] || '🌡';
       temp.className = ''; temp.textContent = data.temp + '°C';
       desc.className = ''; desc.textContent = WDESC[data.code] || 'Unknown';
@@ -463,7 +472,12 @@
     var inboxPanel = document.createElement('div');
     inboxPanel.id = 'homer-inbox-panel';
     inboxPanel.innerHTML =
-      '<div class="homer-inbox-header"><h2>📥 Inbox</h2><button class="homer-panel-close" id="homer-inbox-close">✕</button></div>' +
+      '<div class="homer-inbox-header"><h2>📥 Inbox</h2>' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+          '<button id="homer-inbox-sync" title="Sync inbox across devices" style="background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.25);color:#60a5fa;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:.75rem;font-weight:700;transition:all .15s;white-space:nowrap">⟳ Sync</button>' +
+          '<button class="homer-panel-close" id="homer-inbox-close">✕</button>' +
+        '</div>' +
+      '</div>' +
       '<div class="homer-inbox-list" id="homer-inbox-list"></div>';
     document.body.appendChild(inboxPanel);
 
@@ -488,13 +502,24 @@
       modal.classList.remove('open');
       document.getElementById('homer-capture-text').value = '';
     }
-    function openInbox() { inboxPanel.classList.add('open'); ov.classList.add('open'); renderInbox(); }
+    function openInbox() {
+      inboxPanel.classList.add('open'); ov.classList.add('open'); renderInbox();
+      if (typeof window._homerSyncInbox === 'function') window._homerSyncInbox();
+    }
     function closeInbox() { inboxPanel.classList.remove('open'); ov.classList.remove('open'); }
 
     captureBtn.addEventListener('click', openCapture);
     document.getElementById('homer-capture-cancel').addEventListener('click', closeCapture);
     document.getElementById('homer-capture-view').addEventListener('click', function() { closeCapture(); openInbox(); });
     document.getElementById('homer-inbox-close').addEventListener('click', closeInbox);
+    document.getElementById('homer-inbox-sync').addEventListener('click', function() {
+      var btn = this;
+      btn.textContent = '⟳ …';
+      btn.style.opacity = '.6';
+      btn.disabled = true;
+      if (typeof window._homerSyncInbox === 'function') window._homerSyncInbox();
+      setTimeout(function() { btn.textContent = '⟳ Sync'; btn.style.opacity = ''; btn.disabled = false; }, 2000);
+    });
     ov.addEventListener('click', closeInbox);
     modal.addEventListener('click', function(e) { if (e.target === modal) closeCapture(); });
     document.getElementById('homer-capture-save').addEventListener('click', saveCapture);
@@ -514,6 +539,7 @@
       localStorage.setItem(INBOX_KEY, JSON.stringify(inbox.slice(0, 200)));
       closeCapture();
       window._homerToast({ message: 'Captured!', type: 'success', duration: 1500 });
+      if (typeof window._homerSyncInbox === 'function') setTimeout(window._homerSyncInbox, 300);
       if (activeType === 'expense') setTimeout(function() { if (window._homerOpenExpenses) window._homerOpenExpenses(text); }, 300);
     }
 
@@ -542,6 +568,11 @@
       });
     }
     window._homerOpenInbox = openInbox;
+
+    // Re-render whenever a sync pulls new inbox data from the cloud
+    window.addEventListener('homer-inbox-changed', function() {
+      if (inboxPanel.classList.contains('open')) renderInbox();
+    });
   }
 
   // ── Joey Typing Indicator ────────────────────────────────────────────
@@ -617,7 +648,7 @@
       document.getElementById('homer-pomo-title').textContent = isBreak ? 'BREAK' : 'FOCUS';
       document.getElementById('homer-pomo-mode-text').textContent = isBreak ? 'Rest up!' : 'Deep work';
       arc.style.strokeDashoffset = CIRC * (1 - remaining / total);
-      arc.className = isBreak ? 'brk' : '';
+      arc.setAttribute('class', isBreak ? 'brk' : '');
       var dots = '';
       for (var i = 0; i < 4; i++) dots += '<span class="homer-pomo-dot' + (i < (data.cycleCount % 4) ? ' done' : '') + '"></span>';
       document.getElementById('homer-pomo-sessions').innerHTML = 'Session ' + (data.cycleCount + 1) + ' &nbsp;' + dots;
