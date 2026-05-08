@@ -212,6 +212,57 @@ CREATE POLICY "field_state_insert" ON public.field_state FOR INSERT WITH CHECK (
 CREATE POLICY "field_state_update" ON public.field_state FOR UPDATE USING (user_id = auth.uid());
 CREATE POLICY "field_state_delete" ON public.field_state FOR DELETE USING (user_id = auth.uid());
 
+-- ── HABITS ───────────────────────────────────────────────────
+-- Habit definitions (one row per habit per user).
+CREATE TABLE IF NOT EXISTS public.habits (
+  id          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id     UUID    NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  client_id   BIGINT  NOT NULL,           -- JS Date.now() id from the client
+  name        TEXT    NOT NULL,
+  emoji       TEXT    NOT NULL DEFAULT '⭐',
+  color       TEXT    NOT NULL DEFAULT '#3b82f6',
+  category    TEXT    NOT NULL DEFAULT 'other',
+  freq        JSONB   NOT NULL DEFAULT '"daily"',  -- "daily" or [0,1,2,...]
+  target      INTEGER NOT NULL DEFAULT 1,
+  note        TEXT    NOT NULL DEFAULT '',
+  archived    BOOLEAN NOT NULL DEFAULT FALSE,
+  display_order INTEGER DEFAULT 0,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, client_id)
+);
+
+CREATE INDEX IF NOT EXISTS habits_user ON public.habits (user_id, archived, display_order);
+
+ALTER TABLE public.habits ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "habits_select" ON public.habits FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "habits_insert" ON public.habits FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "habits_update" ON public.habits FOR UPDATE USING (user_id = auth.uid());
+CREATE POLICY "habits_delete" ON public.habits FOR DELETE USING (user_id = auth.uid());
+
+-- Habit completions (one row per habit per day).
+CREATE TABLE IF NOT EXISTS public.habit_completions (
+  id          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id     UUID    NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  habit_id    UUID    REFERENCES public.habits(id) ON DELETE CASCADE,
+  client_habit_id BIGINT NOT NULL,        -- mirrors habits.client_id for offline use
+  date        DATE    NOT NULL,
+  count       INTEGER NOT NULL DEFAULT 1,
+  note        TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, client_habit_id, date)
+);
+
+CREATE INDEX IF NOT EXISTS habit_completions_user_date ON public.habit_completions (user_id, date);
+
+ALTER TABLE public.habit_completions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "habit_completions_select" ON public.habit_completions FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "habit_completions_insert" ON public.habit_completions FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "habit_completions_update" ON public.habit_completions FOR UPDATE USING (user_id = auth.uid());
+CREATE POLICY "habit_completions_delete" ON public.habit_completions FOR DELETE USING (user_id = auth.uid());
+
 -- ── REALTIME ─────────────────────────────────────────────────
 -- Enable realtime replication for the tables clients will subscribe to.
 -- (Run this only once; idempotent via IF NOT EXISTS on table membership.)
@@ -246,5 +297,17 @@ BEGIN
     WHERE pubname = 'supabase_realtime' AND tablename = 'field_state'
   ) THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.field_state;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND tablename = 'habits'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.habits;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND tablename = 'habit_completions'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.habit_completions;
   END IF;
 END $$;

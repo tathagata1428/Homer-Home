@@ -809,6 +809,11 @@
         <div class="vd-icon">&#x1F4DD;</div>
         <div class="vd-info"><h3>Secret Notes</h3><p>Encrypted private notes</p></div>
       </div>
+      <div class="vd-card" id="vd-open-habits">
+        <div class="vd-icon">&#x1F525;</div>
+        <div class="vd-info"><h3>Habit Tracker</h3><p id="vd-habits-desc">Build powerful daily habits</p></div>
+        <span class="vd-badge" id="vd-habits-count">0</span>
+      </div>
     </div>
     <!-- Calendar stays inline -->
     <div class="card" id="homer-cal" style="margin-top:18px;margin-bottom:0;padding:18px;">
@@ -1083,6 +1088,17 @@
     <div id="vault-notes-wrap">
       <textarea id="vault-notes" placeholder="Write your private notes here..." style="width:100%;min-height:60vh;padding:16px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-size:1rem;resize:vertical;font-family:inherit;line-height:1.6;"></textarea>
     </div>
+  </div>
+</div>
+
+<!-- Habits Overlay -->
+<div id="habits-overlay" class="vault-ov" style="display:none;">
+  <div class="vault-ov-page">
+    <div class="vault-ov-topbar">
+      <h2>&#x1F525; Habit Tracker</h2>
+      <button class="vault-ov-close" data-close="habits-overlay">&times; Close</button>
+    </div>
+    <div id="habits-app-root"></div>
   </div>
 </div>
 
@@ -1504,6 +1520,7 @@
     <script src="/assets/app-shell.v20260501g.js?v=20260506c"></script>
     <script src="/assets/homer-features.v20260502a.js?v=20260506c"></script>
     <script src="/assets/homer-enhancements.v20260502a.js?v=20260506c"></script>
+    <script src="/assets/homer-habits.v20260508a.js?v=20260508a"></script>
 
 <!-- ── Supabase client (loaded after app bundle so window globals are ready) ── -->
 <script src="/api/config?format=js"></script>
