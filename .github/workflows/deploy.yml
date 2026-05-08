@@ -4,13 +4,17 @@ on:
   push:
     branches: [main, 'feature/**']
 
-# Cloudflare Pages deploys automatically via its native GitHub integration.
-# This workflow is intentionally a no-op — it exists only to show a green
-# check on pull requests. Actual deployment is handled by Cloudflare directly.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Deployment handled by Cloudflare Pages
-        run: echo "Cloudflare Pages native integration handles deployment on push."
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Cloudflare Pages
+        run: npx wrangler@3 pages deploy . --project-name homer-home
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
