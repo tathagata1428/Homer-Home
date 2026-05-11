@@ -270,8 +270,8 @@
     var showSb = show && isInMorningWindow() && !hasAckedToday();
     var tabBtn = document.getElementById('db-tab-btn');
     var sbBtn  = document.getElementById('db-sb-btn');
-    if (tabBtn) tabBtn.style.display = show ? '' : 'none';
-    if (sbBtn)  sbBtn.style.display  = showSb ? '' : 'none';
+    if (tabBtn) tabBtn.style.display = show ? 'inline-block' : 'none';
+    if (sbBtn)  sbBtn.style.display  = showSb ? 'inline-block' : 'none';
     if (!show && document.body.dataset.activeTab === 'daily-brief') {
       var orig = window._homerShowTab;
       if (orig) orig('home');
