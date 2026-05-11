@@ -126,6 +126,9 @@ function buildOpenClawSystemParts(context) {
 - If context points to an ongoing thread, continue it proactively instead of restarting from zero.
 - Act like this person's long-term operator: learn their defaults, standards, people, and recurring patterns so your help feels specific to them rather than generic.`);
 
+  const modelId = String(process.env.OC_MODEL || 'inclusionai/ring-2.6-1t:free').trim();
+  systemParts.push(`=== MODEL IDENTITY ===\n- Your underlying model is: ${modelId}.\n- If the user asks what model or AI you are, answer naturally and honestly (e.g. "I'm running on Ring-2.6-1T by InclusionAI via OpenRouter"). Do not claim to be GPT, Claude, or any other model.`);
+
   systemParts.push(`
 === MODE ISOLATION ===
 - Personal mode and Work mode are separate memory domains.
@@ -179,9 +182,9 @@ export async function onRequest(context) {
   await handleJoeyGatewayRequest(req, res, {
     getProviderConfig({ env: e }) {
       return {
-        gatewayUrl: String(e.OC_PERSONAL_GATEWAY_URL || e.OC_GATEWAY_URL || 'http://localhost:11434').trim(),
+        gatewayUrl: String(e.OC_PERSONAL_GATEWAY_URL || e.OC_GATEWAY_URL || 'https://openrouter.ai/api/v1').trim(),
         gatewayToken: String(e.OC_PERSONAL_GATEWAY_TOKEN || e.OC_GATEWAY_TOKEN || '').trim(),
-        primaryModel: String(e.OC_MODEL || 'nemotron-3-super:cloud').trim().replace(/^kimi-k2\.5(:cloud)?$/i, 'kimi-k2.6:cloud'),
+        primaryModel: String(e.OC_MODEL || 'inclusionai/ring-2.6-1t:free').trim().replace(/^kimi-k2\.5(:cloud)?$/i, 'kimi-k2.6:cloud'),
         fallbackModel: '',
         largeContext: true
       };

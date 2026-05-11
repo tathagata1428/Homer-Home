@@ -65,6 +65,7 @@
     <span class="sb-label">Vault</span>
   </button>
   <div class="sb-spacer"></div>
+  <!-- Daily Brief sidebar btn injected by homer-daily-brief.js for Bogdan -->
   <button class="sb-toggle" id="sb-toggle-btn">
     <svg viewBox="0 0 24 24"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
     <span class="sb-label">Collapse</span>
@@ -101,6 +102,7 @@
       <button class="tab-btn" data-tab="links">Links</button>
       <button class="tab-btn" data-tab="news">&#128240; News</button>
       <button class="tab-btn" data-tab="vault">&#128273; Vault</button>
+      <button class="tab-btn" data-tab="daily-brief" id="db-tab-btn">&#x1F4CB; Daily Brief</button>
     </div>
 
     <section id="tab-home" class="tab card">
@@ -855,6 +857,92 @@
 <div id="img-lightbox" class="k-img-preview" onclick="this.classList.remove('open')"><img></div>
 </section>
 
+<!-- DAILY BRIEF TAB (Bogdan only — controlled by homer-daily-brief.js) -->
+<section id="tab-daily-brief" class="tab card" style="display:none">
+  <div class="db-header">
+    <div class="db-header-left">
+      <h2>&#x1F4CB; Daily Brief</h2>
+      <p id="db-subtitle">Your personalized morning briefing</p>
+    </div>
+    <button class="db-refresh-btn" id="db-refresh-btn">&#x21BB; Refresh</button>
+  </div>
+
+  <!-- Vault locked notice -->
+  <div id="db-vault-notice" class="db-vault-notice" style="display:none">
+    <div class="db-vault-notice-icon">&#x1F512;</div>
+    <span>Unlock your <strong>Vault</strong> to see tasks, projects, and life goals in your brief.</span>
+  </div>
+
+  <!-- Weather + Sync status row -->
+  <div class="db-grid">
+    <div class="db-card">
+      <div class="db-card-title">&#x26C5; Current Weather</div>
+      <div class="db-weather">
+        <div class="db-wx-icon" id="db-wx-icon">&#x26C5;</div>
+        <div class="db-wx-info">
+          <div class="db-wx-temp" id="db-wx-temp">--&deg;</div>
+          <div class="db-wx-desc" id="db-wx-desc">&mdash;</div>
+          <div class="db-wx-place" id="db-wx-place">Loading&hellip;</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="db-card">
+      <div class="db-card-title">&#x2601; Backup &amp; Sync Status</div>
+      <div class="db-sync-rows">
+        <div class="db-sync-row">
+          <span class="db-sync-label">Supabase vault backup</span>
+          <span class="db-sync-val db-sync-muted" id="db-sync-supa">Checking&hellip;</span>
+        </div>
+        <div class="db-sync-row">
+          <span class="db-sync-label">Local save</span>
+          <span class="db-sync-val db-sync-muted" id="db-sync-local">Checking&hellip;</span>
+        </div>
+        <div class="db-sync-row">
+          <span class="db-sync-label">Field sync version</span>
+          <span class="db-sync-val db-sync-muted" id="db-sync-fields">--</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- In Progress tasks (full width) -->
+  <div id="db-vault-grid">
+    <div class="db-grid full-width" style="margin-top:0">
+      <div class="db-card">
+        <div class="db-card-title">&#x23F3; In Progress &mdash; Kanban Tasks</div>
+        <ul class="db-task-list" id="db-inprogress-list">
+          <li class="db-empty">Unlock vault to see in-progress tasks</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Projects + Life Goals + Habits -->
+    <div class="db-grid" style="margin-top:0">
+      <div class="db-card">
+        <div class="db-card-title">&#x1F4BC; Active Projects</div>
+        <ul class="db-task-list" id="db-projects-list">
+          <li class="db-empty">Unlock vault to see projects</li>
+        </ul>
+      </div>
+
+      <div class="db-card">
+        <div class="db-card-title">&#x1F3AF; Life Goals in Progress</div>
+        <div id="db-lifegoals-wrap">
+          <p class="db-empty">Unlock vault to see life goals</p>
+        </div>
+      </div>
+
+      <div class="db-card">
+        <div class="db-card-title">&#x2705; Today&rsquo;s Habits</div>
+        <div id="db-habits-wrap">
+          <p class="db-empty">No habits configured yet</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- VAULT OVERLAYS (outside section, before scripts) -->
 
 <!-- Projects Overlay -->
@@ -1521,6 +1609,7 @@
     <script src="/assets/homer-features.v20260502a.js?v=20260506c"></script>
     <script src="/assets/homer-enhancements.v20260502a.js?v=20260506c"></script>
     <script src="/assets/homer-habits.v20260508a.js?v=20260508a"></script>
+    <script src="/assets/homer-daily-brief.v20260511a.js?v=20260511a"></script>
 
 <!-- ── Supabase client (loaded after app bundle so window globals are ready) ── -->
 <script src="/api/config?format=js"></script>
