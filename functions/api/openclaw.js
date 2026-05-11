@@ -177,6 +177,17 @@ export async function onRequest(context) {
   if (searchParams.get('action') === 'transcribe') {
     return handleTranscribe(request, env);
   }
+  if (searchParams.get('action') === 'debug') {
+    const gatewayUrl = String(env.OC_PERSONAL_GATEWAY_URL || env.OC_GATEWAY_URL || 'https://openrouter.ai/api/v1').trim();
+    const model = (function(m) {
+      m = String(m || '').trim();
+      if (!m || /nemotron/i.test(m)) m = 'inclusionai/ring-2.6-1t:free';
+      return m;
+    })(env.OC_MODEL || '');
+    const hasToken = !!(env.OC_PERSONAL_GATEWAY_TOKEN || env.OC_GATEWAY_TOKEN);
+    const fallbackModel = String(env.OC_FALLBACK_MODEL || '').trim();
+    return Response.json({ ok: true, gatewayUrl, model, hasToken, fallbackModel, envKeys: Object.keys(env || {}) });
+  }
 
   const { req, res, getResponse } = await createVercelAdapter(request);
   await handleJoeyGatewayRequest(req, res, {

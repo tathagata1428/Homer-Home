@@ -335,17 +335,31 @@
       ).catch(function () { return null; });
     })).then(function (results) {
       var allGoals = [], allProjects = [], allLifeGoals = [];
-      results.forEach(function (data) {
+      results.forEach(function (data, idx) {
         if (!data) return;
-        allGoals    = allGoals.concat(data.goals    || []);
-        allProjects = allProjects.concat(data.projects || []);
-        allLifeGoals = allLifeGoals.concat(data.lifeGoals || []);
+        var modeTag = modes[idx];
+        // Tag each goal/lifeGoal with its source mode so we can build a unique key
+        (data.goals || []).forEach(function (g) {
+          allGoals.push(Object.assign({}, g, { _mode: modeTag }));
+        });
+        (data.projects   || []).forEach(function (p) { allProjects.push(p); });
+        (data.lifeGoals  || []).forEach(function (g) {
+          allLifeGoals.push(Object.assign({}, g, { _mode: modeTag }));
+        });
       });
-      // Deduplicate by id
+      // Goals and lifeGoals use per-mode sequential numeric IDs — deduplicate
+      // using mode+id composite key so work goals are not dropped by personal IDs.
+      // Projects may share default IDs across modes — dedup by id only.
       var seenG = {}, seenP = {}, seenL = {};
-      allGoals     = allGoals.filter(function (g) { return g.id && !seenG[g.id] && (seenG[g.id] = 1); });
+      allGoals     = allGoals.filter(function (g) {
+        var k = (g._mode || '') + ':' + g.id;
+        return g.id != null && !seenG[k] && (seenG[k] = 1);
+      });
       allProjects  = allProjects.filter(function (p) { return p.id && !seenP[p.id] && (seenP[p.id] = 1); });
-      allLifeGoals = allLifeGoals.filter(function (g) { return g.id && !seenL[g.id] && (seenL[g.id] = 1); });
+      allLifeGoals = allLifeGoals.filter(function (g) {
+        var k = (g._mode || '') + ':' + g.id;
+        return g.id != null && !seenL[k] && (seenL[k] = 1);
+      });
       renderInProgress(allGoals, allProjects);
       renderProjects(allProjects);
       renderLifeGoals(allLifeGoals);
