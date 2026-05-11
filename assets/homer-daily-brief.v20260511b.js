@@ -460,8 +460,18 @@
       setRow('db-sync-supa', 'N/A (browser only)', 'db-sync-muted');
     } else {
       var supaTs = parseInt(localStorage.getItem(VAULT_SUPA_TS_KEY) || '0', 10) || 0;
-      var s = stampAge(supaTs);
-      setRow('db-sync-supa', s.text, s.cls);
+      if (supaTs) {
+        var s = stampAge(supaTs);
+        setRow('db-sync-supa', s.text, s.cls);
+      } else if (_vaultSyncStatus === 'no-session') {
+        setRow('db-sync-supa', 'Not signed in to Supabase', 'db-sync-warn');
+      } else if (_vaultSyncStatus === 'no-data') {
+        setRow('db-sync-supa', 'No vault data in IDB', 'db-sync-warn');
+      } else if (_vaultSyncStatus && _vaultSyncStatus.startsWith('error:')) {
+        setRow('db-sync-supa', _vaultSyncStatus, 'db-sync-bad');
+      } else {
+        setRow('db-sync-supa', 'Never', 'db-sync-warn');
+      }
     }
 
     var fieldVer = parseInt(localStorage.getItem('homer-field-sync-version') || '0', 10) || 0;
@@ -493,16 +503,22 @@
   var _lastVaultHash = '';
   var _vaultSyncBusy = false;
 
+  var _vaultSyncStatus = 'idle'; // 'idle' | 'no-session' | 'no-data' | 'error:...' | 'ok'
+
   function pushVaultToSupabase(force) {
     if (!isBogdan()) return;
     if (_vaultSyncBusy) return;
     var supabase = window.__supabase;
     var session  = window.__sbSession;
-    if (!supabase || !session || !session.user) return;
+    if (!supabase || !session || !session.user) {
+      _vaultSyncStatus = 'no-session';
+      if (document.body.dataset.activeTab === 'daily-brief') updateSyncStatus();
+      return;
+    }
     var userId = session.user.id;
 
     var openReq = indexedDB.open(VAULT_IDB_NAME, 1);
-    openReq.onerror = function () {};
+    openReq.onerror = function () { _vaultSyncStatus = 'idb-error'; };
     openReq.onsuccess = function (ev) {
       var db = ev.target.result;
       var tx;
@@ -512,7 +528,11 @@
       tx.oncomplete = function () {
         var salt = saltReq.result || null;
         var data = dataReq.result || null;
-        if (!data) return;
+        if (!data) {
+          _vaultSyncStatus = 'no-data';
+          if (document.body.dataset.activeTab === 'daily-brief') updateSyncStatus();
+          return;
+        }
         var hash = quickHash(String(data));
         if (!force && hash === _lastVaultHash) return; // nothing changed
         _lastVaultHash = hash;
@@ -524,7 +544,13 @@
           { onConflict: 'user_id,mode,key' }
         ).then(function (res) {
           _vaultSyncBusy = false;
-          if (res && res.error) { console.warn('[DailyBrief] vault sync:', res.error.message); return; }
+          if (res && res.error) {
+            _vaultSyncStatus = 'error: ' + (res.error.message || res.error.code || 'unknown');
+            console.warn('[DailyBrief] vault sync:', res.error.message);
+            if (document.body.dataset.activeTab === 'daily-brief') updateSyncStatus();
+            return;
+          }
+          _vaultSyncStatus = 'ok';
           var now = Date.now();
           try { localStorage.setItem(VAULT_SUPA_TS_KEY, String(now)); } catch (_) {}
           if (document.body.dataset.activeTab === 'daily-brief') updateSyncStatus();
