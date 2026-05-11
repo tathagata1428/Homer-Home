@@ -370,13 +370,13 @@
     html += '</div>';
     wrap.innerHTML = html;
 
-    /* event delegation — toggle expanded class on click */
-    wrap.addEventListener('click', function (e) {
+    /* event delegation — toggle expanded class on click (assigned, not added, to avoid stacking on re-render) */
+    wrap.onclick = function (e) {
       var card = e.target.closest('.db-tcard');
       if (card && card.querySelector('.db-tcard-body')) {
         card.classList.toggle('expanded');
       }
-    });
+    };
   }
 
   function renderProjects(projects) {
