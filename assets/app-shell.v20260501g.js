@@ -12128,6 +12128,12 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
   }
   runJoeyInitStep('applyProvider', function(){
+    // Clear stale model labels so the badge reflects whatever the server returns
+    var staleModels = /nemotron|kimi2?\.?5|gemma4/i;
+    ['personal','work'].forEach(function(m){
+      var k = getModelStorageKey('joey', m);
+      if(staleModels.test(localStorage.getItem(k) || '')) localStorage.removeItem(k);
+    });
     applyProvider(currentProvider);
   });
   function applyContextMode(mode, options){

@@ -195,8 +195,9 @@ export async function onRequest(context) {
       };
     },
     getFallbackGatewayConfig({ env: e }) {
-      const localModel = String(e.OC_FALLBACK_MODEL || 'gemma4:e2b').trim();
-      if (!localModel) return null;
+      const localModel = String(e.OC_FALLBACK_MODEL || '').trim();
+      // Reject empty, nemotron, or any cloud-only model as a local fallback
+      if (!localModel || /nemotron|kimi|ring|inclusionai/i.test(localModel)) return null;
       return {
         gatewayUrl: String(e.OC_PERSONAL_GATEWAY_URL || e.OC_GATEWAY_URL || 'http://localhost:11434').trim(),
         gatewayToken: String(e.OC_PERSONAL_GATEWAY_TOKEN || e.OC_GATEWAY_TOKEN || '').trim(),

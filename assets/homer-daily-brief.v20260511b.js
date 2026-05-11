@@ -321,12 +321,35 @@
     var unlocked = !!window._homerVaultUnlocked;
     if (notice)    notice.style.display    = unlocked ? 'none' : 'flex';
     if (vaultGrid) vaultGrid.style.display = unlocked ? '' : 'none';
-    if (!unlocked || typeof window._homerLoadVault !== 'function') return;
-    window._homerLoadVault().then(function (data) {
-      renderInProgress(data.goals || [], data.projects || []);
-      renderProjects(data.projects || []);
-      renderLifeGoals(data.lifeGoals || []);
-    }).catch(function () {});
+    if (!unlocked) return;
+
+    var loadForMode = window._homerLoadVaultForMode || window._homerLoadVault;
+    if (typeof loadForMode !== 'function') return;
+
+    // Load both personal and work vault modes and merge in-progress tasks
+    var modes = ['personal', 'work'];
+    Promise.all(modes.map(function (m) {
+      return (typeof window._homerLoadVaultForMode === 'function'
+        ? window._homerLoadVaultForMode(m)
+        : window._homerLoadVault()
+      ).catch(function () { return null; });
+    })).then(function (results) {
+      var allGoals = [], allProjects = [], allLifeGoals = [];
+      results.forEach(function (data) {
+        if (!data) return;
+        allGoals    = allGoals.concat(data.goals    || []);
+        allProjects = allProjects.concat(data.projects || []);
+        allLifeGoals = allLifeGoals.concat(data.lifeGoals || []);
+      });
+      // Deduplicate by id
+      var seenG = {}, seenP = {}, seenL = {};
+      allGoals     = allGoals.filter(function (g) { return g.id && !seenG[g.id] && (seenG[g.id] = 1); });
+      allProjects  = allProjects.filter(function (p) { return p.id && !seenP[p.id] && (seenP[p.id] = 1); });
+      allLifeGoals = allLifeGoals.filter(function (g) { return g.id && !seenL[g.id] && (seenL[g.id] = 1); });
+      renderInProgress(allGoals, allProjects);
+      renderProjects(allProjects);
+      renderLifeGoals(allLifeGoals);
+    });
   }
 
   /* ── Habits ───────────────────────────────────────────────────────── */
