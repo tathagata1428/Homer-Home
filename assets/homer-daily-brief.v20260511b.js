@@ -31,7 +31,13 @@
 
   /* ── Helpers ──────────────────────────────────────────────────────── */
   function isBogdan() {
-    return String(localStorage.getItem('homer-auth-user') || '').trim().toLowerCase() === BOGDAN_USER;
+    if (String(localStorage.getItem('homer-auth-user') || '').trim().toLowerCase() === BOGDAN_USER) return true;
+    // Fallback: Supabase session may be restored before Homer auth fires
+    try {
+      var s = window.__sbSession;
+      if (s && s.user && s.user.email && s.user.email.toLowerCase() === 'bogdan.radu@b4it.ro') return true;
+    } catch (_) {}
+    return false;
   }
   function todayStr() { return new Date().toISOString().slice(0, 10); }
   function esc(s) {
@@ -744,6 +750,7 @@
 
     window.addEventListener('homer-auth', updateBogdanVisibility);
     window.addEventListener('supabase:authchange', updateBogdanVisibility);
+    window.addEventListener('supabase:session', updateBogdanVisibility);
 
     var btn = document.getElementById('db-refresh-btn');
     if (btn) btn.addEventListener('click', function () {
