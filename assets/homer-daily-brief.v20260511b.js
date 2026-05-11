@@ -84,6 +84,7 @@
   /* ── CSS ──────────────────────────────────────────────────────────── */
   var CSS = `
     #tab-daily-brief { display:none; }
+    #db-tab-btn { display:inline-block !important; }
 
     .db-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
     .db-header-left h2 { font-size:1.35rem; font-weight:900; color:var(--text); margin:0 0 4px; }

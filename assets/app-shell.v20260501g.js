@@ -9070,7 +9070,8 @@ let tvWidgetCreated = false;
     'homer-heartbeats:work':    'ls:homer-heartbeats-work',
     'motivator.savedQuotes.v1': 'ls:savedQuotes',
     'homer-sb-collapsed':       'ls:homer-sb-collapsed',
-    'homer-habits':             'ls:homer-habits',
+    // homer-habits removed: handled exclusively by enhancements merge sync (he_homer-habits)
+    // to prevent last-write-wins from fighting with union-merge semantics.
     'homer-zen-goal':           'ls:homer-zen-goal',
     'homer-brain-dump':         'ls:homer-brain-dump'
   };
