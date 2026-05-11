@@ -12034,7 +12034,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     return getProviderDisplayName(provider, mode);
   }
   function getProviderDefaultModel(provider, mode){
-    return 'nemotron-3-super';
+    return 'ring-2.6-1t';
   }
   function normalizeModelLabel(raw){
     var value = String(raw || '').trim();
@@ -12043,6 +12043,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(/nemotron/i.test(value)) return 'nemotron-3-super';
     if(/hermes/i.test(value)) return 'hermes';
     if(/kimi(?:-k)?2?\.?6(?::cloud)?/i.test(value)) return 'kimi-k2.6';
+    if(/ring-?\d/i.test(value)) return value.replace(/:(cloud|free)$/i, '');
     value = value.replace(/:(cloud|free)$/i, '');
     return value;
   }
@@ -12131,7 +12132,9 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     currentContextMode = mode === 'work' ? 'work' : 'personal';
     localStorage.setItem('homer-oc-mode', currentContextMode);
     localStorage.setItem('homer-vault-mode', currentContextMode);
-    rememberModelLabel(currentProvider, currentContextMode, getProviderDefaultModel(currentProvider, currentContextMode));
+    if(!normalizeModelLabel(localStorage.getItem(getModelStorageKey(currentProvider, currentContextMode)))){
+      rememberModelLabel(currentProvider, currentContextMode, getProviderDefaultModel(currentProvider, currentContextMode));
+    }
     restoreChatFromCache(currentContextMode);
     syncSystemPromptEditor();
     syncProviderUi();
