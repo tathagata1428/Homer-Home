@@ -134,7 +134,8 @@
       tools: document.getElementById('tab-tools'),
       links: document.getElementById('tab-links'),
       vault: document.getElementById('tab-vault'),
-      news: document.getElementById('tab-news')
+      news: document.getElementById('tab-news'),
+      'daily-brief': document.getElementById('tab-daily-brief')
     };
     function hasPermission(perm){
       var perms = localStorage.getItem('homer-user-permissions');
