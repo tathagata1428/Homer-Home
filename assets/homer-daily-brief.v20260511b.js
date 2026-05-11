@@ -193,7 +193,12 @@
 
   /* ── Sidebar button ───────────────────────────────────────────────── */
   function injectSidebarBtn() {
-    if (document.getElementById('db-sb-btn')) return;
+    var existing = document.getElementById('db-sb-btn');
+    if (existing) {
+      // Button already in HTML — just wire the click
+      existing.addEventListener('click', function () { showDailyBrief(); });
+      return;
+    }
     var sidebar = document.getElementById('desktop-sidebar');
     if (!sidebar) return;
     var spacer = sidebar.querySelector('.sb-spacer');
@@ -271,11 +276,8 @@
 
   /* ── Bogdan visibility ────────────────────────────────────────────── */
   function updateBogdanVisibility() {
-    var show = isBogdan();
-    // Sidebar button only shows in morning window, before acknowledgment
-    var showSb = show && isInMorningWindow() && !hasAckedToday();
-    var sbBtn = document.getElementById('db-sb-btn');
-    if (sbBtn) sbBtn.style.display = showSb ? 'inline-block' : 'none';
+    // Sidebar button (#db-sb-btn) is always visible — it's in HTML and this is
+    // a personal dashboard. Supabase sync ops are separately gated by canSync().
   }
 
   /* ── Weather ──────────────────────────────────────────────────────── */

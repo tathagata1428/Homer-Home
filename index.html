@@ -64,8 +64,12 @@
     <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
     <span class="sb-label">Vault</span>
   </button>
+  <button class="sb-item" data-tab="daily-brief" id="db-sb-btn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/></svg>
+    <span class="sb-label">Daily Brief</span>
+  </button>
   <div class="sb-spacer"></div>
-  <!-- Daily Brief sidebar btn injected by homer-daily-brief.js for Bogdan -->
+  <!-- Daily Brief sidebar btn above is in HTML; JS may also inject one (deduped by id) -->
   <button class="sb-toggle" id="sb-toggle-btn">
     <svg viewBox="0 0 24 24"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
     <span class="sb-label">Collapse</span>
@@ -1609,7 +1613,7 @@
     <script src="/assets/homer-features.v20260502a.js?v=20260506c"></script>
     <script src="/assets/homer-enhancements.v20260502a.js?v=20260511b"></script>
     <script src="/assets/homer-habits.v20260508a.js?v=20260511a"></script>
-    <script src="/assets/homer-daily-brief.v20260511b.js?v=20260511m"></script>
+    <script src="/assets/homer-daily-brief.v20260511b.js?v=20260511n"></script>
 
 <!-- ── Supabase client (loaded after app bundle so window globals are ready) ── -->
 <script src="/api/config?format=js"></script>
