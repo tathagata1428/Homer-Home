@@ -9021,7 +9021,11 @@ let tvWidgetCreated = false;
     'homer-cal-ics', 'homer-cal-events', 'homer-heartbeats',
     'homer-cal-ics:personal', 'homer-cal-ics:work',
     'homer-cal-events:personal', 'homer-cal-events:work',
-    'homer-heartbeats:personal', 'homer-heartbeats:work'
+    'homer-heartbeats:personal', 'homer-heartbeats:work',
+    // User data synced via enhancements merge — must be in backup too
+    'homer-habits', 'homer-inbox',
+    'homer-expenses', 'homer-income', 'homer-expense-goals',
+    'homer-expense-templates', 'homer-expense-budgets', 'homer-payday-day'
   ];
   var IDB_KEYS = ['homer-vault-salt', 'homer-vault-hash', 'homer-vault-data'];
   var ALL_KEYS = LS_KEYS.concat(IDB_KEYS);
@@ -10271,7 +10275,10 @@ let tvWidgetCreated = false;
     'homer-cal-events:personal', 'homer-cal-events:work',
     'homer-cal-ics:personal', 'homer-cal-ics:work',
     'homer-heartbeats', 'homer-heartbeats:personal', 'homer-heartbeats:work',
-    'homer-oc-config-personal', 'homer-oc-config-work'
+    'homer-oc-config-personal', 'homer-oc-config-work',
+    'homer-habits', 'homer-inbox',
+    'homer-expenses', 'homer-income', 'homer-expense-goals',
+    'homer-expense-templates', 'homer-expense-budgets'
   ];
 
   // --- Content hash for change detection ---
@@ -10510,6 +10517,15 @@ let tvWidgetCreated = false;
         applied++;
       }
     });
+    // Stamp enhancements sync timestamps for all restored merge keys so the
+    // restored data is treated as "newest" and wins on the next Supabase sync.
+    var HE_MERGE_KEYS = ['homer-habits','homer-inbox','homer-expenses','homer-income',
+      'homer-expense-goals','homer-expense-templates','homer-expense-budgets'];
+    var restoreTs = String(Date.now());
+    HE_MERGE_KEYS.forEach(function(k){
+      if(snapshot[k] != null) origSetItem('_he_ts_'+k, restoreTs);
+    });
+
     return Promise.all(idbTasks).then(function(){
       return { applied: applied, cleared: clearLocalKeys.length };
     });
