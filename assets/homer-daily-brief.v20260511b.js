@@ -269,7 +269,7 @@
         return '<div class="db-tcard">' +
           '<div class="db-tcard-stripe" style="background:' + color + '"></div>' +
           '<div class="db-tcard-top">' +
-            '<div class="db-tcard-title">' + esc(g.title || 'Untitled') + '</div>' +
+            '<div class="db-tcard-title">' + esc(g.summary || g.title || 'Untitled') + '</div>' +
             (projKey ? '<span class="db-tcard-proj" style="background:' + color + '22;color:' + color + '">' + esc(projKey) + '</span>' : '') +
           '</div>' +
           '<div class="db-tcard-meta">' +
