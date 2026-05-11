@@ -629,6 +629,57 @@ export async function onRequest(context) {
       return Response.json({ ...learnOutcome, syncMetaUpdated: true, filesUpdated: true, totalJournalEntries: Array.isArray(currentJournal) ? currentJournal.length : 0 }, { status: 200, headers: corsHeaders });
     }
 
+    // ── Vault / habits / extras backup (server-side, no client Supabase session needed) ──
+    if (action === 'vault-backup' && request.method === 'POST') {
+      if (!supabaseClient || !userId) {
+        return Response.json({ ok: false, error: 'Supabase admin client not available' }, { status: 500, headers: corsHeaders });
+      }
+      const { vaultSalt, vaultData, habitsData, extras, workVaultSalt, workVaultData } = body || {};
+      const now = new Date().toISOString();
+      const ts  = Date.now();
+      const upserts = [];
+
+      if (vaultData) {
+        upserts.push(supabaseClient.from('joey_meta').upsert(
+          { user_id: userId, mode: 'personal', key: 'vault_encrypted_blob',
+            value: { vault_salt: vaultSalt || null, vault_data: vaultData, synced_at: ts },
+            updated_at: now },
+          { onConflict: 'user_id,mode,key' }
+        ));
+      }
+      if (workVaultData) {
+        upserts.push(supabaseClient.from('joey_meta').upsert(
+          { user_id: userId, mode: 'work', key: 'vault_encrypted_blob',
+            value: { vault_salt: workVaultSalt || null, vault_data: workVaultData, synced_at: ts },
+            updated_at: now },
+          { onConflict: 'user_id,mode,key' }
+        ));
+      }
+      if (habitsData != null) {
+        upserts.push(supabaseClient.from('joey_meta').upsert(
+          { user_id: userId, mode: 'personal', key: 'habits_data',
+            value: habitsData, updated_at: now },
+          { onConflict: 'user_id,mode,key' }
+        ));
+      }
+      if (extras && typeof extras === 'object') {
+        upserts.push(supabaseClient.from('joey_meta').upsert(
+          { user_id: userId, mode: 'personal', key: 'ls_extras',
+            value: { ...extras, synced_at: ts }, updated_at: now },
+          { onConflict: 'user_id,mode,key' }
+        ));
+      }
+      if (!upserts.length) {
+        return Response.json({ ok: true, skipped: true }, { status: 200, headers: corsHeaders });
+      }
+      const results = await Promise.all(upserts);
+      const errors  = results.filter(r => r && r.error).map(r => r.error.message);
+      if (errors.length) {
+        return Response.json({ ok: false, error: errors.join('; ') }, { status: 500, headers: corsHeaders });
+      }
+      return Response.json({ ok: true, saved: upserts.length, syncedAt: now }, { status: 200, headers: corsHeaders });
+    }
+
     return Response.json({ error: 'Unknown action' }, { status: 400, headers: corsHeaders });
   } catch (err) {
     console.error('[joey]', err);

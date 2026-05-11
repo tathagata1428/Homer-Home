@@ -463,8 +463,8 @@
       if (supaTs) {
         var s = stampAge(supaTs);
         setRow('db-sync-supa', s.text, s.cls);
-      } else if (_vaultSyncStatus === 'no-session') {
-        setRow('db-sync-supa', 'Not signed in to Supabase', 'db-sync-warn');
+      } else if (_vaultSyncStatus === 'no-pass') {
+        setRow('db-sync-supa', 'Sync key not set — log in as Bogdan', 'db-sync-warn');
       } else if (_vaultSyncStatus === 'no-data') {
         setRow('db-sync-supa', 'No vault data in IDB', 'db-sync-warn');
       } else if (_vaultSyncStatus && _vaultSyncStatus.startsWith('error:')) {
@@ -503,60 +503,88 @@
   var _lastVaultHash = '';
   var _vaultSyncBusy = false;
 
-  var _vaultSyncStatus = 'idle'; // 'idle' | 'no-session' | 'no-data' | 'error:...' | 'ok'
+  var _vaultSyncStatus = 'idle'; // 'idle'|'no-pass'|'no-data'|'busy'|'error:...'|'ok'
 
-  function pushVaultToSupabase(force) {
-    if (!isBogdan()) return;
-    if (_vaultSyncBusy) return;
-    var supabase = window.__supabase;
-    var session  = window.__sbSession;
-    if (!supabase || !session || !session.user) {
-      _vaultSyncStatus = 'no-session';
-      if (document.body.dataset.activeTab === 'daily-brief') updateSyncStatus();
-      return;
-    }
-    var userId = session.user.id;
-
+  /* Read both vault keys from IDB and return {salt, data} or null */
+  function readVaultFromIdb(cb) {
     var openReq = indexedDB.open(VAULT_IDB_NAME, 1);
-    openReq.onerror = function () { _vaultSyncStatus = 'idb-error'; };
+    openReq.onerror = function () { cb(null); };
     openReq.onsuccess = function (ev) {
       var db = ev.target.result;
       var tx;
-      try { tx = db.transaction(VAULT_IDB_STORE, 'readonly'); } catch (_) { return; }
+      try { tx = db.transaction(VAULT_IDB_STORE, 'readonly'); } catch (_) { cb(null); return; }
       var saltReq = tx.objectStore(VAULT_IDB_STORE).get(VAULT_SALT_KEY);
       var dataReq = tx.objectStore(VAULT_IDB_STORE).get(VAULT_DATA_KEY);
       tx.oncomplete = function () {
         var salt = saltReq.result || null;
         var data = dataReq.result || null;
-        if (!data) {
-          _vaultSyncStatus = 'no-data';
-          if (document.body.dataset.activeTab === 'daily-brief') updateSyncStatus();
-          return;
-        }
-        var hash = quickHash(String(data));
-        if (!force && hash === _lastVaultHash) return; // nothing changed
-        _lastVaultHash = hash;
-        _vaultSyncBusy = true;
-        supabase.from('joey_meta').upsert(
-          { user_id: userId, mode: 'personal', key: VAULT_SUPA_META_KEY,
-            value: { vault_salt: salt, vault_data: data, synced_at: Date.now() },
-            updated_at: new Date().toISOString() },
-          { onConflict: 'user_id,mode,key' }
-        ).then(function (res) {
-          _vaultSyncBusy = false;
-          if (res && res.error) {
-            _vaultSyncStatus = 'error: ' + (res.error.message || res.error.code || 'unknown');
-            console.warn('[DailyBrief] vault sync:', res.error.message);
-            if (document.body.dataset.activeTab === 'daily-brief') updateSyncStatus();
-            return;
-          }
-          _vaultSyncStatus = 'ok';
-          var now = Date.now();
-          try { localStorage.setItem(VAULT_SUPA_TS_KEY, String(now)); } catch (_) {}
-          if (document.body.dataset.activeTab === 'daily-brief') updateSyncStatus();
-        });
+        cb(data ? { salt: salt, data: data } : null);
       };
     };
+  }
+
+  function pushVaultToSupabase(force) {
+    if (!isBogdan()) return;
+    if (_vaultSyncBusy) return;
+    var pass = String(localStorage.getItem('homer-sync-pass') || '').trim();
+    if (!pass) {
+      _vaultSyncStatus = 'no-pass';
+      if (document.body.dataset.activeTab === 'daily-brief') updateSyncStatus();
+      return;
+    }
+
+    readVaultFromIdb(function (vault) {
+      if (!vault) {
+        _vaultSyncStatus = 'no-data';
+        if (document.body.dataset.activeTab === 'daily-brief') updateSyncStatus();
+        return;
+      }
+      var hash = quickHash(String(vault.data));
+      if (!force && hash === _lastVaultHash) return; // nothing changed
+      _lastVaultHash = hash;
+      _vaultSyncBusy = true;
+      _vaultSyncStatus = 'busy';
+
+      /* Gather habits + extras while we have the data */
+      var habitsRaw = localStorage.getItem(HABITS_KEY);
+      var habitsData = null;
+      try { habitsData = habitsRaw ? JSON.parse(habitsRaw) : null; } catch (_) {}
+      var extras = {
+        zen_goal:   localStorage.getItem(ZEN_KEY)   || '',
+        brain_dump: localStorage.getItem(BRAIN_KEY) || ''
+      };
+
+      fetch('/api/joey?action=vault-backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          passphrase: pass,
+          vaultSalt:  vault.salt,
+          vaultData:  vault.data,
+          habitsData: habitsData,
+          extras:     extras
+        })
+      }).then(function (r) { return r.json().catch(function () { return { ok: false, error: 'bad JSON' }; }); })
+        .then(function (d) {
+          _vaultSyncBusy = false;
+          if (!d || !d.ok) {
+            _vaultSyncStatus = 'error: ' + (d && d.error ? String(d.error).slice(0, 80) : 'unknown');
+            console.warn('[DailyBrief] vault-backup failed:', d && d.error);
+          } else {
+            _vaultSyncStatus = 'ok';
+            var now = Date.now();
+            try { localStorage.setItem(VAULT_SUPA_TS_KEY,  String(now)); } catch (_) {}
+            try { localStorage.setItem(HABITS_SYNC_KEY,    String(now)); } catch (_) {}
+            try { localStorage.setItem(EXTRAS_SYNC_TS,     String(now)); } catch (_) {}
+          }
+          if (document.body.dataset.activeTab === 'daily-brief') updateSyncStatus();
+        })
+        .catch(function (err) {
+          _vaultSyncBusy = false;
+          _vaultSyncStatus = 'error: ' + (err && err.message ? err.message : 'network');
+          if (document.body.dataset.activeTab === 'daily-brief') updateSyncStatus();
+        });
+    });
   }
 
   /* ==================================================================
@@ -615,49 +643,34 @@
   function startPeriodicSync() {
     setInterval(function () {
       if (!isBogdan()) return;
-      pushVaultToSupabase(false);
-      pushHabitsToSupabase(false);
-      pushExtrasToSupabase(false);
+      pushVaultToSupabase(false); // includes habits + extras in single request
     }, 8000);
   }
 
   /* ── Hook data saves ──────────────────────────────────────────────── */
   function hookDataSaves() {
-    // Vault save → immediate backup
+    // Vault save → immediate backup (also picks up habits + extras in same request)
     window.addEventListener('vault-goals-changed', function () {
       if (isBogdan()) setTimeout(function () { pushVaultToSupabase(true); }, 800);
       if (document.body.dataset.activeTab === 'daily-brief') populateFromVault();
     });
 
-    // Habits: cross-tab storage event
+    // Habits / extras changed → force a full backup (vault-backup sends everything)
     window.addEventListener('storage', function (e) {
       if (!isBogdan()) return;
-      if (e.key === HABITS_KEY)  { _lastHabitsHash = ''; pushHabitsToSupabase(true); if (document.body.dataset.activeTab === 'daily-brief') renderHabits(); }
-      if (e.key === ZEN_KEY || e.key === BRAIN_KEY) { _lastExtrasHash = ''; pushExtrasToSupabase(true); }
+      if (e.key === HABITS_KEY)  { _lastVaultHash = ''; pushVaultToSupabase(true); if (document.body.dataset.activeTab === 'daily-brief') renderHabits(); }
+      if (e.key === ZEN_KEY || e.key === BRAIN_KEY) { _lastVaultHash = ''; pushVaultToSupabase(true); }
     });
 
-    // Supabase session arrives → force full backup
-    window.addEventListener('supabase:session', function (e) {
-      var sess = e && e.detail;
-      if (sess && sess.user && isBogdan()) {
-        setTimeout(function () {
-          pushVaultToSupabase(true);
-          pushHabitsToSupabase(true);
-          pushExtrasToSupabase(true);
-        }, 2000);
-      }
+    // Supabase session or Homer auth → force full backup
+    window.addEventListener('supabase:session', function () {
+      if (isBogdan()) setTimeout(function () { pushVaultToSupabase(true); }, 2000);
     });
 
     // Auth / vault unlock → refresh visibility + backup
     window.addEventListener('homer-auth', function () {
       updateBogdanVisibility();
-      if (isBogdan()) {
-        setTimeout(function () {
-          pushVaultToSupabase(true);
-          pushHabitsToSupabase(true);
-          pushExtrasToSupabase(true);
-        }, 1500);
-      }
+      if (isBogdan()) setTimeout(function () { pushVaultToSupabase(true); }, 1500);
     });
   }
 
