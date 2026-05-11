@@ -647,6 +647,12 @@
     if (!supabase || !session || !session.user) return;
     var raw = localStorage.getItem(HABITS_KEY);
     if (!raw) return;
+    // Don't push empty habits before the enhancements pull completes —
+    // would corrupt joey_meta with a stale empty state from a fresh device.
+    var parsed; try { parsed = JSON.parse(raw); } catch (_) { parsed = null; }
+    if (parsed && (!parsed.habits || !parsed.habits.length)) {
+      if (typeof window._heHabitsPullDone === 'function' && !window._heHabitsPullDone()) return;
+    }
     var hash = quickHash(raw);
     if (!force && hash === _lastHabitsHash) return;
     _lastHabitsHash = hash;

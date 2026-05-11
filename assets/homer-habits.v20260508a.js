@@ -1045,9 +1045,22 @@
     updateBadge();
     setInterval(updateBadge, 60000); // refresh on minute (midnight rollover)
 
-    // Re-badge after Supabase sync pulls new data
+    // Re-badge after Supabase sync pulls new data (cross-tab)
     window.addEventListener('storage', function(e) {
-      if (e && e.key === KEY) updateBadge();
+      if (e && e.key === KEY) {
+        updateBadge();
+        // Re-render overlay if it's open so the user sees restored habits immediately
+        var ov = document.getElementById('habits-overlay');
+        if (ov && ov.style.display !== 'none') render();
+      }
+    });
+
+    // Re-badge when any sync mechanism restores habits in this tab
+    // (storage event doesn't fire for same-tab writes from native setItem)
+    window.addEventListener('homer-habits-restored', function() {
+      updateBadge();
+      var ov = document.getElementById('habits-overlay');
+      if (ov && ov.style.display !== 'none') render();
     });
   });
 

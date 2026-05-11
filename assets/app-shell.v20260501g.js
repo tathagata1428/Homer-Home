@@ -9410,7 +9410,9 @@ let tvWidgetCreated = false;
     }
     // LS field sync: write to the real localStorage key
     if(fieldId.indexOf('ls:') === 0 && LS_FIELD_MAP_REVERSE[fieldId]){
-      try{ origSetItem(LS_FIELD_MAP_REVERSE[fieldId], nextValue); }catch(e){}
+      var _lsKey = LS_FIELD_MAP_REVERSE[fieldId];
+      try{ origSetItem(_lsKey, nextValue); }catch(e){}
+      if(_lsKey === 'homer-habits') try{ window.dispatchEvent(new CustomEvent('homer-habits-restored')); }catch(_e){}
       return;
     }
     try{

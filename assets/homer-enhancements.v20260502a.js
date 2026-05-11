@@ -1009,7 +1009,10 @@
         .catch(function(){});
     }
 
-    var SYNC_KEYS=['homer-expenses','homer-income','homer-expense-goals','homer-expense-templates','homer-expense-budgets','homer-habits','homer-inbox','homer-payday-day'];
+    // homer-habits, homer-expenses, homer-income, homer-expense-* are all handled
+    // via merge semantics to prevent last-write-wins data loss across devices.
+    // Only scalar keys (like homer-payday-day) use simple pullKey/pushKey here.
+    var SYNC_KEYS=['homer-inbox','homer-payday-day'];
 
     // Inbox uses merge-by-ID semantics instead of last-write-wins so items
     // added on different devices are combined rather than overwriting each other.
@@ -1052,6 +1055,139 @@
         .catch(function(){showBadge('Sync error','error');});
     }
 
+    // ── Habits merge sync (safe cross-device sync, never data-loss) ───────
+    // Uses union-merge instead of last-write-wins so a fresh/stale device
+    // can NEVER overwrite another device's habits with an older empty state.
+    function mergeHabitsData(local,remote){
+      var lH=local&&Array.isArray(local.habits)?local.habits:[];
+      var rH=remote&&Array.isArray(remote.habits)?remote.habits:[];
+      var lC=(local&&typeof local.completions==='object'&&local.completions)||{};
+      var rC=(remote&&typeof remote.completions==='object'&&remote.completions)||{};
+      // Union of habits by id; active (non-archived) beats archived for the same id
+      var byId={};
+      rH.concat(lH).forEach(function(h){
+        if(!h||h.id==null)return;
+        var ex=byId[h.id];
+        if(!ex||(!h.archived&&ex.archived))byId[h.id]=h;
+        else if(!ex)byId[h.id]=h;
+      });
+      var mergedH=Object.keys(byId).map(function(k){return byId[k];});
+      // Sort by creation order (id is Date.now() at creation)
+      mergedH.sort(function(a,b){return(a.id||0)-(b.id||0);});
+      // Union completions — keep any entry present on either device
+      var mergedC=Object.assign({},rC,lC);
+      return{habits:mergedH,completions:mergedC};
+    }
+
+    var _habitsPullDone=false;
+    window._heHabitsPullDone=function(){return _habitsPullDone;};
+
+    function syncHabits(){
+      if(!canSync())return;
+      var client=getClient(),uid=getUid();if(!client||!uid)return;
+      var key='homer-habits';
+      var localRaw=localStorage.getItem(key);
+      var local=safeJson(localRaw,null)||{habits:[],completions:{}};
+      showBadge('Syncing\u2026','syncing');
+      client.from('field_state').select('value').eq('key','he_'+key).eq('user_id',uid).maybeSingle()
+        .then(function(r){
+          _habitsPullDone=true;
+          var remoteTs=0,remoteParsed=null;
+          if(r.data&&r.data.value){
+            var stored=safeJson(r.data.value,null);
+            remoteTs=stored&&typeof stored._ts==='number'?stored._ts:0;
+            remoteParsed=stored&&typeof stored._ts==='number'?safeJson(stored._data,null):stored;
+          }
+          var remote=remoteParsed||{habits:[],completions:{}};
+          var merged=mergeHabitsData(local,remote);
+          var mergedStr=JSON.stringify(merged);
+          if(mergedStr!==localRaw){
+            nativeSetItem(key,mergedStr);
+            try{window.dispatchEvent(new CustomEvent('homer-habits-restored'));}catch(_e){}
+          }
+          var ts=Math.max(getLocalTs(key)||0,remoteTs||0)||Date.now();
+          setLocalTs(key,ts);
+          delete _syncDirty[key];
+          return client.from('field_state').upsert(
+            {key:'he_'+key,value:JSON.stringify({_ts:ts,_data:mergedStr}),user_id:uid},
+            {onConflict:'key,user_id'}
+          );
+        })
+        .then(function(r){
+          if(r&&r.error)showBadge('Sync error','error');
+          else showBadge('Synced \u2713','synced');
+        })
+        .catch(function(){_habitsPullDone=true;showBadge('Sync error','error');});
+    }
+
+    // ── Generic merge sync for ID-keyed arrays (never data-loss) ────────
+    // Union of local + remote; same-ID items use local version.
+    // An offline device that adds items can NEVER wipe remote-only items.
+    function mergeById(local,remote){
+      var byId={};
+      remote.concat(local).forEach(function(x){if(!x||x.id==null)return;byId[String(x.id)]=x;});
+      var merged=Object.keys(byId).map(function(k){return byId[k];});
+      merged.sort(function(a,b){return(a.id||0)-(b.id||0);});
+      return merged;
+    }
+    // Goals: union by ID + take max(saved) so deposits from either device are preserved.
+    function mergeGoals(local,remote){
+      var byId={};
+      remote.forEach(function(g){if(g&&g.id!=null)byId[String(g.id)]=Object.assign({},g);});
+      local.forEach(function(g){
+        if(!g||g.id==null)return;
+        var k=String(g.id);
+        if(byId[k])byId[k]=Object.assign({},g,{saved:Math.max(parseFloat(byId[k].saved||0),parseFloat(g.saved||0))});
+        else byId[k]=Object.assign({},g);
+      });
+      var merged=Object.keys(byId).map(function(k){return byId[k];});
+      merged.sort(function(a,b){return(a.id||0)-(b.id||0);});
+      return merged;
+    }
+    // Budgets: plain object — local wins per key; remote fills keys missing locally.
+    function mergeBudgets(local,remote){return Object.assign({},remote,local);}
+
+    // Shared read-merge-write-push: fetches remote, merges with local, writes back.
+    // Works for any key; `def` is the empty-state default ([] for arrays, {} for objects).
+    function syncMergeKey(key,mergeFn,def){
+      if(!canSync())return;
+      var client=getClient(),uid=getUid();if(!client||!uid)return;
+      var emptyVal=def!=null?def:[];
+      var localRaw=localStorage.getItem(key);
+      var local=safeJson(localRaw,null)||emptyVal;
+      showBadge('Syncing\u2026','syncing');
+      client.from('field_state').select('value').eq('key','he_'+key).eq('user_id',uid).maybeSingle()
+        .then(function(r){
+          var remoteTs=0,remoteParsed=null;
+          if(r.data&&r.data.value){
+            var stored=safeJson(r.data.value,null);
+            remoteTs=stored&&typeof stored._ts==='number'?stored._ts:0;
+            remoteParsed=stored&&typeof stored._ts==='number'?safeJson(stored._data,null):stored;
+          }
+          var remote=remoteParsed||emptyVal;
+          var merged=mergeFn(local,remote);
+          var mergedStr=JSON.stringify(merged);
+          if(mergedStr!==localRaw)nativeSetItem(key,mergedStr);
+          var ts=Math.max(getLocalTs(key)||0,remoteTs||0)||Date.now();
+          setLocalTs(key,ts);
+          delete _syncDirty[key];
+          return client.from('field_state').upsert(
+            {key:'he_'+key,value:JSON.stringify({_ts:ts,_data:mergedStr}),user_id:uid},
+            {onConflict:'key,user_id'}
+          );
+        })
+        .then(function(r){
+          if(r&&r.error)showBadge('Sync error','error');
+          else showBadge('Synced \u2713','synced');
+        })
+        .catch(function(){showBadge('Sync error','error');});
+    }
+    function syncExpenses(){syncMergeKey('homer-expenses',mergeById);}
+    function syncIncome(){syncMergeKey('homer-income',mergeById);}
+    function syncGoals(){syncMergeKey('homer-expense-goals',mergeGoals);}
+    function syncTemplates(){syncMergeKey('homer-expense-templates',mergeById);}
+    function syncBudgets(){syncMergeKey('homer-expense-budgets',mergeBudgets,{});}
+
     var _pullDone=false;
     function pullAll(){
       if(!canSync())return;
@@ -1059,6 +1195,12 @@
       _pullDone=true;
       SYNC_KEYS.filter(function(k){return k!=='homer-inbox';}).forEach(pullKey);
       syncInbox();
+      syncHabits();
+      syncExpenses();
+      syncIncome();
+      syncGoals();
+      syncTemplates();
+      syncBudgets();
       if(firstPull){
         // After first pull, signal vault components to re-read IDB.
         // This catches the case where the vault was loaded before a restore
@@ -1071,6 +1213,12 @@
       if(!canSync())return;
       Object.keys(_syncDirty).forEach(function(key){
         if(key==='homer-inbox')syncInbox();
+        else if(key==='homer-habits')syncHabits();
+        else if(key==='homer-expenses')syncExpenses();
+        else if(key==='homer-income')syncIncome();
+        else if(key==='homer-expense-goals')syncGoals();
+        else if(key==='homer-expense-templates')syncTemplates();
+        else if(key==='homer-expense-budgets')syncBudgets();
         else pushKey(key);
       });
     }
@@ -1088,8 +1236,9 @@
     // R2 dirty-marking still fire for the app-shell's own tracked keys.
     localStorage.setItem=function(key,val){
       origSetItem(key,val);
-      if(SYNC_KEYS.indexOf(key)!==-1){
-        setLocalTs(key,Date.now());  // anchor this write in time (native, no side-effects)
+      var _mergeKeys=['homer-habits','homer-expenses','homer-income','homer-expense-goals','homer-expense-templates','homer-expense-budgets'];
+      if(SYNC_KEYS.indexOf(key)!==-1||_mergeKeys.indexOf(key)!==-1){
+        setLocalTs(key,Date.now());
         markDirty(key);
       }
     };
@@ -1106,6 +1255,12 @@
     window._heSyncPush=pushKey;
     window._heSyncPullAll=pullAll;
     window._homerSyncInbox=syncInbox;
+    window._heSyncHabits=syncHabits;
+    window._heSyncExpenses=syncExpenses;
+    window._heSyncIncome=syncIncome;
+    window._heSyncGoals=syncGoals;
+    window._heSyncTemplates=syncTemplates;
+    window._heSyncBudgets=syncBudgets;
   }
 
   /* ── Mobile FAB positioning ─────────────────────────────────────────── */
