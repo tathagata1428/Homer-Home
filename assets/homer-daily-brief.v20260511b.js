@@ -56,7 +56,8 @@
     return PROJECT_COLORS[Math.abs(h) % PROJECT_COLORS.length];
   }
 
-  var IN_PROGRESS_STATUSES = new Set(['progress','doing','active','in_progress','in-progress','inprogress','wip','started','ongoing']);
+  var IN_PROGRESS_COL = 'progress'; // kanban column field (g.col)
+  var IN_PROGRESS_STATUSES = new Set(['progress','doing','active','in_progress','in-progress','inprogress','wip','started','ongoing']); // legacy g.status field
 
   /* ── CSS ──────────────────────────────────────────────────────────── */
   var CSS = `
@@ -236,7 +237,9 @@
     (projects || []).forEach(function (p) { projMap[p.id] = p; });
 
     var items = (goals || []).filter(function (g) {
-      return !g.archived && !g.deleted && IN_PROGRESS_STATUSES.has(String(g.status || '').toLowerCase());
+      if (g.archived || g.deleted) return false;
+      if (g.col === IN_PROGRESS_COL) return true;               // kanban column (primary)
+      return IN_PROGRESS_STATUSES.has(String(g.status || '').toLowerCase()); // legacy
     });
 
     if (!items.length) {
