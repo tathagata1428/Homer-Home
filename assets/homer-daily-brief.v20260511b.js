@@ -1,0 +1,604 @@
+/* ====================================================================
+ * Homer Daily Brief  v20260511b
+ * Bogdan-only tab: in-progress tasks, weather, habits, life goals.
+ *
+ * SYNC POLICY (Bogdan only):
+ *   - Vault encrypted blob  → joey_meta  every 8s (hash-dedup)
+ *   - Habits                → joey_meta  every 8s (hash-dedup)
+ *   - zen-goal / brain-dump → joey_meta  every 8s (hash-dedup)
+ *   - links, pom, cal, etc  → field_state via app-shell (already handled)
+ *
+ * For any other user or no user all data stays in browser cache only.
+ * ==================================================================== */
+(function () {
+  'use strict';
+
+  var BOGDAN_USER   = 'bogdan';
+  var VAULT_IDB_NAME  = 'homer-vault-idb';
+  var VAULT_IDB_STORE = 'kv';
+  var VAULT_SALT_KEY  = 'homer-vault-salt';
+  var VAULT_DATA_KEY  = 'homer-vault-data';
+  var VAULT_SUPA_TS_KEY   = 'homer-vault-supa-ts';
+  var VAULT_SUPA_META_KEY = 'vault_encrypted_blob';
+  var HABITS_KEY      = 'homer-habits';
+  var HABITS_SYNC_KEY = 'homer-habits-supa-ts';
+  var ZEN_KEY   = 'homer-zen-goal';
+  var BRAIN_KEY = 'homer-brain-dump';
+  var EXTRAS_SYNC_TS  = 'homer-extras-supa-ts';
+
+  /* ── Helpers ──────────────────────────────────────────────────────── */
+  function isBogdan() {
+    return String(localStorage.getItem('homer-auth-user') || '').trim().toLowerCase() === BOGDAN_USER;
+  }
+  function todayStr() { return new Date().toISOString().slice(0, 10); }
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function ready(fn) {
+    if (document.readyState !== 'loading') fn();
+    else document.addEventListener('DOMContentLoaded', fn);
+  }
+  function safeJson(s, fb) { try { return s ? JSON.parse(s) : fb; } catch (_) { return fb; } }
+
+  /* simple non-crypto hash for change detection */
+  function quickHash(str) {
+    var h = 0, s = String(str || '');
+    for (var i = 0; i < Math.min(s.length, 8000); i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+    return h.toString(36);
+  }
+
+  /* deterministic project color from key/id string */
+  var PROJECT_COLORS = ['#60a5fa','#a78bfa','#34d399','#fb923c','#f472b6','#38bdf8','#facc15','#4ade80'];
+  function projectColor(str) {
+    var h = 0, s = String(str || '');
+    for (var i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+    return PROJECT_COLORS[Math.abs(h) % PROJECT_COLORS.length];
+  }
+
+  var IN_PROGRESS_STATUSES = new Set(['progress','doing','active','in_progress','in-progress','inprogress','wip','started','ongoing']);
+
+  /* ── CSS ──────────────────────────────────────────────────────────── */
+  var CSS = `
+    #tab-daily-brief { display:none; }
+    #db-tab-btn { display:none; }
+
+    .db-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
+    .db-header-left h2 { font-size:1.35rem; font-weight:900; color:var(--text); margin:0 0 4px; }
+    .db-header-left p  { font-size:.85rem; color:var(--muted); margin:0; }
+
+    .db-refresh-btn { padding:8px 16px; border-radius:10px; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.05); color:var(--muted); font-size:.82rem; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
+    .db-refresh-btn:hover { background:rgba(255,255,255,.1); color:var(--text); }
+
+    .db-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:16px; margin-top:16px; }
+    .db-grid.full-width { grid-template-columns:1fr; }
+
+    .db-card { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:20px; }
+    .db-card-title { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#64748b; margin-bottom:14px; }
+
+    /* Weather */
+    .db-weather { display:flex; align-items:center; gap:16px; }
+    .db-wx-icon { font-size:2.6rem; line-height:1; }
+    .db-wx-info { flex:1; }
+    .db-wx-temp { font-size:2rem; font-weight:900; color:var(--text); line-height:1; }
+    .db-wx-desc { font-size:.85rem; color:var(--muted); margin-top:4px; }
+    .db-wx-place { font-size:.78rem; color:#64748b; margin-top:2px; }
+
+    /* ── Creative task cards ── */
+    .db-tasks-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-top:4px; }
+    .db-tcard { position:relative; border-radius:12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); padding:14px 14px 12px 18px; overflow:hidden; transition:border-color .15s; }
+    .db-tcard:hover { border-color:rgba(255,255,255,.18); }
+    .db-tcard-stripe { position:absolute; left:0; top:0; bottom:0; width:4px; border-radius:12px 0 0 12px; }
+    .db-tcard-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:6px; }
+    .db-tcard-title { font-size:.9rem; font-weight:700; color:var(--text); line-height:1.35; flex:1; min-width:0; }
+    .db-tcard-proj { font-size:.63rem; font-weight:800; padding:2px 7px; border-radius:6px; white-space:nowrap; flex-shrink:0; margin-top:2px; }
+    .db-tcard-meta { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:6px; }
+    .db-tcard-id   { font-size:.7rem; color:#475569; font-family:monospace; }
+    .db-tcard-pri  { font-size:.67rem; font-weight:700; padding:1px 6px; border-radius:5px; }
+    .db-tcard-pri.high   { background:rgba(248,113,113,.15); color:#f87171; }
+    .db-tcard-pri.medium { background:rgba(251,191,36,.12);  color:#fbbf24; }
+    .db-tcard-pri.low    { background:rgba(52,211,153,.12);  color:#34d399; }
+    .db-tcard-subs { font-size:.7rem; color:#64748b; }
+    .db-tcard-due  { font-size:.7rem; color:#94a3b8; }
+
+    /* Projects / life goals / habits (unchanged from v a) */
+    .db-task-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
+    .db-task { display:flex; align-items:flex-start; gap:10px; padding:9px 12px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:10px; }
+    .db-task-badge { font-size:.64rem; font-weight:700; padding:2px 7px; border-radius:6px; background:rgba(96,165,250,.15); color:#60a5fa; white-space:nowrap; flex-shrink:0; margin-top:2px; }
+    .db-task-badge.proj { background:rgba(167,139,250,.15); color:#a78bfa; }
+    .db-task-title { font-size:.87rem; color:var(--text); font-weight:600; line-height:1.3; }
+    .db-task-sub   { font-size:.75rem; color:#64748b; margin-top:3px; }
+
+    .db-life-goal { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:10px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); margin-bottom:8px; }
+    .db-life-goal:last-child { margin-bottom:0; }
+    .db-lg-icon   { font-size:1.4rem; flex-shrink:0; }
+    .db-lg-body   { flex:1; min-width:0; }
+    .db-lg-title  { font-size:.87rem; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .db-lg-bar-wrap { height:4px; background:rgba(255,255,255,.08); border-radius:2px; margin-top:6px; }
+    .db-lg-bar    { height:100%; border-radius:2px; background:linear-gradient(90deg,#60a5fa,#a78bfa); transition:width .4s; }
+    .db-lg-pct    { font-size:.7rem; color:#64748b; margin-top:4px; }
+
+    .db-habit-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.05); }
+    .db-habit-row:last-child { border-bottom:none; }
+    .db-habit-icon { font-size:1.15rem; width:26px; text-align:center; flex-shrink:0; }
+    .db-habit-name { flex:1; font-size:.87rem; color:var(--text); }
+    .db-habit-chip { font-size:.7rem; font-weight:700; padding:2px 9px; border-radius:20px; flex-shrink:0; }
+    .db-habit-chip.done    { background:rgba(52,211,153,.15); color:#34d399; }
+    .db-habit-chip.pending { background:rgba(239,68,68,.1);   color:#f87171; }
+
+    .db-sync-rows { display:flex; flex-direction:column; gap:8px; }
+    .db-sync-row  { display:flex; justify-content:space-between; align-items:center; }
+    .db-sync-label { font-size:.82rem; color:var(--muted); }
+    .db-sync-val   { font-size:.82rem; font-weight:700; }
+    .db-sync-good  { color:#34d399; }
+    .db-sync-warn  { color:#fbbf24; }
+    .db-sync-bad   { color:#f87171; }
+    .db-sync-muted { color:#64748b; }
+
+    .db-empty { color:#475569; font-size:.87rem; font-style:italic; padding:4px 0; }
+    .db-vault-notice { display:flex; align-items:center; gap:12px; padding:16px; background:rgba(96,165,250,.06); border:1px solid rgba(96,165,250,.15); border-radius:12px; color:var(--muted); font-size:.88rem; }
+    .db-vault-notice-icon { font-size:1.4rem; flex-shrink:0; }
+  `;
+
+  function injectCSS() {
+    if (document.getElementById('homer-daily-brief-css')) return;
+    var el = document.createElement('style');
+    el.id = 'homer-daily-brief-css';
+    el.textContent = CSS;
+    document.head.appendChild(el);
+  }
+
+  /* ── Sidebar button ───────────────────────────────────────────────── */
+  function injectSidebarBtn() {
+    if (document.getElementById('db-sb-btn')) return;
+    var sidebar = document.getElementById('desktop-sidebar');
+    if (!sidebar) return;
+    var spacer = sidebar.querySelector('.sb-spacer');
+    var btn = document.createElement('button');
+    btn.className = 'sb-item';
+    btn.id = 'db-sb-btn';
+    btn.dataset.tab = 'daily-brief';
+    btn.style.display = 'none';
+    btn.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<rect x="3" y="4" width="18" height="18" rx="2"/>' +
+        '<line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>' +
+        '<line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="13" y2="14"/>' +
+        '<line x1="8" y1="18" x2="11" y2="18"/>' +
+      '</svg><span class="sb-label">Daily Brief</span>';
+    btn.addEventListener('click', function () { showDailyBrief(); });
+    if (spacer) sidebar.insertBefore(btn, spacer);
+    else sidebar.appendChild(btn);
+  }
+
+  /* ── Tab show/hide ────────────────────────────────────────────────── */
+  function showDailyBrief() {
+    var orig = window._homerShowTab;
+    if (orig) {
+      orig('daily-brief');
+    } else {
+      ['home','pomodoro','focuslab','investing','tools','links','news','vault'].forEach(function (t) {
+        var el = document.getElementById('tab-' + t);
+        if (el) el.style.display = 'none';
+      });
+      activateDailyBrief();
+    }
+  }
+
+  function activateDailyBrief() {
+    var section = document.getElementById('tab-daily-brief');
+    if (section) section.style.display = 'block';
+    var sbBtn = document.getElementById('db-sb-btn');
+    if (sbBtn) sbBtn.classList.add('active');
+    document.querySelectorAll('.sb-item[data-tab]:not(#db-sb-btn)').forEach(function (i) { i.classList.remove('active'); });
+    document.body.dataset.activeTab = 'daily-brief';
+    refreshDailyBrief();
+  }
+
+  function deactivateDailyBrief() {
+    var section = document.getElementById('tab-daily-brief');
+    if (section) section.style.display = 'none';
+    var sbBtn = document.getElementById('db-sb-btn');
+    if (sbBtn) sbBtn.classList.remove('active');
+  }
+
+  /* ── Bogdan visibility ────────────────────────────────────────────── */
+  function updateBogdanVisibility() {
+    var show = isBogdan();
+    var tabBtn = document.getElementById('db-tab-btn');
+    var sbBtn  = document.getElementById('db-sb-btn');
+    if (tabBtn) tabBtn.style.display = show ? '' : 'none';
+    if (sbBtn)  sbBtn.style.display  = show ? '' : 'none';
+    if (!show && document.body.dataset.activeTab === 'daily-brief') {
+      var orig = window._homerShowTab;
+      if (orig) orig('home');
+    }
+  }
+
+  /* ── Weather ──────────────────────────────────────────────────────── */
+  function syncWeather() {
+    var map = { 'wx-icon':'db-wx-icon','wx-temp':'db-wx-temp','wx-desc':'db-wx-desc','wx-place':'db-wx-place' };
+    Object.keys(map).forEach(function (srcId) {
+      var src = document.getElementById(srcId);
+      var dst = document.getElementById(map[srcId]);
+      if (!src || !dst) return;
+      if (srcId === 'wx-temp') dst.innerHTML = src.innerHTML;
+      else dst.textContent = src.textContent;
+    });
+  }
+
+  /* ── In-progress task cards (creative) ───────────────────────────── */
+  function renderInProgress(goals, projects) {
+    var wrap = document.getElementById('db-inprogress-list');
+    if (!wrap) return;
+
+    var projMap = {};
+    (projects || []).forEach(function (p) { projMap[p.id] = p; });
+
+    var items = (goals || []).filter(function (g) {
+      return !g.archived && !g.deleted && IN_PROGRESS_STATUSES.has(String(g.status || '').toLowerCase());
+    });
+
+    if (!items.length) {
+      wrap.innerHTML = '<p class="db-empty">No tasks in progress right now</p>';
+      return;
+    }
+
+    /* sort: high priority first, then by id */
+    var priOrder = { high: 0, medium: 1, low: 2 };
+    items.sort(function (a, b) {
+      var pa = priOrder[a.priority] !== undefined ? priOrder[a.priority] : 3;
+      var pb = priOrder[b.priority] !== undefined ? priOrder[b.priority] : 3;
+      return pa !== pb ? pa - pb : String(a.id || '').localeCompare(String(b.id || ''));
+    });
+
+    wrap.innerHTML = '<div class="db-tasks-grid">' +
+      items.map(function (g) {
+        var proj   = projMap[g.projectId];
+        var projKey = proj ? (proj.key || proj.id) : null;
+        var color  = projectColor(g.projectId || projKey || 'task');
+        var priCls = g.priority ? ' ' + g.priority : '';
+        var priLbl = g.priority ? g.priority.charAt(0).toUpperCase() + g.priority.slice(1) : '';
+        var subs   = Array.isArray(g.subtasks) ? g.subtasks.length : 0;
+        var done_subs = Array.isArray(g.subtasks) ? g.subtasks.filter(function(s){ return s.done || s.status === 'done'; }).length : 0;
+        var due    = g.dueDate || g.due_date || '';
+
+        return '<div class="db-tcard">' +
+          '<div class="db-tcard-stripe" style="background:' + color + '"></div>' +
+          '<div class="db-tcard-top">' +
+            '<div class="db-tcard-title">' + esc(g.title || 'Untitled') + '</div>' +
+            (projKey ? '<span class="db-tcard-proj" style="background:' + color + '22;color:' + color + '">' + esc(projKey) + '</span>' : '') +
+          '</div>' +
+          '<div class="db-tcard-meta">' +
+            (g.id ? '<span class="db-tcard-id">' + esc(g.id) + '</span>' : '') +
+            (priLbl ? '<span class="db-tcard-pri' + priCls + '">' + priLbl + '</span>' : '') +
+            (subs ? '<span class="db-tcard-subs">' + done_subs + '/' + subs + ' subtasks</span>' : '') +
+            (due ? '<span class="db-tcard-due">Due ' + esc(due) + '</span>' : '') +
+          '</div>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+  }
+
+  function renderProjects(projects) {
+    var list = document.getElementById('db-projects-list');
+    if (!list) return;
+    var active = (projects || []).filter(function (p) { return !p.archived && !p.deleted; });
+    if (!active.length) { list.innerHTML = '<li class="db-empty">No active projects</li>'; return; }
+    list.innerHTML = active.slice(0, 8).map(function (p) {
+      var desc = p.description ? p.description.slice(0, 55) + (p.description.length > 55 ? '\u2026' : '') : '';
+      return '<li class="db-task">' +
+        '<span class="db-task-badge proj">' + esc(p.key || p.id) + '</span>' +
+        '<div><div class="db-task-title">' + esc(p.name || p.key) + '</div>' +
+        (desc ? '<div class="db-task-sub">' + esc(desc) + '</div>' : '') +
+        '</div></li>';
+    }).join('');
+  }
+
+  function renderLifeGoals(lifeGoals) {
+    var wrap = document.getElementById('db-lifegoals-wrap');
+    if (!wrap) return;
+    var active = (lifeGoals || []).filter(function (g) { return !g.archived && !g.deleted && (g.progress || 0) < 100; });
+    if (!active.length) { wrap.innerHTML = '<p class="db-empty">All life goals complete \u2b50</p>'; return; }
+    wrap.innerHTML = active.slice(0, 6).map(function (g) {
+      var pct = Math.min(100, Math.max(0, g.progress || 0));
+      return '<div class="db-life-goal">' +
+        '<div class="db-lg-icon">' + esc(g.icon || '\ud83c\udfaf') + '</div>' +
+        '<div class="db-lg-body">' +
+          '<div class="db-lg-title">' + esc(g.title || 'Goal') + '</div>' +
+          '<div class="db-lg-bar-wrap"><div class="db-lg-bar" style="width:' + pct + '%"></div></div>' +
+          '<div class="db-lg-pct">' + pct + '% complete' + (g.targetDate ? ' \u2022 Target: ' + esc(g.targetDate) : '') + '</div>' +
+        '</div></div>';
+    }).join('');
+  }
+
+  function populateFromVault() {
+    var notice   = document.getElementById('db-vault-notice');
+    var vaultGrid = document.getElementById('db-vault-grid');
+    var unlocked = !!window._homerVaultUnlocked;
+    if (notice)    notice.style.display    = unlocked ? 'none' : 'flex';
+    if (vaultGrid) vaultGrid.style.display = unlocked ? '' : 'none';
+    if (!unlocked || typeof window._homerLoadVault !== 'function') return;
+    window._homerLoadVault().then(function (data) {
+      renderInProgress(data.goals || [], data.projects || []);
+      renderProjects(data.projects || []);
+      renderLifeGoals(data.lifeGoals || []);
+    }).catch(function () {});
+  }
+
+  /* ── Habits ───────────────────────────────────────────────────────── */
+  function renderHabits() {
+    var wrap = document.getElementById('db-habits-wrap');
+    if (!wrap) return;
+    var raw = safeJson(localStorage.getItem(HABITS_KEY), { habits: [], completions: {} });
+    var habits = (raw.habits || []).filter(function (h) { return !h.archived; });
+    var completions = raw.completions || {};
+    var today = todayStr();
+    if (!habits.length) { wrap.innerHTML = '<p class="db-empty">No habits configured yet</p>'; return; }
+    wrap.innerHTML = habits.slice(0, 10).map(function (h) {
+      var key  = h.id + ':' + today;
+      var done = (completions[key] || 0) >= (h.target || 1);
+      var icon = h.icon ? esc(h.icon) : '\u2714\ufe0f';   // real unicode, not HTML entity
+      return '<div class="db-habit-row">' +
+        '<div class="db-habit-icon">' + icon + '</div>' +
+        '<div class="db-habit-name">' + esc(h.name || 'Habit') + '</div>' +
+        '<span class="db-habit-chip ' + (done ? 'done' : 'pending') + '">' + (done ? 'Done' : 'Pending') + '</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  /* ── Sync status ──────────────────────────────────────────────────── */
+  function stampAge(ts) {
+    if (!ts) return { text: 'Never', cls: 'db-sync-warn' };
+    var diff = Date.now() - ts;
+    var s = Math.round(diff / 1000);
+    if (s < 15)  return { text: 'Just now', cls: 'db-sync-good' };
+    if (s < 120) return { text: s + 's ago', cls: 'db-sync-good' };
+    var m = Math.round(diff / 60000);
+    if (m < 10)  return { text: m + 'm ago', cls: 'db-sync-good' };
+    if (m < 60)  return { text: m + 'm ago', cls: 'db-sync-warn' };
+    return { text: Math.round(m / 60) + 'h ago', cls: 'db-sync-bad' };
+  }
+
+  function updateSyncStatus() {
+    function setRow(id, text, cls) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = text;
+      el.className = 'db-sync-val ' + (cls || 'db-sync-muted');
+    }
+    var localTs = parseInt(localStorage.getItem('homer-local-save-ts') || localStorage.getItem('homer-backup-ts') || '0', 10) || 0;
+    setRow('db-sync-local', stampAge(localTs).text, stampAge(localTs).cls);
+
+    if (!isBogdan()) {
+      setRow('db-sync-supa', 'N/A (browser only)', 'db-sync-muted');
+    } else {
+      var supaTs = parseInt(localStorage.getItem(VAULT_SUPA_TS_KEY) || '0', 10) || 0;
+      var s = stampAge(supaTs);
+      setRow('db-sync-supa', s.text, s.cls);
+    }
+
+    var fieldVer = parseInt(localStorage.getItem('homer-field-sync-version') || '0', 10) || 0;
+    setRow('db-sync-fields', fieldVer ? 'v' + fieldVer : 'Not started', fieldVer ? 'db-sync-good' : 'db-sync-muted');
+  }
+
+  /* ── Subtitle ─────────────────────────────────────────────────────── */
+  function updateSubtitle() {
+    var el = document.getElementById('db-subtitle');
+    if (!el) return;
+    var now = new Date();
+    var h = now.getHours();
+    var greet = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+    el.textContent = greet + ', Bogdan \u2014 ' + now.toLocaleDateString(undefined, { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  }
+
+  /* ── Main refresh ─────────────────────────────────────────────────── */
+  function refreshDailyBrief() {
+    updateSubtitle();
+    syncWeather();
+    populateFromVault();
+    renderHabits();
+    updateSyncStatus();
+  }
+
+  /* ==================================================================
+   * SUPABASE SYNC — vault blob (8s interval, hash-dedup)
+   * ================================================================== */
+  var _lastVaultHash = '';
+  var _vaultSyncBusy = false;
+
+  function pushVaultToSupabase(force) {
+    if (!isBogdan()) return;
+    if (_vaultSyncBusy) return;
+    var supabase = window.__supabase;
+    var session  = window.__sbSession;
+    if (!supabase || !session || !session.user) return;
+    var userId = session.user.id;
+
+    var openReq = indexedDB.open(VAULT_IDB_NAME, 1);
+    openReq.onerror = function () {};
+    openReq.onsuccess = function (ev) {
+      var db = ev.target.result;
+      var tx;
+      try { tx = db.transaction(VAULT_IDB_STORE, 'readonly'); } catch (_) { return; }
+      var saltReq = tx.objectStore(VAULT_IDB_STORE).get(VAULT_SALT_KEY);
+      var dataReq = tx.objectStore(VAULT_IDB_STORE).get(VAULT_DATA_KEY);
+      tx.oncomplete = function () {
+        var salt = saltReq.result || null;
+        var data = dataReq.result || null;
+        if (!data) return;
+        var hash = quickHash(String(data));
+        if (!force && hash === _lastVaultHash) return; // nothing changed
+        _lastVaultHash = hash;
+        _vaultSyncBusy = true;
+        supabase.from('joey_meta').upsert(
+          { user_id: userId, mode: 'personal', key: VAULT_SUPA_META_KEY,
+            value: { vault_salt: salt, vault_data: data, synced_at: Date.now() },
+            updated_at: new Date().toISOString() },
+          { onConflict: 'user_id,mode,key' }
+        ).then(function (res) {
+          _vaultSyncBusy = false;
+          if (res && res.error) { console.warn('[DailyBrief] vault sync:', res.error.message); return; }
+          var now = Date.now();
+          try { localStorage.setItem(VAULT_SUPA_TS_KEY, String(now)); } catch (_) {}
+          if (document.body.dataset.activeTab === 'daily-brief') updateSyncStatus();
+        });
+      };
+    };
+  }
+
+  /* ==================================================================
+   * SUPABASE SYNC — habits (8s interval, hash-dedup)
+   * ================================================================== */
+  var _lastHabitsHash = '';
+
+  function pushHabitsToSupabase(force) {
+    if (!isBogdan()) return;
+    var supabase = window.__supabase;
+    var session  = window.__sbSession;
+    if (!supabase || !session || !session.user) return;
+    var raw = localStorage.getItem(HABITS_KEY);
+    if (!raw) return;
+    var hash = quickHash(raw);
+    if (!force && hash === _lastHabitsHash) return;
+    _lastHabitsHash = hash;
+    var value; try { value = JSON.parse(raw); } catch (_) { return; }
+    supabase.from('joey_meta').upsert(
+      { user_id: session.user.id, mode: 'personal', key: 'habits_data',
+        value: value, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id,mode,key' }
+    ).then(function (res) {
+      if (res && res.error) { console.warn('[DailyBrief] habits sync:', res.error.message); return; }
+      try { localStorage.setItem(HABITS_SYNC_KEY, String(Date.now())); } catch (_) {}
+    });
+  }
+
+  /* ==================================================================
+   * SUPABASE SYNC — extra localStorage keys (zen-goal, brain-dump)
+   * ================================================================== */
+  var _lastExtrasHash = '';
+
+  function pushExtrasToSupabase(force) {
+    if (!isBogdan()) return;
+    var supabase = window.__supabase;
+    var session  = window.__sbSession;
+    if (!supabase || !session || !session.user) return;
+    var zen   = localStorage.getItem(ZEN_KEY)   || '';
+    var brain = localStorage.getItem(BRAIN_KEY) || '';
+    var hash  = quickHash(zen + '||' + brain);
+    if (!force && hash === _lastExtrasHash) return;
+    _lastExtrasHash = hash;
+    supabase.from('joey_meta').upsert(
+      { user_id: session.user.id, mode: 'personal', key: 'ls_extras',
+        value: { zen_goal: zen, brain_dump: brain, synced_at: Date.now() },
+        updated_at: new Date().toISOString() },
+      { onConflict: 'user_id,mode,key' }
+    ).then(function (res) {
+      if (res && res.error) { console.warn('[DailyBrief] extras sync:', res.error.message); return; }
+      try { localStorage.setItem(EXTRAS_SYNC_TS, String(Date.now())); } catch (_) {}
+    });
+  }
+
+  /* ── Master 8-second tick ─────────────────────────────────────────── */
+  function startPeriodicSync() {
+    setInterval(function () {
+      if (!isBogdan()) return;
+      pushVaultToSupabase(false);
+      pushHabitsToSupabase(false);
+      pushExtrasToSupabase(false);
+    }, 8000);
+  }
+
+  /* ── Hook data saves ──────────────────────────────────────────────── */
+  function hookDataSaves() {
+    // Vault save → immediate backup
+    window.addEventListener('vault-goals-changed', function () {
+      if (isBogdan()) setTimeout(function () { pushVaultToSupabase(true); }, 800);
+      if (document.body.dataset.activeTab === 'daily-brief') populateFromVault();
+    });
+
+    // Habits: cross-tab storage event
+    window.addEventListener('storage', function (e) {
+      if (!isBogdan()) return;
+      if (e.key === HABITS_KEY)  { _lastHabitsHash = ''; pushHabitsToSupabase(true); if (document.body.dataset.activeTab === 'daily-brief') renderHabits(); }
+      if (e.key === ZEN_KEY || e.key === BRAIN_KEY) { _lastExtrasHash = ''; pushExtrasToSupabase(true); }
+    });
+
+    // Supabase session arrives → force full backup
+    window.addEventListener('supabase:session', function (e) {
+      var sess = e && e.detail;
+      if (sess && sess.user && isBogdan()) {
+        setTimeout(function () {
+          pushVaultToSupabase(true);
+          pushHabitsToSupabase(true);
+          pushExtrasToSupabase(true);
+        }, 2000);
+      }
+    });
+
+    // Auth / vault unlock → refresh visibility + backup
+    window.addEventListener('homer-auth', function () {
+      updateBogdanVisibility();
+      if (isBogdan()) {
+        setTimeout(function () {
+          pushVaultToSupabase(true);
+          pushHabitsToSupabase(true);
+          pushExtrasToSupabase(true);
+        }, 1500);
+      }
+    });
+  }
+
+  /* ── Event wiring ─────────────────────────────────────────────────── */
+  function wireEvents() {
+    window.addEventListener('homer-tab-change', function (e) {
+      var tab = e && e.detail && e.detail.tab;
+      if (tab === 'daily-brief') activateDailyBrief();
+      else deactivateDailyBrief();
+    });
+
+    window.addEventListener('homer-auth', updateBogdanVisibility);
+    window.addEventListener('supabase:authchange', updateBogdanVisibility);
+
+    var btn = document.getElementById('db-refresh-btn');
+    if (btn) btn.addEventListener('click', function () {
+      refreshDailyBrief();
+      if (isBogdan()) {
+        pushVaultToSupabase(true);
+        pushHabitsToSupabase(true);
+        pushExtrasToSupabase(true);
+      }
+    });
+
+    window.addEventListener('vault-goals-changed', function () {
+      if (document.body.dataset.activeTab === 'daily-brief') refreshDailyBrief();
+    });
+
+    var wxTemp = document.getElementById('wx-temp');
+    if (wxTemp) {
+      new MutationObserver(function () {
+        if (document.body.dataset.activeTab === 'daily-brief') syncWeather();
+      }).observe(wxTemp, { childList: true, subtree: true, characterData: true });
+    }
+  }
+
+  /* ── Init ─────────────────────────────────────────────────────────── */
+  ready(function () {
+    injectCSS();
+    injectSidebarBtn();
+    updateBogdanVisibility();
+    hookDataSaves();
+    wireEvents();
+    startPeriodicSync();
+
+    // If session already exists on load, kick off first sync immediately
+    setTimeout(function () {
+      if (isBogdan() && window.__sbSession && window.__sbSession.user) {
+        pushVaultToSupabase(true);
+        pushHabitsToSupabase(true);
+        pushExtrasToSupabase(true);
+      }
+    }, 2500);
+  });
+
+})();

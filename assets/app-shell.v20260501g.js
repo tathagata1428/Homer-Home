@@ -9068,7 +9068,10 @@ let tvWidgetCreated = false;
     'homer-heartbeats:personal':'ls:homer-heartbeats-personal',
     'homer-heartbeats:work':    'ls:homer-heartbeats-work',
     'motivator.savedQuotes.v1': 'ls:savedQuotes',
-    'homer-sb-collapsed':       'ls:homer-sb-collapsed'
+    'homer-sb-collapsed':       'ls:homer-sb-collapsed',
+    'homer-habits':             'ls:homer-habits',
+    'homer-zen-goal':           'ls:homer-zen-goal',
+    'homer-brain-dump':         'ls:homer-brain-dump'
   };
   var LS_FIELD_MAP_REVERSE = {};
   Object.keys(LS_FIELD_MAP).forEach(function(k){ LS_FIELD_MAP_REVERSE[LS_FIELD_MAP[k]] = k; });
