@@ -13921,7 +13921,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(Array.isArray(bundle.history)){
       replaceChatHistory(bundle.history, {
         force:true,
-        allowRewrite:true,
+        allowRewrite: !!opts.allowRewrite,  // don't hardcode — lets local-mutation guard block realtime bounce-backs
         source: opts.source || 'redis-bundle',
         updatedAt: Date.now()
       });
