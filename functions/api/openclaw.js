@@ -184,10 +184,12 @@ export async function onRequest(context) {
       return {
         gatewayUrl: String(e.OC_PERSONAL_GATEWAY_URL || e.OC_GATEWAY_URL || 'https://openrouter.ai/api/v1').trim(),
         gatewayToken: String(e.OC_PERSONAL_GATEWAY_TOKEN || e.OC_GATEWAY_TOKEN || '').trim(),
-        primaryModel: String(e.OC_MODEL || 'inclusionai/ring-2.6-1t:free').trim()
-          .replace(/^kimi-k2\.5(:cloud)?$/i, 'kimi-k2.6:cloud')
-          .replace(/^nvidia\/nemotron.*$/i, 'inclusionai/ring-2.6-1t:free')
-          .replace(/^nemotron.*$/i, 'inclusionai/ring-2.6-1t:free'),
+        primaryModel: (function(m) {
+          m = String(m || '').trim();
+          if (!m || /nemotron/i.test(m)) m = 'inclusionai/ring-2.6-1t:free';
+          if (/^kimi-k2\.5(:cloud)?$/i.test(m)) m = 'kimi-k2.6:cloud';
+          return m;
+        })(e.OC_MODEL || 'inclusionai/ring-2.6-1t:free'),
         fallbackModel: '',
         largeContext: true
       };
