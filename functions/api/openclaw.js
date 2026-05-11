@@ -178,15 +178,31 @@ export async function onRequest(context) {
     return handleTranscribe(request, env);
   }
   if (searchParams.get('action') === 'debug') {
-    const gatewayUrl = String(env.OC_PERSONAL_GATEWAY_URL || env.OC_GATEWAY_URL || 'https://openrouter.ai/api/v1').trim();
+    const envGet = (k) => {
+      if (env[k] != null) return String(env[k]).trim();
+      const found = Object.entries(env || {}).find(([ek]) => ek.trim() === k);
+      return found ? String(found[1]).trim() : '';
+    };
+    const rawPersonalUrl = envGet('OC_PERSONAL_GATEWAY_URL');
+    const rawGatewayUrl  = envGet('OC_GATEWAY_URL');
     const model = (function(m) {
       m = String(m || '').trim();
       if (!m || /nemotron/i.test(m)) m = 'inclusionai/ring-2.6-1t:free';
+      if (/^kimi-k2\.5(:cloud)?$/i.test(m)) m = 'kimi-k2.6:cloud';
       return m;
-    })(env.OC_MODEL || '');
-    const hasToken = !!(env.OC_PERSONAL_GATEWAY_TOKEN || env.OC_GATEWAY_TOKEN);
-    const fallbackModel = String(env.OC_FALLBACK_MODEL || '').trim();
-    return Response.json({ ok: true, gatewayUrl, model, hasToken, fallbackModel, envKeys: Object.keys(env || {}) });
+    })(envGet('OC_MODEL') || 'inclusionai/ring-2.6-1t:free');
+    let resolvedUrl = rawPersonalUrl || rawGatewayUrl || 'https://openrouter.ai/api/v1';
+    const isCloud = /inclusionai|\/ring-|kimi|mistralai|google\//i.test(model);
+    const isLocal = !/openrouter\.ai/i.test(resolvedUrl);
+    if (isCloud && isLocal) resolvedUrl = 'https://openrouter.ai/api/v1';
+    return Response.json({
+      ok: true,
+      resolvedGatewayUrl: resolvedUrl,
+      rawPersonalUrl, rawGatewayUrl,
+      model, isCloudModel: isCloud, wouldRedirect: isCloud && isLocal,
+      hasToken: !!(envGet('OC_GATEWAY_TOKEN') || envGet('OC_PERSONAL_GATEWAY_TOKEN')),
+      envKeys: Object.keys(env || {})
+    });
   }
 
   const { req, res, getResponse } = await createVercelAdapter(request);
