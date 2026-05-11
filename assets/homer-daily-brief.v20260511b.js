@@ -84,7 +84,6 @@
   /* ── CSS ──────────────────────────────────────────────────────────── */
   var CSS = `
     #tab-daily-brief { display:none; }
-    #db-tab-btn { display:none; }
 
     .db-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
     .db-header-left h2 { font-size:1.35rem; font-weight:900; color:var(--text); margin:0 0 4px; }
@@ -274,14 +273,8 @@
     var show = isBogdan();
     // Sidebar button only shows in morning window, before acknowledgment
     var showSb = show && isInMorningWindow() && !hasAckedToday();
-    var tabBtn = document.getElementById('db-tab-btn');
-    var sbBtn  = document.getElementById('db-sb-btn');
-    if (tabBtn) tabBtn.style.display = show ? 'inline-block' : 'none';
-    if (sbBtn)  sbBtn.style.display  = showSb ? 'inline-block' : 'none';
-    if (!show && document.body.dataset.activeTab === 'daily-brief') {
-      var orig = window._homerShowTab;
-      if (orig) orig('home');
-    }
+    var sbBtn = document.getElementById('db-sb-btn');
+    if (sbBtn) sbBtn.style.display = showSb ? 'inline-block' : 'none';
   }
 
   /* ── Weather ──────────────────────────────────────────────────────── */
