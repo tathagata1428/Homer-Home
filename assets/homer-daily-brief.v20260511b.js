@@ -102,6 +102,20 @@
     .db-tcard-subs { font-size:.7rem; color:#64748b; }
     .db-tcard-due  { font-size:.7rem; color:#94a3b8; }
 
+    /* Expand / collapse */
+    .db-tcard { cursor:pointer; }
+    .db-tcard-chevron { font-size:.7rem; color:#475569; margin-left:auto; flex-shrink:0; transition:transform .2s; }
+    .db-tcard.expanded .db-tcard-chevron { transform:rotate(180deg); }
+    .db-tcard-body { display:none; margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,.07); }
+    .db-tcard.expanded .db-tcard-body { display:block; }
+    .db-tcard-desc { font-size:.8rem; color:#94a3b8; line-height:1.5; margin-bottom:10px; white-space:pre-wrap; }
+    .db-tcard-subs-list { display:flex; flex-direction:column; gap:5px; }
+    .db-tcard-sub-item { display:flex; align-items:flex-start; gap:7px; font-size:.8rem; }
+    .db-tcard-sub-check { flex-shrink:0; margin-top:1px; color:#34d399; }
+    .db-tcard-sub-check.pending { color:#475569; }
+    .db-tcard-sub-text { color:#cbd5e1; line-height:1.4; }
+    .db-tcard-sub-text.done-text { text-decoration:line-through; color:#475569; }
+
     /* Projects / life goals / habits (unchanged from v a) */
     .db-task-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
     .db-task { display:flex; align-items:flex-start; gap:10px; padding:9px 12px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:10px; }
@@ -255,32 +269,64 @@
       return pa !== pb ? pa - pb : String(a.id || '').localeCompare(String(b.id || ''));
     });
 
-    wrap.innerHTML = '<div class="db-tasks-grid">' +
-      items.map(function (g) {
-        var proj   = projMap[g.projectId];
-        var projKey = proj ? (proj.key || proj.id) : null;
-        var color  = projectColor(g.projectId || projKey || 'task');
-        var priCls = g.priority ? ' ' + g.priority : '';
-        var priLbl = g.priority ? g.priority.charAt(0).toUpperCase() + g.priority.slice(1) : '';
-        var subs   = Array.isArray(g.subtasks) ? g.subtasks.length : 0;
-        var done_subs = Array.isArray(g.subtasks) ? g.subtasks.filter(function(s){ return s.done || s.status === 'done'; }).length : 0;
-        var due    = g.dueDate || g.due_date || '';
+    var html = '<div class="db-tasks-grid">';
+    items.forEach(function (g) {
+      var proj    = projMap[g.projectId];
+      var projKey = proj ? (proj.key || proj.id) : null;
+      var color   = projectColor(g.projectId || projKey || 'task');
+      var priCls  = g.priority ? ' ' + g.priority : '';
+      var priLbl  = g.priority ? g.priority.charAt(0).toUpperCase() + g.priority.slice(1) : '';
+      var subtasks = Array.isArray(g.subtasks) ? g.subtasks : [];
+      var doneSubs = subtasks.filter(function (s) { return s.done || s.status === 'done'; }).length;
+      var due     = g.dueDate || g.due_date || g.due || '';
+      var desc    = String(g.notes || g.description || '').trim();
+      var hasBody = !!(desc || subtasks.length);
 
-        return '<div class="db-tcard">' +
-          '<div class="db-tcard-stripe" style="background:' + color + '"></div>' +
-          '<div class="db-tcard-top">' +
-            '<div class="db-tcard-title">' + esc(g.summary || g.title || 'Untitled') + '</div>' +
-            (projKey ? '<span class="db-tcard-proj" style="background:' + color + '22;color:' + color + '">' + esc(projKey) + '</span>' : '') +
-          '</div>' +
-          '<div class="db-tcard-meta">' +
-            (g.id ? '<span class="db-tcard-id">' + esc(g.id) + '</span>' : '') +
-            (priLbl ? '<span class="db-tcard-pri' + priCls + '">' + priLbl + '</span>' : '') +
-            (subs ? '<span class="db-tcard-subs">' + done_subs + '/' + subs + ' subtasks</span>' : '') +
-            (due ? '<span class="db-tcard-due">Due ' + esc(due) + '</span>' : '') +
-          '</div>' +
-        '</div>';
-      }).join('') +
-    '</div>';
+      var bodyHtml = '';
+      if (hasBody) {
+        bodyHtml = '<div class="db-tcard-body">';
+        if (desc) bodyHtml += '<div class="db-tcard-desc">' + esc(desc.length > 300 ? desc.slice(0, 300) + '\u2026' : desc) + '</div>';
+        if (subtasks.length) {
+          bodyHtml += '<div class="db-tcard-subs-list">' +
+            subtasks.map(function (s) {
+              var done = s.done || s.status === 'done';
+              var txt  = s.text || s.summary || s.title || '';
+              return '<div class="db-tcard-sub-item">' +
+                '<span class="db-tcard-sub-check' + (done ? '' : ' pending') + '">' + (done ? '\u2714' : '\u25cb') + '</span>' +
+                '<span class="db-tcard-sub-text' + (done ? ' done-text' : '') + '">' + esc(txt) + '</span>' +
+              '</div>';
+            }).join('') +
+          '</div>';
+        }
+        bodyHtml += '</div>';
+      }
+
+      html += '<div class="db-tcard">' +
+        '<div class="db-tcard-stripe" style="background:' + color + '"></div>' +
+        '<div class="db-tcard-top">' +
+          '<div class="db-tcard-title">' + esc(g.summary || g.title || 'Untitled') + '</div>' +
+          (projKey ? '<span class="db-tcard-proj" style="background:' + color + '22;color:' + color + '">' + esc(projKey) + '</span>' : '') +
+          (hasBody ? '<span class="db-tcard-chevron">\u25bc</span>' : '') +
+        '</div>' +
+        '<div class="db-tcard-meta">' +
+          (g.id != null ? '<span class="db-tcard-id">#' + esc(g.id) + '</span>' : '') +
+          (priLbl ? '<span class="db-tcard-pri' + priCls + '">' + priLbl + '</span>' : '') +
+          (subtasks.length ? '<span class="db-tcard-subs">' + doneSubs + '/' + subtasks.length + ' subtasks</span>' : '') +
+          (due ? '<span class="db-tcard-due">Due ' + esc(due) + '</span>' : '') +
+        '</div>' +
+        bodyHtml +
+      '</div>';
+    });
+    html += '</div>';
+    wrap.innerHTML = html;
+
+    /* event delegation — toggle expanded class on click */
+    wrap.addEventListener('click', function (e) {
+      var card = e.target.closest('.db-tcard');
+      if (card && card.querySelector('.db-tcard-body')) {
+        card.classList.toggle('expanded');
+      }
+    });
   }
 
   function renderProjects(projects) {
