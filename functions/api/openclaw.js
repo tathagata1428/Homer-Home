@@ -228,7 +228,11 @@ export async function onRequest(context) {
         gatewayToken = envGet('OC_GATEWAY_TOKEN') || envGet('OC_PERSONAL_GATEWAY_TOKEN');
       }
 
-      return { gatewayUrl, gatewayToken, primaryModel, fallbackModel: '', largeContext: true };
+      // Fallback model tried automatically on 429 / rate-limit
+      const fallbackModel = /inclusionai|ring/i.test(primaryModel)
+        ? 'meta-llama/llama-3.3-70b-instruct:free'
+        : '';
+      return { gatewayUrl, gatewayToken, primaryModel, fallbackModel, largeContext: true };
     },
     getFallbackGatewayConfig({ env: e }) {
       const localModel = String(e.OC_FALLBACK_MODEL || '').trim();

@@ -231,7 +231,7 @@ export default async function handler(req, res) {
           if (/^kimi-k2\.5(:cloud)?$/i.test(m)) m = 'kimi-k2.6:cloud';
           return m;
         })(env.OC_MODEL || 'inclusionai/ring-2.6-1t:free'),
-        fallbackModel: '',
+        fallbackModel: 'meta-llama/llama-3.3-70b-instruct:free',
         largeContext: true
       };
     },

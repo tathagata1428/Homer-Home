@@ -1,6 +1,7 @@
 /* ====================================================================
- * Homer Daily Brief  v20260511b
+ * Homer Daily Brief  v20260511c
  * Bogdan-only tab: in-progress tasks, weather, habits, life goals.
+ * Morning-only: auto-opens on login before 14:00, requires daily ack.
  *
  * SYNC POLICY (Bogdan only):
  *   - Vault encrypted blob  → joey_meta  every 8s (hash-dedup)
@@ -14,6 +15,8 @@
   'use strict';
 
   var BOGDAN_USER   = 'bogdan';
+  var ACK_KEY = 'homer-daily-brief-ack';
+  var MORNING_CUTOFF_HOUR = 14; // show sidebar button + auto-open until 14:00
   var VAULT_IDB_NAME  = 'homer-vault-idb';
   var VAULT_IDB_STORE = 'kv';
   var VAULT_SALT_KEY  = 'homer-vault-salt';
@@ -40,6 +43,19 @@
     else document.addEventListener('DOMContentLoaded', fn);
   }
   function safeJson(s, fb) { try { return s ? JSON.parse(s) : fb; } catch (_) { return fb; } }
+
+  function hasAckedToday() { return localStorage.getItem(ACK_KEY) === todayStr(); }
+  function isInMorningWindow() { return new Date().getHours() < MORNING_CUTOFF_HOUR; }
+
+  function ackToday() {
+    try { localStorage.setItem(ACK_KEY, todayStr()); } catch (_) {}
+    var banner = document.getElementById('db-ack-banner');
+    if (banner) banner.remove();
+    var sbBtn = document.getElementById('db-sb-btn');
+    if (sbBtn) sbBtn.style.display = 'none';
+    var orig = window._homerShowTab;
+    if (orig) orig('home');
+  }
 
   /* simple non-crypto hash for change detection */
   function quickHash(str) {
@@ -153,6 +169,12 @@
     .db-empty { color:#475569; font-size:.87rem; font-style:italic; padding:4px 0; }
     .db-vault-notice { display:flex; align-items:center; gap:12px; padding:16px; background:rgba(96,165,250,.06); border:1px solid rgba(96,165,250,.15); border-radius:12px; color:var(--muted); font-size:.88rem; }
     .db-vault-notice-icon { font-size:1.4rem; flex-shrink:0; }
+
+    /* Acknowledge banner */
+    .db-ack-banner { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; background:rgba(96,165,250,.07); border:1px solid rgba(96,165,250,.22); border-radius:13px; margin-bottom:18px; flex-wrap:wrap; }
+    .db-ack-msg { font-size:.88rem; color:var(--muted); line-height:1.5; }
+    .db-ack-btn { padding:9px 20px; border-radius:10px; border:none; background:linear-gradient(135deg,#60a5fa,#a78bfa); color:#fff; font-size:.84rem; font-weight:800; cursor:pointer; font-family:inherit; transition:opacity .15s; white-space:nowrap; flex-shrink:0; }
+    .db-ack-btn:hover { opacity:.82; }
   `;
 
   function injectCSS() {
@@ -207,7 +229,31 @@
     if (sbBtn) sbBtn.classList.add('active');
     document.querySelectorAll('.sb-item[data-tab]:not(#db-sb-btn)').forEach(function (i) { i.classList.remove('active'); });
     document.body.dataset.activeTab = 'daily-brief';
+    injectAckBanner();
     refreshDailyBrief();
+  }
+
+  function injectAckBanner() {
+    var existing = document.getElementById('db-ack-banner');
+    // Only show if Bogdan, in morning window, and not yet acked
+    if (!isBogdan() || !isInMorningWindow() || hasAckedToday()) {
+      if (existing) existing.remove();
+      return;
+    }
+    if (existing) return; // already injected
+    var section = document.getElementById('tab-daily-brief');
+    if (!section) return;
+    var banner = document.createElement('div');
+    banner.id = 'db-ack-banner';
+    banner.className = 'db-ack-banner';
+    banner.innerHTML =
+      '<span class="db-ack-msg">Review your brief, then confirm you\'ve seen it to start your day.</span>' +
+      '<button class="db-ack-btn" id="db-ack-btn">Got it \u2014 Start my day</button>';
+    // Insert after the header div
+    var header = section.querySelector('.db-header');
+    if (header && header.nextSibling) section.insertBefore(banner, header.nextSibling);
+    else section.insertBefore(banner, section.firstChild);
+    document.getElementById('db-ack-btn').addEventListener('click', ackToday);
   }
 
   function deactivateDailyBrief() {
@@ -220,10 +266,12 @@
   /* ── Bogdan visibility ────────────────────────────────────────────── */
   function updateBogdanVisibility() {
     var show = isBogdan();
+    // Sidebar button only shows in morning window, before acknowledgment
+    var showSb = show && isInMorningWindow() && !hasAckedToday();
     var tabBtn = document.getElementById('db-tab-btn');
     var sbBtn  = document.getElementById('db-sb-btn');
     if (tabBtn) tabBtn.style.display = show ? '' : 'none';
-    if (sbBtn)  sbBtn.style.display  = show ? '' : 'none';
+    if (sbBtn)  sbBtn.style.display  = showSb ? '' : 'none';
     if (!show && document.body.dataset.activeTab === 'daily-brief') {
       var orig = window._homerShowTab;
       if (orig) orig('home');
@@ -667,10 +715,16 @@
       if (isBogdan()) setTimeout(function () { pushVaultToSupabase(true); }, 2000);
     });
 
-    // Auth / vault unlock → refresh visibility + backup
+    // Auth / vault unlock → refresh visibility + backup + auto-open brief if morning
     window.addEventListener('homer-auth', function () {
       updateBogdanVisibility();
-      if (isBogdan()) setTimeout(function () { pushVaultToSupabase(true); }, 1500);
+      if (isBogdan()) {
+        setTimeout(function () { pushVaultToSupabase(true); }, 1500);
+        // Auto-open daily brief on first login of the morning (before ack)
+        if (isInMorningWindow() && !hasAckedToday()) {
+          setTimeout(function () { showDailyBrief(); }, 600);
+        }
+      }
     });
   }
 
