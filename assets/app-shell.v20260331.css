@@ -3290,6 +3290,13 @@
 @keyframes tabFadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
 .tab-anim{animation:tabFadeIn .22s cubic-bezier(0.22,1,.36,1) both;}
 
+/* ══ STATUS BAR / EDGE-TO-EDGE BACKGROUND ══
+   Applied globally (not just in a media query) so the html element has the
+   correct colour from the very first painted frame. On Android PWA with
+   viewport-fit:cover the status-bar area is transparent and shows the html
+   element background — this must match theme_color (#0a1220) exactly. */
+html{background-color:#0a1220;}
+
 /* ══ MOBILE NATIVE-FEEL TWEAKS ══ */
 @media (hover:none) and (pointer:coarse){
   /* Disable text selection on nav/action controls */
@@ -3300,6 +3307,4 @@
   section.tab.card{-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;}
   /* Larger minimum tap targets on mobile nav */
   .mnav-btn{min-height:52px;}
-  /* Edge-to-edge: fill notch/status-bar inset with app background so no colour mismatch */
-  html{background-color:#0a1220;}
 }
