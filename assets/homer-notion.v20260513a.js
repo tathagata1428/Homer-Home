@@ -1033,6 +1033,23 @@
     }
   }
 
+  // ── More-sheet body scroll lock ───────────────────────────────────────
+  // app-shell never calls _homerSyncPageScrollLock when the More sheet opens,
+  // so the underlying page body stays scrollable and shifts under the sheet.
+  // A MutationObserver on the sheet's class fixes this for every open/close path.
+  function initSheetScrollLock() {
+    var sheet = document.getElementById('mobile-sheet');
+    if (!sheet) return;
+    new MutationObserver(function () {
+      if (typeof window._homerSyncPageScrollLock === 'function') {
+        window._homerSyncPageScrollLock();
+      } else {
+        // Fallback if scroll-lock helper not yet available
+        document.body.style.overflowY = sheet.classList.contains('open') ? 'hidden' : '';
+      }
+    }).observe(sheet, { attributes: true, attributeFilter: ['class'] });
+  }
+
   // ── Init ──────────────────────────────────────────────────────────────
   function init() {
     addTabSections();
@@ -1040,6 +1057,7 @@
     syncCtx();
     setTimeout(patchTabSystem, 300);
     initSwipeNav();
+    initSheetScrollLock();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
