@@ -176,6 +176,17 @@
     .cat-entertainment{background:rgba(167,139,250,.15);color:#a78bfa}
     .cat-gifts{background:rgba(253,186,116,.15);color:#fdba74}
     .cat-other{background:rgba(148,163,184,.15);color:#94a3b8}
+    .homer-exp-cat-mgr{padding:8px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
+    .homer-exp-cat-mgr-hd{display:flex;align-items:center;justify-content:space-between;padding:2px 0}
+    .homer-exp-cat-mgr-lbl{font-size:.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
+    .homer-exp-cat-mgr-toggle{background:none;border:1px solid rgba(255,255,255,.1);color:#64748b;cursor:pointer;font-size:.72rem;padding:3px 9px;border-radius:7px;font-family:inherit;transition:all .14s}
+    .homer-exp-cat-mgr-toggle:hover{background:rgba(255,255,255,.07);color:#e5e7eb}
+    .homer-exp-cat-panel{padding:10px 0 4px}
+    .homer-exp-cat-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;min-height:22px}
+    .homer-exp-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:.73rem;font-weight:700;border:1px solid}
+    .homer-exp-chip-del{background:none;border:none;cursor:pointer;color:inherit;opacity:.55;font-size:.65rem;padding:0 0 0 2px;line-height:1;font-family:inherit}
+    .homer-exp-chip-del:hover{opacity:1}
+    .homer-exp-cat-new-row{display:flex;gap:6px;align-items:center}
 
     /* DAILY BRIEF */
     #homer-brief-fab{position:fixed;bottom:20px;left:260px;z-index:9990;width:38px;height:38px;border-radius:50%;background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.3);color:#a78bfa;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:background .2s,transform .2s}
@@ -829,8 +840,26 @@
   // ── Expense Tracker ──────────────────────────────────────────────────
   function initExpenses() {
     var KEY = 'homer-expenses';
-    var CATS = ['food', 'transport', 'shopping', 'utilities', 'home', 'health', 'fitness', 'work', 'education', 'travel', 'personal', 'subscriptions', 'entertainment', 'gifts', 'other'];
-    var EMOJI = { food: '🍔', transport: '🚗', shopping: '🛍️', utilities: '💡', home: '🏠', health: '❤️', fitness: '🏋️', work: '💼', education: '📚', travel: '✈️', personal: '💅', subscriptions: '📱', entertainment: '🎬', gifts: '🎁', other: '📦' };
+    var CKEY = 'homer-expense-cats';
+    var BUILTIN = ['food', 'transport', 'shopping', 'utilities', 'home', 'health', 'fitness', 'work', 'education', 'travel', 'personal', 'subscriptions', 'entertainment', 'gifts', 'other'];
+    var BEMOJI = { food: '🍔', transport: '🚗', shopping: '🛍️', utilities: '💡', home: '🏠', health: '❤️', fitness: '🏋️', work: '💼', education: '📚', travel: '✈️', personal: '💅', subscriptions: '📱', entertainment: '🎬', gifts: '🎁', other: '📦' };
+    var CPALS = ['#84cc16','#2dd4bf','#fb923c','#c084fc','#e11d48','#0ea5e9','#d97706','#0d9488','#7c3aed','#b45309','#be185d','#1d4ed8'];
+
+    function getCustom() { return safeJson(localStorage.getItem(CKEY), []); }
+    function saveCustom(d) { localStorage.setItem(CKEY, JSON.stringify(d)); }
+    function getEmoji(cat) {
+      if (BEMOJI[cat]) return BEMOJI[cat];
+      var c = getCustom().find(function(x) { return x.name === cat; });
+      return c ? (c.emoji || '🏷️') : '📦';
+    }
+    // Returns HTML attributes for a category badge (handles built-in CSS classes + custom inline colors)
+    function catAttrs(cat, baseClass) {
+      var b = baseClass || 'homer-exp-cat';
+      if (BUILTIN.indexOf(cat) !== -1) return 'class="' + b + ' cat-' + cat + '"';
+      var cc = getCustom().find(function(x) { return x.name === cat; });
+      var col = cc ? (cc.color || '#94a3b8') : '#94a3b8';
+      return 'class="' + b + '" style="background:' + col + '22;color:' + col + ';border:1px solid ' + col + '44"';
+    }
 
     var fab = document.createElement('button');
     fab.id = 'homer-expense-fab'; fab.title = 'Expense Tracker'; fab.textContent = '💰';
@@ -848,9 +877,23 @@
       '<div class="homer-exp-add">' +
         '<div class="homer-exp-add-row"><input class="homer-exp-input" id="homer-exp-desc" placeholder="Description" /><input class="homer-exp-input homer-exp-amount" id="homer-exp-amount" type="number" placeholder="0.00" step="0.01" min="0" /></div>' +
         '<div class="homer-exp-add-row" style="margin-top:6px">' +
-          '<select class="homer-exp-cat-sel" id="homer-exp-cat">' + CATS.map(function(c) { return '<option value="' + c + '">' + EMOJI[c] + ' ' + c + '</option>'; }).join('') + '</select>' +
+          '<select class="homer-exp-cat-sel" id="homer-exp-cat"></select>' +
           '<input class="homer-exp-input" id="homer-exp-date" type="date" style="flex:0;width:130px" />' +
           '<button class="homer-exp-add-btn" id="homer-exp-add-btn">Add</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="homer-exp-cat-mgr">' +
+        '<div class="homer-exp-cat-mgr-hd">' +
+          '<span class="homer-exp-cat-mgr-lbl">Categories</span>' +
+          '<button class="homer-exp-cat-mgr-toggle" id="homer-exp-cat-toggle">⚙ Manage</button>' +
+        '</div>' +
+        '<div id="homer-exp-cat-panel" style="display:none">' +
+          '<div class="homer-exp-cat-chips" id="homer-exp-cat-chips"></div>' +
+          '<div class="homer-exp-cat-new-row">' +
+            '<input id="homer-exp-newcat-emoji" class="homer-exp-input" placeholder="😀" style="flex:0;width:52px;text-align:center;font-size:1.1rem" />' +
+            '<input id="homer-exp-newcat-name" class="homer-exp-input" placeholder="New category name…" />' +
+            '<button class="homer-exp-add-btn" id="homer-exp-cat-add" style="white-space:nowrap">+ Add</button>' +
+          '</div>' +
         '</div>' +
       '</div>' +
       '<div class="homer-exp-list" id="homer-exp-list"></div>';
@@ -859,6 +902,44 @@
 
     function get() { return safeJson(localStorage.getItem(KEY), []); }
     function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
+
+    function rebuildCatSelect(selected) {
+      var sel = document.getElementById('homer-exp-cat'); if (!sel) return;
+      var custom = getCustom();
+      var opts = BUILTIN.map(function(c) {
+        return '<option value="' + c + '"' + (c === selected ? ' selected' : '') + '>' + BEMOJI[c] + ' ' + c + '</option>';
+      });
+      if (custom.length) {
+        opts.push('<option disabled>── Custom ──</option>');
+        custom.forEach(function(c) {
+          opts.push('<option value="' + esc(c.name) + '"' + (c.name === selected ? ' selected' : '') + '>' + (c.emoji || '🏷️') + ' ' + esc(c.name) + '</option>');
+        });
+      }
+      sel.innerHTML = opts.join('');
+    }
+
+    function renderCatChips() {
+      var chips = document.getElementById('homer-exp-cat-chips'); if (!chips) return;
+      var custom = getCustom();
+      if (!custom.length) {
+        chips.innerHTML = '<span style="font-size:.72rem;color:#64748b;padding:2px 0;display:block">No custom categories yet.</span>';
+        return;
+      }
+      chips.innerHTML = custom.map(function(c, i) {
+        var col = c.color || '#94a3b8';
+        return '<span class="homer-exp-chip" style="background:' + col + '1a;color:' + col + ';border-color:' + col + '44">' +
+          (c.emoji || '🏷️') + ' ' + esc(c.name) +
+          '<button class="homer-exp-chip-del" data-i="' + i + '" title="Delete">✕</button>' +
+        '</span>';
+      }).join('');
+      chips.querySelectorAll('.homer-exp-chip-del').forEach(function(btn) {
+        btn.onclick = function() {
+          var d = getCustom(); d.splice(parseInt(btn.dataset.i), 1); saveCustom(d);
+          rebuildCatSelect(); renderCatChips();
+          window._homerToast({ message: 'Category removed', type: 'info', duration: 1200 });
+        };
+      });
+    }
 
     function render() {
       var data = get(); var now = new Date(); var mo = now.toISOString().slice(0, 7);
@@ -869,23 +950,23 @@
       var catT = {};
       mData.forEach(function(e) { catT[e.cat] = (catT[e.cat] || 0) + (e.amount || 0); });
       document.getElementById('homer-exp-cats').innerHTML = Object.keys(catT).map(function(c) {
-        return '<span class="homer-exp-cat cat-' + c + '">' + EMOJI[c] + ' ' + catT[c].toFixed(0) + '</span>';
+        return '<span ' + catAttrs(c, 'homer-exp-cat') + '>' + getEmoji(c) + ' ' + catT[c].toFixed(0) + '</span>';
       }).join('');
       var sorted = data.slice().sort(function(a, b) { return (b.date || '') < (a.date || '') ? -1 : 1; });
       var list = document.getElementById('homer-exp-list');
       list.innerHTML = sorted.slice(0, 100).map(function(e) {
         return '<div class="homer-exp-item" data-id="' + e.id + '">' +
-          '<span class="homer-exp-item-cat cat-' + e.cat + '">' + EMOJI[e.cat] + '</span>' +
+          '<span ' + catAttrs(e.cat, 'homer-exp-item-cat') + '>' + getEmoji(e.cat) + '</span>' +
           '<span class="homer-exp-item-desc">' + esc(e.desc) + '</span>' +
           '<span class="homer-exp-item-date">' + (e.date || '') + '</span>' +
           '<span class="homer-exp-item-amount">' + (e.amount || 0).toFixed(2) + '</span>' +
           '<button class="homer-exp-item-del">✕</button></div>';
       }).join('');
       list.querySelectorAll('.homer-exp-item-del').forEach(function(btn) {
-        btn.addEventListener('click', function() {
+        btn.onclick = function() {
           var id = parseInt(btn.closest('[data-id]').dataset.id);
           save(get().filter(function(e) { return e.id !== id; })); render();
-        });
+        };
       });
     }
 
@@ -898,11 +979,40 @@
       save(data); document.getElementById('homer-exp-desc').value = ''; document.getElementById('homer-exp-amount').value = '';
       render(); window._homerToast({ message: 'Expense added', type: 'success', duration: 1500 });
     });
-    ['homer-exp-desc', 'homer-exp-amount'].forEach(function(id) {
-      document.getElementById(id).addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('homer-exp-add-btn').click(); });
+    ['homer-exp-desc', 'homer-exp-amount'].forEach(function(fid) {
+      document.getElementById(fid).addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('homer-exp-add-btn').click(); });
     });
 
-    function open(prefill) { panel.classList.add('open'); ov.classList.add('open'); render(); if (prefill) document.getElementById('homer-exp-desc').value = prefill; }
+    document.getElementById('homer-exp-cat-toggle').addEventListener('click', function() {
+      var p = document.getElementById('homer-exp-cat-panel');
+      var isOpen = p.style.display !== 'none';
+      p.style.display = isOpen ? 'none' : 'block';
+      this.textContent = isOpen ? '⚙ Manage' : '✕ Close';
+      if (!isOpen) renderCatChips();
+    });
+
+    document.getElementById('homer-exp-cat-add').addEventListener('click', function() {
+      var emoji = document.getElementById('homer-exp-newcat-emoji').value.trim() || '🏷️';
+      var raw = document.getElementById('homer-exp-newcat-name').value.trim();
+      var name = raw.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+      if (!name) { window._homerToast({ message: 'Enter a category name', type: 'warn' }); return; }
+      if (BUILTIN.indexOf(name) !== -1) { window._homerToast({ message: 'That\'s already a built-in category', type: 'warn' }); return; }
+      var d = getCustom();
+      if (d.find(function(c) { return c.name === name; })) { window._homerToast({ message: 'Category already exists', type: 'warn' }); return; }
+      var color = CPALS[d.length % CPALS.length];
+      d.push({ name: name, emoji: emoji, color: color });
+      saveCustom(d);
+      document.getElementById('homer-exp-newcat-emoji').value = '';
+      document.getElementById('homer-exp-newcat-name').value = '';
+      rebuildCatSelect(name);
+      renderCatChips();
+      window._homerToast({ message: '✓ Category "' + name + '" added', type: 'success', duration: 1800 });
+    });
+    document.getElementById('homer-exp-newcat-name').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') document.getElementById('homer-exp-cat-add').click();
+    });
+
+    function open(prefill) { panel.classList.add('open'); ov.classList.add('open'); rebuildCatSelect(); render(); if (prefill) document.getElementById('homer-exp-desc').value = prefill; }
     function close() { panel.classList.remove('open'); ov.classList.remove('open'); }
     document.getElementById('homer-exp-close').addEventListener('click', close);
     ov.addEventListener('click', close);

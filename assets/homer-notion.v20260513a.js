@@ -112,18 +112,9 @@
   .cat-delta.up{color:#f87171;}.cat-delta.down{color:#34d399;}
   .cat-bar-bg{width:100%;height:4px;background:rgba(255,255,255,.07);border-radius:3px;margin-bottom:6px;}
   .cat-bar-fg{height:100%;border-radius:3px;transition:width .4s;}
-  .bud-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-top:4px;}
-  .bud-card{border-radius:14px;border:1px solid rgba(255,255,255,.08);padding:12px;display:flex;align-items:center;gap:10px;}
-  .bud-ring-wrap{position:relative;flex-shrink:0;}
-  .bud-ring-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:900;}
-  .bud-info{flex:1;min-width:0;}
-  .bud-cat-name{font-size:.8rem;font-weight:700;color:var(--text);margin-bottom:3px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
-  .bud-spent{font-size:1.25rem;font-weight:900;line-height:1.1;}
-  .bud-of{font-size:.68rem;color:var(--muted);margin-top:1px;}
-  .bud-status{font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:4px;text-transform:uppercase;}
-  .bud-status.ok{background:rgba(52,211,153,.15);color:#34d399;}
-  .bud-status.warn{background:rgba(251,191,36,.15);color:#fbbf24;}
-  .bud-status.over{background:rgba(248,113,113,.15);color:#f87171;}
+  .budget-nums{font-size:.75rem;color:var(--muted);font-weight:700;min-width:90px;text-align:right;flex-shrink:0;white-space:nowrap;}
+  .budget-nums.warn{color:#fbbf24;}.budget-nums.over{color:#f87171;}
+  .budget-of{font-weight:400;opacity:.65;}
   .day-row{display:flex;gap:5px;margin-top:6px;}
   .day-cell{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
   .day-dot{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:var(--muted);}
@@ -421,20 +412,45 @@
 
   function daysAgoStr(n) { var d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); }
 
-  var EXP_CAT_COLORS = {
+  var EXP_CAT_COLORS_BASE = {
     food:'#fb7185', transport:'#fbbf24', shopping:'#f472b6', utilities:'#eab308',
     home:'#14b8a6', health:'#34d399', fitness:'#ef4444', work:'#60a5fa',
     education:'#f97316', travel:'#38bdf8', personal:'#e879f9', subscriptions:'#818cf8',
     entertainment:'#a78bfa', gifts:'#fdba74', other:'#94a3b8'
   };
-  var EXP_CAT_EMOJI = {
+  var EXP_CAT_EMOJI_BASE = {
     food:'🍔', transport:'🚗', shopping:'🛍️', utilities:'💡', home:'🏠',
     health:'❤️', fitness:'🏋️', work:'💼', education:'📚', travel:'✈️',
     personal:'💅', subscriptions:'📱', entertainment:'🎬', gifts:'🎁', other:'📦'
   };
+  // Merge custom categories into the base maps at runtime
+  function getExpCatMaps() {
+    var colors = {}, emoji = {}, k;
+    for (k in EXP_CAT_COLORS_BASE) colors[k] = EXP_CAT_COLORS_BASE[k];
+    for (k in EXP_CAT_EMOJI_BASE)  emoji[k]  = EXP_CAT_EMOJI_BASE[k];
+    var custom = ls('homer-expense-cats') || [];
+    custom.forEach(function(c) { if (c.name) { colors[c.name] = c.color || '#94a3b8'; emoji[c.name] = c.emoji || '🏷️'; } });
+    return { colors: colors, emoji: emoji };
+  }
 
   function initAnalyticsTab() {
     var tab = document.getElementById('tab-analytics'); if (!tab) return;
+
+    // Migrate legacy homer-pomodoro sessions into homer-sessions (one-time, so focus counts work)
+    (function migratePomo() {
+      var pomo = ls('homer-pomodoro'); if (!pomo || !pomo.sessions || !pomo.sessions.length) return;
+      var existing = ls('homer-sessions') || [];
+      var existingTs = {}; existing.forEach(function(s) { if (s.ts || s.date) existingTs[(s.ts || s.date).slice(0, 16)] = true; });
+      var toMigrate = pomo.sessions.filter(function(s) { return s.ts && !existingTs[s.ts.slice(0, 16)]; });
+      if (!toMigrate.length) return;
+      toMigrate.forEach(function(s) {
+        existing.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), accomplished: s.task || '', notes: '', task: s.task || '', date: s.ts, count: 0, duration: 25 });
+      });
+      lss('homer-sessions', existing);
+    })();
+
+    var catMaps = getExpCatMaps();
+    var EXP_CAT_COLORS = catMaps.colors, EXP_CAT_EMOJI = catMaps.emoji;
 
     var hd = getHabitsData(), habits = hd.habits, completions = hd.completions;
     var expenses = ls('homer-expenses') || []; if (!Array.isArray(expenses)) expenses = [];
@@ -588,44 +604,28 @@
         }).join('')
       : '<p style="color:var(--muted);font-size:.84rem;">No expenses this month.</p>';
 
-    // ─── Budget cards ─────────────────────────────────────────────────
+    // ─── Budget progress bars ─────────────────────────────────────────
     var curMonthTotal = expenses.filter(function (e) { return (e.date || '').slice(0, 7) === curMoKey; }).reduce(function (s, e) { return s + parseFloat(e.amount || 0); }, 0);
     var budgetCatSet = {};
     Object.keys(budgets).forEach(function (k) { if (budgets[k]) budgetCatSet[k] = true; });
     Object.keys(curMoCats).forEach(function (k) { budgetCatSet[k] = true; });
-    var budgetCats = Object.keys(budgetCatSet).sort();
-    var BUD_CIRC = 2 * Math.PI * 26; // r=26
-    var budgetHtml = '<p class="an-card-sub">Spending vs monthly budget. <span style="color:#34d399">Green</span> = on track · <span style="color:#fbbf24">Yellow</span> = &gt;80% · <span style="color:#f87171">Red</span> = over budget.</p>' +
-      '<div class="bud-grid">' +
+    var budgetCats = Object.keys(budgetCatSet).sort(function(a, b) { return (curMoCats[b]||0) - (curMoCats[a]||0); });
+    var budgetHtml = '<p class="an-card-sub">Spending vs monthly budget. Yellow = &gt;80% · Red = over budget.</p>' +
       budgetCats.map(function (cat) {
         var spent = (curMoCats[cat] || 0), budget = budgets[cat] || 0;
         if (!budget && !spent) return '';
-        var pctRaw = budget ? (spent / budget) : 1;
-        var pctCapped = Math.min(pctRaw, 1);
-        var pctDisp = Math.round(pctRaw * 100);
+        var catColor = EXP_CAT_COLORS[cat] || '#94a3b8';
+        var pct = budget ? Math.min(Math.round((spent / budget) * 100), 100) : 100;
         var over = budget && spent > budget, warn = budget && spent > budget * 0.8;
-        var ringColor = over ? '#f87171' : (warn ? '#fbbf24' : '#34d399');
-        var bgColor = over ? 'rgba(248,113,113,.07)' : (warn ? 'rgba(251,191,36,.07)' : 'rgba(52,211,153,.04)');
-        var dashOffset = BUD_CIRC * (1 - pctCapped);
-        var remaining = budget ? Math.round(budget - spent) : 0;
-        var statusLbl = over ? '<span class="bud-status over">Over!</span>' : (warn ? '<span class="bud-status warn">Caution</span>' : (budget ? '<span class="bud-status ok">On track</span>' : ''));
+        var barColor = over ? '#f87171' : (warn ? '#fbbf24' : catColor);
         var emoji = EXP_CAT_EMOJI[cat] || '📦';
-        return '<div class="bud-card" style="background:' + bgColor + ';border-color:' + ringColor + '22;">' +
-          '<div class="bud-ring-wrap">' +
-            '<svg width="60" height="60" viewBox="0 0 60 60">' +
-              '<circle cx="30" cy="30" r="26" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="5"/>' +
-              '<circle cx="30" cy="30" r="26" fill="none" stroke="' + ringColor + '" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + BUD_CIRC.toFixed(1) + '" stroke-dashoffset="' + dashOffset.toFixed(1) + '" transform="rotate(-90 30 30)"/>' +
-            '</svg>' +
-            '<div class="bud-ring-pct" style="color:' + ringColor + '">' + pctDisp + '%</div>' +
-          '</div>' +
-          '<div class="bud-info">' +
-            '<div class="bud-cat-name">' + emoji + ' ' + esc(cat) + statusLbl + '</div>' +
-            '<div class="bud-spent" style="color:' + ringColor + '">' + Math.round(spent) + '</div>' +
-            (budget ? '<div class="bud-of">of ' + budget + (remaining > 0 ? ' · <span style="color:#34d399">' + remaining + ' left</span>' : '') + '</div>' : '<div class="bud-of">no budget set</div>') +
-          '</div>' +
+        var remaining = budget && !over ? '<span style="color:#34d399;font-size:.67rem"> · ' + Math.round(budget - spent) + ' left</span>' : (over ? '<span style="color:#f87171;font-size:.67rem"> · ' + Math.round(spent - budget) + ' over</span>' : '');
+        return '<div class="budget-row">' +
+          '<div class="budget-lbl">' + emoji + ' ' + esc(cat) + '</div>' +
+          '<div class="budget-track"><div class="budget-fill" style="width:' + pct + '%;background:' + barColor + ';"></div></div>' +
+          '<div class="budget-nums ' + (over ? 'over' : (warn ? 'warn' : '')) + '">' + Math.round(spent) + (budget ? '<span class="budget-of"> / ' + budget + '</span>' : '') + remaining + '</div>' +
         '</div>';
-      }).join('') +
-      '</div>';
+      }).join('');
 
     // ─── Energy trend (weekly reviews) ───────────────────────────────
     var recentReviews = reviews.slice(0, 8).reverse();
@@ -656,7 +656,7 @@
         '<div class="an-card"><h4>Weekly Energy Trend</h4>' + energyHtml + '</div>' +
         '<div class="an-card"><h4>Monthly Spend</h4>' + barHtml + '</div>' +
         '<div class="an-card"><h4>This Month by Category</h4>' + catHtml + '</div>' +
-        '<div class="an-card an-card-full"><h4>Monthly Budget <span style="font-weight:400;opacity:.6">' + curMoKey + ' &mdash; Total spent: ' + Math.round(curMonthTotal) + '</span></h4>' + budgetHtml + '</div>' +
+        '<div class="an-card an-card-full"><h4>Budget Tracker <span style="font-weight:400;opacity:.6">' + curMoKey + ' &mdash; Total: ' + Math.round(curMonthTotal) + '</span></h4>' + budgetHtml + '</div>' +
       '</div>';
 
     tab.querySelectorAll('.an-range-btn').forEach(function (btn) {
