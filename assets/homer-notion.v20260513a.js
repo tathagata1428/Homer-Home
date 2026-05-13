@@ -1033,20 +1033,33 @@
     }
   }
 
-  // ── More-sheet body scroll lock ───────────────────────────────────────
-  // app-shell never calls _homerSyncPageScrollLock when the More sheet opens,
-  // so the underlying page body stays scrollable and shifts under the sheet.
-  // A MutationObserver on the sheet's class fixes this for every open/close path.
+  // ── More-sheet scroll lock ────────────────────────────────────────────
+  // Attach a NON-PASSIVE document-level touchmove handler while the sheet is
+  // open. This is the only reliable way to stop Chrome Android from scrolling
+  // the page behind the sheet — CSS overscroll-behavior and overflow:hidden
+  // on body are both insufficient because Chrome still processes gestures that
+  // originate on the fixed overlay. The document handler can call
+  // preventDefault() which fully cancels the gesture for anything outside the
+  // scrollable sheet content.
   function initSheetScrollLock() {
     var sheet = document.getElementById('mobile-sheet');
-    if (!sheet) return;
+    var content = document.getElementById('mobile-sheet-content');
+    if (!sheet || !content) return;
+    var lockHandler = null;
+    function lock() {
+      if (lockHandler) return;
+      lockHandler = function (e) {
+        if (!content.contains(e.target)) e.preventDefault();
+      };
+      document.addEventListener('touchmove', lockHandler, { passive: false });
+    }
+    function unlock() {
+      if (!lockHandler) return;
+      document.removeEventListener('touchmove', lockHandler, { passive: false });
+      lockHandler = null;
+    }
     new MutationObserver(function () {
-      if (typeof window._homerSyncPageScrollLock === 'function') {
-        window._homerSyncPageScrollLock();
-      } else {
-        // Fallback if scroll-lock helper not yet available
-        document.body.style.overflowY = sheet.classList.contains('open') ? 'hidden' : '';
-      }
+      sheet.classList.contains('open') ? lock() : unlock();
     }).observe(sheet, { attributes: true, attributeFilter: ['class'] });
   }
 
