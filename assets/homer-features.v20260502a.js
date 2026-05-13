@@ -163,9 +163,18 @@
     .homer-exp-item-date{font-size:.68rem;color:#64748b;white-space:nowrap}
     .cat-food{background:rgba(251,113,133,.15);color:#fb7185}
     .cat-transport{background:rgba(251,191,36,.15);color:#fbbf24}
+    .cat-shopping{background:rgba(244,114,182,.15);color:#f472b6}
+    .cat-utilities{background:rgba(234,179,8,.15);color:#eab308}
+    .cat-home{background:rgba(20,184,166,.15);color:#14b8a6}
     .cat-work{background:rgba(96,165,250,.15);color:#60a5fa}
     .cat-health{background:rgba(52,211,153,.15);color:#34d399}
+    .cat-fitness{background:rgba(239,68,68,.15);color:#ef4444}
+    .cat-education{background:rgba(249,115,22,.15);color:#f97316}
+    .cat-travel{background:rgba(56,189,248,.15);color:#38bdf8}
+    .cat-personal{background:rgba(232,121,249,.15);color:#e879f9}
+    .cat-subscriptions{background:rgba(129,140,248,.15);color:#818cf8}
     .cat-entertainment{background:rgba(167,139,250,.15);color:#a78bfa}
+    .cat-gifts{background:rgba(253,186,116,.15);color:#fdba74}
     .cat-other{background:rgba(148,163,184,.15);color:#94a3b8}
 
     /* DAILY BRIEF */
@@ -810,8 +819,8 @@
   // ── Expense Tracker ──────────────────────────────────────────────────
   function initExpenses() {
     var KEY = 'homer-expenses';
-    var CATS = ['food', 'transport', 'work', 'health', 'entertainment', 'other'];
-    var EMOJI = { food: '🍔', transport: '🚗', work: '💼', health: '❤️', entertainment: '🎬', other: '📦' };
+    var CATS = ['food', 'transport', 'shopping', 'utilities', 'home', 'health', 'fitness', 'work', 'education', 'travel', 'personal', 'subscriptions', 'entertainment', 'gifts', 'other'];
+    var EMOJI = { food: '🍔', transport: '🚗', shopping: '🛍️', utilities: '💡', home: '🏠', health: '❤️', fitness: '🏋️', work: '💼', education: '📚', travel: '✈️', personal: '💅', subscriptions: '📱', entertainment: '🎬', gifts: '🎁', other: '📦' };
 
     var fab = document.createElement('button');
     fab.id = 'homer-expense-fab'; fab.title = 'Expense Tracker'; fab.textContent = '💰';
