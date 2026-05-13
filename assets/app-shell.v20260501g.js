@@ -18026,11 +18026,12 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
   });
 
-  // Swipe down to close sheet
+  // Swipe down to close sheet — only when content is already scrolled to top,
+  // otherwise the gesture is a normal scroll and must not close the sheet.
   var startY = 0;
   sheetContent.addEventListener('touchstart', function(e){startY = e.touches[0].clientY;}, {passive:true});
   sheetContent.addEventListener('touchmove', function(e){
-    if(e.touches[0].clientY - startY > 60){
+    if(e.touches[0].clientY - startY > 80 && sheetContent.scrollTop <= 0){
       sheet.classList.remove('open');
       syncActive(document.body.dataset.activeTab || 'home', isJoeyOpen());
     }
