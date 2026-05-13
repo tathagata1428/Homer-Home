@@ -4,10 +4,6 @@
   "description": "Personal productivity dashboard",
   "start_url": "/",
   "display": "standalone",
-  "display_override": [
-    "window-controls-overlay",
-    "standalone"
-  ],
   "scope": "/",
   "background_color": "#0a1220",
   "theme_color": "#0a1220",

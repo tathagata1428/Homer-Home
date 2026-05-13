@@ -3285,3 +3285,29 @@
     }
     body.mobile-shell #oc-scroll-latest,
     body.mobile-shell #oc-upload-status{display:none!important;}
+
+/* ══ TAB FADE-IN ANIMATION ══ */
+@keyframes tabFadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+.tab-anim{animation:tabFadeIn .22s cubic-bezier(0.22,1,.36,1) both;}
+
+/* ══ MOBILE NATIVE-FEEL TWEAKS ══ */
+@media (hover:none) and (pointer:coarse){
+  /* Disable text selection on nav/action controls */
+  .mnav-btn,.msheet-item,.tab-btn,.sb-item,.btn,button{-webkit-user-select:none;user-select:none;}
+  /* Prevent callout on long-press */
+  img,.msheet-icon,.mnav-btn,.sb-item{-webkit-touch-callout:none;}
+  /* Smooth momentum scroll on card containers */
+  section.tab.card{-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;}
+  /* Larger minimum tap targets on mobile nav */
+  .mnav-btn{min-height:52px;}
+  /* Status bar color bridge — extends body bg colour into the safe-area strip */
+  body.mobile-shell::after{
+    content:'';
+    position:fixed;
+    top:0;left:0;right:0;
+    height:env(safe-area-inset-top,0px);
+    background:#0a1220;
+    z-index:9999;
+    pointer-events:none;
+  }
+}
