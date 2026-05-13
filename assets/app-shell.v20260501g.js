@@ -18036,6 +18036,16 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       syncActive(document.body.dataset.activeTab || 'home', isJoeyOpen());
     }
   }, {passive:true});
+
+  // Block page scroll bleed-through.
+  // Non-passive so we can call preventDefault(). For touches on the backdrop
+  // (outside the scrollable content), cancel the event so the underlying page
+  // and body cannot scroll. For touches inside the content, do nothing — the
+  // browser handles the pan naturally and overscroll-behavior-y:contain stops
+  // chaining at the boundary.
+  sheet.addEventListener('touchmove', function(e){
+    if(!sheetContent.contains(e.target)) e.preventDefault();
+  }, {passive:false});
   window.addEventListener('homer-tab-change', function(e){
     syncActive((e.detail && e.detail.tab) || document.body.dataset.activeTab || 'home', isJoeyOpen());
   });
