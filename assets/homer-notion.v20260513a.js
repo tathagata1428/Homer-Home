@@ -280,6 +280,7 @@
     var st = document.getElementById('notes-status');
     if (st) st.textContent = 'Saved';
     syncCtx();
+    pushNotesToDrive();
   }
   function delNote() {
     if (!curNoteId || !confirm('Delete this note?')) return;
@@ -642,12 +643,42 @@
     }, 2000);
   }
 
+  // ── Drive Notes Backup ────────────────────────────────────────────────
+  var notesDriveTimer = null;
+  function buildNotesMd(notes) {
+    var lines = ['# My Notes', '', 'Personal notes from Homer Home.', ''];
+    notes.forEach(function (n) {
+      lines.push('## ' + (n.title || 'Untitled'));
+      if (n.daily) lines.push('_Daily note — ' + n.date + '_', '');
+      if (n.content) lines.push(n.content, '');
+      lines.push('---', '');
+    });
+    return lines.join('\n');
+  }
+  function pushNotesToDrive() {
+    clearTimeout(notesDriveTimer);
+    notesDriveTimer = setTimeout(function () {
+      try {
+        var notes = getNotes();
+        if (!notes.length) return;
+        var authHeader = typeof window.supabaseAuthHeader === 'function' ? window.supabaseAuthHeader() : null;
+        var pass = localStorage.getItem('homer-sync-pass') || '';
+        if (!authHeader && !pass) return;
+        var body = { notesMarkdown: buildNotesMd(notes), redisOnly: true };
+        if (!authHeader) body.passphrase = pass;
+        var headers = { 'Content-Type': 'application/json' };
+        if (authHeader) headers['Authorization'] = authHeader;
+        fetch('/api/gdrive-backup', { method: 'POST', headers: headers, body: JSON.stringify(body) }).catch(function () {});
+      } catch (_) {}
+    }, 60000); // 60s debounce — not urgent
+  }
+
   // ── DOM: Add new tab sections + nav buttons ───────────────────────────
   function addTabSections() {
     var shell = document.querySelector('.shell');
     if (!shell) return;
+    // Notes is NOT in the nav — accessible via Alt+N / Ctrl+K / quick actions only
     var defs = [
-      { tab: 'notes',     label: '&#128221; Notes',     sbLabel: 'Notes',     sbIcon: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' },
       { tab: 'analytics', label: '&#128200; Analytics', sbLabel: 'Analytics', sbIcon: '<svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
       { tab: 'recurring', label: '&#128260; Recurring', sbLabel: 'Recurring', sbIcon: '<svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>' }
     ];
@@ -684,14 +715,25 @@
   // ── Keyboard Shortcuts ────────────────────────────────────────────────
   document.addEventListener('keydown', function (e) {
     if (e.altKey && e.key === 'n') { e.preventDefault(); showQC('inbox'); }
+    if (e.altKey && e.key === 'd') { e.preventDefault(); if (window._homerShowTab) window._homerShowTab('daily-brief'); }
     if (e.ctrlKey && e.key === 'k') { e.preventDefault(); showSB(); }
     if (e.key === 'Escape') { hideSB(); hideQC(); hideWR(); hideSN(); }
   });
 
-  // ── Wire mobile capture button ────────────────────────────────────────
+  // ── Wire mobile quick actions ─────────────────────────────────────────
   document.addEventListener('click', function (e) {
     var btn = e.target.closest('#msheet-qa-capture');
     if (btn) { showQC('inbox'); var sheet = document.getElementById('mobile-sheet'); if (sheet) sheet.classList.remove('open'); }
+    var notesBtn = e.target.closest('#msheet-qa-notes');
+    if (notesBtn) {
+      var sheet2 = document.getElementById('mobile-sheet'); if (sheet2) sheet2.classList.remove('open');
+      if (window._homerShowTab) window._homerShowTab('notes');
+    }
+    var briefBtn = e.target.closest('#msheet-qa-brief');
+    if (briefBtn) {
+      var sheet3 = document.getElementById('mobile-sheet'); if (sheet3) sheet3.classList.remove('open');
+      if (window._homerShowTab) window._homerShowTab('daily-brief');
+    }
   });
 
   // ── Init ──────────────────────────────────────────────────────────────

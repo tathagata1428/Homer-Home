@@ -173,6 +173,7 @@ export async function onRequest(context) {
     const fullBundle = !!(body && body.fullBundle);
     const taskSnapshot = Array.isArray((body || {}).tasks) ? body.tasks : [];
     const quoteMarkdown = typeof (body || {}).quoteMarkdown === 'string' ? String(body.quoteMarkdown || '').trim() : '';
+    const notesMarkdown = typeof (body || {}).notesMarkdown === 'string' ? String(body.notesMarkdown || '').trim() : '';
     const cleanupManaged = !!(body && body.cleanupManaged);
     const effectiveTasks = redisOnly ? [] : taskSnapshot;
 
@@ -270,6 +271,12 @@ export async function onRequest(context) {
         saveRedisJson(redisFetch, FILES_KEY, files),
         saveRedisJson(redisFetch, CUSTOM_FILES_KEY, nextCustomFiles)
       ]);
+    }
+
+    // If the client sent notes, persist them as Notes.md so all future backups include them
+    if (notesMarkdown) {
+      nextCustomFiles['Notes.md'] = notesMarkdown;
+      await saveRedisJson(redisFetch, CUSTOM_FILES_KEY, nextCustomFiles);
     }
 
     const syncMeta = computeJoeySyncMeta({

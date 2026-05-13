@@ -9025,7 +9025,8 @@ let tvWidgetCreated = false;
     // User data synced via enhancements merge — must be in backup too
     'homer-habits', 'homer-inbox',
     'homer-expenses', 'homer-income', 'homer-expense-goals',
-    'homer-expense-templates', 'homer-expense-budgets', 'homer-payday-day'
+    'homer-expense-templates', 'homer-expense-budgets', 'homer-payday-day',
+    'homer-notes', 'homer-recurring', 'homer-sessions', 'homer-weekly-reviews'
   ];
   var IDB_KEYS = ['homer-vault-salt', 'homer-vault-hash', 'homer-vault-data'];
   var ALL_KEYS = LS_KEYS.concat(IDB_KEYS);
@@ -9077,7 +9078,11 @@ let tvWidgetCreated = false;
     // homer-habits removed: handled exclusively by enhancements merge sync (he_homer-habits)
     // to prevent last-write-wins from fighting with union-merge semantics.
     'homer-zen-goal':           'ls:homer-zen-goal',
-    'homer-brain-dump':         'ls:homer-brain-dump'
+    'homer-brain-dump':         'ls:homer-brain-dump',
+    'homer-notes':              'ls:homer-notes',
+    'homer-recurring':          'ls:homer-recurring',
+    'homer-sessions':           'ls:homer-sessions',
+    'homer-weekly-reviews':     'ls:homer-weekly-reviews'
   };
   var LS_FIELD_MAP_REVERSE = {};
   Object.keys(LS_FIELD_MAP).forEach(function(k){ LS_FIELD_MAP_REVERSE[LS_FIELD_MAP[k]] = k; });
