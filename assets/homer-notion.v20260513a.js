@@ -1045,19 +1045,30 @@
     var sheet = document.getElementById('mobile-sheet');
     var content = document.getElementById('mobile-sheet-content');
     if (!sheet || !content) return;
-    var lockHandler = null;
+    var moveHandler = null, startHandler = null, startY = 0;
+
     function lock() {
-      if (lockHandler) return;
-      lockHandler = function (e) {
-        if (!content.contains(e.target)) e.preventDefault();
+      if (moveHandler) return;
+      startHandler = function (e) { startY = e.touches[0].clientY; };
+      moveHandler = function (e) {
+        var inContent = content.contains(e.target);
+        if (!inContent) { e.preventDefault(); return; }
+        // Block downward drag when content is already at the top —
+        // this is exactly what triggers Chrome's pull-to-refresh.
+        var goingDown = e.touches[0].clientY > startY;
+        if (goingDown && content.scrollTop <= 0) e.preventDefault();
       };
-      document.addEventListener('touchmove', lockHandler, { passive: false });
+      document.addEventListener('touchstart', startHandler, { passive: true });
+      document.addEventListener('touchmove',  moveHandler,  { passive: false });
     }
+
     function unlock() {
-      if (!lockHandler) return;
-      document.removeEventListener('touchmove', lockHandler, { passive: false });
-      lockHandler = null;
+      if (!moveHandler) return;
+      document.removeEventListener('touchstart', startHandler, { passive: true });
+      document.removeEventListener('touchmove',  moveHandler,  { passive: false });
+      moveHandler = startHandler = null;
     }
+
     new MutationObserver(function () {
       sheet.classList.contains('open') ? lock() : unlock();
     }).observe(sheet, { attributes: true, attributeFilter: ['class'] });
