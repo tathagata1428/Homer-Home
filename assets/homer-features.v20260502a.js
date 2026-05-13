@@ -672,14 +672,24 @@
       document.getElementById('homer-pomo-start').textContent = '▶ Start';
       if (!isBreak) {
         data.cycleCount++;
-        data.sessions.push({ ts: new Date().toISOString(), task: document.getElementById('homer-pomo-task').value, duration: total });
+        var taskDesc = document.getElementById('homer-pomo-task').value;
+        data.sessions.push({ ts: new Date().toISOString(), task: taskDesc, duration: total });
         data.sessions = data.sessions.slice(-200);
         save();
+        // Write to homer-sessions (auto-synced to Supabase for Bogdan via patched localStorage.setItem)
+        var newSesId = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+        try {
+          var sesArr = JSON.parse(localStorage.getItem('homer-sessions') || '[]');
+          sesArr.unshift({ id: newSesId, accomplished: '', notes: '', task: taskDesc, date: new Date().toISOString(), count: data.cycleCount, duration: 25 });
+          localStorage.setItem('homer-sessions', JSON.stringify(sesArr));
+        } catch (_) {}
         var longBreak = data.cycleCount % 4 === 0;
         isBreak = true; total = remaining = longBreak ? LONG_BREAK : SHORT_BREAK;
         remainingAtStart = remaining;
         window._homerToast({ message: longBreak ? '🎉 Long break! 15 min' : '✅ Break time! 5 min', type: 'success', duration: 6000 });
         try { if (Notification.permission === 'granted') new Notification('🍅 Pomodoro', { body: 'Time for a break!' }); } catch (_) {}
+        // Trigger post-session notes modal (homer-notion.js listens)
+        window.dispatchEvent(new CustomEvent('homer:pom-complete', { detail: { phase: 'focus', count: data.cycleCount, sessionId: newSesId } }));
       } else {
         isBreak = false; total = remaining = WORK;
         remainingAtStart = remaining;

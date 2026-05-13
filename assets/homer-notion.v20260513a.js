@@ -112,12 +112,18 @@
   .cat-delta.up{color:#f87171;}.cat-delta.down{color:#34d399;}
   .cat-bar-bg{width:100%;height:4px;background:rgba(255,255,255,.07);border-radius:3px;margin-bottom:6px;}
   .cat-bar-fg{height:100%;border-radius:3px;transition:width .4s;}
-  .budget-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-  .budget-lbl{width:110px;font-size:.72rem;color:var(--muted);font-weight:700;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .budget-track{flex:1;height:7px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;}
-  .budget-fill{height:100%;border-radius:4px;transition:width .4s;}
-  .budget-info{font-size:.68rem;color:var(--muted);width:80px;text-align:right;flex-shrink:0;}
-  .budget-info.warn{color:#fbbf24;}.budget-info.over{color:#f87171;}
+  .bud-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-top:4px;}
+  .bud-card{border-radius:14px;border:1px solid rgba(255,255,255,.08);padding:12px;display:flex;align-items:center;gap:10px;}
+  .bud-ring-wrap{position:relative;flex-shrink:0;}
+  .bud-ring-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:900;}
+  .bud-info{flex:1;min-width:0;}
+  .bud-cat-name{font-size:.8rem;font-weight:700;color:var(--text);margin-bottom:3px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+  .bud-spent{font-size:1.25rem;font-weight:900;line-height:1.1;}
+  .bud-of{font-size:.68rem;color:var(--muted);margin-top:1px;}
+  .bud-status{font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:4px;text-transform:uppercase;}
+  .bud-status.ok{background:rgba(52,211,153,.15);color:#34d399;}
+  .bud-status.warn{background:rgba(251,191,36,.15);color:#fbbf24;}
+  .bud-status.over{background:rgba(248,113,113,.15);color:#f87171;}
   .day-row{display:flex;gap:5px;margin-top:6px;}
   .day-cell{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
   .day-dot{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:var(--muted);}
@@ -456,7 +462,7 @@
     var prevAvgRate = habits.length ? Math.round(habits.reduce(function (s, h) { return s + calcCompletionRate(h, completions, anRange * 2); }, 0) / habits.length) : 0;
     var habitDelta = prevAvgRate ? (avgHabitRate - prevAvgRate) : 0;
     var bestStreak = habits.reduce(function (m, h) { return Math.max(m, calcStreak(h, completions)); }, 0);
-    var totalFocusMin = rangeSessions.length * 25;
+    var totalFocusMin = rangeSessions.reduce(function (s, sess) { return s + (sess.duration || 25); }, 0);
     var focusHrs = Math.floor(totalFocusMin / 60), focusMinsRem = totalFocusMin % 60;
     var focusLabel = totalFocusMin >= 60 ? focusHrs + 'h ' + (focusMinsRem ? focusMinsRem + 'm' : '') : totalFocusMin + 'm';
 
@@ -582,24 +588,44 @@
         }).join('')
       : '<p style="color:var(--muted);font-size:.84rem;">No expenses this month.</p>';
 
-    // ─── Budget progress ──────────────────────────────────────────────
+    // ─── Budget cards ─────────────────────────────────────────────────
     var curMonthTotal = expenses.filter(function (e) { return (e.date || '').slice(0, 7) === curMoKey; }).reduce(function (s, e) { return s + parseFloat(e.amount || 0); }, 0);
-    // Show only categories that have a budget or have spending
     var budgetCatSet = {};
-    Object.keys(budgets).forEach(function (k) { budgetCatSet[k] = true; });
+    Object.keys(budgets).forEach(function (k) { if (budgets[k]) budgetCatSet[k] = true; });
     Object.keys(curMoCats).forEach(function (k) { budgetCatSet[k] = true; });
     var budgetCats = Object.keys(budgetCatSet).sort();
-    var budgetHtml = '<p class="an-card-sub">Track spending vs your monthly budget. Yellow = &gt;80%, red = over budget.</p>' +
+    var BUD_CIRC = 2 * Math.PI * 26; // r=26
+    var budgetHtml = '<p class="an-card-sub">Spending vs monthly budget. <span style="color:#34d399">Green</span> = on track · <span style="color:#fbbf24">Yellow</span> = &gt;80% · <span style="color:#f87171">Red</span> = over budget.</p>' +
+      '<div class="bud-grid">' +
       budgetCats.map(function (cat) {
         var spent = (curMoCats[cat] || 0), budget = budgets[cat] || 0;
         if (!budget && !spent) return '';
-        var budgetDisplay = budget || Math.round(spent * 1.2);
-        var pct = Math.min(Math.round((spent / budgetDisplay) * 100), 100);
+        var pctRaw = budget ? (spent / budget) : 1;
+        var pctCapped = Math.min(pctRaw, 1);
+        var pctDisp = Math.round(pctRaw * 100);
         var over = budget && spent > budget, warn = budget && spent > budget * 0.8;
-        var fill = over ? '#f87171' : (warn ? '#fbbf24' : '#34d399');
+        var ringColor = over ? '#f87171' : (warn ? '#fbbf24' : '#34d399');
+        var bgColor = over ? 'rgba(248,113,113,.07)' : (warn ? 'rgba(251,191,36,.07)' : 'rgba(52,211,153,.04)');
+        var dashOffset = BUD_CIRC * (1 - pctCapped);
+        var remaining = budget ? Math.round(budget - spent) : 0;
+        var statusLbl = over ? '<span class="bud-status over">Over!</span>' : (warn ? '<span class="bud-status warn">Caution</span>' : (budget ? '<span class="bud-status ok">On track</span>' : ''));
         var emoji = EXP_CAT_EMOJI[cat] || '📦';
-        return '<div class="budget-row"><div class="budget-lbl">' + emoji + ' ' + esc(cat) + '</div><div class="budget-track"><div class="budget-fill" style="width:' + pct + '%;background:' + fill + ';"></div></div><div class="budget-info ' + (over ? 'over' : (warn ? 'warn' : '')) + '">' + Math.round(spent) + (budget ? ' / ' + budget : '') + '</div></div>';
-      }).join('');
+        return '<div class="bud-card" style="background:' + bgColor + ';border-color:' + ringColor + '22;">' +
+          '<div class="bud-ring-wrap">' +
+            '<svg width="60" height="60" viewBox="0 0 60 60">' +
+              '<circle cx="30" cy="30" r="26" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="5"/>' +
+              '<circle cx="30" cy="30" r="26" fill="none" stroke="' + ringColor + '" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + BUD_CIRC.toFixed(1) + '" stroke-dashoffset="' + dashOffset.toFixed(1) + '" transform="rotate(-90 30 30)"/>' +
+            '</svg>' +
+            '<div class="bud-ring-pct" style="color:' + ringColor + '">' + pctDisp + '%</div>' +
+          '</div>' +
+          '<div class="bud-info">' +
+            '<div class="bud-cat-name">' + emoji + ' ' + esc(cat) + statusLbl + '</div>' +
+            '<div class="bud-spent" style="color:' + ringColor + '">' + Math.round(spent) + '</div>' +
+            (budget ? '<div class="bud-of">of ' + budget + (remaining > 0 ? ' · <span style="color:#34d399">' + remaining + ' left</span>' : '') + '</div>' : '<div class="bud-of">no budget set</div>') +
+          '</div>' +
+        '</div>';
+      }).join('') +
+      '</div>';
 
     // ─── Energy trend (weekly reviews) ───────────────────────────────
     var recentReviews = reviews.slice(0, 8).reverse();
@@ -630,7 +656,7 @@
         '<div class="an-card"><h4>Weekly Energy Trend</h4>' + energyHtml + '</div>' +
         '<div class="an-card"><h4>Monthly Spend</h4>' + barHtml + '</div>' +
         '<div class="an-card"><h4>This Month by Category</h4>' + catHtml + '</div>' +
-        '<div class="an-card an-card-full"><h4>Budget Progress <span style="font-weight:400;opacity:.6">' + curMoKey + ' &mdash; Total: ' + Math.round(curMonthTotal) + '</span></h4>' + budgetHtml + '</div>' +
+        '<div class="an-card an-card-full"><h4>Monthly Budget <span style="font-weight:400;opacity:.6">' + curMoKey + ' &mdash; Total spent: ' + Math.round(curMonthTotal) + '</span></h4>' + budgetHtml + '</div>' +
       '</div>';
 
     tab.querySelectorAll('.an-range-btn').forEach(function (btn) {
@@ -1080,10 +1106,16 @@
   function hideSN() { if (snEl) snEl.style.display = 'none'; }
   function saveSN() {
     var acc = (snEl.querySelector('#sn-acc').value || '').trim(), notes = (snEl.querySelector('#sn-notes-ta').value || '').trim();
-    if (acc || notes) { var sessions = ls('homer-sessions') || []; sessions.unshift({ id: uid(), accomplished: acc, notes: notes, date: new Date().toISOString(), count: (snData || {}).count }); lss('homer-sessions', sessions); }
+    if (acc || notes) {
+      var sessions = ls('homer-sessions') || [];
+      var sid = (snData || {}).sessionId, found = false;
+      if (sid) { for (var i = 0; i < sessions.length; i++) { if (sessions[i].id === sid) { sessions[i].accomplished = acc; sessions[i].notes = notes; found = true; break; } } }
+      if (!found) sessions.unshift({ id: uid(), accomplished: acc, notes: notes, date: new Date().toISOString(), count: (snData || {}).count });
+      lss('homer-sessions', sessions);
+    }
     hideSN(); syncCtx();
   }
-  window.addEventListener('homer:pom-complete', function (e) { var d = (e && e.detail) || {}; if (d.phase === 'focus') setTimeout(function () { showSN({ count: d.count }); }, 600); });
+  window.addEventListener('homer:pom-complete', function (e) { var d = (e && e.detail) || {}; if (d.phase === 'focus') setTimeout(function () { showSN({ count: d.count, sessionId: d.sessionId }); }, 600); });
 
   // ── Weekly Review Modal ───────────────────────────────────────────────
   var wrEl = null, wrEnergy = 3;
