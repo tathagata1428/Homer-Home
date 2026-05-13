@@ -105,6 +105,67 @@
     setTimeout(function () { t.style.opacity = '0'; setTimeout(function () { t.remove(); }, 300); }, 2200);
   }
 
+  // Habits data: {habits:[], completions:{'id:date': count}}
+  function getHabitsData() {
+    var d = ls('homer-habits') || {};
+    return {
+      habits: Array.isArray(d.habits) ? d.habits : (Array.isArray(d) ? d : []),
+      completions: (d && !Array.isArray(d) && d.completions) ? d.completions : {}
+    };
+  }
+  function calcStreak(habit, completions) {
+    var d = new Date(), streak = 0, target = (habit.target && habit.target > 1) ? habit.target : 1;
+    for (var i = 0; i < 366; i++) {
+      var k = d.toISOString().slice(0, 10);
+      var v = completions[habit.id + ':' + k];
+      var count = (v === true) ? 1 : (Number(v) || 0);
+      if (count >= target) { streak++; d.setDate(d.getDate() - 1); }
+      else break;
+    }
+    return streak;
+  }
+
+  // ── Tab System Patch ──────────────────────────────────────────────────
+  // app-shell snapshots tab buttons at load time; we must patch _homerShowTab
+  // so our dynamically-added sections are shown/hidden correctly.
+  var MY_TABS = ['notes', 'analytics', 'recurring'];
+
+  function patchTabSystem() {
+    var orig = window._homerShowTab;
+    if (!orig || orig._hn) return;
+
+    function patched(name) {
+      // Hide our sections (orig will hide its own known set)
+      MY_TABS.forEach(function (tab) {
+        var el = document.getElementById('tab-' + tab);
+        if (el) el.style.display = 'none';
+      });
+      // Call original (hides its sections, fires homer-tab-change)
+      orig(name);
+      // If it's one of ours, show it
+      if (MY_TABS.indexOf(name) !== -1) {
+        var el = document.getElementById('tab-' + name);
+        if (el) el.style.display = 'block';
+      }
+      // Sync active state on ALL data-tab elements (app-shell only syncs its snapshot)
+      document.querySelectorAll('[data-tab]').forEach(function (b) {
+        b.classList.toggle('active', b.dataset.tab === name);
+      });
+    }
+    patched._hn = true;
+    window._homerShowTab = patched;
+
+    // Wire click listeners on our new tab/sidebar buttons
+    MY_TABS.forEach(function (tab) {
+      document.querySelectorAll('[data-tab="' + tab + '"]').forEach(function (btn) {
+        if (!btn._hnWired) {
+          btn._hnWired = true;
+          btn.addEventListener('click', function () { patched(tab); });
+        }
+      });
+    });
+  }
+
   // ── Quick Capture ─────────────────────────────────────────────────────
   var qcEl = null, qcType = 'inbox';
   function buildQC() {
@@ -287,42 +348,49 @@
   }
 
   // ── Analytics ─────────────────────────────────────────────────────────
-  function calcStreak(habit) {
-    if (!habit || !habit.logs) return 0;
-    var streak = 0, d = new Date();
-    while (streak < 366) { var k = d.toISOString().slice(0, 10); if (habit.logs[k]) { streak++; d.setDate(d.getDate() - 1); } else break; }
-    return streak;
-  }
   function initAnalyticsTab() {
     var tab = document.getElementById('tab-analytics');
     if (!tab) return;
-    var habits = ls('homer-habits') || [];
-    var expenses = ls('homer-expenses') || [];
+
+    // Habits: stored as {habits:[], completions:{'id:date':count}}
+    var hd = getHabitsData();
+    var habits = hd.habits, completions = hd.completions;
 
     // Streaks
     var streakHtml = habits.length
       ? '<div class="streak-row">' + habits.map(function (h) {
-          return '<div class="streak-badge"><div class="streak-num">' + calcStreak(h) + '</div><div class="streak-lbl">' + esc(h.name || 'Habit') + '</div></div>';
+          return '<div class="streak-badge"><div class="streak-num">' + calcStreak(h, completions) + '</div><div class="streak-lbl">' + esc(h.name || 'Habit') + '</div></div>';
         }).join('') + '</div>'
       : '<p style="color:var(--muted);font-size:.84rem;">No habits tracked yet.</p>';
 
-    // Heatmap (16 weeks)
+    // Heatmap (16 weeks = 112 days)
     var today = new Date(), days = [];
     for (var i = 111; i >= 0; i--) { var dd = new Date(today); dd.setDate(dd.getDate() - i); days.push(dd.toISOString().slice(0, 10)); }
-    var counts = {}; days.forEach(function (d2) { counts[d2] = 0; });
-    habits.forEach(function (h) { if (h.logs) Object.keys(h.logs).forEach(function (d2) { if (h.logs[d2] && counts[d2] !== undefined) counts[d2]++; }); });
+    var dayCounts = {}; days.forEach(function (d2) { dayCounts[d2] = 0; });
+    // Count completions per day: completions key = 'habitId:YYYY-MM-DD'
+    Object.keys(completions).forEach(function (key) {
+      var parts = key.split(':');
+      // key format is 'id:date' where date is YYYY-MM-DD (contains hyphens)
+      // id is everything before the last 10 chars + separator
+      var date = key.slice(-10); // last 10 chars = YYYY-MM-DD
+      var v = completions[key];
+      var count = (v === true) ? 1 : (Number(v) || 0);
+      if (count > 0 && dayCounts[date] !== undefined) dayCounts[date]++;
+    });
     var maxC = habits.length || 1;
     var hmHtml = '<div class="hm-grid">';
     for (var w = 0; w < 16; w++) {
       hmHtml += '<div class="hm-col">';
-      for (var wd = 0; wd < 7; wd++) { var day = days[w * 7 + wd]; var c = day ? (counts[day] || 0) : 0; var v = c === 0 ? 0 : Math.ceil((c / maxC) * 4); hmHtml += '<div class="hm-cell" data-v="' + v + '" title="' + (day || '') + ': ' + c + '"></div>'; }
+      for (var wd = 0; wd < 7; wd++) { var day = days[w * 7 + wd]; var c = day ? (dayCounts[day] || 0) : 0; var v = c === 0 ? 0 : Math.min(Math.ceil((c / maxC) * 4), 4); hmHtml += '<div class="hm-cell" data-v="' + v + '" title="' + (day || '') + ': ' + c + ' habits"></div>'; }
       hmHtml += '</div>';
     }
     hmHtml += '</div><div style="display:flex;align-items:center;gap:4px;margin-top:7px;font-size:.68rem;color:var(--muted);">Less ';
     for (var vi = 0; vi <= 4; vi++) hmHtml += '<div class="hm-cell" data-v="' + vi + '" style="width:10px;height:10px;"></div>';
     hmHtml += ' More</div>';
 
-    // Expense bar (6 months)
+    // Expense bar (6 months) — stored as [{id,desc,amount,cat,date}]
+    var expenses = ls('homer-expenses') || [];
+    if (!Array.isArray(expenses)) expenses = [];
     var months = [];
     var now2 = new Date();
     for (var mi = 5; mi >= 0; mi--) { var md = new Date(now2.getFullYear(), now2.getMonth() - mi, 1); months.push({ key: md.getFullYear() + '-' + String(md.getMonth() + 1).padStart(2, '0'), lbl: md.toLocaleDateString(undefined, { month: 'short' }), total: 0 }); }
@@ -333,9 +401,9 @@
       return '<div class="bar-col"><div class="bar-val">' + (m.total > 0 ? Math.round(m.total) : '') + '</div><div class="bar-fill" style="height:' + Math.max(pct, 4) + 'px;"></div><div class="bar-lbl">' + m.lbl + '</div></div>';
     }).join('') + '</div>';
 
-    // Categories
+    // Categories — field is 'cat' not 'category'
     var cats = {};
-    expenses.forEach(function (e) { var c = e.category || 'Other'; cats[c] = (cats[c] || 0) + parseFloat(e.amount || 0); });
+    expenses.forEach(function (e) { var c = e.cat || e.category || 'other'; cats[c] = (cats[c] || 0) + parseFloat(e.amount || 0); });
     var catEntries = Object.keys(cats).map(function (k) { return [k, cats[k]]; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 8);
     var catTotal = catEntries.reduce(function (s, e) { return s + e[1]; }, 0) || 1;
     var colors = ['#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#f87171', '#818cf8', '#f472b6', '#4ade80'];
@@ -363,11 +431,12 @@
   function setRT(a) { lss(RTKEY, a); }
   function checkRecurring() {
     var tasks = getRT(), t = todayStr(), inbox = ls('homer-inbox') || [], changed = false;
+    if (!Array.isArray(inbox)) inbox = [];
     tasks.forEach(function (task) {
       if (!task.enabled) return;
       var fire = false;
       if (task.freq === 'daily') fire = task.lastFired !== t;
-      else if (task.freq === 'weekly') { var lf = task.lastFired ? new Date(task.lastFired) : null; fire = !lf || Math.floor((Date.now() - lf) / 86400000) >= 7; }
+      else if (task.freq === 'weekly') { var lf = task.lastFired ? new Date(task.lastFired) : null; fire = !lf || Math.floor((Date.now() - lf.getTime()) / 86400000) >= 7; }
       else if (task.freq === 'monthly') { var lf2 = task.lastFired ? new Date(task.lastFired) : null; var now3 = new Date(); fire = !lf2 || (now3.getMonth() !== lf2.getMonth() || now3.getFullYear() !== lf2.getFullYear()); }
       if (fire) { inbox.unshift({ id: uid(), text: '[Recurring] ' + task.title, date: new Date().toISOString(), done: false }); task.lastFired = t; changed = true; }
     });
@@ -387,7 +456,7 @@
         '</select>' +
         '<button id="rt-add" class="btn primary">Add</button>' +
       '</div>' +
-      '<div id="rt-list">' + (tasks.length ? '' : '<p class="muted" style="font-size:.86rem;">No recurring tasks yet.</p>') + '</div>';
+      '<div id="rt-list">' + (!tasks.length ? '<p class="muted" style="font-size:.86rem;">No recurring tasks yet.</p>' : '') + '</div>';
 
     var listEl = document.getElementById('rt-list');
     tasks.forEach(function (task) {
@@ -396,15 +465,15 @@
       el.innerHTML =
         '<input type="checkbox" style="accent-color:#60a5fa;width:15px;height:15px;cursor:pointer;" ' + (task.enabled ? 'checked' : '') + '>' +
         '<div class="rt-info"><div class="rt-title">' + esc(task.title) + '</div><div class="rt-meta">Last: ' + (task.lastFired ? fmtDate(task.lastFired) : 'Never') + '</div></div>' +
-        '<span class="rt-freq ' + task.freq + '">' + task.freq + '</span>' +
+        '<span class="rt-freq ' + esc(task.freq) + '">' + esc(task.freq) + '</span>' +
         '<button class="notes-tb-btn danger" style="padding:4px 8px;">&#x2715;</button>';
-      el.querySelector('input').onchange = function (e) { var arr = getRT(); var x = arr.find(function (x) { return x.id === task.id; }); if (x) { x.enabled = e.target.checked; setRT(arr); } };
+      el.querySelector('input[type=checkbox]').onchange = function (e) { var arr = getRT(); var x = arr.find(function (x) { return x.id === task.id; }); if (x) { x.enabled = e.target.checked; setRT(arr); } };
       el.querySelector('.danger').onclick = function () { if (!confirm('Delete?')) return; setRT(getRT().filter(function (x) { return x.id !== task.id; })); initRecurringTab(); };
       listEl.appendChild(el);
     });
 
     document.getElementById('rt-add').onclick = function () {
-      var title = document.getElementById('rt-title').value.trim();
+      var title = (document.getElementById('rt-title').value || '').trim();
       if (!title) return;
       var arr = getRT();
       arr.push({ id: uid(), title: title, freq: document.getElementById('rt-freq').value, enabled: true, lastFired: null, created: new Date().toISOString() });
@@ -504,7 +573,7 @@
     lss('homer-weekly-reviews', revs);
     hideWR();
     toast('Weekly review saved as a note');
-    window.dispatchEvent(new CustomEvent('homer-tab-change', { detail: { tab: 'notes' } }));
+    if (window._homerShowTab) window._homerShowTab('notes');
     syncCtx();
   }
 
@@ -541,11 +610,13 @@
     if (q.length < 2) { res.innerHTML = '<p style="text-align:center;color:var(--muted);padding:28px 0;font-size:.88rem;">Type at least 2 chars&hellip;</p>'; return; }
     var results = [];
     var colors = { Note: '#60a5fa', Inbox: '#34d399', Task: '#fbbf24', Expense: '#f87171', Habit: '#a78bfa' };
-    getNotes().forEach(function (n) { if ((n.title + ' ' + n.content).toLowerCase().includes(q)) results.push({ type: 'Note', title: n.title, snip: (n.content || '').slice(0, 80), act: function () { window.dispatchEvent(new CustomEvent('homer-tab-change', { detail: { tab: 'notes' } })); setTimeout(function () { openNote(n.id); }, 150); hideSB(); } }); });
-    (ls('homer-inbox') || []).forEach(function (item) { if ((item.text + ' ' + (item.note || '')).toLowerCase().includes(q)) results.push({ type: 'Inbox', title: item.text, snip: item.note || '', act: hideSB }); });
-    (ls('homer-task-list') || []).forEach(function (t) { if ((t.text || '').toLowerCase().includes(q)) results.push({ type: 'Task', title: t.text, snip: t.done ? 'Completed' : 'Open', act: hideSB }); });
-    (ls('homer-expenses') || []).forEach(function (e) { var desc = e.desc || e.description || ''; if ((desc + ' ' + (e.category || '')).toLowerCase().includes(q)) results.push({ type: 'Expense', title: desc || 'Expense', snip: (e.category || '') + ' · ' + (e.amount || ''), act: hideSB }); });
-    (ls('homer-habits') || []).forEach(function (h) { if ((h.name || '').toLowerCase().includes(q)) results.push({ type: 'Habit', title: h.name, snip: 'Streak: ' + calcStreak(h), act: hideSB }); });
+    getNotes().forEach(function (n) { if ((n.title + ' ' + n.content).toLowerCase().includes(q)) results.push({ type: 'Note', title: n.title, snip: (n.content || '').slice(0, 80), act: function () { if (window._homerShowTab) window._homerShowTab('notes'); setTimeout(function () { openNote(n.id); }, 150); hideSB(); } }); });
+    (ls('homer-inbox') || []).forEach(function (item) { if (item && (item.text + ' ' + (item.note || '')).toLowerCase().includes(q)) results.push({ type: 'Inbox', title: item.text, snip: item.note || '', act: hideSB }); });
+    (ls('homer-task-list') || []).forEach(function (t) { if (t && (t.text || '').toLowerCase().includes(q)) results.push({ type: 'Task', title: t.text, snip: t.done ? 'Completed' : 'Open', act: hideSB }); });
+    // Expenses: field is 'desc' and 'cat'
+    (ls('homer-expenses') || []).forEach(function (e) { if (!e) return; var desc = e.desc || e.description || ''; var cat = e.cat || e.category || ''; if ((desc + ' ' + cat).toLowerCase().includes(q)) results.push({ type: 'Expense', title: desc || 'Expense', snip: cat + (e.amount ? ' · ' + e.amount : ''), act: hideSB }); });
+    var hd = getHabitsData();
+    hd.habits.forEach(function (h) { if ((h.name || '').toLowerCase().includes(q)) results.push({ type: 'Habit', title: h.name, snip: 'Streak: ' + calcStreak(h, hd.completions), act: hideSB }); });
     if (!results.length) { res.innerHTML = '<p style="text-align:center;color:var(--muted);padding:28px 0;font-size:.88rem;">No results for &ldquo;' + esc(q) + '&rdquo;</p>'; return; }
     var html = results.slice(0, 20).map(function (r, i) {
       return '<div class="sb-result" data-i="' + i + '"><div class="sb-result-type" style="color:' + (colors[r.type] || 'var(--muted)') + ';">' + r.type + '</div><div class="sb-result-title">' + esc(r.title || '') + '</div>' + (r.snip ? '<div class="sb-result-snip">' + esc(r.snip) + '</div>' : '') + '</div>';
@@ -576,27 +647,26 @@
     var shell = document.querySelector('.shell');
     if (!shell) return;
     var defs = [
-      { id: 'tab-notes', label: '&#128221; Notes', sbLabel: 'Notes', sbIcon: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' },
-      { id: 'tab-analytics', label: '&#128200; Analytics', sbLabel: 'Analytics', sbIcon: '<svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
-      { id: 'tab-recurring', label: '&#128260; Recurring', sbLabel: 'Recurring', sbIcon: '<svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>' }
+      { tab: 'notes',     label: '&#128221; Notes',     sbLabel: 'Notes',     sbIcon: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' },
+      { tab: 'analytics', label: '&#128200; Analytics', sbLabel: 'Analytics', sbIcon: '<svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
+      { tab: 'recurring', label: '&#128260; Recurring', sbLabel: 'Recurring', sbIcon: '<svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>' }
     ];
     var tabsBar = document.querySelector('.tabs');
     var sidebar = document.getElementById('desktop-sidebar');
     var spacer = sidebar && sidebar.querySelector('.sb-spacer');
 
     defs.forEach(function (def) {
-      var tab = def.id.replace('tab-', '');
-      if (!document.getElementById(def.id)) {
+      if (!document.getElementById('tab-' + def.tab)) {
         var s = document.createElement('section');
-        s.id = def.id; s.className = 'tab card'; s.style.display = 'none';
+        s.id = 'tab-' + def.tab; s.className = 'tab card'; s.style.display = 'none';
         shell.appendChild(s);
       }
-      if (tabsBar && !tabsBar.querySelector('[data-tab="' + tab + '"]')) {
-        var b = document.createElement('button'); b.className = 'tab-btn'; b.dataset.tab = tab; b.innerHTML = def.label;
+      if (tabsBar && !tabsBar.querySelector('[data-tab="' + def.tab + '"]')) {
+        var b = document.createElement('button'); b.className = 'tab-btn'; b.dataset.tab = def.tab; b.innerHTML = def.label;
         tabsBar.appendChild(b);
       }
-      if (sidebar && spacer && !sidebar.querySelector('[data-tab="' + tab + '"]')) {
-        var sb = document.createElement('button'); sb.className = 'sb-item'; sb.dataset.tab = tab;
+      if (sidebar && spacer && !sidebar.querySelector('[data-tab="' + def.tab + '"]')) {
+        var sb = document.createElement('button'); sb.className = 'sb-item'; sb.dataset.tab = def.tab;
         sb.innerHTML = def.sbIcon + '<span class="sb-label">' + def.sbLabel + '</span>';
         sidebar.insertBefore(sb, spacer);
       }
@@ -621,7 +691,7 @@
   // ── Wire mobile capture button ────────────────────────────────────────
   document.addEventListener('click', function (e) {
     var btn = e.target.closest('#msheet-qa-capture');
-    if (btn) { showQC('inbox'); document.getElementById('mobile-sheet') && (document.getElementById('mobile-sheet').classList.remove('open')); }
+    if (btn) { showQC('inbox'); var sheet = document.getElementById('mobile-sheet'); if (sheet) sheet.classList.remove('open'); }
   });
 
   // ── Init ──────────────────────────────────────────────────────────────
@@ -629,11 +699,8 @@
     addTabSections();
     checkRecurring();
     syncCtx();
-    // Forward new tab button clicks into onTab
-    document.addEventListener('click', function (e) {
-      var btn = e.target.closest('[data-tab]');
-      if (btn) onTab(btn.dataset.tab);
-    });
+    // Patch the tab system after app-shell has exposed _homerShowTab
+    setTimeout(patchTabSystem, 300);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
