@@ -2672,6 +2672,7 @@
         border-radius:30px 30px 0 0;
         padding:14px 16px max(env(safe-area-inset-bottom,14px),14px);
         overflow-y:auto;
+        overscroll-behavior-y:contain; /* prevent pull-to-refresh bleeding through */
         /* Spring open with slight overshoot */
         animation:sheetUp .4s cubic-bezier(0.34,1.25,0.64,1);
         box-shadow:0 -30px 80px rgba(0,0,0,.6), 0 -1px 0 rgba(255,255,255,.07) inset;
