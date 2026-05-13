@@ -18026,24 +18026,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
   });
 
-  // Swipe down to close — handle only.
-  // Attaching to the full content caused false triggers: any scroll that
-  // reached scrollTop=0 mid-gesture would satisfy the close condition.
-  // Limiting to the drag handle (iOS standard) means the list scrolls freely
-  // and only a deliberate handle-drag dismisses the sheet.
-  var handle = sheetContent.querySelector('.msheet-handle');
-  if(handle){
-    var startY = 0;
-    handle.addEventListener('touchstart', function(e){
-      startY = e.touches[0].clientY;
-    }, {passive:true});
-    handle.addEventListener('touchmove', function(e){
-      if(e.touches[0].clientY - startY > 48){
-        sheet.classList.remove('open');
-        syncActive(document.body.dataset.activeTab || 'home', isJoeyOpen());
-      }
-    }, {passive:true});
-  }
+  // Swipe-to-close removed — the handle is at the top of the sheet so any
+  // downward scroll starting there triggered close. Close via backdrop tap.
 
   // Block page scroll bleed-through.
   // Non-passive so we can call preventDefault(). For touches on the backdrop
