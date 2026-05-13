@@ -114,38 +114,63 @@
   .energy-bar{width:100%;border-radius:3px 3px 0 0;min-height:3px;}
   .energy-lbl{font-size:.6rem;color:var(--muted);}
 
-  /* Recurring Tasks */
-  .rt-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
-  .rt-add-form{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px;margin-bottom:18px;}
-  .rt-add-form h4{margin:0 0 12px;font-size:.88rem;font-weight:800;}
+  /* Recurring Tasks — Kanban Board */
+  .rt-kb-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+  .rt-kb-actions{display:flex;gap:7px;align-items:center;}
+  .rt-kb-btn{padding:7px 14px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--muted);cursor:pointer;font-size:.78rem;font-weight:700;transition:all .14s;font-family:inherit;}
+  .rt-kb-btn:hover{background:rgba(96,165,250,.1);color:#60a5fa;border-color:rgba(96,165,250,.3);}
+  .rt-kb-btn.primary{background:rgba(96,165,250,.18);border-color:#60a5fa;color:#60a5fa;}
+  .rt-kb-btn.primary:hover{background:rgba(96,165,250,.28);}
+  .rt-settings-panel{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+  .rt-pause-all{padding:6px 13px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:none;color:var(--muted);cursor:pointer;font-size:.78rem;font-weight:700;transition:all .15s;font-family:inherit;}
+  .rt-pause-all:hover{background:rgba(251,191,36,.1);color:#fbbf24;border-color:rgba(251,191,36,.3);}
+  .rt-kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start;}
+  @media(max-width:860px){.rt-kanban{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:480px){.rt-kanban{grid-template-columns:1fr;}}
+  .rt-col{background:rgba(255,255,255,.022);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:12px;min-height:160px;transition:background .15s,border-color .15s;}
+  .rt-col.drag-target{background:rgba(96,165,250,.07);border-color:rgba(96,165,250,.35);}
+  .rt-col-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .rt-col-title{display:flex;align-items:center;gap:6px;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;}
+  .rt-col-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .rt-col-count{font-size:.68rem;font-weight:700;background:rgba(255,255,255,.07);border-radius:999px;padding:2px 8px;color:var(--muted);}
+  .rt-card{background:linear-gradient(145deg,rgba(30,41,59,.82),rgba(15,23,42,.72));border:1px solid rgba(148,163,184,.1);border-radius:12px;padding:11px 12px;margin-bottom:7px;cursor:grab;transition:transform .12s,box-shadow .12s,opacity .15s;user-select:none;}
+  .rt-card:last-of-type{margin-bottom:0;}
+  .rt-card.dragging{opacity:.35;transform:scale(.96);}
+  .rt-card.drag-over{border-color:rgba(96,165,250,.5);box-shadow:0 0 0 1px rgba(96,165,250,.3);}
+  .rt-card.paused-card{opacity:.52;}
+  .rt-card-title{font-size:.84rem;font-weight:700;color:var(--text);margin-bottom:7px;line-height:1.35;}
+  .rt-card-badges{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;}
+  .rt-card-due{font-size:.69rem;color:var(--muted);margin-bottom:6px;}
+  .rt-card-due-today{color:#34d399;font-weight:700;}
+  .rt-card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:7px;border-top:1px solid rgba(255,255,255,.055);}
+  .rt-card-actions{display:flex;gap:4px;}
+  .rt-card-btn{font-size:.62rem;padding:3px 8px;border-radius:6px;border:1px solid rgba(148,163,184,.18);background:rgba(255,255,255,.04);color:var(--muted);cursor:pointer;transition:all .12s;font-family:inherit;}
+  .rt-card-btn:hover{background:rgba(96,165,250,.14);color:#60a5fa;border-color:rgba(96,165,250,.35);}
+  .rt-card-btn.danger:hover{background:rgba(248,113,113,.14);color:#f87171;border-color:rgba(248,113,113,.35);}
+  .rt-card-fires{font-size:.63rem;color:var(--muted);}
+  .rt-card-status-sel{font-size:.62rem;padding:3px 6px;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:rgba(20,30,50,.8);color:var(--text);cursor:pointer;font-family:inherit;}
+  .rt-col-add{width:100%;margin-top:8px;padding:7px;border-radius:9px;border:1px dashed rgba(148,163,184,.18);background:transparent;color:var(--muted);cursor:pointer;font-size:.75rem;transition:all .14s;font-family:inherit;}
+  .rt-col-add:hover{background:rgba(96,165,250,.07);color:#60a5fa;border-color:rgba(96,165,250,.28);}
+  .rt-col-empty{text-align:center;padding:18px 0;color:var(--muted);font-size:.78rem;opacity:.55;}
+  /* Add modal */
+  #rt-modal-bg{display:none;position:fixed;inset:0;z-index:10500;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);align-items:center;justify-content:center;}
+  #rt-modal-bg.open{display:flex;}
+  #rt-modal{background:linear-gradient(160deg,#0f1729,#020617);border:1px solid rgba(255,255,255,.16);border-radius:20px;padding:24px;width:min(540px,94vw);max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(2,6,23,.7);}
+  #rt-modal h3{margin:0 0 16px;font-size:1rem;font-weight:800;}
   .rt-form-row{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:10px;}
   .rt-form-row>*{flex:1;min-width:120px;}
   .rt-templates{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
-  .rt-tpl-btn{padding:5px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:none;color:var(--muted);cursor:pointer;font-size:.75rem;font-weight:700;transition:all .15s;white-space:nowrap;}
+  .rt-tpl-btn{padding:5px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:none;color:var(--muted);cursor:pointer;font-size:.75rem;font-weight:700;transition:all .15s;white-space:nowrap;font-family:inherit;}
   .rt-tpl-btn:hover{background:rgba(255,255,255,.07);color:var(--text);}
-  .rt-item{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);margin-bottom:8px;transition:border-color .15s;}
-  .rt-item.paused-item{opacity:.5;}
-  .rt-item-body{flex:1;min-width:0;}
-  .rt-item-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-  .rt-item-title{font-size:.9rem;font-weight:700;color:var(--text);}
-  .rt-item-meta{font-size:.72rem;color:var(--muted);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;}
-  .rt-item-actions{display:flex;gap:5px;flex-shrink:0;align-items:center;}
-  .rt-freq{padding:2px 7px;border-radius:5px;font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;}
+  .rt-freq{padding:2px 7px;border-radius:5px;font-size:.63rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;}
   .rt-freq.daily{background:rgba(96,165,250,.15);color:#60a5fa;}
   .rt-freq.weekly{background:rgba(168,85,247,.15);color:#a855f7;}
   .rt-freq.monthly{background:rgba(245,158,11,.15);color:#f59e0b;}
   .rt-freq.interval{background:rgba(52,211,153,.15);color:#34d399;}
-  .rt-cat{padding:2px 7px;border-radius:5px;font-size:.66rem;font-weight:700;}
-  .rt-priority-high{padding:2px 7px;border-radius:5px;font-size:.66rem;background:rgba(248,113,113,.15);color:#f87171;}
-  .rt-priority-medium{padding:2px 7px;border-radius:5px;font-size:.66rem;background:rgba(251,191,36,.15);color:#fbbf24;}
-  .rt-priority-low{padding:2px 7px;border-radius:5px;font-size:.66rem;background:rgba(148,163,184,.1);color:var(--muted);}
-  .rt-pause-all{padding:6px 14px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:none;color:var(--muted);cursor:pointer;font-size:.8rem;font-weight:700;transition:all .15s;}
-  .rt-pause-all.paused-state{background:rgba(245,158,11,.12);border-color:#f59e0b;color:#f59e0b;}
-  .rt-small-btn{padding:3px 8px;border-radius:7px;border:1px solid rgba(255,255,255,.1);background:none;color:var(--muted);cursor:pointer;font-size:.72rem;transition:all .14s;}
-  .rt-small-btn:hover{background:rgba(255,255,255,.07);color:var(--text);}
-  .rt-skip-btn:hover{color:#fbbf24;border-color:rgba(251,191,36,.3);}
-  .rt-del-btn:hover{color:#f87171;border-color:rgba(248,113,113,.3);}
-  .rt-empty{text-align:center;padding:40px 0;color:var(--muted);font-size:.88rem;}
+  .rt-cat{padding:2px 7px;border-radius:5px;font-size:.63rem;font-weight:700;}
+  .rt-priority-high{padding:2px 7px;border-radius:5px;font-size:.63rem;background:rgba(248,113,113,.15);color:#f87171;}
+  .rt-priority-medium{padding:2px 7px;border-radius:5px;font-size:.63rem;background:rgba(251,191,36,.15);color:#fbbf24;}
+  .rt-priority-low{padding:2px 7px;border-radius:5px;font-size:.63rem;background:rgba(148,163,184,.1);color:var(--muted);}
   `;
   document.head.appendChild(styleEl);
 
@@ -658,139 +683,102 @@
     toast('Skipped — will fire next occurrence');
   }
 
-  function initRecurringTab() {
-    var tab = document.getElementById('tab-recurring'); if (!tab) return;
-    var tasks = getRT();
-    var allPaused = tasks.length && tasks.every(function (t) { return t.paused; });
+  var RT_DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var RT_COLS = [
+    { id: 'todo',       label: 'To Do',      color: '#60a5fa' },
+    { id: 'inprogress', label: 'In Progress', color: '#fbbf24' },
+    { id: 'pending',    label: 'Pending',     color: '#a78bfa' },
+    { id: 'done',       label: 'Done',        color: '#34d399' }
+  ];
 
-    var DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-    tab.innerHTML =
-      '<h2 class="section">Recurring Tasks</h2>' +
-      '<div class="rt-header">' +
-        '<p class="muted" style="margin:0;font-size:.86rem;">Auto-inject into inbox or tasks when due.</p>' +
-        '<button id="rt-pause-all" class="rt-pause-all' + (allPaused ? ' paused-state' : '') + '">' + (allPaused ? '&#9654; Resume All' : '&#9646;&#9646; Pause All') + '</button>' +
-      '</div>' +
-
-      // Add form
-      '<div class="rt-add-form">' +
-        '<h4>&#43; New Recurring Task</h4>' +
+  function buildRTModal() {
+    var mbg = document.createElement('div');
+    mbg.id = 'rt-modal-bg';
+    mbg.innerHTML =
+      '<div id="rt-modal">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+          '<h3>&#43; New Recurring Task</h3>' +
+          '<button id="rt-modal-x" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1;padding:0 4px;">&times;</button>' +
+        '</div>' +
         '<div class="hn-label">Quick Templates</div>' +
-        '<div class="rt-templates">' +
-          RT_TEMPLATES.map(function (t2) { return '<button class="rt-tpl-btn" data-tpl="' + esc(JSON.stringify(t2)) + '">' + esc(t2.title) + '</button>'; }).join('') +
+        '<div class="rt-templates" id="rt-modal-tpls"></div>' +
+        '<div class="rt-form-row">' +
+          '<input id="rt-title" type="text" placeholder="Task title *" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-family:inherit;">' +
         '</div>' +
         '<div class="rt-form-row">' +
-          '<input id="rt-title" type="text" placeholder="Task title *" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);">' +
-          '<select id="rt-freq" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="interval">Every N days</option></select>' +
-          '<select id="rt-priority" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);"><option value="">No priority</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>' +
+          '<select id="rt-freq" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);font-family:inherit;">' +
+            '<option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="interval">Every N days</option>' +
+          '</select>' +
+          '<select id="rt-priority" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);font-family:inherit;">' +
+            '<option value="">No priority</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option>' +
+          '</select>' +
         '</div>' +
         '<div id="rt-freq-extra" style="margin-bottom:10px;"></div>' +
         '<div class="rt-form-row">' +
-          '<select id="rt-cat" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);"><option value="">Category</option><option value="health">Health</option><option value="work">Work</option><option value="personal">Personal</option><option value="finance">Finance</option><option value="fitness">Fitness</option></select>' +
-          '<select id="rt-inject" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);"><option value="inbox">&#128236; Inject to Inbox</option><option value="tasks">&#127813; Inject to Pomodoro Tasks</option></select>' +
-          '<div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:.7rem;color:var(--muted);">Due date (optional)</label><input id="rt-due" type="date" style="padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);"></div>' +
+          '<select id="rt-cat" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);font-family:inherit;">' +
+            '<option value="">Category</option><option value="health">Health</option><option value="work">Work</option><option value="personal">Personal</option><option value="finance">Finance</option><option value="fitness">Fitness</option>' +
+          '</select>' +
+          '<select id="rt-inject" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);font-family:inherit;">' +
+            '<option value="inbox">Inject to Inbox</option><option value="tasks">Inject to Pomodoro</option>' +
+          '</select>' +
         '</div>' +
-        '<button id="rt-add" class="btn primary" style="width:100%;">Add Recurring Task</button>' +
-      '</div>' +
-
-      // List
-      '<div id="rt-list">' + (!tasks.length ? '<div class="rt-empty">No recurring tasks yet. Add one above or use a template.</div>' : '') + '</div>';
-
-    // Render task cards
-    var listEl = document.getElementById('rt-list');
-    tasks.forEach(function (task) {
-      var nextDue = calcNextDue(task);
-      var catColor = RT_CATS[task.category] || 'var(--muted)';
-      var firedCount = (task.completions && task.completions.fired) || 0;
-      var freqLabel = task.freq === 'interval' ? 'Every ' + (task.intervalDays || 7) + 'd' : task.freq;
-      if (task.freq === 'weekly' && task.days && task.days.length) freqLabel += ' (' + task.days.map(function (d2) { return DAY_NAMES[d2]; }).join(',') + ')';
-      if (task.freq === 'monthly' && task.dayOfMonth) freqLabel += ' (day ' + task.dayOfMonth + ')';
-
-      var el = document.createElement('div');
-      el.className = 'rt-item' + (task.paused ? ' paused-item' : '');
-      el.innerHTML =
-        '<input type="checkbox" style="accent-color:#60a5fa;width:15px;height:15px;cursor:pointer;flex-shrink:0;margin-top:2px;" ' + (task.enabled && !task.paused ? 'checked' : '') + '>' +
-        '<div class="rt-item-body">' +
-          '<div class="rt-item-top">' +
-            '<span class="rt-item-title">' + esc(task.title) + '</span>' +
-            '<span class="rt-freq ' + task.freq + '">' + esc(freqLabel) + '</span>' +
-            (task.category ? '<span class="rt-cat" style="background:' + catColor + '22;color:' + catColor + ';">' + esc(task.category) + '</span>' : '') +
-            (task.priority ? '<span class="rt-priority-' + task.priority + '">' + task.priority + '</span>' : '') +
-            (task.injectTo === 'tasks' ? '<span style="font-size:.66rem;color:var(--muted);">&#8594; tasks</span>' : '') +
-          '</div>' +
-          '<div class="rt-item-meta">' +
-            '<span>Next: <strong style="color:' + (nextDue === 'Today' ? '#34d399' : 'var(--text)') + ';">' + esc(nextDue) + '</strong></span>' +
-            '<span>Fired: ' + firedCount + 'x</span>' +
-            (task.lastFired ? '<span>Last: ' + fmtDate(task.lastFired) + '</span>' : '') +
-            (task.dueDate ? '<span>Due: ' + fmtDate(task.dueDate) + '</span>' : '') +
+        '<div class="rt-form-row">' +
+          '<select id="rt-init-status" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);font-family:inherit;">' +
+            RT_COLS.map(function(c) { return '<option value="' + c.id + '">Column: ' + c.label + '</option>'; }).join('') +
+          '</select>' +
+          '<div style="display:flex;flex-direction:column;gap:3px;">' +
+            '<label style="font-size:.7rem;color:var(--muted);">Due date (optional)</label>' +
+            '<input id="rt-due" type="date" style="padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);font-family:inherit;">' +
           '</div>' +
         '</div>' +
-        '<div class="rt-item-actions">' +
-          '<button class="rt-small-btn rt-skip-btn" title="Skip this occurrence">Skip</button>' +
-          '<button class="rt-small-btn rt-pause-btn">' + (task.paused ? 'Resume' : 'Pause') + '</button>' +
-          '<button class="rt-small-btn rt-del-btn" style="color:#f87171;">&#x2715;</button>' +
-        '</div>';
+        '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">' +
+          '<button id="rt-modal-cancel" class="btn ghost">Cancel</button>' +
+          '<button id="rt-add" class="btn primary">Add Task</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(mbg);
 
-      el.querySelector('input[type=checkbox]').onchange = function (e) {
-        var arr = getRT(), x = arr.find(function (x) { return x.id === task.id; });
-        if (x) { x.enabled = e.target.checked; setRT(arr); }
+    // Template buttons
+    var tplsEl = mbg.querySelector('#rt-modal-tpls');
+    RT_TEMPLATES.forEach(function(t2) {
+      var b = document.createElement('button');
+      b.className = 'rt-tpl-btn'; b.textContent = t2.title;
+      b.onclick = function() {
+        document.getElementById('rt-title').value = t2.title || '';
+        document.getElementById('rt-freq').value = t2.freq || 'daily';
+        document.getElementById('rt-cat').value = t2.category || '';
+        document.getElementById('rt-priority').value = t2.priority || '';
+        document.getElementById('rt-inject').value = t2.injectTo || 'inbox';
+        document.getElementById('rt-freq').dispatchEvent(new Event('change'));
+        if (t2.freq === 'weekly' && t2.days) {
+          setTimeout(function() { t2.days.forEach(function(d2) { var cb = document.querySelector('.rt-day-cb[value="' + d2 + '"]'); if (cb) cb.checked = true; }); }, 60);
+        }
       };
-      el.querySelector('.rt-skip-btn').onclick = function () { skipOccurrence(task.id); };
-      el.querySelector('.rt-pause-btn').onclick = function () {
-        var arr = getRT(), x = arr.find(function (x) { return x.id === task.id; });
-        if (x) { x.paused = !x.paused; setRT(arr); initRecurringTab(); }
-      };
-      el.querySelector('.rt-del-btn').onclick = function () {
-        if (!confirm('Delete "' + task.title + '"?')) return;
-        setRT(getRT().filter(function (x) { return x.id !== task.id; })); initRecurringTab();
-      };
-      listEl.appendChild(el);
+      tplsEl.appendChild(b);
     });
 
-    // Freq extra options
-    var freqSel = document.getElementById('rt-freq');
+    // Freq extra fields
+    var freqSel = mbg.querySelector('#rt-freq');
     function updateFreqExtra() {
       var fe = document.getElementById('rt-freq-extra'); if (!fe) return;
       var f = freqSel.value;
       if (f === 'weekly') {
-        fe.innerHTML = '<div class="hn-label">Which days?</div><div style="display:flex;gap:6px;flex-wrap:wrap;">' +
-          DAY_NAMES.map(function (dn, i) { return '<label style="display:flex;align-items:center;gap:4px;font-size:.8rem;cursor:pointer;"><input type="checkbox" class="rt-day-cb" value="' + i + '" style="accent-color:#60a5fa;">' + dn + '</label>'; }).join('') + '</div>';
+        fe.innerHTML = '<div class="hn-label">Which days?</div><div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+          RT_DAY_NAMES.map(function(dn, i) { return '<label style="display:flex;align-items:center;gap:4px;font-size:.8rem;cursor:pointer;"><input type="checkbox" class="rt-day-cb" value="' + i + '" style="accent-color:#60a5fa;">' + dn + '</label>'; }).join('') + '</div>';
       } else if (f === 'monthly') {
-        fe.innerHTML = '<div class="hn-label">Day of month</div><input id="rt-dom" type="number" min="1" max="31" value="1" style="width:80px;padding:8px 10px;border-radius:9px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);">';
+        fe.innerHTML = '<div class="hn-label">Day of month</div><input id="rt-dom" type="number" min="1" max="31" value="1" style="width:80px;padding:8px 10px;border-radius:9px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);">';
       } else if (f === 'interval') {
-        fe.innerHTML = '<div class="hn-label">Every how many days?</div><input id="rt-interval" type="number" min="1" max="365" value="7" style="width:90px;padding:8px 10px;border-radius:9px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);">';
-      } else {
-        fe.innerHTML = '';
-      }
+        fe.innerHTML = '<div class="hn-label">Every how many days?</div><input id="rt-interval" type="number" min="1" max="365" value="7" style="width:90px;padding:8px 10px;border-radius:9px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);">';
+      } else { fe.innerHTML = ''; }
     }
     freqSel.addEventListener('change', updateFreqExtra);
 
-    // Templates
-    tab.querySelectorAll('.rt-tpl-btn').forEach(function (btn) {
-      btn.onclick = function () {
-        try {
-          var tpl = JSON.parse(btn.dataset.tpl);
-          document.getElementById('rt-title').value = tpl.title || '';
-          document.getElementById('rt-freq').value = tpl.freq || 'daily';
-          document.getElementById('rt-cat').value = tpl.category || '';
-          document.getElementById('rt-priority').value = tpl.priority || '';
-          document.getElementById('rt-inject').value = tpl.injectTo || 'inbox';
-          freqSel.dispatchEvent(new Event('change'));
-          if (tpl.freq === 'weekly' && tpl.days) {
-            setTimeout(function () { tpl.days.forEach(function (d2) { var cb = document.querySelector('.rt-day-cb[value="' + d2 + '"]'); if (cb) cb.checked = true; }); }, 50);
-          }
-        } catch (_) {}
-      };
-    });
+    function closeModal() { mbg.classList.remove('open'); }
+    mbg.querySelector('#rt-modal-x').onclick = closeModal;
+    mbg.querySelector('#rt-modal-cancel').onclick = closeModal;
+    mbg.addEventListener('click', function(e) { if (e.target === mbg) closeModal(); });
 
-    // Pause all
-    document.getElementById('rt-pause-all').onclick = function () {
-      var arr = getRT(); var shouldPause = !allPaused;
-      arr.forEach(function (t2) { t2.paused = shouldPause; }); setRT(arr); initRecurringTab();
-    };
-
-    // Add button
-    document.getElementById('rt-add').onclick = function () {
+    mbg.querySelector('#rt-add').onclick = function() {
       var title = (document.getElementById('rt-title').value || '').trim();
       if (!title) { document.getElementById('rt-title').focus(); return; }
       var freq = document.getElementById('rt-freq').value;
@@ -800,11 +788,12 @@
         priority: document.getElementById('rt-priority').value,
         injectTo: document.getElementById('rt-inject').value,
         dueDate: document.getElementById('rt-due').value || null,
+        status: document.getElementById('rt-init-status').value || 'todo',
         lastFired: null, completions: { fired: 0 }, created: new Date().toISOString()
       };
       if (freq === 'weekly') {
         var cbs = document.querySelectorAll('.rt-day-cb:checked');
-        task.days = Array.prototype.map.call(cbs, function (cb) { return parseInt(cb.value); });
+        task.days = Array.prototype.map.call(cbs, function(cb) { return parseInt(cb.value); });
       } else if (freq === 'monthly') {
         task.dayOfMonth = parseInt(document.getElementById('rt-dom').value || '1');
       } else if (freq === 'interval') {
@@ -812,9 +801,154 @@
       }
       var arr = getRT(); arr.push(task); setRT(arr);
       document.getElementById('rt-title').value = '';
+      closeModal();
       initRecurringTab();
       toast('Recurring task added');
     };
+  }
+
+  function openRTModal(defaultStatus) {
+    if (!document.getElementById('rt-modal-bg')) buildRTModal();
+    var mbg = document.getElementById('rt-modal-bg');
+    document.getElementById('rt-title').value = '';
+    document.getElementById('rt-freq').value = 'daily';
+    document.getElementById('rt-freq-extra').innerHTML = '';
+    if (defaultStatus) document.getElementById('rt-init-status').value = defaultStatus;
+    mbg.classList.add('open');
+    setTimeout(function() { document.getElementById('rt-title').focus(); }, 60);
+  }
+
+  function initRecurringTab() {
+    var tab = document.getElementById('tab-recurring'); if (!tab) return;
+
+    // Migrate: assign status to existing tasks that have none
+    var tasks = getRT(), migrated = false;
+    tasks.forEach(function(t) { if (!t.status) { t.status = 'todo'; migrated = true; } });
+    if (migrated) setRT(tasks);
+
+    var allPaused = tasks.length > 0 && tasks.every(function(t) { return t.paused; });
+
+    tab.innerHTML =
+      '<div class="rt-kb-header">' +
+        '<h2 class="section" style="margin:0;">&#128260; Recurring Tasks</h2>' +
+        '<div class="rt-kb-actions">' +
+          '<button class="rt-kb-btn" id="rt-settings-btn">&#9881; Scheduler</button>' +
+          '<button class="rt-kb-btn primary" id="rt-new-btn">&#43; New Task</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="rt-settings-panel" class="rt-settings-panel" style="display:none;">' +
+        '<p class="muted" style="margin:0;font-size:.83rem;">Tasks auto-inject to inbox or pomodoro when their schedule fires.</p>' +
+        '<button id="rt-pause-all" class="rt-pause-all">' + (allPaused ? '&#9654; Resume All' : '&#9646;&#9646; Pause All') + '</button>' +
+      '</div>' +
+      '<div class="rt-kanban" id="rt-kanban"></div>';
+
+    tab.querySelector('#rt-new-btn').onclick = function() { openRTModal('todo'); };
+    tab.querySelector('#rt-settings-btn').onclick = function() {
+      var p = document.getElementById('rt-settings-panel');
+      p.style.display = p.style.display === 'none' ? 'flex' : 'none';
+    };
+    tab.querySelector('#rt-pause-all').onclick = function() {
+      var arr = getRT(); arr.forEach(function(t) { t.paused = !allPaused; }); setRT(arr); initRecurringTab();
+    };
+
+    var kanban = document.getElementById('rt-kanban');
+    var dragId = null;
+
+    RT_COLS.forEach(function(col) {
+      var colTasks = tasks.filter(function(t) { return t.status === col.id; });
+
+      var colEl = document.createElement('div');
+      colEl.className = 'rt-col rt-col-' + col.id;
+      colEl.dataset.colId = col.id;
+      colEl.innerHTML =
+        '<div class="rt-col-head">' +
+          '<div class="rt-col-title">' +
+            '<div class="rt-col-dot" style="background:' + col.color + ';box-shadow:0 0 5px ' + col.color + '66;"></div>' +
+            col.label +
+          '</div>' +
+          '<div class="rt-col-count" style="color:' + col.color + ';background:' + col.color + '18;">' + colTasks.length + '</div>' +
+        '</div>';
+
+      // Drop zone
+      colEl.addEventListener('dragover', function(e) { e.preventDefault(); colEl.classList.add('drag-target'); });
+      colEl.addEventListener('dragleave', function(e) { if (!colEl.contains(e.relatedTarget)) colEl.classList.remove('drag-target'); });
+      colEl.addEventListener('drop', function(e) {
+        e.preventDefault(); colEl.classList.remove('drag-target');
+        if (!dragId) return;
+        var arr = getRT(), t = arr.find(function(x) { return x.id === dragId; });
+        if (t && t.status !== col.id) { t.status = col.id; setRT(arr); initRecurringTab(); }
+        dragId = null;
+      });
+
+      if (!colTasks.length) {
+        var emptyEl = document.createElement('div');
+        emptyEl.className = 'rt-col-empty'; emptyEl.textContent = 'No tasks here';
+        colEl.appendChild(emptyEl);
+      }
+
+      colTasks.forEach(function(task) {
+        var nextDue = calcNextDue(task);
+        var catColor = RT_CATS[task.category] || 'var(--muted)';
+        var firedCount = (task.completions && task.completions.fired) || 0;
+        var freqLabel = task.freq === 'interval' ? 'Every ' + (task.intervalDays || 7) + 'd' : task.freq;
+        if (task.freq === 'weekly' && task.days && task.days.length) freqLabel += ' (' + task.days.map(function(d2) { return RT_DAY_NAMES[d2]; }).join(',') + ')';
+        if (task.freq === 'monthly' && task.dayOfMonth) freqLabel += ' (day ' + task.dayOfMonth + ')';
+
+        var card = document.createElement('div');
+        card.className = 'rt-card' + (task.paused ? ' paused-card' : '');
+        card.draggable = true;
+        card.innerHTML =
+          '<div class="rt-card-title">' + esc(task.title) + '</div>' +
+          '<div class="rt-card-badges">' +
+            '<span class="rt-freq ' + task.freq + '">' + esc(freqLabel) + '</span>' +
+            (task.category ? '<span class="rt-cat" style="background:' + catColor + '22;color:' + catColor + ';">' + esc(task.category) + '</span>' : '') +
+            (task.priority ? '<span class="rt-priority-' + task.priority + '">' + task.priority + '</span>' : '') +
+          '</div>' +
+          '<div class="rt-card-due">' +
+            'Next: <span class="' + (nextDue === 'Today' ? 'rt-card-due-today' : '') + '">' + esc(nextDue) + '</span>' +
+            (task.dueDate ? ' &nbsp;·&nbsp; Due: ' + fmtDate(task.dueDate) : '') +
+          '</div>' +
+          '<div class="rt-card-foot">' +
+            '<select class="rt-card-status-sel">' +
+              RT_COLS.map(function(c) { return '<option value="' + c.id + '"' + (task.status === c.id ? ' selected' : '') + '>' + c.label + '</option>'; }).join('') +
+            '</select>' +
+            '<div class="rt-card-actions">' +
+              '<button class="rt-card-btn rt-skip-btn" title="Skip this occurrence">Skip</button>' +
+              '<button class="rt-card-btn rt-pause-btn">' + (task.paused ? 'Resume' : 'Pause') + '</button>' +
+              '<button class="rt-card-btn danger rt-del-btn">&#x2715;</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="rt-card-fires">' + (firedCount ? 'Fired ' + firedCount + 'x' + (task.lastFired ? ' · Last: ' + fmtDate(task.lastFired) : '') : 'Not fired yet') + '</div>';
+
+        card.addEventListener('dragstart', function(e) { dragId = task.id; card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+        card.addEventListener('dragend', function() { card.classList.remove('dragging'); document.querySelectorAll('.rt-col').forEach(function(c) { c.classList.remove('drag-target'); }); dragId = null; });
+
+        card.querySelector('.rt-card-status-sel').onchange = function(e) {
+          var arr = getRT(), x = arr.find(function(x) { return x.id === task.id; });
+          if (x) { x.status = e.target.value; setRT(arr); initRecurringTab(); }
+        };
+        card.querySelector('.rt-skip-btn').onclick = function(e) { e.stopPropagation(); skipOccurrence(task.id); };
+        card.querySelector('.rt-pause-btn').onclick = function(e) {
+          e.stopPropagation();
+          var arr = getRT(), x = arr.find(function(x) { return x.id === task.id; });
+          if (x) { x.paused = !x.paused; setRT(arr); initRecurringTab(); }
+        };
+        card.querySelector('.rt-del-btn').onclick = function(e) {
+          e.stopPropagation();
+          if (!confirm('Delete "' + task.title + '"?')) return;
+          setRT(getRT().filter(function(x) { return x.id !== task.id; })); initRecurringTab();
+        };
+        colEl.appendChild(card);
+      });
+
+      // Add to this column button
+      var addBtn = document.createElement('button');
+      addBtn.className = 'rt-col-add'; addBtn.textContent = '+ Add Task';
+      addBtn.onclick = function() { openRTModal(col.id); };
+      colEl.appendChild(addBtn);
+
+      kanban.appendChild(colEl);
+    });
   }
 
   // ── Session Notes Modal ───────────────────────────────────────────────
