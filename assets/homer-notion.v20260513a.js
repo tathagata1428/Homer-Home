@@ -219,6 +219,19 @@
     }
     patched._hn = true;
     window._homerShowTab = patched;
+    // When any non-custom tab activates via app-shell's local showTab (which bypasses
+    // our patch), hide MY_TABS so their content doesn't bleed into other tabs.
+    if (!window._hnTabHideBound) {
+      window._hnTabHideBound = true;
+      window.addEventListener('homer-tab-change', function (e) {
+        var name = e && e.detail && e.detail.tab;
+        if (!name || MY_TABS.indexOf(name) !== -1) return;
+        MY_TABS.forEach(function (t) {
+          var el = document.getElementById('tab-' + t);
+          if (el && el.style.display !== 'none') el.style.display = 'none';
+        });
+      });
+    }
     MY_TABS.forEach(function (tab) {
       document.querySelectorAll('[data-tab="' + tab + '"]').forEach(function (btn) {
         if (!btn._hnWired) { btn._hnWired = true; btn.addEventListener('click', function () { patched(tab); }); }

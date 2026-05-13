@@ -311,3 +311,20 @@ BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.habit_completions;
   END IF;
 END $$;
+
+-- ── EXPLICIT GRANTS (required for new tables after Supabase May 2026 change) ──
+-- Existing tables keep their current grants; this section future-proofs new ones.
+DO $$
+DECLARE
+  tbl TEXT;
+  tables TEXT[] := ARRAY[
+    'profiles','messages','memories','tasks','task_events',
+    'journal','devices','sync_cursors','joey_meta',
+    'field_state','habits','habit_completions'
+  ];
+BEGIN
+  FOREACH tbl IN ARRAY tables LOOP
+    EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON public.%I TO authenticated', tbl);
+    EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON public.%I TO service_role', tbl);
+  END LOOP;
+END $$;

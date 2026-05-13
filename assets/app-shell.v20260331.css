@@ -3300,14 +3300,6 @@
   section.tab.card{-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;}
   /* Larger minimum tap targets on mobile nav */
   .mnav-btn{min-height:52px;}
-  /* Status bar color bridge — extends body bg colour into the safe-area strip */
-  body.mobile-shell::after{
-    content:'';
-    position:fixed;
-    top:0;left:0;right:0;
-    height:env(safe-area-inset-top,0px);
-    background:#0a1220;
-    z-index:9999;
-    pointer-events:none;
-  }
+  /* Edge-to-edge: fill notch/status-bar inset with app background so no colour mismatch */
+  html{background-color:#0a1220;}
 }

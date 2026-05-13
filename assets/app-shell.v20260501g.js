@@ -9075,8 +9075,14 @@ let tvWidgetCreated = false;
     'homer-heartbeats:work':    'ls:homer-heartbeats-work',
     'motivator.savedQuotes.v1': 'ls:savedQuotes',
     'homer-sb-collapsed':       'ls:homer-sb-collapsed',
-    // homer-habits removed: handled exclusively by enhancements merge sync (he_homer-habits)
-    // to prevent last-write-wins from fighting with union-merge semantics.
+    'homer-habits':             'ls:homer-habits',
+    'homer-inbox':              'ls:homer-inbox',
+    'homer-expenses':           'ls:homer-expenses',
+    'homer-income':             'ls:homer-income',
+    'homer-expense-goals':      'ls:homer-expense-goals',
+    'homer-expense-templates':  'ls:homer-expense-templates',
+    'homer-expense-budgets':    'ls:homer-expense-budgets',
+    'homer-payday-day':         'ls:homer-payday-day',
     'homer-zen-goal':           'ls:homer-zen-goal',
     'homer-brain-dump':         'ls:homer-brain-dump',
     'homer-notes':              'ls:homer-notes',
