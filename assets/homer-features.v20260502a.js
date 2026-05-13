@@ -561,8 +561,8 @@
       }).join('');
       list.querySelectorAll('.homer-inbox-item-del').forEach(function(btn) {
         btn.addEventListener('click', function() {
-          var id = parseInt(btn.closest('[data-id]').dataset.id);
-          localStorage.setItem(INBOX_KEY, JSON.stringify(safeJson(localStorage.getItem(INBOX_KEY), []).filter(function(x) { return x.id !== id; })));
+          var id = btn.closest('[data-id]').dataset.id;
+          localStorage.setItem(INBOX_KEY, JSON.stringify(safeJson(localStorage.getItem(INBOX_KEY), []).filter(function(x) { return String(x.id) !== id; })));
           renderInbox();
         });
       });

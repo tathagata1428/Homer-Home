@@ -114,54 +114,56 @@
   .energy-bar{width:100%;border-radius:3px 3px 0 0;min-height:3px;}
   .energy-lbl{font-size:.6rem;color:var(--muted);}
 
-  /* Recurring Tasks — Kanban Board */
-  .rt-kb-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
-  .rt-kb-actions{display:flex;gap:7px;align-items:center;}
-  .rt-kb-btn{padding:7px 14px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--muted);cursor:pointer;font-size:.78rem;font-weight:700;transition:all .14s;font-family:inherit;}
-  .rt-kb-btn:hover{background:rgba(96,165,250,.1);color:#60a5fa;border-color:rgba(96,165,250,.3);}
-  .rt-kb-btn.primary{background:rgba(96,165,250,.18);border-color:#60a5fa;color:#60a5fa;}
-  .rt-kb-btn.primary:hover{background:rgba(96,165,250,.28);}
-  .rt-settings-panel{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
-  .rt-pause-all{padding:6px 13px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:none;color:var(--muted);cursor:pointer;font-size:.78rem;font-weight:700;transition:all .15s;font-family:inherit;}
-  .rt-pause-all:hover{background:rgba(251,191,36,.1);color:#fbbf24;border-color:rgba(251,191,36,.3);}
-  .rt-kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start;}
-  @media(max-width:860px){.rt-kanban{grid-template-columns:repeat(2,1fr);}}
-  @media(max-width:480px){.rt-kanban{grid-template-columns:1fr;}}
-  .rt-col{background:rgba(255,255,255,.022);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:12px;min-height:160px;transition:background .15s,border-color .15s;}
-  .rt-col.drag-target{background:rgba(96,165,250,.07);border-color:rgba(96,165,250,.35);}
-  .rt-col-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
-  .rt-col-title{display:flex;align-items:center;gap:6px;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;}
-  .rt-col-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
-  .rt-col-count{font-size:.68rem;font-weight:700;background:rgba(255,255,255,.07);border-radius:999px;padding:2px 8px;color:var(--muted);}
-  .rt-card{background:linear-gradient(145deg,rgba(30,41,59,.82),rgba(15,23,42,.72));border:1px solid rgba(148,163,184,.1);border-radius:12px;padding:11px 12px;margin-bottom:7px;cursor:grab;transition:transform .12s,box-shadow .12s,opacity .15s;user-select:none;}
-  .rt-card:last-of-type{margin-bottom:0;}
-  .rt-card.dragging{opacity:.35;transform:scale(.96);}
-  .rt-card.drag-over{border-color:rgba(96,165,250,.5);box-shadow:0 0 0 1px rgba(96,165,250,.3);}
-  .rt-card.paused-card{opacity:.52;}
-  .rt-card-title{font-size:.84rem;font-weight:700;color:var(--text);margin-bottom:7px;line-height:1.35;}
-  .rt-card-badges{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;}
-  .rt-card-due{font-size:.69rem;color:var(--muted);margin-bottom:6px;}
-  .rt-card-due-today{color:#34d399;font-weight:700;}
-  .rt-card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:7px;border-top:1px solid rgba(255,255,255,.055);}
-  .rt-card-actions{display:flex;gap:4px;}
-  .rt-card-btn{font-size:.62rem;padding:3px 8px;border-radius:6px;border:1px solid rgba(148,163,184,.18);background:rgba(255,255,255,.04);color:var(--muted);cursor:pointer;transition:all .12s;font-family:inherit;}
-  .rt-card-btn:hover{background:rgba(96,165,250,.14);color:#60a5fa;border-color:rgba(96,165,250,.35);}
-  .rt-card-btn.danger:hover{background:rgba(248,113,113,.14);color:#f87171;border-color:rgba(248,113,113,.35);}
-  .rt-card-fires{font-size:.63rem;color:var(--muted);}
-  .rt-card-status-sel{font-size:.62rem;padding:3px 6px;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:rgba(20,30,50,.8);color:var(--text);cursor:pointer;font-family:inherit;}
-  .rt-col-add{width:100%;margin-top:8px;padding:7px;border-radius:9px;border:1px dashed rgba(148,163,184,.18);background:transparent;color:var(--muted);cursor:pointer;font-size:.75rem;transition:all .14s;font-family:inherit;}
-  .rt-col-add:hover{background:rgba(96,165,250,.07);color:#60a5fa;border-color:rgba(96,165,250,.28);}
-  .rt-col-empty{text-align:center;padding:18px 0;color:var(--muted);font-size:.78rem;opacity:.55;}
-  /* Add modal */
-  #rt-modal-bg{display:none;position:fixed;inset:0;z-index:10500;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);align-items:center;justify-content:center;}
-  #rt-modal-bg.open{display:flex;}
-  #rt-modal{background:linear-gradient(160deg,#0f1729,#020617);border:1px solid rgba(255,255,255,.16);border-radius:20px;padding:24px;width:min(540px,94vw);max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(2,6,23,.7);}
-  #rt-modal h3{margin:0 0 16px;font-size:1rem;font-weight:800;}
-  .rt-form-row{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:10px;}
-  .rt-form-row>*{flex:1;min-width:120px;}
-  .rt-templates{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
-  .rt-tpl-btn{padding:5px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:none;color:var(--muted);cursor:pointer;font-size:.75rem;font-weight:700;transition:all .15s;white-space:nowrap;font-family:inherit;}
-  .rt-tpl-btn:hover{background:rgba(255,255,255,.07);color:var(--text);}
+  /* Recurring Tasks — Dashboard */
+  .rt-hd-btn{padding:7px 14px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--muted);cursor:pointer;font-size:.78rem;font-weight:700;transition:all .14s;font-family:inherit;}
+  .rt-hd-btn:hover{background:rgba(96,165,250,.1);color:#60a5fa;border-color:rgba(96,165,250,.3);}
+  .rt-hd-btn.primary{background:rgba(96,165,250,.18);border-color:#60a5fa;color:#60a5fa;}
+  .rt-hd-btn.primary:hover{background:rgba(96,165,250,.28);}
+  .rt-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
+  @media(max-width:640px){.rt-stats{grid-template-columns:repeat(2,1fr);}}
+  .rt-stat{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:12px 14px;}
+  .rt-stat-val{font-size:1.55rem;font-weight:900;line-height:1.1;}
+  .rt-stat-lbl{font-size:.67rem;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.05em;}
+  .rt-section{margin-bottom:22px;}
+  .rt-section-hd{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+  .rt-section-hd h3{margin:0;font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);}
+  .rt-section-badge{font-size:.67rem;font-weight:700;padding:2px 8px;border-radius:999px;}
+  .rt-action-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;}
+  .rt-action-card{background:linear-gradient(145deg,rgba(30,41,59,.85),rgba(15,23,42,.78));border:1px solid rgba(148,163,184,.1);border-radius:14px;padding:14px;}
+  .rt-action-card.overdue{border-left:3px solid #f87171;}
+  .rt-action-card.due-today{border-left:3px solid #fbbf24;}
+  .rt-ac-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;}
+  .rt-ac-title{font-size:.88rem;font-weight:700;color:var(--text);line-height:1.3;flex:1;}
+  .rt-ac-tag{font-size:.63rem;font-weight:800;padding:2px 7px;border-radius:5px;flex-shrink:0;}
+  .rt-ac-badges{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;}
+  .rt-ac-note{font-size:.76rem;color:var(--muted);margin-bottom:10px;line-height:1.5;}
+  .rt-ac-btns{display:flex;gap:6px;}
+  .rt-done-btn{flex:1;padding:8px;border-radius:9px;background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.3);color:#34d399;font-weight:800;font-size:.8rem;cursor:pointer;transition:all .15s;font-family:inherit;}
+  .rt-done-btn:hover{background:rgba(52,211,153,.28);box-shadow:0 4px 14px rgba(52,211,153,.18);}
+  .rt-skip-btn{padding:8px 11px;border-radius:9px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--muted);cursor:pointer;font-size:.78rem;transition:all .14s;font-family:inherit;}
+  .rt-skip-btn:hover{background:rgba(255,255,255,.08);color:var(--text);}
+  .rt-done-list{display:flex;flex-direction:column;gap:6px;margin-top:10px;}
+  .rt-done-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;background:rgba(52,211,153,.05);border:1px solid rgba(52,211,153,.12);}
+  .rt-done-check{width:20px;height:20px;border-radius:50%;background:rgba(52,211,153,.18);border:2px solid #34d399;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.65rem;color:#34d399;}
+  .rt-done-item-title{font-size:.83rem;font-weight:700;color:var(--muted);text-decoration:line-through;flex:1;}
+  .rt-catchup{text-align:center;padding:28px 0;color:var(--muted);font-size:.86rem;}
+  .rt-upcoming-strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin;-webkit-overflow-scrolling:touch;}
+  .rt-up-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:11px;padding:10px 12px;flex-shrink:0;min-width:130px;}
+  .rt-up-title{font-size:.8rem;font-weight:700;color:var(--text);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .rt-up-when{font-size:.68rem;color:#60a5fa;font-weight:700;}
+  .rt-sched-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;}
+  .rt-sched-card{background:rgba(255,255,255,.022);border:1px solid rgba(255,255,255,.07);border-radius:11px;padding:11px 12px;}
+  .rt-sched-card.paused{opacity:.48;}
+  .rt-sched-title{font-size:.83rem;font-weight:700;color:var(--text);margin-bottom:5px;}
+  .rt-sched-badges{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px;}
+  .rt-sched-meta{font-size:.68rem;color:var(--muted);line-height:1.65;}
+  .rt-sched-actions{display:flex;gap:5px;margin-top:8px;padding-top:7px;border-top:1px solid rgba(255,255,255,.06);}
+  .rt-sched-btn{font-size:.62rem;padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--muted);cursor:pointer;transition:all .12s;font-family:inherit;}
+  .rt-sched-btn:hover{background:rgba(96,165,250,.1);color:#60a5fa;border-color:rgba(96,165,250,.25);}
+  .rt-sched-btn.danger:hover{background:rgba(248,113,113,.1);color:#f87171;border-color:rgba(248,113,113,.25);}
+  .rt-toggle-sec{background:none;border:none;padding:0;cursor:pointer;font-size:.72rem;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:4px;font-family:inherit;margin-left:auto;}
+  .rt-toggle-sec:hover{color:var(--text);}
+  /* Reused badge classes */
   .rt-freq{padding:2px 7px;border-radius:5px;font-size:.63rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;}
   .rt-freq.daily{background:rgba(96,165,250,.15);color:#60a5fa;}
   .rt-freq.weekly{background:rgba(168,85,247,.15);color:#a855f7;}
@@ -171,6 +173,16 @@
   .rt-priority-high{padding:2px 7px;border-radius:5px;font-size:.63rem;background:rgba(248,113,113,.15);color:#f87171;}
   .rt-priority-medium{padding:2px 7px;border-radius:5px;font-size:.63rem;background:rgba(251,191,36,.15);color:#fbbf24;}
   .rt-priority-low{padding:2px 7px;border-radius:5px;font-size:.63rem;background:rgba(148,163,184,.1);color:var(--muted);}
+  /* Schedule modal */
+  #rt-modal-bg{display:none;position:fixed;inset:0;z-index:10500;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);align-items:center;justify-content:center;}
+  #rt-modal-bg.open{display:flex;}
+  #rt-modal{background:linear-gradient(160deg,#0f1729,#020617);border:1px solid rgba(255,255,255,.16);border-radius:20px;padding:24px;width:min(540px,94vw);max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(2,6,23,.7);}
+  #rt-modal h3{margin:0 0 16px;font-size:1rem;font-weight:800;}
+  .rt-form-row{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:10px;}
+  .rt-form-row>*{flex:1;min-width:120px;}
+  .rt-templates{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+  .rt-tpl-btn{padding:5px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:none;color:var(--muted);cursor:pointer;font-size:.75rem;font-weight:700;transition:all .15s;white-space:nowrap;font-family:inherit;}
+  .rt-tpl-btn:hover{background:rgba(255,255,255,.07);color:var(--text);}
   `;
   document.head.appendChild(styleEl);
 
@@ -578,11 +590,11 @@
   var RTKEY = 'homer-recurring';
   var RT_CATS = { health: '#34d399', work: '#60a5fa', personal: '#a78bfa', finance: '#fbbf24', fitness: '#f87171' };
   var RT_TEMPLATES = [
-    { title: 'Morning Routine', freq: 'daily', category: 'health', priority: 'high', injectTo: 'inbox' },
-    { title: 'Weekly Review', freq: 'weekly', days: [1], category: 'personal', priority: 'medium', injectTo: 'inbox' },
-    { title: 'Monthly Budget Check', freq: 'monthly', dayOfMonth: 1, category: 'finance', priority: 'high', injectTo: 'inbox' },
-    { title: 'End of Week Wrap-up', freq: 'weekly', days: [5], category: 'work', priority: 'medium', injectTo: 'inbox' },
-    { title: 'Quarterly Planning', freq: 'interval', intervalDays: 90, category: 'personal', priority: 'high', injectTo: 'inbox' }
+    { title: 'Morning Routine',      freq: 'daily',    category: 'health',   priority: 'high'   },
+    { title: 'Weekly Review',        freq: 'weekly',   days: [1],            category: 'personal', priority: 'medium' },
+    { title: 'Monthly Budget Check', freq: 'monthly',  dayOfMonth: 1,        category: 'finance',  priority: 'high'   },
+    { title: 'End of Week Wrap-up',  freq: 'weekly',   days: [5],            category: 'work',     priority: 'medium' },
+    { title: 'Quarterly Planning',   freq: 'interval', intervalDays: 90,     category: 'personal', priority: 'high'   }
   ];
 
   function getRT() { return ls(RTKEY) || []; }
@@ -619,136 +631,100 @@
     return '—';
   }
 
-  function checkRecurring() {
-    var tasks = getRT(), t = todayStr();
-    var inbox = ls('homer-inbox') || []; if (!Array.isArray(inbox)) inbox = [];
-    var pomTasks = ls('homer-task-list') || []; if (!Array.isArray(pomTasks)) pomTasks = [];
-    var changed = false;
-    tasks.forEach(function (task) {
-      if (!task.enabled || task.paused) return;
-      var fire = false;
-      if (task.freq === 'daily') fire = task.lastFired !== t;
-      else if (task.freq === 'weekly') {
-        if (!task.lastFired) { fire = true; }
-        else {
-          var daysDiff = daysBetween(task.lastFired, t);
-          if (daysDiff >= 7) fire = true;
-          else if (task.days && task.days.length) {
-            var todayDayOfWeek = new Date().getDay();
-            fire = task.days.indexOf(todayDayOfWeek) !== -1 && task.lastFired !== t;
-          }
-        }
-      }
-      else if (task.freq === 'monthly') {
-        var lf = task.lastFired ? new Date(task.lastFired) : null;
-        var now3 = new Date();
-        if (!lf || (now3.getMonth() !== lf.getMonth() || now3.getFullYear() !== lf.getFullYear())) {
-          if (task.dayOfMonth) fire = new Date().getDate() >= task.dayOfMonth;
-          else fire = true;
-        }
-      }
-      else if (task.freq === 'interval') {
-        var elapsed = task.lastFired ? daysBetween(task.lastFired, t) : 999;
-        fire = elapsed >= (task.intervalDays || 7);
-      }
+  // Recurring tab is the action center — no injection to inbox/tasks.
+  function checkRecurring() { /* no-op: tasks surface in the Recurring tab when due */ }
 
-      if (fire) {
-        var item = { id: uid(), text: (task.priority === 'high' ? '🔴 ' : task.priority === 'medium' ? '🟡 ' : '') + '[Recurring] ' + task.title, date: new Date().toISOString(), done: false, recurringId: task.id };
-        if (task.dueDate) item.dueDate = task.dueDate;
-        if (task.injectTo === 'tasks') {
-          pomTasks.unshift({ id: uid(), text: item.text, done: false, created: new Date().toISOString() });
-        } else {
-          inbox.unshift(item);
-        }
-        if (!task.completions) task.completions = { fired: 0 };
-        task.completions.fired = (task.completions.fired || 0) + 1;
-        task.lastFired = t;
-        changed = true;
-      }
-    });
-    if (changed) {
-      setRT(tasks); lss('homer-inbox', inbox); lss('homer-task-list', pomTasks);
-      window.dispatchEvent(new CustomEvent('homer:inbox-updated'));
+  function isRTOverdue(task) {
+    if (!task.enabled || task.paused || !task.lastFired) return false;
+    var t = todayStr();
+    if (task.lastFired === t) return false;
+    if (task.freq === 'daily')    return daysBetween(task.lastFired, t) >= 2;
+    if (task.freq === 'weekly')   return daysBetween(task.lastFired, t) >= 14;
+    if (task.freq === 'monthly') {
+      var lf = new Date(task.lastFired), now = new Date(t);
+      return (now.getFullYear() - lf.getFullYear()) * 12 + (now.getMonth() - lf.getMonth()) >= 2;
     }
+    if (task.freq === 'interval') return daysBetween(task.lastFired, t) >= (task.intervalDays || 7) * 2;
+    return false;
+  }
+
+  function markRTDone(taskId) {
+    var arr = getRT(), task = arr.find(function(t) { return t.id === taskId; });
+    if (!task) return;
+    var today = todayStr();
+    task.lastFired = today; task.lastCompleted = today;
+    if (!Array.isArray(task.completions)) task.completions = [];
+    task.completions.unshift({ date: today, ts: Date.now() });
+    if (task.completions.length > 90) task.completions = task.completions.slice(0, 90);
+    setRT(arr);
+    initRecurringTab();
+    toast('\u2713 ' + task.title);
   }
 
   function skipOccurrence(taskId) {
-    var arr = getRT(), task = arr.find(function (x) { return x.id === taskId; });
+    var arr = getRT(), task = arr.find(function(x) { return x.id === taskId; });
     if (!task) return;
     task.lastFired = todayStr();
-    if (!task.completions) task.completions = { fired: 0 };
-    task.completions.fired = (task.completions.fired || 0) + 1;
     setRT(arr);
     initRecurringTab();
-    toast('Skipped — will fire next occurrence');
+    toast('Skipped \u2014 next occurrence scheduled');
+  }
+
+  function computeRTStreak(task) {
+    if (!Array.isArray(task.completions) || !task.completions.length) return 0;
+    var today = new Date(todayStr());
+    var sorted = task.completions.map(function(c) { return new Date(c.date || c); }).sort(function(a,b){return b-a;});
+    if (task.freq === 'daily') {
+      var streak = 0;
+      for (var i = 0; i < sorted.length; i++) {
+        var diff = Math.round((today - sorted[i]) / 86400000);
+        if (diff === i || diff === i + 1) streak++; else break;
+      }
+      return streak;
+    }
+    var ago60 = new Date(today); ago60.setDate(ago60.getDate() - 60);
+    return sorted.filter(function(d) { return d >= ago60; }).length;
   }
 
   var RT_DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  var RT_COLS = [
-    { id: 'todo',       label: 'To Do',      color: '#60a5fa' },
-    { id: 'inprogress', label: 'In Progress', color: '#fbbf24' },
-    { id: 'pending',    label: 'Pending',     color: '#a78bfa' },
-    { id: 'done',       label: 'Done',        color: '#34d399' }
-  ];
 
   function buildRTModal() {
-    var mbg = document.createElement('div');
-    mbg.id = 'rt-modal-bg';
+    var sel = function(attrs) { return '<select ' + attrs + ' style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);font-family:inherit;">'; };
+    var inp = function(id, ph) { return '<input id="' + id + '" type="text" placeholder="' + ph + '" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-family:inherit;width:100%;box-sizing:border-box;">'; };
+    var mbg = document.createElement('div'); mbg.id = 'rt-modal-bg';
     mbg.innerHTML =
       '<div id="rt-modal">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
-          '<h3>&#43; New Recurring Task</h3>' +
+          '<h3>&#128260; New Schedule</h3>' +
           '<button id="rt-modal-x" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1;padding:0 4px;">&times;</button>' +
         '</div>' +
         '<div class="hn-label">Quick Templates</div>' +
         '<div class="rt-templates" id="rt-modal-tpls"></div>' +
+        '<div class="rt-form-row">' + inp('rt-title', 'Schedule title *') + '</div>' +
         '<div class="rt-form-row">' +
-          '<input id="rt-title" type="text" placeholder="Task title *" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-family:inherit;">' +
-        '</div>' +
-        '<div class="rt-form-row">' +
-          '<select id="rt-freq" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);font-family:inherit;">' +
-            '<option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="interval">Every N days</option>' +
-          '</select>' +
-          '<select id="rt-priority" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);font-family:inherit;">' +
-            '<option value="">No priority</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option>' +
-          '</select>' +
+          sel('id="rt-freq"') + '<option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="interval">Every N days</option></select>' +
+          sel('id="rt-priority"') + '<option value="">No priority</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>' +
         '</div>' +
         '<div id="rt-freq-extra" style="margin-bottom:10px;"></div>' +
         '<div class="rt-form-row">' +
-          '<select id="rt-cat" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);font-family:inherit;">' +
-            '<option value="">Category</option><option value="health">Health</option><option value="work">Work</option><option value="personal">Personal</option><option value="finance">Finance</option><option value="fitness">Fitness</option>' +
-          '</select>' +
-          '<select id="rt-inject" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);font-family:inherit;">' +
-            '<option value="inbox">Inject to Inbox</option><option value="tasks">Inject to Pomodoro</option>' +
-          '</select>' +
-        '</div>' +
-        '<div class="rt-form-row">' +
-          '<select id="rt-init-status" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);font-family:inherit;">' +
-            RT_COLS.map(function(c) { return '<option value="' + c.id + '">Column: ' + c.label + '</option>'; }).join('') +
-          '</select>' +
-          '<div style="display:flex;flex-direction:column;gap:3px;">' +
-            '<label style="font-size:.7rem;color:var(--muted);">Due date (optional)</label>' +
-            '<input id="rt-due" type="date" style="padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);font-family:inherit;">' +
-          '</div>' +
+          sel('id="rt-cat"') + '<option value="">Category</option><option value="health">Health</option><option value="work">Work</option><option value="personal">Personal</option><option value="finance">Finance</option><option value="fitness">Fitness</option></select>' +
+          '<textarea id="rt-note" rows="2" placeholder="Notes (optional)" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--text);font-family:inherit;resize:none;"></textarea>' +
         '</div>' +
         '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">' +
           '<button id="rt-modal-cancel" class="btn ghost">Cancel</button>' +
-          '<button id="rt-add" class="btn primary">Add Task</button>' +
+          '<button id="rt-add" class="btn primary">Add Schedule</button>' +
         '</div>' +
       '</div>';
     document.body.appendChild(mbg);
 
-    // Template buttons
     var tplsEl = mbg.querySelector('#rt-modal-tpls');
     RT_TEMPLATES.forEach(function(t2) {
-      var b = document.createElement('button');
-      b.className = 'rt-tpl-btn'; b.textContent = t2.title;
+      var b = document.createElement('button'); b.className = 'rt-tpl-btn'; b.textContent = t2.title;
       b.onclick = function() {
         document.getElementById('rt-title').value = t2.title || '';
         document.getElementById('rt-freq').value = t2.freq || 'daily';
         document.getElementById('rt-cat').value = t2.category || '';
         document.getElementById('rt-priority').value = t2.priority || '';
-        document.getElementById('rt-inject').value = t2.injectTo || 'inbox';
         document.getElementById('rt-freq').dispatchEvent(new Event('change'));
         if (t2.freq === 'weekly' && t2.days) {
           setTimeout(function() { t2.days.forEach(function(d2) { var cb = document.querySelector('.rt-day-cb[value="' + d2 + '"]'); if (cb) cb.checked = true; }); }, 60);
@@ -757,18 +733,18 @@
       tplsEl.appendChild(b);
     });
 
-    // Freq extra fields
     var freqSel = mbg.querySelector('#rt-freq');
     function updateFreqExtra() {
       var fe = document.getElementById('rt-freq-extra'); if (!fe) return;
       var f = freqSel.value;
+      var baseStyle = 'padding:8px 10px;border-radius:9px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);';
       if (f === 'weekly') {
         fe.innerHTML = '<div class="hn-label">Which days?</div><div style="display:flex;gap:8px;flex-wrap:wrap;">' +
           RT_DAY_NAMES.map(function(dn, i) { return '<label style="display:flex;align-items:center;gap:4px;font-size:.8rem;cursor:pointer;"><input type="checkbox" class="rt-day-cb" value="' + i + '" style="accent-color:#60a5fa;">' + dn + '</label>'; }).join('') + '</div>';
       } else if (f === 'monthly') {
-        fe.innerHTML = '<div class="hn-label">Day of month</div><input id="rt-dom" type="number" min="1" max="31" value="1" style="width:80px;padding:8px 10px;border-radius:9px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);">';
+        fe.innerHTML = '<div class="hn-label">Day of month</div><input id="rt-dom" type="number" min="1" max="31" value="1" style="width:80px;' + baseStyle + '">';
       } else if (f === 'interval') {
-        fe.innerHTML = '<div class="hn-label">Every how many days?</div><input id="rt-interval" type="number" min="1" max="365" value="7" style="width:90px;padding:8px 10px;border-radius:9px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);">';
+        fe.innerHTML = '<div class="hn-label">Every how many days?</div><input id="rt-interval" type="number" min="1" max="365" value="7" style="width:90px;' + baseStyle + '">';
       } else { fe.innerHTML = ''; }
     }
     freqSel.addEventListener('change', updateFreqExtra);
@@ -786,10 +762,8 @@
         id: uid(), title: title, freq: freq, enabled: true, paused: false,
         category: document.getElementById('rt-cat').value,
         priority: document.getElementById('rt-priority').value,
-        injectTo: document.getElementById('rt-inject').value,
-        dueDate: document.getElementById('rt-due').value || null,
-        status: document.getElementById('rt-init-status').value || 'todo',
-        lastFired: null, completions: { fired: 0 }, created: new Date().toISOString()
+        note: (document.getElementById('rt-note').value || '').trim(),
+        lastFired: null, completions: [], created: new Date().toISOString()
       };
       if (freq === 'weekly') {
         var cbs = document.querySelectorAll('.rt-day-cb:checked');
@@ -801,153 +775,219 @@
       }
       var arr = getRT(); arr.push(task); setRT(arr);
       document.getElementById('rt-title').value = '';
-      closeModal();
-      initRecurringTab();
-      toast('Recurring task added');
+      closeModal(); initRecurringTab(); toast('Schedule added');
     };
   }
 
-  function openRTModal(defaultStatus) {
+  function openRTModal() {
     if (!document.getElementById('rt-modal-bg')) buildRTModal();
-    var mbg = document.getElementById('rt-modal-bg');
     document.getElementById('rt-title').value = '';
     document.getElementById('rt-freq').value = 'daily';
     document.getElementById('rt-freq-extra').innerHTML = '';
-    if (defaultStatus) document.getElementById('rt-init-status').value = defaultStatus;
-    mbg.classList.add('open');
+    document.getElementById('rt-note').value = '';
+    document.getElementById('rt-modal-bg').classList.add('open');
     setTimeout(function() { document.getElementById('rt-title').focus(); }, 60);
   }
 
   function initRecurringTab() {
     var tab = document.getElementById('tab-recurring'); if (!tab) return;
 
-    // Migrate: assign status to existing tasks that have none
+    // Migrate old data
     var tasks = getRT(), migrated = false;
-    tasks.forEach(function(t) { if (!t.status) { t.status = 'todo'; migrated = true; } });
+    tasks.forEach(function(t) {
+      if (!Array.isArray(t.completions)) { t.completions = []; migrated = true; }
+      if (t.status !== undefined) { delete t.status; migrated = true; }
+    });
     if (migrated) setRT(tasks);
+
+    var today = todayStr();
+    var active = tasks.filter(function(t) { return t.enabled && !t.paused; });
+    var actionItems = active.filter(function(t) { return calcNextDue(t) === 'Today' && t.lastFired !== today; });
+    var doneToday  = tasks.filter(function(t) { return t.lastCompleted === today || (t.completions.length && t.completions[0].date === today); });
+    var upcoming   = active.filter(function(t) { var nd = calcNextDue(t); return nd !== 'Today' && nd !== 'paused' && nd !== '\u2014'; })
+      .sort(function(a, b) {
+        var parse = function(s) { var m = s.match(/\d+/); return m ? parseInt(m[0]) : 999; };
+        var na = calcNextDue(a), nb = calcNextDue(b);
+        if (na === 'Tomorrow') return -1; if (nb === 'Tomorrow') return 1;
+        return parse(na) - parse(nb);
+      });
+    var thisMonth = today.slice(0, 7);
+    var monthDone = 0;
+    tasks.forEach(function(t) { monthDone += t.completions.filter(function(c) { return (c.date || '').startsWith(thisMonth); }).length; });
 
     var allPaused = tasks.length > 0 && tasks.every(function(t) { return t.paused; });
 
-    tab.innerHTML =
-      '<div class="rt-kb-header">' +
-        '<h2 class="section" style="margin:0;">&#128260; Recurring Tasks</h2>' +
-        '<div class="rt-kb-actions">' +
-          '<button class="rt-kb-btn" id="rt-settings-btn">&#9881; Scheduler</button>' +
-          '<button class="rt-kb-btn primary" id="rt-new-btn">&#43; New Task</button>' +
-        '</div>' +
-      '</div>' +
-      '<div id="rt-settings-panel" class="rt-settings-panel" style="display:none;">' +
-        '<p class="muted" style="margin:0;font-size:.83rem;">Tasks auto-inject to inbox or pomodoro when their schedule fires.</p>' +
-        '<button id="rt-pause-all" class="rt-pause-all">' + (allPaused ? '&#9654; Resume All' : '&#9646;&#9646; Pause All') + '</button>' +
-      '</div>' +
-      '<div class="rt-kanban" id="rt-kanban"></div>';
+    tab.innerHTML = '';
+    var dash = document.createElement('div'); dash.style.cssText = 'display:flex;flex-direction:column;gap:20px;';
+    tab.appendChild(dash);
 
-    tab.querySelector('#rt-new-btn').onclick = function() { openRTModal('todo'); };
-    tab.querySelector('#rt-settings-btn').onclick = function() {
-      var p = document.getElementById('rt-settings-panel');
-      p.style.display = p.style.display === 'none' ? 'flex' : 'none';
-    };
-    tab.querySelector('#rt-pause-all').onclick = function() {
-      var arr = getRT(); arr.forEach(function(t) { t.paused = !allPaused; }); setRT(arr); initRecurringTab();
-    };
+    // ── Header
+    var hd = document.createElement('div');
+    hd.style.cssText = 'display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;';
+    hd.innerHTML =
+      '<h2 class="section" style="margin:0;">&#128260; Recurring Tasks</h2>' +
+      '<div style="display:flex;gap:7px;align-items:center;">' +
+        '<button class="rt-hd-btn" id="rt-manage-btn">&#9776; Manage</button>' +
+        '<button class="rt-hd-btn primary" id="rt-new-btn">&#43; New Schedule</button>' +
+      '</div>';
+    dash.appendChild(hd);
 
-    var kanban = document.getElementById('rt-kanban');
-    var dragId = null;
+    // ── Stats
+    var statsEl = document.createElement('div'); statsEl.className = 'rt-stats';
+    [
+      { val: active.length,            lbl: 'Active',        color: '#60a5fa' },
+      { val: actionItems.length,       lbl: 'Due Today',     color: '#fbbf24' },
+      { val: actionItems.filter(isRTOverdue).length, lbl: 'Overdue', color: '#f87171' },
+      { val: monthDone,                lbl: 'Done This Month',color: '#34d399' }
+    ].forEach(function(s) {
+      var el = document.createElement('div'); el.className = 'rt-stat';
+      el.innerHTML = '<div class="rt-stat-val" style="color:' + s.color + ';">' + s.val + '</div><div class="rt-stat-lbl">' + s.lbl + '</div>';
+      statsEl.appendChild(el);
+    });
+    dash.appendChild(statsEl);
 
-    RT_COLS.forEach(function(col) {
-      var colTasks = tasks.filter(function(t) { return t.status === col.id; });
-
-      var colEl = document.createElement('div');
-      colEl.className = 'rt-col rt-col-' + col.id;
-      colEl.dataset.colId = col.id;
-      colEl.innerHTML =
-        '<div class="rt-col-head">' +
-          '<div class="rt-col-title">' +
-            '<div class="rt-col-dot" style="background:' + col.color + ';box-shadow:0 0 5px ' + col.color + '66;"></div>' +
-            col.label +
-          '</div>' +
-          '<div class="rt-col-count" style="color:' + col.color + ';background:' + col.color + '18;">' + colTasks.length + '</div>' +
-        '</div>';
-
-      // Drop zone
-      colEl.addEventListener('dragover', function(e) { e.preventDefault(); colEl.classList.add('drag-target'); });
-      colEl.addEventListener('dragleave', function(e) { if (!colEl.contains(e.relatedTarget)) colEl.classList.remove('drag-target'); });
-      colEl.addEventListener('drop', function(e) {
-        e.preventDefault(); colEl.classList.remove('drag-target');
-        if (!dragId) return;
-        var arr = getRT(), t = arr.find(function(x) { return x.id === dragId; });
-        if (t && t.status !== col.id) { t.status = col.id; setRT(arr); initRecurringTab(); }
-        dragId = null;
-      });
-
-      if (!colTasks.length) {
-        var emptyEl = document.createElement('div');
-        emptyEl.className = 'rt-col-empty'; emptyEl.textContent = 'No tasks here';
-        colEl.appendChild(emptyEl);
+    // ── Needs Attention
+    var attnEl = document.createElement('div'); attnEl.className = 'rt-section';
+    var attnHd = '<div class="rt-section-hd"><h3>Needs Attention</h3>' +
+      (actionItems.length ? '<span class="rt-section-badge" style="background:rgba(251,191,36,.14);color:#fbbf24;">' + actionItems.length + '</span>' : '') +
+      '</div>';
+    var attnBody = '';
+    if (!actionItems.length && !doneToday.length) {
+      attnBody = '<div class="rt-catchup">&#127881; All caught up! Nothing due today.</div>';
+    } else {
+      if (actionItems.length) {
+        attnBody += '<div class="rt-action-grid">';
+        actionItems.forEach(function(task) {
+          var overdue = isRTOverdue(task);
+          var catColor = RT_CATS[task.category] || 'var(--muted)';
+          var freqLabel = task.freq === 'interval' ? 'Every ' + (task.intervalDays || 7) + 'd' : task.freq;
+          if (task.freq === 'weekly' && task.days && task.days.length) freqLabel += ' (' + task.days.map(function(d2) { return RT_DAY_NAMES[d2]; }).join(',') + ')';
+          if (task.freq === 'monthly' && task.dayOfMonth) freqLabel += ' (day ' + task.dayOfMonth + ')';
+          var streak = computeRTStreak(task);
+          attnBody +=
+            '<div class="rt-action-card ' + (overdue ? 'overdue' : 'due-today') + '">' +
+              '<div class="rt-ac-top">' +
+                '<div class="rt-ac-title">' + esc(task.title) + '</div>' +
+                (overdue
+                  ? '<span class="rt-ac-tag" style="background:rgba(248,113,113,.15);color:#f87171;">OVERDUE</span>'
+                  : '<span class="rt-ac-tag" style="background:rgba(251,191,36,.15);color:#fbbf24;">TODAY</span>') +
+              '</div>' +
+              '<div class="rt-ac-badges">' +
+                '<span class="rt-freq ' + task.freq + '">' + esc(freqLabel) + '</span>' +
+                (task.category ? '<span class="rt-cat" style="background:' + catColor + '22;color:' + catColor + ';">' + esc(task.category) + '</span>' : '') +
+                (task.priority ? '<span class="rt-priority-' + task.priority + '">' + task.priority + '</span>' : '') +
+                (streak > 1 ? '<span style="font-size:.62rem;color:#fbbf24;font-weight:800;">&#9733; ' + streak + '</span>' : '') +
+              '</div>' +
+              (task.note ? '<div class="rt-ac-note">' + esc(task.note) + '</div>' : '') +
+              '<div class="rt-ac-btns">' +
+                '<button class="rt-done-btn" data-done="' + esc(task.id) + '">&#10003; Mark Done</button>' +
+                '<button class="rt-skip-btn" data-skip="' + esc(task.id) + '">Skip</button>' +
+              '</div>' +
+            '</div>';
+        });
+        attnBody += '</div>';
       }
+      if (doneToday.length) {
+        attnBody += '<div class="rt-done-list">';
+        doneToday.forEach(function(task) {
+          attnBody += '<div class="rt-done-item"><div class="rt-done-check">&#10003;</div><div class="rt-done-item-title">' + esc(task.title) + '</div><span style="font-size:.68rem;color:#34d399;font-weight:700;">Done</span></div>';
+        });
+        attnBody += '</div>';
+      }
+    }
+    attnEl.innerHTML = attnHd + attnBody;
+    attnEl.querySelectorAll('[data-done]').forEach(function(btn) { btn.onclick = function() { markRTDone(btn.dataset.done); }; });
+    attnEl.querySelectorAll('[data-skip]').forEach(function(btn) { btn.onclick = function() { skipOccurrence(btn.dataset.skip); }; });
+    dash.appendChild(attnEl);
 
-      colTasks.forEach(function(task) {
-        var nextDue = calcNextDue(task);
-        var catColor = RT_CATS[task.category] || 'var(--muted)';
-        var firedCount = (task.completions && task.completions.fired) || 0;
-        var freqLabel = task.freq === 'interval' ? 'Every ' + (task.intervalDays || 7) + 'd' : task.freq;
-        if (task.freq === 'weekly' && task.days && task.days.length) freqLabel += ' (' + task.days.map(function(d2) { return RT_DAY_NAMES[d2]; }).join(',') + ')';
-        if (task.freq === 'monthly' && task.dayOfMonth) freqLabel += ' (day ' + task.dayOfMonth + ')';
+    // ── Coming Up
+    if (upcoming.length) {
+      var upEl = document.createElement('div'); upEl.className = 'rt-section';
+      var upHtml = '<div class="rt-section-hd"><h3>Coming Up</h3></div><div class="rt-upcoming-strip">';
+      upcoming.slice(0, 12).forEach(function(task) {
+        var catColor = RT_CATS[task.category] || 'rgba(148,163,184,.3)';
+        upHtml += '<div class="rt-up-card" style="border-color:' + catColor + '44;">' +
+          '<div class="rt-up-title">' + esc(task.title) + '</div>' +
+          '<div class="rt-up-when">' + esc(calcNextDue(task)) + '</div>' +
+        '</div>';
+      });
+      upEl.innerHTML = upHtml + '</div>';
+      dash.appendChild(upEl);
+    }
 
-        var card = document.createElement('div');
-        card.className = 'rt-card' + (task.paused ? ' paused-card' : '');
-        card.draggable = true;
-        card.innerHTML =
-          '<div class="rt-card-title">' + esc(task.title) + '</div>' +
-          '<div class="rt-card-badges">' +
+    // ── All Schedules (collapsible)
+    var schedEl = document.createElement('div'); schedEl.className = 'rt-section';
+    var schedBody = document.createElement('div'); schedBody.id = 'rt-sched-body'; schedBody.style.display = 'none';
+    schedEl.innerHTML = '<div class="rt-section-hd" style="cursor:pointer;" id="rt-sched-hd"><h3>All Schedules (' + tasks.length + ')</h3><button class="rt-toggle-sec" id="rt-sched-chevron">&#9660; Show</button></div>';
+    schedEl.appendChild(schedBody);
+    dash.appendChild(schedEl);
+
+    document.getElementById('rt-sched-hd').onclick = function() {
+      var open = schedBody.style.display !== 'none';
+      schedBody.style.display = open ? 'none' : 'block';
+      document.getElementById('rt-sched-chevron').innerHTML = open ? '&#9660; Show' : '&#9650; Hide';
+      if (!open) renderRTSchedGrid(schedBody, getRT());
+    };
+
+    // ── Header button wiring
+    tab.querySelector('#rt-new-btn').onclick = openRTModal;
+    tab.querySelector('#rt-manage-btn').onclick = function() {
+      schedBody.style.display = 'block';
+      document.getElementById('rt-sched-chevron').innerHTML = '&#9650; Hide';
+      renderRTSchedGrid(schedBody, getRT());
+      schedEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+  }
+
+  function renderRTSchedGrid(container, tasks) {
+    if (!tasks.length) { container.innerHTML = '<div class="rt-catchup">No schedules yet. Add your first one.</div>'; return; }
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
+      '<span style="font-size:.8rem;color:var(--muted);">' + tasks.length + ' schedule' + (tasks.length > 1 ? 's' : '') + '</span>' +
+      '<button class="rt-hd-btn primary" id="rt-sched-add-btn" style="font-size:.74rem;padding:5px 11px;">&#43; Add</button>' +
+    '</div><div class="rt-sched-grid">';
+
+    tasks.forEach(function(task) {
+      var catColor = RT_CATS[task.category] || 'var(--muted)';
+      var freqLabel = task.freq === 'interval' ? 'Every ' + (task.intervalDays || 7) + 'd' : task.freq;
+      if (task.freq === 'weekly' && task.days && task.days.length) freqLabel += ' (' + task.days.map(function(d2) { return RT_DAY_NAMES[d2]; }).join(',') + ')';
+      if (task.freq === 'monthly' && task.dayOfMonth) freqLabel += ' (day ' + task.dayOfMonth + ')';
+      var streak = computeRTStreak(task);
+      var total = task.completions.length;
+      html +=
+        '<div class="rt-sched-card' + (task.paused ? ' paused' : '') + '">' +
+          '<div class="rt-sched-title">' + esc(task.title) + '</div>' +
+          '<div class="rt-sched-badges">' +
             '<span class="rt-freq ' + task.freq + '">' + esc(freqLabel) + '</span>' +
             (task.category ? '<span class="rt-cat" style="background:' + catColor + '22;color:' + catColor + ';">' + esc(task.category) + '</span>' : '') +
             (task.priority ? '<span class="rt-priority-' + task.priority + '">' + task.priority + '</span>' : '') +
           '</div>' +
-          '<div class="rt-card-due">' +
-            'Next: <span class="' + (nextDue === 'Today' ? 'rt-card-due-today' : '') + '">' + esc(nextDue) + '</span>' +
-            (task.dueDate ? ' &nbsp;·&nbsp; Due: ' + fmtDate(task.dueDate) : '') +
+          '<div class="rt-sched-meta">' +
+            'Next: ' + esc(calcNextDue(task)) +
+            (streak > 0 ? ' &nbsp;&bull;&nbsp; <span style="color:#fbbf24;font-weight:700;">&#9733; ' + streak + '</span>' : '') +
+            (total > 0 ? ' &nbsp;&bull;&nbsp; ' + total + ' done' : '') +
+            (task.lastCompleted ? '<br>Last: ' + fmtDate(task.lastCompleted) : '') +
           '</div>' +
-          '<div class="rt-card-foot">' +
-            '<select class="rt-card-status-sel">' +
-              RT_COLS.map(function(c) { return '<option value="' + c.id + '"' + (task.status === c.id ? ' selected' : '') + '>' + c.label + '</option>'; }).join('') +
-            '</select>' +
-            '<div class="rt-card-actions">' +
-              '<button class="rt-card-btn rt-skip-btn" title="Skip this occurrence">Skip</button>' +
-              '<button class="rt-card-btn rt-pause-btn">' + (task.paused ? 'Resume' : 'Pause') + '</button>' +
-              '<button class="rt-card-btn danger rt-del-btn">&#x2715;</button>' +
-            '</div>' +
+          '<div class="rt-sched-actions">' +
+            '<button class="rt-sched-btn rt-sched-pause-btn" data-id="' + esc(task.id) + '">' + (task.paused ? 'Resume' : 'Pause') + '</button>' +
+            '<button class="rt-sched-btn danger rt-sched-del-btn" data-id="' + esc(task.id) + '">&#x2715; Delete</button>' +
           '</div>' +
-          '<div class="rt-card-fires">' + (firedCount ? 'Fired ' + firedCount + 'x' + (task.lastFired ? ' · Last: ' + fmtDate(task.lastFired) : '') : 'Not fired yet') + '</div>';
-
-        card.addEventListener('dragstart', function(e) { dragId = task.id; card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
-        card.addEventListener('dragend', function() { card.classList.remove('dragging'); document.querySelectorAll('.rt-col').forEach(function(c) { c.classList.remove('drag-target'); }); dragId = null; });
-
-        card.querySelector('.rt-card-status-sel').onchange = function(e) {
-          var arr = getRT(), x = arr.find(function(x) { return x.id === task.id; });
-          if (x) { x.status = e.target.value; setRT(arr); initRecurringTab(); }
-        };
-        card.querySelector('.rt-skip-btn').onclick = function(e) { e.stopPropagation(); skipOccurrence(task.id); };
-        card.querySelector('.rt-pause-btn').onclick = function(e) {
-          e.stopPropagation();
-          var arr = getRT(), x = arr.find(function(x) { return x.id === task.id; });
-          if (x) { x.paused = !x.paused; setRT(arr); initRecurringTab(); }
-        };
-        card.querySelector('.rt-del-btn').onclick = function(e) {
-          e.stopPropagation();
-          if (!confirm('Delete "' + task.title + '"?')) return;
-          setRT(getRT().filter(function(x) { return x.id !== task.id; })); initRecurringTab();
-        };
-        colEl.appendChild(card);
-      });
-
-      // Add to this column button
-      var addBtn = document.createElement('button');
-      addBtn.className = 'rt-col-add'; addBtn.textContent = '+ Add Task';
-      addBtn.onclick = function() { openRTModal(col.id); };
-      colEl.appendChild(addBtn);
-
-      kanban.appendChild(colEl);
+        '</div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+    container.querySelector('#rt-sched-add-btn').onclick = openRTModal;
+    container.querySelectorAll('.rt-sched-pause-btn').forEach(function(btn) {
+      btn.onclick = function() {
+        var arr = getRT(), x = arr.find(function(t) { return t.id === btn.dataset.id; });
+        if (x) { x.paused = !x.paused; setRT(arr); initRecurringTab(); }
+      };
+    });
+    container.querySelectorAll('.rt-sched-del-btn').forEach(function(btn) {
+      btn.onclick = function() {
+        var arr = getRT(), t = arr.find(function(x) { return x.id === btn.dataset.id; });
+        if (!t || !confirm('Delete "' + t.title + '"?')) return;
+        setRT(arr.filter(function(x) { return x.id !== btn.dataset.id; })); initRecurringTab();
+      };
     });
   }
 
@@ -1116,6 +1156,8 @@
   document.addEventListener('click', function (e) {
     var btn = e.target.closest('#msheet-qa-capture');
     if (btn) { showQC('inbox'); var sheet = document.getElementById('mobile-sheet'); if (sheet) sheet.classList.remove('open'); }
+    var qnoteBtn = e.target.closest('#msheet-qa-qnote');
+    if (qnoteBtn) { var s0 = document.getElementById('mobile-sheet'); if (s0) s0.classList.remove('open'); showQC('note'); }
     var notesBtn = e.target.closest('#msheet-qa-notes');
     if (notesBtn) { var s2 = document.getElementById('mobile-sheet'); if (s2) s2.classList.remove('open'); if (window._homerShowTab) window._homerShowTab('notes'); }
     var briefBtn = e.target.closest('#msheet-qa-brief');
