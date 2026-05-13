@@ -190,6 +190,7 @@ function doPost(e) {
     var payload = {
       exportedAt: new Date().toISOString(),
       mode: mode,
+      driveScope: data.driveScope || '',
       profile: data.profile || null,
       memories: data.memories || [],
       history: data.history || [],

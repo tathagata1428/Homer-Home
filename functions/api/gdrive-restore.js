@@ -173,8 +173,9 @@ async function _onRequest(context, corsHeaders) {
       const parsed = body && body.driveData && typeof body.driveData === 'object' ? body.driveData : null;
       if (!parsed) return Response.json({ error: 'Missing driveData in body' }, { status: 400, headers: corsHeaders });
       const driveScope = String(parsed.driveScope || '').trim().toLowerCase();
+      const isMdOnly = driveScope === 'md-only' || (!driveScope && !parsed.profile && (!parsed.memories || !parsed.memories.length) && (!parsed.history || !parsed.history.length));
       const validation = validateJoeySyncBundleMeta({ mode, profile: parsed.profile, memories: parsed.memories, history: parsed.history, files: parsed.files, fileLibrary: parsed.fileLibrary, customFiles: parsed.customFiles, journal: parsed.journal }, parsed.syncMeta);
-      if (parsed.syncMeta && driveScope !== 'md-only' && !validation.ok && validation.reason !== 'missing-hashes') {
+      if (parsed.syncMeta && !isMdOnly && !validation.ok && validation.reason !== 'missing-hashes') {
         return Response.json({ error: 'Drive bundle failed integrity validation', validation }, { status: 409, headers: corsHeaders });
       }
       const { profile, memories, history, files, fileLibrary, customFiles, journal, syncMeta } = parsed;
@@ -268,6 +269,7 @@ async function _onRequest(context, corsHeaders) {
     }
 
     const driveScope = String(parsed.driveScope || '').trim().toLowerCase();
+    const isMdOnly = driveScope === 'md-only' || (!driveScope && !parsed.profile && (!parsed.memories || !parsed.memories.length) && (!parsed.history || !parsed.history.length));
     const validation = validateJoeySyncBundleMeta({
       mode,
       profile: parsed.profile,
@@ -278,7 +280,7 @@ async function _onRequest(context, corsHeaders) {
       customFiles: parsed.customFiles,
       journal: parsed.journal
     }, parsed.syncMeta);
-    if (parsed.syncMeta && driveScope !== 'md-only' && !validation.ok && validation.reason !== 'missing-hashes') {
+    if (parsed.syncMeta && !isMdOnly && !validation.ok && validation.reason !== 'missing-hashes') {
       return Response.json({ error: 'Drive bundle failed integrity validation', validation }, { status: 409, headers: corsHeaders });
     }
 
