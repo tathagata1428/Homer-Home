@@ -112,9 +112,23 @@
   .cat-delta.up{color:#f87171;}.cat-delta.down{color:#34d399;}
   .cat-bar-bg{width:100%;height:4px;background:rgba(255,255,255,.07);border-radius:3px;margin-bottom:6px;}
   .cat-bar-fg{height:100%;border-radius:3px;transition:width .4s;}
-  .budget-nums{font-size:.75rem;color:var(--muted);font-weight:700;min-width:90px;text-align:right;flex-shrink:0;white-space:nowrap;}
-  .budget-nums.warn{color:#fbbf24;}.budget-nums.over{color:#f87171;}
-  .budget-of{font-weight:400;opacity:.65;}
+  .env-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;margin-top:6px;}
+  .env-card{border-radius:13px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025);overflow:hidden;transition:border-color .2s;}
+  .env-card:hover{border-color:rgba(255,255,255,.15);}
+  .env-body{padding:11px 12px 9px;}
+  .env-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;gap:4px;}
+  .env-name{font-size:.79rem;font-weight:700;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .env-status{font-size:.58rem;font-weight:800;padding:2px 6px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;}
+  .env-status.ok{background:rgba(52,211,153,.15);color:#34d399;}
+  .env-status.warn{background:rgba(251,191,36,.15);color:#fbbf24;}
+  .env-status.over{background:rgba(248,113,113,.15);color:#f87171;}
+  .env-spent{font-size:1.55rem;font-weight:900;line-height:1;margin-bottom:2px;}
+  .env-of{font-size:.72rem;color:var(--muted);margin-bottom:3px;}
+  .env-remaining{font-size:.69rem;font-weight:700;margin-bottom:1px;}
+  .env-set-btn{background:none;border:1px dashed rgba(255,255,255,.2);color:var(--muted);font-size:.68rem;padding:2px 8px;border-radius:6px;cursor:pointer;font-family:inherit;transition:all .14s;}
+  .env-set-btn:hover{border-color:#60a5fa;color:#60a5fa;}
+  .env-bar-wrap{height:5px;background:rgba(255,255,255,.05);}
+  .env-bar-fill{height:100%;transition:width .5s cubic-bezier(.4,0,.2,1);}
   .day-row{display:flex;gap:5px;margin-top:6px;}
   .day-cell{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
   .day-dot{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:var(--muted);}
@@ -413,15 +427,19 @@
   function daysAgoStr(n) { var d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); }
 
   var EXP_CAT_COLORS_BASE = {
-    food:'#fb7185', transport:'#fbbf24', shopping:'#f472b6', utilities:'#eab308',
-    home:'#14b8a6', health:'#34d399', fitness:'#ef4444', work:'#60a5fa',
-    education:'#f97316', travel:'#38bdf8', personal:'#e879f9', subscriptions:'#818cf8',
-    entertainment:'#a78bfa', gifts:'#fdba74', other:'#94a3b8'
+    groceries:'#22c55e', restaurants:'#fb923c', coffee:'#b45309', food:'#fb7185',
+    rent:'#6366f1', home:'#14b8a6', transport:'#fbbf24', utilities:'#eab308',
+    insurance:'#64748b', health:'#34d399', fitness:'#ef4444', work:'#60a5fa',
+    education:'#f97316', shopping:'#f472b6', travel:'#38bdf8', personal:'#e879f9',
+    subscriptions:'#818cf8', entertainment:'#a78bfa', savings:'#0ea5e9',
+    gifts:'#fdba74', other:'#94a3b8'
   };
   var EXP_CAT_EMOJI_BASE = {
-    food:'🍔', transport:'🚗', shopping:'🛍️', utilities:'💡', home:'🏠',
-    health:'❤️', fitness:'🏋️', work:'💼', education:'📚', travel:'✈️',
-    personal:'💅', subscriptions:'📱', entertainment:'🎬', gifts:'🎁', other:'📦'
+    groceries:'🛒', restaurants:'🍽️', coffee:'☕', food:'🍔', rent:'🏡',
+    home:'🏠', transport:'🚗', utilities:'💡', insurance:'🛡️', health:'❤️',
+    fitness:'🏋️', work:'💼', education:'📚', shopping:'🛍️', travel:'✈️',
+    personal:'💅', subscriptions:'📱', entertainment:'🎬', savings:'🏦',
+    gifts:'🎁', other:'📦'
   };
   // Merge custom categories into the base maps at runtime
   function getExpCatMaps() {
@@ -457,7 +475,7 @@
     var sessions = ls('homer-sessions') || []; if (!Array.isArray(sessions)) sessions = [];
     var reviews = ls('homer-weekly-reviews') || []; if (!Array.isArray(reviews)) reviews = [];
     var notes = ls('homer-notes') || []; if (!Array.isArray(notes)) notes = [];
-    var budgets = ls('homer-expense-budgets') || { food: 1500, transport: 400, shopping: 300, utilities: 500, home: 800, health: 300, fitness: 200, work: 500, education: 200, travel: 1000, personal: 200, subscriptions: 150, entertainment: 300, gifts: 200, other: 200 };
+    var budgets = ls('homer-expense-budgets') || { groceries: 1200, restaurants: 600, coffee: 200, food: 500, rent: 3000, home: 400, transport: 400, utilities: 500, insurance: 300, health: 300, fitness: 200, work: 400, education: 200, shopping: 400, travel: 1000, personal: 200, subscriptions: 150, entertainment: 300, savings: 1000, gifts: 200, other: 200 };
     var rangeStart = daysAgoStr(anRange);
 
     // Filter by range
@@ -604,28 +622,49 @@
         }).join('')
       : '<p style="color:var(--muted);font-size:.84rem;">No expenses this month.</p>';
 
-    // ─── Budget progress bars ─────────────────────────────────────────
+    // ─── Budget envelopes ─────────────────────────────────────────────
     var curMonthTotal = expenses.filter(function (e) { return (e.date || '').slice(0, 7) === curMoKey; }).reduce(function (s, e) { return s + parseFloat(e.amount || 0); }, 0);
     var budgetCatSet = {};
     Object.keys(budgets).forEach(function (k) { if (budgets[k]) budgetCatSet[k] = true; });
     Object.keys(curMoCats).forEach(function (k) { budgetCatSet[k] = true; });
-    var budgetCats = Object.keys(budgetCatSet).sort(function(a, b) { return (curMoCats[b]||0) - (curMoCats[a]||0); });
-    var budgetHtml = '<p class="an-card-sub">Spending vs monthly budget. Yellow = &gt;80% · Red = over budget.</p>' +
+    // Sort: over-budget first, then by spend descending
+    var budgetCats = Object.keys(budgetCatSet).sort(function (a, b) {
+      var sa = curMoCats[a] || 0, sb = curMoCats[b] || 0;
+      var oa = budgets[a] && sa > budgets[a], ob = budgets[b] && sb > budgets[b];
+      if (oa && !ob) return -1; if (ob && !oa) return 1;
+      return sb - sa;
+    });
+    var budgetHtml = '<p class="an-card-sub">Click any budget amount to edit it inline. Red = over, yellow = &gt;80%. Sorted by over-budget first, then spend.</p>' +
+      '<div class="env-grid">' +
       budgetCats.map(function (cat) {
-        var spent = (curMoCats[cat] || 0), budget = budgets[cat] || 0;
+        var spent = curMoCats[cat] || 0, budget = budgets[cat] || 0;
         if (!budget && !spent) return '';
         var catColor = EXP_CAT_COLORS[cat] || '#94a3b8';
-        var pct = budget ? Math.min(Math.round((spent / budget) * 100), 100) : 100;
-        var over = budget && spent > budget, warn = budget && spent > budget * 0.8;
-        var barColor = over ? '#f87171' : (warn ? '#fbbf24' : catColor);
         var emoji = EXP_CAT_EMOJI[cat] || '📦';
-        var remaining = budget && !over ? '<span style="color:#34d399;font-size:.67rem"> · ' + Math.round(budget - spent) + ' left</span>' : (over ? '<span style="color:#f87171;font-size:.67rem"> · ' + Math.round(spent - budget) + ' over</span>' : '');
-        return '<div class="budget-row">' +
-          '<div class="budget-lbl">' + emoji + ' ' + esc(cat) + '</div>' +
-          '<div class="budget-track"><div class="budget-fill" style="width:' + pct + '%;background:' + barColor + ';"></div></div>' +
-          '<div class="budget-nums ' + (over ? 'over' : (warn ? 'warn' : '')) + '">' + Math.round(spent) + (budget ? '<span class="budget-of"> / ' + budget + '</span>' : '') + remaining + '</div>' +
+        var over = budget && spent > budget, warn = budget && !over && spent > budget * 0.8;
+        var fillColor = over ? '#f87171' : (warn ? '#fbbf24' : catColor);
+        var pct = budget ? Math.min(Math.round(spent / budget * 100), 100) : 100;
+        var statusBadge = over
+          ? '<span class="env-status over">Over!</span>'
+          : (warn ? '<span class="env-status warn">Caution</span>'
+          : (budget ? '<span class="env-status ok">OK</span>' : ''));
+        var remaining = budget && !over
+          ? '<div class="env-remaining" style="color:#34d399">+' + Math.round(budget - spent) + ' left</div>'
+          : (over ? '<div class="env-remaining" style="color:#f87171">-' + Math.round(spent - budget) + ' over</div>' : '');
+        var budgetLine = budget
+          ? 'of <span class="env-editable" data-cat="' + esc(cat) + '" title="Click to edit budget">' + Math.round(budget) + '</span>'
+          : '<button class="env-set-btn" data-cat="' + esc(cat) + '">+ Set budget</button>';
+        return '<div class="env-card" style="border-color:' + fillColor + '40">' +
+          '<div class="env-body">' +
+            '<div class="env-head"><span class="env-name">' + emoji + ' ' + esc(cat) + '</span>' + statusBadge + '</div>' +
+            '<div class="env-spent" style="color:' + catColor + '">' + Math.round(spent) + '</div>' +
+            '<div class="env-of">' + budgetLine + '</div>' +
+            remaining +
+          '</div>' +
+          '<div class="env-bar-wrap"><div class="env-bar-fill" style="width:' + pct + '%;background:' + fillColor + '"></div></div>' +
         '</div>';
-      }).join('');
+      }).join('') +
+      '</div>';
 
     // ─── Energy trend (weekly reviews) ───────────────────────────────
     var recentReviews = reviews.slice(0, 8).reverse();
@@ -664,6 +703,48 @@
     });
     var csvBtn = document.getElementById('an-csv-btn');
     if (csvBtn) csvBtn.onclick = exportAnalyticsCSV;
+
+    // Budget envelope inline editing
+    function saveBudget(cat, val) {
+      var bud = ls('homer-expense-budgets') || {};
+      if (!isNaN(val) && val > 0) bud[cat] = Math.round(val); else delete bud[cat];
+      lss('homer-expense-budgets', bud);
+      initAnalyticsTab();
+    }
+    function makeEnvInput(cat, cur) {
+      var inp = document.createElement('input');
+      inp.type = 'number'; inp.value = cur; inp.min = '0'; inp.step = '50';
+      inp.title = 'Enter to save · Esc to cancel';
+      inp.style.cssText = 'width:80px;padding:2px 7px;border-radius:7px;border:1px solid #60a5fa;background:rgba(96,165,250,.12);color:#60a5fa;font-size:.88rem;font-weight:800;font-family:inherit;outline:none;';
+      var done = false;
+      inp.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !done) { done = true; saveBudget(cat, parseFloat(inp.value)); }
+        if (e.key === 'Escape' && !done) { done = true; initAnalyticsTab(); }
+        e.stopPropagation();
+      });
+      inp.addEventListener('blur', function () { if (!done) { done = true; saveBudget(cat, parseFloat(inp.value)); } });
+      return inp;
+    }
+    tab.querySelectorAll('.env-editable').forEach(function (el) {
+      el.style.cssText = 'cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px;';
+      el.onclick = function (e) {
+        e.stopPropagation();
+        var cat = el.dataset.cat, cur = (budgets[cat] || 0);
+        var inp = makeEnvInput(cat, cur);
+        el.parentNode.replaceChild(inp, el);
+        inp.focus(); inp.select();
+      };
+    });
+    tab.querySelectorAll('.env-set-btn').forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        var cat = btn.dataset.cat;
+        var inp = makeEnvInput(cat, 0);
+        inp.placeholder = 'Amount…';
+        btn.parentNode.replaceChild(inp, btn);
+        inp.focus();
+      };
+    });
   }
 
   function exportAnalyticsCSV() {

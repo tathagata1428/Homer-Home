@@ -176,6 +176,12 @@
     .cat-entertainment{background:rgba(167,139,250,.15);color:#a78bfa}
     .cat-gifts{background:rgba(253,186,116,.15);color:#fdba74}
     .cat-other{background:rgba(148,163,184,.15);color:#94a3b8}
+    .cat-groceries{background:rgba(34,197,94,.15);color:#22c55e}
+    .cat-restaurants{background:rgba(251,146,60,.15);color:#fb923c}
+    .cat-coffee{background:rgba(180,83,9,.15);color:#b45309}
+    .cat-rent{background:rgba(99,102,241,.15);color:#6366f1}
+    .cat-insurance{background:rgba(100,116,139,.15);color:#64748b}
+    .cat-savings{background:rgba(14,165,233,.15);color:#0ea5e9}
     .homer-exp-cat-mgr{padding:8px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
     .homer-exp-cat-mgr-hd{display:flex;align-items:center;justify-content:space-between;padding:2px 0}
     .homer-exp-cat-mgr-lbl{font-size:.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
@@ -841,8 +847,8 @@
   function initExpenses() {
     var KEY = 'homer-expenses';
     var CKEY = 'homer-expense-cats';
-    var BUILTIN = ['food', 'transport', 'shopping', 'utilities', 'home', 'health', 'fitness', 'work', 'education', 'travel', 'personal', 'subscriptions', 'entertainment', 'gifts', 'other'];
-    var BEMOJI = { food: '🍔', transport: '🚗', shopping: '🛍️', utilities: '💡', home: '🏠', health: '❤️', fitness: '🏋️', work: '💼', education: '📚', travel: '✈️', personal: '💅', subscriptions: '📱', entertainment: '🎬', gifts: '🎁', other: '📦' };
+    var BUILTIN = ['groceries', 'restaurants', 'coffee', 'food', 'rent', 'home', 'transport', 'utilities', 'insurance', 'health', 'fitness', 'work', 'education', 'shopping', 'travel', 'personal', 'subscriptions', 'entertainment', 'savings', 'gifts', 'other'];
+    var BEMOJI = { groceries: '🛒', restaurants: '🍽️', coffee: '☕', food: '🍔', rent: '🏡', home: '🏠', transport: '🚗', utilities: '💡', insurance: '🛡️', health: '❤️', fitness: '🏋️', work: '💼', education: '📚', shopping: '🛍️', travel: '✈️', personal: '💅', subscriptions: '📱', entertainment: '🎬', savings: '🏦', gifts: '🎁', other: '📦' };
     var CPALS = ['#84cc16','#2dd4bf','#fb923c','#c084fc','#e11d48','#0ea5e9','#d97706','#0d9488','#7c3aed','#b45309','#be185d','#1d4ed8'];
 
     function getCustom() { return safeJson(localStorage.getItem(CKEY), []); }
