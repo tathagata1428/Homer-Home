@@ -127,6 +127,8 @@
   .env-remaining{font-size:.69rem;font-weight:700;margin-bottom:1px;}
   .env-set-btn{background:none;border:1px dashed rgba(255,255,255,.2);color:var(--muted);font-size:.68rem;padding:2px 8px;border-radius:6px;cursor:pointer;font-family:inherit;transition:all .14s;}
   .env-set-btn:hover{border-color:#60a5fa;color:#60a5fa;}
+  .env-add-btn{display:block;width:100%;margin-top:7px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#94a3b8;font-size:.7rem;font-weight:700;padding:4px 0;border-radius:7px;cursor:pointer;font-family:inherit;transition:all .14s;text-align:center;}
+  .env-add-btn:hover{background:rgba(96,165,250,.12);border-color:rgba(96,165,250,.3);color:#60a5fa;}
   .env-bar-wrap{height:5px;background:rgba(255,255,255,.05);}
   .env-bar-fill{height:100%;transition:width .5s cubic-bezier(.4,0,.2,1);}
   .day-row{display:flex;gap:5px;margin-top:6px;}
@@ -624,26 +626,31 @@
 
     // ─── Budget envelopes ─────────────────────────────────────────────
     var curMonthTotal = expenses.filter(function (e) { return (e.date || '').slice(0, 7) === curMoKey; }).reduce(function (s, e) { return s + parseFloat(e.amount || 0); }, 0);
+    // All built-in cats + any custom cats with spend or budget
     var budgetCatSet = {};
+    Object.keys(EXP_CAT_COLORS_BASE).forEach(function (k) { budgetCatSet[k] = true; });
     Object.keys(budgets).forEach(function (k) { if (budgets[k]) budgetCatSet[k] = true; });
     Object.keys(curMoCats).forEach(function (k) { budgetCatSet[k] = true; });
-    // Sort: over-budget first, then by spend descending
+    // Sort: over-budget first, then has spend, then has budget, then alphabetical
     var budgetCats = Object.keys(budgetCatSet).sort(function (a, b) {
       var sa = curMoCats[a] || 0, sb = curMoCats[b] || 0;
       var oa = budgets[a] && sa > budgets[a], ob = budgets[b] && sb > budgets[b];
       if (oa && !ob) return -1; if (ob && !oa) return 1;
-      return sb - sa;
+      var ha = sa > 0, hb = sb > 0;
+      if (ha && !hb) return -1; if (hb && !ha) return 1;
+      var bha = !!(budgets[a]), bhb = !!(budgets[b]);
+      if (bha && !bhb) return -1; if (bhb && !bha) return 1;
+      return sb - sa || a.localeCompare(b);
     });
-    var budgetHtml = '<p class="an-card-sub">Click any budget amount to edit it inline. Red = over, yellow = &gt;80%. Sorted by over-budget first, then spend.</p>' +
+    var budgetHtml = '<p class="an-card-sub">Click budget amount to edit · Click <strong>+ Add</strong> to log a transaction · Red = over, yellow = &gt;80%.</p>' +
       '<div class="env-grid">' +
       budgetCats.map(function (cat) {
         var spent = curMoCats[cat] || 0, budget = budgets[cat] || 0;
-        if (!budget && !spent) return '';
         var catColor = EXP_CAT_COLORS[cat] || '#94a3b8';
         var emoji = EXP_CAT_EMOJI[cat] || '📦';
         var over = budget && spent > budget, warn = budget && !over && spent > budget * 0.8;
         var fillColor = over ? '#f87171' : (warn ? '#fbbf24' : catColor);
-        var pct = budget ? Math.min(Math.round(spent / budget * 100), 100) : 100;
+        var pct = budget ? Math.min(Math.round(spent / budget * 100), 100) : (spent > 0 ? 100 : 0);
         var statusBadge = over
           ? '<span class="env-status over">Over!</span>'
           : (warn ? '<span class="env-status warn">Caution</span>'
@@ -653,13 +660,17 @@
           : (over ? '<div class="env-remaining" style="color:#f87171">-' + Math.round(spent - budget) + ' over</div>' : '');
         var budgetLine = budget
           ? 'of <span class="env-editable" data-cat="' + esc(cat) + '" title="Click to edit budget">' + Math.round(budget) + '</span>'
-          : '<button class="env-set-btn" data-cat="' + esc(cat) + '">+ Set budget</button>';
-        return '<div class="env-card" style="border-color:' + fillColor + '40">' +
+          : '<button class="env-set-btn" data-cat="' + esc(cat) + '">Set budget</button>';
+        var spentDisplay = spent > 0
+          ? '<div class="env-spent" style="color:' + catColor + '">' + Math.round(spent) + '</div>'
+          : '<div class="env-spent" style="color:#334155">—</div>';
+        return '<div class="env-card" style="border-color:' + (spent > 0 || budget > 0 ? fillColor + '40' : 'rgba(255,255,255,.05)') + '">' +
           '<div class="env-body">' +
             '<div class="env-head"><span class="env-name">' + emoji + ' ' + esc(cat) + '</span>' + statusBadge + '</div>' +
-            '<div class="env-spent" style="color:' + catColor + '">' + Math.round(spent) + '</div>' +
+            spentDisplay +
             '<div class="env-of">' + budgetLine + '</div>' +
             remaining +
+            '<button class="env-add-btn" data-cat="' + esc(cat) + '" title="Add transaction to ' + esc(cat) + '">+ Add</button>' +
           '</div>' +
           '<div class="env-bar-wrap"><div class="env-bar-fill" style="width:' + pct + '%;background:' + fillColor + '"></div></div>' +
         '</div>';
@@ -745,7 +756,14 @@
         inp.focus();
       };
     });
+    tab.querySelectorAll('.env-add-btn').forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        if (window._homerOpenExpenses) window._homerOpenExpenses('', btn.dataset.cat);
+      };
+    });
   }
+  window._homerInitAnalytics = initAnalyticsTab;
 
   function exportAnalyticsCSV() {
     var expenses = ls('homer-expenses') || [];

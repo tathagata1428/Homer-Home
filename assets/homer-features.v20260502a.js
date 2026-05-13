@@ -182,17 +182,28 @@
     .cat-rent{background:rgba(99,102,241,.15);color:#6366f1}
     .cat-insurance{background:rgba(100,116,139,.15);color:#64748b}
     .cat-savings{background:rgba(14,165,233,.15);color:#0ea5e9}
-    .homer-exp-cat-mgr{padding:8px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
-    .homer-exp-cat-mgr-hd{display:flex;align-items:center;justify-content:space-between;padding:2px 0}
-    .homer-exp-cat-mgr-lbl{font-size:.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
-    .homer-exp-cat-mgr-toggle{background:none;border:1px solid rgba(255,255,255,.1);color:#64748b;cursor:pointer;font-size:.72rem;padding:3px 9px;border-radius:7px;font-family:inherit;transition:all .14s}
-    .homer-exp-cat-mgr-toggle:hover{background:rgba(255,255,255,.07);color:#e5e7eb}
-    .homer-exp-cat-panel{padding:10px 0 4px}
+    .exp-cat-picker-wrap{padding:8px 16px 4px;border-bottom:1px solid rgba(255,255,255,.06)}
+    .exp-cat-chips-row{display:flex;flex-wrap:wrap;gap:4px;max-height:96px;overflow-y:auto;scrollbar-width:thin;padding-bottom:2px}
+    .exp-cat-chip{padding:4px 9px;border-radius:18px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:#64748b;cursor:pointer;font-size:.74rem;font-weight:700;font-family:inherit;transition:all .14s;white-space:nowrap;line-height:1.6}
+    .exp-cat-chip:hover{background:rgba(255,255,255,.08);color:#e5e7eb}
+    .exp-cat-chip.sel{font-weight:800}
+    .exp-cat-add-chip{border-style:dashed;color:#64748b}
+    .exp-cat-add-chip:hover{border-color:#60a5fa;color:#60a5fa}
     .homer-exp-cat-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;min-height:22px}
     .homer-exp-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:.73rem;font-weight:700;border:1px solid}
     .homer-exp-chip-del{background:none;border:none;cursor:pointer;color:inherit;opacity:.55;font-size:.65rem;padding:0 0 0 2px;line-height:1;font-family:inherit}
     .homer-exp-chip-del:hover{opacity:1}
     .homer-exp-cat-new-row{display:flex;gap:6px;align-items:center}
+    .homer-exp-date-hdr{padding:10px 0 4px;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#475569;margin-top:4px;}
+    .homer-exp-date-hdr:first-child{margin-top:0;padding-top:4px;}
+    .homer-exp-item-info{flex:1;min-width:0;overflow:hidden;}
+    .homer-exp-item-desc{font-size:.87rem;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .homer-exp-item-cat-lbl{font-size:.69rem;font-weight:700;margin-top:1px;text-transform:capitalize;opacity:.85;}
+    .homer-exp-item-recat{background:none;border:none;color:#64748b;cursor:pointer;font-size:.75rem;padding:2px 3px;transition:color .15s;flex-shrink:0;line-height:1;}
+    .homer-exp-item-recat:hover{color:#60a5fa;}
+    .homer-exp-recat-popup{position:fixed;z-index:99995;background:#1e293b;border:1px solid rgba(255,255,255,.15);border-radius:14px;padding:10px 12px 12px;box-shadow:0 16px 48px rgba(0,0,0,.5);max-width:268px;}
+    .homer-exp-recat-title{font-size:.7rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;}
+    .homer-exp-recat-chips{display:flex;flex-wrap:wrap;gap:4px;max-height:188px;overflow-y:auto;scrollbar-width:thin;}
 
     /* DAILY BRIEF */
     #homer-brief-fab{position:fixed;bottom:20px;left:260px;z-index:9990;width:38px;height:38px;border-radius:50%;background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.3);color:#a78bfa;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:background .2s,transform .2s}
@@ -847,59 +858,48 @@
   function initExpenses() {
     var KEY = 'homer-expenses';
     var CKEY = 'homer-expense-cats';
-    var BUILTIN = ['groceries', 'restaurants', 'coffee', 'food', 'rent', 'home', 'transport', 'utilities', 'insurance', 'health', 'fitness', 'work', 'education', 'shopping', 'travel', 'personal', 'subscriptions', 'entertainment', 'savings', 'gifts', 'other'];
-    var BEMOJI = { groceries: '🛒', restaurants: '🍽️', coffee: '☕', food: '🍔', rent: '🏡', home: '🏠', transport: '🚗', utilities: '💡', insurance: '🛡️', health: '❤️', fitness: '🏋️', work: '💼', education: '📚', shopping: '🛍️', travel: '✈️', personal: '💅', subscriptions: '📱', entertainment: '🎬', savings: '🏦', gifts: '🎁', other: '📦' };
+    var BUILTIN = ['groceries','restaurants','coffee','food','rent','home','transport','utilities','insurance','health','fitness','work','education','shopping','travel','personal','subscriptions','entertainment','savings','gifts','other'];
+    var BEMOJI = { groceries:'🛒',restaurants:'🍽️',coffee:'☕',food:'🍔',rent:'🏡',home:'🏠',transport:'🚗',utilities:'💡',insurance:'🛡️',health:'❤️',fitness:'🏋️',work:'💼',education:'📚',shopping:'🛍️',travel:'✈️',personal:'💅',subscriptions:'📱',entertainment:'🎬',savings:'🏦',gifts:'🎁',other:'📦' };
+    var BCOLORS = { groceries:'#22c55e',restaurants:'#fb923c',coffee:'#b45309',food:'#fb7185',rent:'#6366f1',home:'#14b8a6',transport:'#fbbf24',utilities:'#eab308',insurance:'#64748b',health:'#34d399',fitness:'#ef4444',work:'#60a5fa',education:'#f97316',shopping:'#f472b6',travel:'#38bdf8',personal:'#e879f9',subscriptions:'#818cf8',entertainment:'#a78bfa',savings:'#0ea5e9',gifts:'#fdba74',other:'#94a3b8' };
     var CPALS = ['#84cc16','#2dd4bf','#fb923c','#c084fc','#e11d48','#0ea5e9','#d97706','#0d9488','#7c3aed','#b45309','#be185d','#1d4ed8'];
 
     function getCustom() { return safeJson(localStorage.getItem(CKEY), []); }
     function saveCustom(d) { localStorage.setItem(CKEY, JSON.stringify(d)); }
-    function getEmoji(cat) {
-      if (BEMOJI[cat]) return BEMOJI[cat];
-      var c = getCustom().find(function(x) { return x.name === cat; });
-      return c ? (c.emoji || '🏷️') : '📦';
-    }
-    // Returns HTML attributes for a category badge (handles built-in CSS classes + custom inline colors)
-    function catAttrs(cat, baseClass) {
-      var b = baseClass || 'homer-exp-cat';
-      if (BUILTIN.indexOf(cat) !== -1) return 'class="' + b + ' cat-' + cat + '"';
-      var cc = getCustom().find(function(x) { return x.name === cat; });
-      var col = cc ? (cc.color || '#94a3b8') : '#94a3b8';
-      return 'class="' + b + '" style="background:' + col + '22;color:' + col + ';border:1px solid ' + col + '44"';
+    function getEmoji(cat) { if (BEMOJI[cat]) return BEMOJI[cat]; var c = getCustom().find(function(x){return x.name===cat;}); return c?(c.emoji||'🏷️'):'📦'; }
+    function getColor(cat) { if (BCOLORS[cat]) return BCOLORS[cat]; var c = getCustom().find(function(x){return x.name===cat;}); return c?(c.color||'#94a3b8'):'#94a3b8'; }
+    function catAttrs(cat, bc) {
+      var b = bc||'homer-exp-cat';
+      if (BUILTIN.indexOf(cat)!==-1) return 'class="'+b+' cat-'+cat+'"';
+      var col = getColor(cat);
+      return 'class="'+b+'" style="background:'+col+'22;color:'+col+';border:1px solid '+col+'44"';
     }
 
     var fab = document.createElement('button');
     fab.id = 'homer-expense-fab'; fab.title = 'Expense Tracker'; fab.textContent = '💰';
     document.body.appendChild(fab);
-
-    var ov = document.createElement('div');
-    ov.className = 'homer-overlay'; ov.id = 'homer-expense-ov';
+    var ov = document.createElement('div'); ov.className = 'homer-overlay'; ov.id = 'homer-expense-ov';
     document.body.appendChild(ov);
 
     var panel = document.createElement('div');
     panel.id = 'homer-expense-panel';
     panel.innerHTML =
-      '<div class="homer-exp-header"><h2>💰 Expenses</h2><button class="homer-panel-close" id="homer-exp-close">✕</button></div>' +
-      '<div class="homer-exp-summary"><div class="homer-exp-total" id="homer-exp-total">0.00 RON</div><div class="homer-exp-month" id="homer-exp-month"></div><div class="homer-exp-cats" id="homer-exp-cats"></div></div>' +
+      '<div class="homer-exp-header"><div><h2 style="margin:0;font-size:1.05rem;font-weight:900">💰 Expenses</h2><div id="homer-exp-month" style="font-size:.72rem;color:#64748b;margin-top:2px"></div></div><button class="homer-panel-close" id="homer-exp-close">✕</button></div>' +
+      '<div class="homer-exp-summary"><div class="homer-exp-total" id="homer-exp-total">0.00</div><div style="font-size:.68rem;color:#64748b;margin-top:1px">RON this month</div><div class="homer-exp-cats" id="homer-exp-cats"></div></div>' +
       '<div class="homer-exp-add">' +
-        '<div class="homer-exp-add-row"><input class="homer-exp-input" id="homer-exp-desc" placeholder="Description" /><input class="homer-exp-input homer-exp-amount" id="homer-exp-amount" type="number" placeholder="0.00" step="0.01" min="0" /></div>' +
-        '<div class="homer-exp-add-row" style="margin-top:6px">' +
-          '<select class="homer-exp-cat-sel" id="homer-exp-cat"></select>' +
-          '<input class="homer-exp-input" id="homer-exp-date" type="date" style="flex:0;width:130px" />' +
-          '<button class="homer-exp-add-btn" id="homer-exp-add-btn">Add</button>' +
-        '</div>' +
-      '</div>' +
-      '<div class="homer-exp-cat-mgr">' +
-        '<div class="homer-exp-cat-mgr-hd">' +
-          '<span class="homer-exp-cat-mgr-lbl">Categories</span>' +
-          '<button class="homer-exp-cat-mgr-toggle" id="homer-exp-cat-toggle">⚙ Manage</button>' +
-        '</div>' +
-        '<div id="homer-exp-cat-panel" style="display:none">' +
+        '<div class="homer-exp-add-row"><input class="homer-exp-input" id="homer-exp-desc" placeholder="What did you spend on?" autofocus /><input class="homer-exp-input homer-exp-amount" id="homer-exp-amount" type="number" placeholder="0.00" step="0.01" min="0" /></div>' +
+        '<div class="exp-cat-picker-wrap"><div class="exp-cat-chips-row" id="homer-exp-cat-picker"></div></div>' +
+        '<input type="hidden" id="homer-exp-cat" value="groceries" />' +
+        '<div id="homer-exp-cat-panel" style="display:none;padding:8px 0 2px;">' +
           '<div class="homer-exp-cat-chips" id="homer-exp-cat-chips"></div>' +
           '<div class="homer-exp-cat-new-row">' +
-            '<input id="homer-exp-newcat-emoji" class="homer-exp-input" placeholder="😀" style="flex:0;width:52px;text-align:center;font-size:1.1rem" />' +
-            '<input id="homer-exp-newcat-name" class="homer-exp-input" placeholder="New category name…" />' +
+            '<input id="homer-exp-newcat-emoji" class="homer-exp-input" placeholder="😀" style="flex:0;width:50px;text-align:center;font-size:1.1rem" />' +
+            '<input id="homer-exp-newcat-name" class="homer-exp-input" placeholder="Category name…" />' +
             '<button class="homer-exp-add-btn" id="homer-exp-cat-add" style="white-space:nowrap">+ Add</button>' +
           '</div>' +
+        '</div>' +
+        '<div class="homer-exp-add-row" style="margin-top:8px;gap:8px">' +
+          '<input class="homer-exp-input" id="homer-exp-date" type="date" style="flex:0;width:140px" />' +
+          '<button class="homer-exp-add-btn" id="homer-exp-add-btn" style="flex:1;font-size:.88rem;padding:9px">Add Expense</button>' +
         '</div>' +
       '</div>' +
       '<div class="homer-exp-list" id="homer-exp-list"></div>';
@@ -909,69 +909,126 @@
     function get() { return safeJson(localStorage.getItem(KEY), []); }
     function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
 
-    function rebuildCatSelect(selected) {
-      var sel = document.getElementById('homer-exp-cat'); if (!sel) return;
+    function rebuildCatPicker(selected) {
+      var picker = document.getElementById('homer-exp-cat-picker'); if (!picker) return;
+      var hidden = document.getElementById('homer-exp-cat');
+      if (!selected) selected = (hidden && hidden.value) || BUILTIN[0];
       var custom = getCustom();
-      var opts = BUILTIN.map(function(c) {
-        return '<option value="' + c + '"' + (c === selected ? ' selected' : '') + '>' + BEMOJI[c] + ' ' + c + '</option>';
+      var html = BUILTIN.map(function(cat) {
+        var isSel = cat === selected, col = BCOLORS[cat]||'#94a3b8';
+        var s = isSel ? 'background:'+col+'22;color:'+col+';border-color:'+col+';' : '';
+        return '<button class="exp-cat-chip'+(isSel?' sel':'')+'" data-cat="'+cat+'" style="'+s+'">'+BEMOJI[cat]+' '+cat+'</button>';
+      }).join('');
+      if (custom.length) html += custom.map(function(c) {
+        var isSel = c.name===selected, col = c.color||'#94a3b8';
+        var s = isSel ? 'background:'+col+'22;color:'+col+';border-color:'+col+';' : '';
+        return '<button class="exp-cat-chip'+(isSel?' sel':'')+'" data-cat="'+esc(c.name)+'" style="'+s+'">'+(c.emoji||'🏷️')+' '+esc(c.name)+'</button>';
+      }).join('');
+      html += '<button class="exp-cat-chip exp-cat-add-chip" id="homer-exp-cat-toggle-chip">＋ New</button>';
+      picker.innerHTML = html;
+      if (hidden) hidden.value = selected;
+      picker.querySelectorAll('[data-cat]').forEach(function(btn) {
+        btn.onclick = function(e) { e.preventDefault(); if (hidden) hidden.value = btn.dataset.cat; rebuildCatPicker(btn.dataset.cat); };
       });
-      if (custom.length) {
-        opts.push('<option disabled>── Custom ──</option>');
-        custom.forEach(function(c) {
-          opts.push('<option value="' + esc(c.name) + '"' + (c.name === selected ? ' selected' : '') + '>' + (c.emoji || '🏷️') + ' ' + esc(c.name) + '</option>');
-        });
-      }
-      sel.innerHTML = opts.join('');
+      var addChip = document.getElementById('homer-exp-cat-toggle-chip');
+      if (addChip) addChip.onclick = function() {
+        var p = document.getElementById('homer-exp-cat-panel'), open2 = p.style.display!=='none';
+        p.style.display = open2 ? 'none' : 'block';
+        addChip.textContent = open2 ? '＋ New' : '✕ Close';
+        if (!open2) renderCatChips();
+      };
     }
 
     function renderCatChips() {
       var chips = document.getElementById('homer-exp-cat-chips'); if (!chips) return;
       var custom = getCustom();
-      if (!custom.length) {
-        chips.innerHTML = '<span style="font-size:.72rem;color:#64748b;padding:2px 0;display:block">No custom categories yet.</span>';
-        return;
-      }
+      if (!custom.length) { chips.innerHTML = '<span style="font-size:.72rem;color:#64748b;display:block;padding:2px 0">No custom categories yet.</span>'; return; }
       chips.innerHTML = custom.map(function(c, i) {
-        var col = c.color || '#94a3b8';
-        return '<span class="homer-exp-chip" style="background:' + col + '1a;color:' + col + ';border-color:' + col + '44">' +
-          (c.emoji || '🏷️') + ' ' + esc(c.name) +
-          '<button class="homer-exp-chip-del" data-i="' + i + '" title="Delete">✕</button>' +
-        '</span>';
+        var col = c.color||'#94a3b8';
+        return '<span class="homer-exp-chip" style="background:'+col+'1a;color:'+col+';border-color:'+col+'44">'+(c.emoji||'🏷️')+' '+esc(c.name)+'<button class="homer-exp-chip-del" data-i="'+i+'" title="Remove">✕</button></span>';
       }).join('');
       chips.querySelectorAll('.homer-exp-chip-del').forEach(function(btn) {
         btn.onclick = function() {
-          var d = getCustom(); d.splice(parseInt(btn.dataset.i), 1); saveCustom(d);
-          rebuildCatSelect(); renderCatChips();
-          window._homerToast({ message: 'Category removed', type: 'info', duration: 1200 });
+          var d = getCustom(); d.splice(parseInt(btn.dataset.i),1); saveCustom(d);
+          var sel = (document.getElementById('homer-exp-cat')||{}).value || BUILTIN[0];
+          rebuildCatPicker(BUILTIN.indexOf(sel)!==-1 ? sel : BUILTIN[0]); renderCatChips();
+          window._homerToast({message:'Category removed',type:'info',duration:1200});
         };
       });
     }
 
     function render() {
-      var data = get(); var now = new Date(); var mo = now.toISOString().slice(0, 7);
-      var mData = data.filter(function(e) { return (e.date || '').startsWith(mo); });
-      var total = mData.reduce(function(s, e) { return s + (e.amount || 0); }, 0);
-      document.getElementById('homer-exp-total').textContent = total.toFixed(2) + ' RON';
-      document.getElementById('homer-exp-month').textContent = now.toLocaleString('en', { month: 'long', year: 'numeric' });
+      var data = get(), now = new Date(), mo = now.toISOString().slice(0,7);
+      var mData = data.filter(function(e){return (e.date||'').startsWith(mo);});
+      var total = mData.reduce(function(s,e){return s+(e.amount||0);},0);
+      document.getElementById('homer-exp-total').textContent = total.toFixed(2);
+      document.getElementById('homer-exp-month').textContent = now.toLocaleString('en',{month:'long',year:'numeric'});
       var catT = {};
-      mData.forEach(function(e) { catT[e.cat] = (catT[e.cat] || 0) + (e.amount || 0); });
-      document.getElementById('homer-exp-cats').innerHTML = Object.keys(catT).map(function(c) {
-        return '<span ' + catAttrs(c, 'homer-exp-cat') + '>' + getEmoji(c) + ' ' + catT[c].toFixed(0) + '</span>';
+      mData.forEach(function(e){catT[e.cat]=(catT[e.cat]||0)+(e.amount||0);});
+      // Sort cats by amount
+      var catSorted = Object.keys(catT).sort(function(a,b){return catT[b]-catT[a];});
+      document.getElementById('homer-exp-cats').innerHTML = catSorted.map(function(c) {
+        return '<span '+catAttrs(c,'homer-exp-cat')+'>'+getEmoji(c)+' '+catT[c].toFixed(0)+'</span>';
       }).join('');
-      var sorted = data.slice().sort(function(a, b) { return (b.date || '') < (a.date || '') ? -1 : 1; });
-      var list = document.getElementById('homer-exp-list');
-      list.innerHTML = sorted.slice(0, 100).map(function(e) {
-        return '<div class="homer-exp-item" data-id="' + e.id + '">' +
-          '<span ' + catAttrs(e.cat, 'homer-exp-item-cat') + '>' + getEmoji(e.cat) + '</span>' +
-          '<span class="homer-exp-item-desc">' + esc(e.desc) + '</span>' +
-          '<span class="homer-exp-item-date">' + (e.date || '') + '</span>' +
-          '<span class="homer-exp-item-amount">' + (e.amount || 0).toFixed(2) + '</span>' +
-          '<button class="homer-exp-item-del">✕</button></div>';
+      // Group transactions by date
+      var sorted = data.slice().sort(function(a,b){return (b.date||'')<(a.date||'')?-1:1;});
+      var list = document.getElementById('homer-exp-list'), lastDate = '';
+      var html = sorted.slice(0,150).map(function(e) {
+        var dateHdr = '';
+        var eDate = (e.date||'').slice(0,10);
+        if (eDate !== lastDate) {
+          lastDate = eDate;
+          var d = new Date(eDate); var isToday = eDate === new Date().toISOString().slice(0,10);
+          var isYest = eDate === new Date(Date.now()-86400000).toISOString().slice(0,10);
+          var lbl = isToday ? 'Today' : isYest ? 'Yesterday' : d.toLocaleDateString('en',{weekday:'short',month:'short',day:'numeric'});
+          dateHdr = '<div class="homer-exp-date-hdr">'+lbl+'</div>';
+        }
+        var col = getColor(e.cat);
+        return dateHdr + '<div class="homer-exp-item" data-id="'+e.id+'">' +
+          '<span '+catAttrs(e.cat,'homer-exp-item-cat')+'>'+getEmoji(e.cat)+'</span>' +
+          '<div class="homer-exp-item-info"><div class="homer-exp-item-desc">'+esc(e.desc)+'</div><div class="homer-exp-item-cat-lbl" style="color:'+col+'">'+esc(e.cat)+'</div></div>' +
+          '<span class="homer-exp-item-amount">'+parseFloat(e.amount||0).toFixed(2)+'</span>' +
+          '<button class="homer-exp-item-recat" title="Change category">↻</button>' +
+          '<button class="homer-exp-item-del" title="Delete">✕</button></div>';
       }).join('');
+      list.innerHTML = html || '<div style="text-align:center;padding:32px;color:#64748b;font-size:.85rem">No transactions yet</div>';
       list.querySelectorAll('.homer-exp-item-del').forEach(function(btn) {
         btn.onclick = function() {
-          var id = parseInt(btn.closest('[data-id]').dataset.id);
-          save(get().filter(function(e) { return e.id !== id; })); render();
+          var id = btn.closest('[data-id]').dataset.id;
+          save(get().filter(function(e){return String(e.id)!==String(id);})); render();
+          if (window._homerInitAnalytics) setTimeout(window._homerInitAnalytics, 50);
+        };
+      });
+      list.querySelectorAll('.homer-exp-item-recat').forEach(function(btn) {
+        btn.onclick = function(ev) { ev.stopPropagation(); showRecatPicker(btn.closest('[data-id]').dataset.id, btn); };
+      });
+    }
+
+    function showRecatPicker(itemId, anchor) {
+      var old = document.getElementById('homer-exp-recat-popup'); if (old) old.remove();
+      var allCats = BUILTIN.concat(getCustom().map(function(c){return c.name;}));
+      var popup = document.createElement('div');
+      popup.id = 'homer-exp-recat-popup'; popup.className = 'homer-exp-recat-popup';
+      popup.innerHTML = '<div class="homer-exp-recat-title">Move to category</div>' +
+        '<div class="homer-exp-recat-chips">' +
+        allCats.map(function(c) {
+          return '<button class="exp-cat-chip homer-exp-recat-chip" data-cat="'+esc(c)+'">'+getEmoji(c)+' '+esc(c)+'</button>';
+        }).join('') + '</div>';
+      document.body.appendChild(popup);
+      var rect = anchor.getBoundingClientRect();
+      popup.style.top = Math.min(rect.bottom + 6, window.innerHeight - 220) + 'px';
+      popup.style.right = Math.max(window.innerWidth - rect.right, 4) + 'px';
+      setTimeout(function() {
+        function outsideClick() { popup.remove(); document.removeEventListener('click', outsideClick); }
+        document.addEventListener('click', outsideClick);
+      }, 10);
+      popup.querySelectorAll('.homer-exp-recat-chip').forEach(function(chip) {
+        chip.onclick = function(ev) {
+          ev.stopPropagation();
+          var allData = get();
+          allData.forEach(function(expense){ if (String(expense.id)===String(itemId)) expense.cat = chip.dataset.cat; });
+          save(allData); popup.remove(); render();
+          if (window._homerInitAnalytics) setTimeout(window._homerInitAnalytics, 50);
         };
       });
     }
@@ -979,50 +1036,45 @@
     document.getElementById('homer-exp-add-btn').addEventListener('click', function() {
       var desc = document.getElementById('homer-exp-desc').value.trim();
       var amount = parseFloat(document.getElementById('homer-exp-amount').value);
-      if (!desc || isNaN(amount) || amount <= 0) { window._homerToast({ message: 'Enter description and amount', type: 'warn' }); return; }
+      if (!desc || isNaN(amount) || amount <= 0) { window._homerToast({message:'Enter description and amount',type:'warn'}); return; }
       var data = get();
-      data.push({ id: Date.now(), desc: desc, amount: amount, cat: document.getElementById('homer-exp-cat').value, date: document.getElementById('homer-exp-date').value });
-      save(data); document.getElementById('homer-exp-desc').value = ''; document.getElementById('homer-exp-amount').value = '';
-      render(); window._homerToast({ message: 'Expense added', type: 'success', duration: 1500 });
+      data.push({id:Date.now(),desc:desc,amount:amount,cat:document.getElementById('homer-exp-cat').value,date:document.getElementById('homer-exp-date').value});
+      save(data); document.getElementById('homer-exp-desc').value=''; document.getElementById('homer-exp-amount').value='';
+      render(); window._homerToast({message:'✓ Expense added',type:'success',duration:1500});
+      if (window._homerInitAnalytics) setTimeout(window._homerInitAnalytics, 50);
+      document.getElementById('homer-exp-desc').focus();
     });
-    ['homer-exp-desc', 'homer-exp-amount'].forEach(function(fid) {
-      document.getElementById(fid).addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('homer-exp-add-btn').click(); });
-    });
-
-    document.getElementById('homer-exp-cat-toggle').addEventListener('click', function() {
-      var p = document.getElementById('homer-exp-cat-panel');
-      var isOpen = p.style.display !== 'none';
-      p.style.display = isOpen ? 'none' : 'block';
-      this.textContent = isOpen ? '⚙ Manage' : '✕ Close';
-      if (!isOpen) renderCatChips();
+    ['homer-exp-desc','homer-exp-amount'].forEach(function(fid) {
+      document.getElementById(fid).addEventListener('keydown', function(e){if(e.key==='Enter') document.getElementById('homer-exp-add-btn').click();});
     });
 
     document.getElementById('homer-exp-cat-add').addEventListener('click', function() {
-      var emoji = document.getElementById('homer-exp-newcat-emoji').value.trim() || '🏷️';
+      var emoji = document.getElementById('homer-exp-newcat-emoji').value.trim()||'🏷️';
       var raw = document.getElementById('homer-exp-newcat-name').value.trim();
-      var name = raw.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
-      if (!name) { window._homerToast({ message: 'Enter a category name', type: 'warn' }); return; }
-      if (BUILTIN.indexOf(name) !== -1) { window._homerToast({ message: 'That\'s already a built-in category', type: 'warn' }); return; }
+      var name = raw.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9\-]/g,'');
+      if (!name) { window._homerToast({message:'Enter a category name',type:'warn'}); return; }
+      if (BUILTIN.indexOf(name)!==-1) { window._homerToast({message:'Already a built-in category',type:'warn'}); return; }
       var d = getCustom();
-      if (d.find(function(c) { return c.name === name; })) { window._homerToast({ message: 'Category already exists', type: 'warn' }); return; }
-      var color = CPALS[d.length % CPALS.length];
-      d.push({ name: name, emoji: emoji, color: color });
+      if (d.find(function(c){return c.name===name;})) { window._homerToast({message:'Category already exists',type:'warn'}); return; }
+      d.push({name:name,emoji:emoji,color:CPALS[d.length%CPALS.length]});
       saveCustom(d);
-      document.getElementById('homer-exp-newcat-emoji').value = '';
-      document.getElementById('homer-exp-newcat-name').value = '';
-      rebuildCatSelect(name);
-      renderCatChips();
-      window._homerToast({ message: '✓ Category "' + name + '" added', type: 'success', duration: 1800 });
+      document.getElementById('homer-exp-newcat-emoji').value='';
+      document.getElementById('homer-exp-newcat-name').value='';
+      rebuildCatPicker(name); renderCatChips();
+      window._homerToast({message:'✓ "'+name+'" added',type:'success',duration:1500});
     });
-    document.getElementById('homer-exp-newcat-name').addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') document.getElementById('homer-exp-cat-add').click();
-    });
+    document.getElementById('homer-exp-newcat-name').addEventListener('keydown',function(e){if(e.key==='Enter') document.getElementById('homer-exp-cat-add').click();});
 
-    function open(prefill) { panel.classList.add('open'); ov.classList.add('open'); rebuildCatSelect(); render(); if (prefill) document.getElementById('homer-exp-desc').value = prefill; }
+    function open(prefill, cat) {
+      panel.classList.add('open'); ov.classList.add('open');
+      rebuildCatPicker(cat||null); render();
+      if (prefill) document.getElementById('homer-exp-desc').value = prefill;
+      setTimeout(function(){document.getElementById('homer-exp-desc').focus();},80);
+    }
     function close() { panel.classList.remove('open'); ov.classList.remove('open'); }
     document.getElementById('homer-exp-close').addEventListener('click', close);
     ov.addEventListener('click', close);
-    fab.addEventListener('click', function() { panel.classList.contains('open') ? close() : open(); });
+    fab.addEventListener('click', function(){panel.classList.contains('open')?close():open();});
     window._homerOpenExpenses = open;
   }
 
