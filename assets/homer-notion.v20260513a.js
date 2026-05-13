@@ -213,9 +213,15 @@
       orig(name);
       if (MY_TABS.indexOf(name) !== -1) { var el = document.getElementById('tab-' + name); if (el) el.style.display = 'block'; }
       document.querySelectorAll('[data-tab]').forEach(function (b) { b.classList.toggle('active', b.dataset.tab === name); });
-      // Fade-in animation on newly shown tab
+      // Direction-aware tab transition animation
       var shown = document.getElementById('tab-' + name);
-      if (shown) { shown.classList.remove('tab-anim'); void shown.offsetWidth; shown.classList.add('tab-anim'); }
+      if (shown) {
+        var dir = window._homerSwipeDir || '';
+        window._homerSwipeDir = '';
+        shown.classList.remove('tab-anim', 'tab-anim-right', 'tab-anim-left');
+        void shown.offsetWidth; // force reflow
+        shown.classList.add(dir === 'right' ? 'tab-anim-right' : dir === 'left' ? 'tab-anim-left' : 'tab-anim');
+      }
     }
     patched._hn = true;
     window._homerShowTab = patched;
@@ -983,6 +989,7 @@
   });
 
   // ── Swipe Navigation ──────────────────────────────────────────────────
+  function haptic(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (_) {} }
   function initSwipeNav() {
     if (!('ontouchstart' in window)) return;
     var SWIPE_TABS = ['home', 'pomodoro', 'tasks', 'tools', 'vault', 'analytics', 'recurring'];
@@ -1006,13 +1013,24 @@
       var avail = SWIPE_TABS.filter(function (t) { return !!document.getElementById('tab-' + t); });
       var idx = avail.indexOf(current);
       if (idx < 0) return;
-      var next = dx < 0 ? idx + 1 : idx - 1; // swipe-left = forward, swipe-right = back
+      var goingForward = dx < 0; // swipe-left = forward tab, swipe-right = back
+      var next = goingForward ? idx + 1 : idx - 1;
       if (next < 0 || next >= avail.length) return;
       if (window._homerShowTab) {
+        // Set direction for the animation: new tab enters from right when going forward
+        window._homerSwipeDir = goingForward ? 'right' : 'left';
         window._homerShowTab(avail[next]);
-        try { if (navigator.vibrate) navigator.vibrate(8); } catch (_) {}
+        haptic(8);
       }
     }, { passive: true });
+
+    // Haptic feedback on bottom nav button taps
+    var nav = document.getElementById('mobile-nav');
+    if (nav) {
+      nav.addEventListener('touchend', function (e) {
+        if (e.target.closest('.mnav-btn')) haptic(4);
+      }, { passive: true });
+    }
   }
 
   // ── Init ──────────────────────────────────────────────────────────────
