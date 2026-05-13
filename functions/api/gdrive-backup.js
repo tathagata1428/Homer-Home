@@ -170,6 +170,7 @@ export async function onRequest(context) {
     const requestKind = String((body || {}).kind || '').trim().toLowerCase();
     const forceBackup = !!(body && body.force);
     const redisOnly = !!(body && body.redisOnly);
+    const fullBundle = !!(body && body.fullBundle);
     const taskSnapshot = Array.isArray((body || {}).tasks) ? body.tasks : [];
     const quoteMarkdown = typeof (body || {}).quoteMarkdown === 'string' ? String(body.quoteMarkdown || '').trim() : '';
     const cleanupManaged = !!(body && body.cleanupManaged);
@@ -314,7 +315,20 @@ export async function onRequest(context) {
 
     const driveFiles = filterMarkdownFileMap(files);
     const driveCustomFiles = filterMarkdownFileMap(nextCustomFiles);
-    const payload = {
+    const payload = fullBundle ? {
+      secret: gdriveSecret,
+      mode,
+      driveScope: 'full-bundle',
+      profile: profile || null,
+      memories: memories || [],
+      history: Array.isArray(history) ? history.slice(-100) : [],
+      fileLibrary: compactFileLibrary,
+      files: driveFiles,
+      customFiles: driveCustomFiles,
+      journal: Array.isArray(journal) ? journal : [],
+      syncMeta,
+      cleanupManaged
+    } : {
       secret: gdriveSecret,
       mode,
       driveScope: 'md-only',

@@ -9906,6 +9906,44 @@ let tvWidgetCreated = false;
       renderHealthCard('Last Restore', localStorage.getItem(BACKUP_LAST_RESTORE_TS_KEY), 'Most recent recovery source: ' + restoreSource + '.', '#f87171');
     safeUpdateVaultSyncBadge();
   }
+  function exportLocalBackupJson() {
+    try {
+      var snap = { _exportedAt: new Date().toISOString(), _version: 1, localStorage: {}, indexedDb: {} };
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        snap.localStorage[k] = localStorage.getItem(k);
+      }
+      if (window._cachedVaultDataForBeacon) snap.indexedDb['homer-vault-data'] = window._cachedVaultDataForBeacon;
+      var blob = new Blob([JSON.stringify(snap, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'homer-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch(e) { alert('Export failed: ' + e.message); }
+  }
+  function importLocalBackupJson(file) {
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        var snap = JSON.parse(ev.target.result);
+        var ls = snap.localStorage || snap;
+        if (!ls || typeof ls !== 'object') throw new Error('Invalid backup format');
+        var count = 0;
+        Object.keys(ls).forEach(function(k) {
+          if (k === '_exportedAt' || k === '_version') return;
+          try { localStorage.setItem(k, String(ls[k] == null ? '' : ls[k])); count++; } catch(_le) {}
+        });
+        if (snap.indexedDb && snap.indexedDb['homer-vault-data'] && typeof window._homerIdbWriteVaultData === 'function') {
+          window._homerIdbWriteVaultData(snap.indexedDb['homer-vault-data']);
+        }
+        if (confirm('Restored ' + count + ' items from local backup. Reload to apply?')) location.reload();
+      } catch(e) { alert('Import failed: ' + e.message); }
+    };
+    reader.readAsText(file);
+  }
   function initPersistentFieldLabels(){
     scanPersistentFieldLabels(document);
     if(syncFieldObserver) syncFieldObserver.disconnect();
@@ -10747,6 +10785,12 @@ let tvWidgetCreated = false;
 
   document.getElementById('fab-backup').addEventListener('click', function(){ backup(true); });
   document.getElementById('fab-restore').addEventListener('click', restore);
+  var localExportBtn = document.getElementById('fab-local-export');
+  var localImportBtn = document.getElementById('fab-local-import');
+  var localImportInput = document.getElementById('fab-local-import-input');
+  if(localExportBtn) localExportBtn.addEventListener('click', exportLocalBackupJson);
+  if(localImportBtn) localImportBtn.addEventListener('click', function(){ if(localImportInput) localImportInput.click(); });
+  if(localImportInput) localImportInput.addEventListener('change', function(e){ if(e.target.files && e.target.files[0]) importLocalBackupJson(e.target.files[0]); e.target.value=''; });
 
   // --- Version History UI ---
   var versionsDiv = document.getElementById('fab-versions');
@@ -11337,6 +11381,13 @@ let tvWidgetCreated = false;
     if(document.visibilityState === 'hidden'){
       flushFieldSyncOps('visibility-hidden');
       flushDbBackupNow('visibility-hidden');
+      // Auto-trigger Drive backup on hide if >6h since last backup
+      try {
+        var _lastDriveTs = parseInt(localStorage.getItem('homer-drive-backup-ts') || '0', 10);
+        if(typeof window._homerBackupJoeyToDrive === 'function' && (!_lastDriveTs || (Date.now() - _lastDriveTs) > 6 * 60 * 60 * 1000)) {
+          window._homerBackupJoeyToDrive('visibility-hidden');
+        }
+      } catch(_e) {}
       return;
     }
     if(document.visibilityState === 'visible'){
@@ -13776,6 +13827,39 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       console.error('[GDrive Backup]', e);
       alert('Network error: ' + e.message);
       setTimeout(function(){ btn.innerHTML = '&#x2601; Backup to Drive'; btn.disabled = false; }, 2000);
+    });
+  });
+
+  // --- Google Drive full bundle backup (disaster recovery) ---
+  var gdriveFullBackupBtn = document.getElementById('oc-gdrive-full-backup');
+  if(gdriveFullBackupBtn) gdriveFullBackupBtn.addEventListener('click', function(){
+    var btn = this;
+    var pass = localStorage.getItem('homer-sync-pass') || '';
+    if(!hasJoeyRemoteAuth()){ alert('Log in first to back up to Drive.'); return; }
+    btn.disabled = true;
+    btn.textContent = '⏳ Saving full bundle...';
+    Promise.resolve(primeJoeyRedisForBackup('full-bundle-backup', { keepalive:false })).catch(function(){ return null; }).then(function(){
+      return window._homerFetchJson('/api/gdrive-backup', withSupabaseAuth({
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(withContextMode({ passphrase: pass, fullBundle:true, force:true }))
+      }));
+    }).then(function(d){
+      if(d && d.ok){
+        clearJoeyDriveBackupDirty();
+        if(typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-drive-backup-ts');
+        scheduleJoeySyncStatusRefresh(200);
+        btn.textContent = '✅ Full backup saved!';
+        setTimeout(function(){ btn.innerHTML = '&#x1F4E6; Full Backup to Drive'; btn.disabled = false; }, 3000);
+      } else {
+        btn.textContent = '❌ Failed';
+        alert('FULL BACKUP ERROR:\n\n' + JSON.stringify(d, null, 2).substring(0, 800));
+        setTimeout(function(){ btn.innerHTML = '&#x1F4E6; Full Backup to Drive'; btn.disabled = false; }, 2000);
+      }
+    }).catch(function(e){
+      btn.textContent = '❌ Error';
+      alert('Network error: ' + e.message);
+      setTimeout(function(){ btn.innerHTML = '&#x1F4E6; Full Backup to Drive'; btn.disabled = false; }, 2000);
     });
   });
 

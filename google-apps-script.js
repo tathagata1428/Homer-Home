@@ -37,6 +37,26 @@ function formatDriveStamp(date) {
   return Utilities.formatDate(date, Session.getScriptTimeZone(), "yyyyMMdd-HHmmss");
 }
 
+function formatDateStamp(date) {
+  return Utilities.formatDate(date, Session.getScriptTimeZone(), "yyyyMMdd");
+}
+
+function pruneOldArchives(folder, prefix, keepDays) {
+  var cutoff = new Date(Date.now() - keepDays * 24 * 60 * 60 * 1000);
+  var iter = folder.getFiles();
+  var toDelete = [];
+  while (iter.hasNext()) {
+    var file = iter.next();
+    var name = String(file.getName() || '');
+    if (name.indexOf(prefix) !== 0) continue;
+    var datePart = name.slice(prefix.length, prefix.length + 8);
+    if (!/^\d{8}$/.test(datePart)) continue;
+    var y = parseInt(datePart.slice(0, 4)), m = parseInt(datePart.slice(4, 6)) - 1, d = parseInt(datePart.slice(6, 8));
+    if (new Date(y, m, d) < cutoff) toDelete.push(file);
+  }
+  toDelete.forEach(function(f) { try { f.setTrashed(true); } catch(_) {} });
+}
+
 function getTargetFolder(folderName, folderId) {
   var safeId = String(folderId || '').trim();
   if (safeId) return DriveApp.getFolderById(safeId);
@@ -202,6 +222,13 @@ function doPost(e) {
     };
 
     var content = JSON.stringify(payload, null, 2);
+
+    // For full-bundle: save dedicated full backup + daily versioned archive (7-day rolling)
+    if ((data.driveScope || '') === 'full-bundle') {
+      upsertTextFile(folder, 'joey-full-backup.json', content, MimeType.PLAIN_TEXT);
+      upsertTextFile(folder, 'joey-full-' + formatDateStamp(new Date()) + '.json', content, MimeType.PLAIN_TEXT);
+      pruneOldArchives(folder, 'joey-full-', 7);
+    }
 
     // Update or create stable JSON snapshot
     upsertTextFile(folder, 'joey-context.json', content, MimeType.PLAIN_TEXT);

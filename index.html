@@ -1330,6 +1330,9 @@
         <button type="button" id="oc-gdrive-backup" class="oc-settings-btn primary" title="Save Joey context (memories, history, profile) to Google Drive">&#x2601; Save to Drive</button>
         <button type="button" id="oc-gdrive-restore" class="oc-settings-btn ghost" title="Pull Joey context from Google Drive (overwrites current mode)">&#x21bb; Pull from Drive</button>
       </div>
+      <div class="oc-settings-actions-row">
+        <button type="button" id="oc-gdrive-full-backup" class="oc-settings-btn ghost" title="Full backup: memories, profile, history, journal + files to Google Drive (disaster recovery)">&#x1F4E6; Full Backup to Drive</button>
+      </div>
     </div>
     <div id="oc-library-panel">
       <div class="oc-library-head">
@@ -1444,6 +1447,11 @@
     </label>
     <div id="fab-status" style="color:var(--muted);font-size:.8rem;min-height:1.2em;margin-bottom:8px;"></div>
     <div id="fab-backup-health" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+      <button id="fab-local-export" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">&#8615; Export JSON</button>
+      <button id="fab-local-import" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">&#8679; Import JSON</button>
+      <input type="file" id="fab-local-import-input" accept=".json" style="display:none">
+    </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
       <button id="fab-inspect-latest" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">Inspect Latest</button>
     </div>
@@ -1609,7 +1617,7 @@
 </div>
 <input type="file" id="receipt-camera-input" accept="image/*" capture="environment" style="display:none">
 
-    <script src="/assets/app-shell.v20260501g.js?v=20260511l"></script>
+    <script src="/assets/app-shell.v20260501g.js?v=20260513a"></script>
     <script src="/assets/homer-features.v20260502a.js?v=20260506c"></script>
     <script src="/assets/homer-enhancements.v20260502a.js?v=20260511b"></script>
     <script src="/assets/homer-habits.v20260508a.js?v=20260511a"></script>
