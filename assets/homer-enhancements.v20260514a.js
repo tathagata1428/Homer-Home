@@ -1594,7 +1594,7 @@
   function saveExpenses(a){localStorage.setItem('homer-expenses',JSON.stringify(a));}
   function getIncome(){return safeJson(localStorage.getItem('homer-income'),[]);}
   function saveIncome(a){localStorage.setItem('homer-income',JSON.stringify(a));}
-  function getBudgets(){return safeJson(localStorage.getItem(BUDGET_KEY),Object.assign({},DEFAULT_BUDGETS));}
+  function getBudgets(){var saved=safeJson(localStorage.getItem(BUDGET_KEY),{});return Object.assign({},DEFAULT_BUDGETS,saved);}
   function saveBudgets(b){try{localStorage.setItem(BUDGET_KEY,JSON.stringify(b));}catch(_){}}
   function getExcludedBudgets(){return safeJson(localStorage.getItem(EXCLUDED_BUDGETS_KEY),[]);}
   function saveExcludedBudgets(a){try{localStorage.setItem(EXCLUDED_BUDGETS_KEY,JSON.stringify(a));}catch(_){}}
@@ -1714,9 +1714,9 @@
       html+='<div style="color:#475569;font-size:.84rem;">No expenses yet — add them in Transactions.</div>';
     } else {
       html+=recent.map(function(e){
-        var c=e.cat||'other',col=CAT_COLOR[c]||'#94a3b8';
+        var c=e.cat||'other',col=getCatColor(c);
         return'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);">'+
-          '<span>'+CAT_ICON[c]+'</span>'+
+          '<span>'+getCatIcon(c)+'</span>'+
           '<span style="flex:1;font-size:.84rem;color:#cbd5e1;">'+esc(e.desc||'')+'</span>'+
           '<span style="font-size:.75rem;color:#64748b;margin-right:8px;">'+esc(e.date||'')+'</span>'+
           '<span style="font-weight:800;color:#e5e7eb;font-size:.88rem;">'+parseFloat(e.amount||0).toFixed(2)+' RON</span>'+
@@ -1824,7 +1824,7 @@
         function doAddCat(){
           var emoji=((document.getElementById('he-cat-new-emoji')||{}).value||'').trim()||'🏷️';
           var rawName=((document.getElementById('he-cat-new-name')||{}).value||'').trim();
-          var name=rawName.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+          var name=rawName.toLowerCase().trim().replace(/\s+/g,'-');
           if(!name){toast('Enter a category name','warn');return;}
           if(getAllCats().indexOf(name)>=0){toast('Category already exists','warn');return;}
           var col=CPALS_HE[getCustomCats().length%CPALS_HE.length];
