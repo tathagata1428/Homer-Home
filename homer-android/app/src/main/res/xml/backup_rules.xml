@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Exclude encrypted vault data and auth credentials from cloud backup -->
+    <exclude domain="sharedpref" path="homer_vault_prefs.xml" />
+    <exclude domain="sharedpref" path="homer_auth_prefs.xml" />
+    <exclude domain="database" path="homer.db" />
+</full-backup-content>

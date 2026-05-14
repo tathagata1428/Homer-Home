@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Homer dark theme palette — matches website exactly -->
+    <color name="bg_primary">#FF0A1220</color>
+    <color name="bg_card">#FF0F172A</color>
+    <color name="bg_card_alt">#FF111827</color>
+    <color name="text_primary">#FFE5E7EB</color>
+    <color name="text_muted">#FF94A3B8</color>
+    <color name="accent_blue">#FF3B82F6</color>
+    <color name="accent_violet">#FF8B5CF6</color>
+    <color name="accent_green">#FF22C55E</color>
+    <color name="accent_amber">#FFFBBF24</color>
+    <color name="accent_red">#FFEF4444</color>
+    <color name="border">#1AFFFFFF</color>
+    <color name="border_subtle">#0DFFFFFF</color>
+</resources>

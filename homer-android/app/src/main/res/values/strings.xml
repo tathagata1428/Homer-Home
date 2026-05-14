@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Homer</string>
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_focus">Focus</string>
+    <string name="nav_tools">Tools</string>
+    <string name="nav_vault">Vault</string>
+    <string name="nav_joey">Joey</string>
+    <!-- Notifications -->
+    <string name="pomodoro_channel_name">Pomodoro Timer</string>
+    <string name="pomodoro_channel_desc">Shows the active Pomodoro session</string>
+    <string name="ambient_channel_name">Ambient Sounds</string>
+    <string name="ambient_channel_desc">Controls for playing ambient sounds</string>
+    <string name="sync_channel_name">Sync</string>
+    <string name="sync_channel_desc">Background sync status</string>
+</resources>
