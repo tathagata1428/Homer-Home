@@ -136,4 +136,17 @@ dependencies {
 
     // Security
     implementation(libs.security.crypto)
+
+    // Accompanist
+    implementation(libs.accompanist.permissions)
+    implementation(libs.accompanist.systemuicontroller)
+
+    // OkHttp
+    implementation(libs.okhttp)
+
+    // Location
+    implementation(libs.play.services.location)
+
+    // Chrome Custom Tabs
+    implementation(libs.browser)
 }

@@ -11,12 +11,20 @@ import io.github.jan.tennert.supabase.postgrest.Postgrest
 import io.github.jan.tennert.supabase.realtime.Realtime
 import io.github.jan.tennert.supabase.storage.Storage
 import io.ktor.client.engine.android.Android
+import okhttp3.OkHttpClient
 import ro.b4it.homer.BuildConfig
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
+
+    @Provides @Singleton
+    fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .build()
 
     @Provides @Singleton
     fun provideSupabaseClient(): SupabaseClient = createSupabaseClient(

@@ -9,6 +9,18 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import ro.b4it.homer.ui.screens.focuslab.FocusLabScreen
+import ro.b4it.homer.ui.screens.habits.HabitsScreen
+import ro.b4it.homer.ui.screens.home.HomeScreen
+import ro.b4it.homer.ui.screens.inbox.InboxScreen
+import ro.b4it.homer.ui.screens.investing.InvestingScreen
+import ro.b4it.homer.ui.screens.joey.JoeyScreen
+import ro.b4it.homer.ui.screens.ledger.LedgerScreen
+import ro.b4it.homer.ui.screens.links.LinksScreen
+import ro.b4it.homer.ui.screens.news.NewsScreen
+import ro.b4it.homer.ui.screens.focus.FocusScreen
+import ro.b4it.homer.ui.screens.tools.ToolsScreen
+import ro.b4it.homer.ui.screens.vault.VaultScreen
 import ro.b4it.homer.ui.screens.placeholder.PlaceholderScreen
 
 @Composable
@@ -18,29 +30,32 @@ fun AppNavHost(
     modifier: Modifier = Modifier,
 ) {
     NavHost(
-        navController  = navController,
+        navController   = navController,
         startDestination = Screen.Home.route,
-        modifier       = modifier.padding(innerPadding),
+        modifier        = modifier.padding(innerPadding),
     ) {
-        composable(Screen.Home.route)       { PlaceholderScreen("Home") }
-        composable(Screen.Focus.route)      { PlaceholderScreen("Focus") }
-        composable(Screen.Tools.route)      { PlaceholderScreen("Tools") }
-        composable(Screen.Vault.route)      { PlaceholderScreen("Vault") }
-        composable(Screen.Joey.route)       { PlaceholderScreen("Joey AI") }
+        // ---- Bottom nav ----
+        composable(Screen.Home.route)       { HomeScreen() }
+        composable(Screen.Focus.route)      { FocusScreen() }
+        composable(Screen.Tools.route)      { ToolsScreen() }
+        composable(Screen.Vault.route)      { VaultScreen(navController) }
+        composable(Screen.Joey.route)       { JoeyScreen() }
 
-        composable(Screen.FocusLab.route)   { PlaceholderScreen("Focus Lab") }
-        composable(Screen.Investing.route)  { PlaceholderScreen("Investing") }
-        composable(Screen.Links.route)      { PlaceholderScreen("Links") }
-        composable(Screen.News.route)       { PlaceholderScreen("News") }
+        // ---- More sheet ----
+        composable(Screen.FocusLab.route)   { FocusLabScreen() }
+        composable(Screen.Investing.route)  { InvestingScreen() }
+        composable(Screen.Links.route)      { LinksScreen() }
+        composable(Screen.News.route)       { NewsScreen() }
         composable(Screen.Notes.route)      { PlaceholderScreen("Notes") }
         composable(Screen.DailyBrief.route) { PlaceholderScreen("Daily Brief") }
         composable(Screen.Account.route)    { PlaceholderScreen("Account") }
         composable(Screen.Sync.route)       { PlaceholderScreen("Sync") }
         composable(Screen.Settings.route)   { PlaceholderScreen("Settings") }
 
-        composable(Screen.Ledger.route)     { PlaceholderScreen("Expense Ledger") }
-        composable(Screen.Inbox.route)      { PlaceholderScreen("Inbox") }
-        composable(Screen.Habits.route)     { PlaceholderScreen("Habits") }
+        // ---- Vault sub-screens ----
+        composable(Screen.Ledger.route)     { LedgerScreen() }
+        composable(Screen.Inbox.route)      { InboxScreen() }
+        composable(Screen.Habits.route)     { HabitsScreen() }
         composable(Screen.LifeGoals.route)  { PlaceholderScreen("Life Goals") }
         composable(Screen.Secrets.route)    { PlaceholderScreen("Passwords & Secrets") }
         composable(Screen.SecretNotes.route){ PlaceholderScreen("Secret Notes") }
@@ -48,7 +63,7 @@ fun AppNavHost(
         composable(Screen.Kanban.route)     { PlaceholderScreen("Kanban Board") }
 
         composable(
-            route    = Screen.KanbanTask.route,
+            route     = Screen.KanbanTask.route,
             arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
         ) { back ->
             val taskId = back.arguments?.getString("taskId") ?: return@composable
