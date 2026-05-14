@@ -25,8 +25,9 @@ import ro.b4it.homer.data.local.entity.*
         InboxItem::class,
         CalendarEvent::class,
         AppSetting::class,
+        Note::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class HomerDatabase : RoomDatabase() {
@@ -41,4 +42,5 @@ abstract class HomerDatabase : RoomDatabase() {
     abstract fun inboxDao(): InboxDao
     abstract fun calendarDao(): CalendarDao
     abstract fun appSettingDao(): AppSettingDao
+    abstract fun noteDao(): NoteDao
 }

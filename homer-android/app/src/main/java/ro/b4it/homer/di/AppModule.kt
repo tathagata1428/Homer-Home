@@ -32,4 +32,5 @@ object AppModule {
     @Provides fun provideInboxDao(db: HomerDatabase)      = db.inboxDao()
     @Provides fun provideCalendarDao(db: HomerDatabase)   = db.calendarDao()
     @Provides fun provideAppSettingDao(db: HomerDatabase) = db.appSettingDao()
+    @Provides fun provideNoteDao(db: HomerDatabase)       = db.noteDao()
 }

@@ -9,16 +9,26 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import ro.b4it.homer.ui.screens.account.AccountScreen
+import ro.b4it.homer.ui.screens.calendar.CalendarScreen
+import ro.b4it.homer.ui.screens.dailybrief.DailyBriefScreen
+import ro.b4it.homer.ui.screens.focus.FocusScreen
 import ro.b4it.homer.ui.screens.focuslab.FocusLabScreen
 import ro.b4it.homer.ui.screens.habits.HabitsScreen
 import ro.b4it.homer.ui.screens.home.HomeScreen
 import ro.b4it.homer.ui.screens.inbox.InboxScreen
 import ro.b4it.homer.ui.screens.investing.InvestingScreen
 import ro.b4it.homer.ui.screens.joey.JoeyScreen
+import ro.b4it.homer.ui.screens.kanban.KanbanScreen
 import ro.b4it.homer.ui.screens.ledger.LedgerScreen
+import ro.b4it.homer.ui.screens.lifegoals.LifeGoalsScreen
 import ro.b4it.homer.ui.screens.links.LinksScreen
 import ro.b4it.homer.ui.screens.news.NewsScreen
-import ro.b4it.homer.ui.screens.focus.FocusScreen
+import ro.b4it.homer.ui.screens.notes.NotesScreen
+import ro.b4it.homer.ui.screens.secrets.SecretNotesScreen
+import ro.b4it.homer.ui.screens.secrets.SecretsScreen
+import ro.b4it.homer.ui.screens.settings.SettingsScreen
+import ro.b4it.homer.ui.screens.sync.SyncScreen
 import ro.b4it.homer.ui.screens.tools.ToolsScreen
 import ro.b4it.homer.ui.screens.vault.VaultScreen
 import ro.b4it.homer.ui.screens.placeholder.PlaceholderScreen
@@ -30,9 +40,9 @@ fun AppNavHost(
     modifier: Modifier = Modifier,
 ) {
     NavHost(
-        navController   = navController,
+        navController    = navController,
         startDestination = Screen.Home.route,
-        modifier        = modifier.padding(innerPadding),
+        modifier         = modifier.padding(innerPadding),
     ) {
         // ---- Bottom nav ----
         composable(Screen.Home.route)       { HomeScreen() }
@@ -46,21 +56,21 @@ fun AppNavHost(
         composable(Screen.Investing.route)  { InvestingScreen() }
         composable(Screen.Links.route)      { LinksScreen() }
         composable(Screen.News.route)       { NewsScreen() }
-        composable(Screen.Notes.route)      { PlaceholderScreen("Notes") }
-        composable(Screen.DailyBrief.route) { PlaceholderScreen("Daily Brief") }
-        composable(Screen.Account.route)    { PlaceholderScreen("Account") }
-        composable(Screen.Sync.route)       { PlaceholderScreen("Sync") }
-        composable(Screen.Settings.route)   { PlaceholderScreen("Settings") }
+        composable(Screen.Notes.route)      { NotesScreen() }
+        composable(Screen.DailyBrief.route) { DailyBriefScreen() }
+        composable(Screen.Account.route)    { AccountScreen() }
+        composable(Screen.Sync.route)       { SyncScreen() }
+        composable(Screen.Settings.route)   { SettingsScreen() }
 
         // ---- Vault sub-screens ----
-        composable(Screen.Ledger.route)     { LedgerScreen() }
-        composable(Screen.Inbox.route)      { InboxScreen() }
-        composable(Screen.Habits.route)     { HabitsScreen() }
-        composable(Screen.LifeGoals.route)  { PlaceholderScreen("Life Goals") }
-        composable(Screen.Secrets.route)    { PlaceholderScreen("Passwords & Secrets") }
-        composable(Screen.SecretNotes.route){ PlaceholderScreen("Secret Notes") }
-        composable(Screen.Calendar.route)   { PlaceholderScreen("Calendar") }
-        composable(Screen.Kanban.route)     { PlaceholderScreen("Kanban Board") }
+        composable(Screen.Ledger.route)      { LedgerScreen() }
+        composable(Screen.Inbox.route)       { InboxScreen() }
+        composable(Screen.Habits.route)      { HabitsScreen() }
+        composable(Screen.LifeGoals.route)   { LifeGoalsScreen() }
+        composable(Screen.Secrets.route)     { SecretsScreen() }
+        composable(Screen.SecretNotes.route) { SecretNotesScreen() }
+        composable(Screen.Calendar.route)    { CalendarScreen() }
+        composable(Screen.Kanban.route)      { KanbanScreen() }
 
         composable(
             route     = Screen.KanbanTask.route,
