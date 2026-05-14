@@ -2096,14 +2096,11 @@
           '<span>High</span>'+
         '</div>'+
       '</div>'+
-      '<div>'+
-        '<div style="font-size:.72rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;">Category Breakdown — This Month</div>'+
-        '<div id="he-ledger-budgets"></div>'+
-      '</div>'+
+      '<div id="he-ledger-budgets"></div>'+
       subHtml;
     render6MonthChart(expenses,income);
     renderCalendarHeatmap(expenses);
-    renderBudgets(expenses,true);
+    renderBudgets(expenses);
   }
 
   /* ── 6-Month Chart ──────────────────────────────────────────────── */
