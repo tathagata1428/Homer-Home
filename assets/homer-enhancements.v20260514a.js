@@ -1040,7 +1040,7 @@
     // homer-habits, homer-expenses, homer-income, homer-expense-* are all handled
     // via merge semantics to prevent last-write-wins data loss across devices.
     // Only scalar keys (like homer-payday-day) use simple pullKey/pushKey here.
-    var SYNC_KEYS=['homer-inbox','homer-payday-day'];
+    var SYNC_KEYS=['homer-inbox','homer-payday-day','homer-expense-budgets-excluded'];
 
     // Inbox uses merge-by-ID semantics instead of last-write-wins so items
     // added on different devices are combined rather than overwriting each other.
@@ -1215,6 +1215,14 @@
     function syncGoals(){syncMergeKey('homer-expense-goals',mergeGoals);}
     function syncTemplates(){syncMergeKey('homer-expense-templates',mergeById);}
     function syncBudgets(){syncMergeKey('homer-expense-budgets',mergeBudgets,{});}
+    // Custom categories: union by name — local wins per entry so renames from this device propagate
+    function mergeCats(local,remote){
+      var byName={};
+      (Array.isArray(remote)?remote:[]).forEach(function(c){if(c&&c.name)byName[c.name]=Object.assign({},c);});
+      (Array.isArray(local)?local:[]).forEach(function(c){if(c&&c.name)byName[c.name]=Object.assign({},c);});
+      return Object.keys(byName).map(function(n){return byName[n];});
+    }
+    function syncCats(){syncMergeKey('homer-expense-cats',mergeCats,[]);}
 
     var _pullDone=false;
     function pullAll(){
@@ -1229,6 +1237,7 @@
       syncGoals();
       syncTemplates();
       syncBudgets();
+      syncCats();
       if(firstPull){
         // After first pull, signal vault components to re-read IDB.
         // This catches the case where the vault was loaded before a restore
@@ -1247,6 +1256,7 @@
         else if(key==='homer-expense-goals')syncGoals();
         else if(key==='homer-expense-templates')syncTemplates();
         else if(key==='homer-expense-budgets')syncBudgets();
+        else if(key==='homer-expense-cats')syncCats();
         else pushKey(key);
       });
     }
@@ -1264,7 +1274,7 @@
     // R2 dirty-marking still fire for the app-shell's own tracked keys.
     localStorage.setItem=function(key,val){
       origSetItem(key,val);
-      var _mergeKeys=['homer-habits','homer-expenses','homer-income','homer-expense-goals','homer-expense-templates','homer-expense-budgets'];
+      var _mergeKeys=['homer-habits','homer-expenses','homer-income','homer-expense-goals','homer-expense-templates','homer-expense-budgets','homer-expense-cats'];
       if(SYNC_KEYS.indexOf(key)!==-1||_mergeKeys.indexOf(key)!==-1){
         setLocalTs(key,Date.now());
         markDirty(key);
@@ -1289,6 +1299,7 @@
     window._heSyncGoals=syncGoals;
     window._heSyncTemplates=syncTemplates;
     window._heSyncBudgets=syncBudgets;
+    window._heSyncCats=syncCats;
   }
 
   /* ── Mobile FAB positioning ─────────────────────────────────────────── */
