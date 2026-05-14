@@ -231,11 +231,17 @@
     '.he-ledger-empty{text-align:center;color:#475569;padding:40px;font-size:.9rem}',
     '#he-ledger-inbox{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px}',
     '#he-ledger-inbox h3{margin:0 0 12px;font-size:.78rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.08em}',
-    '.he-inbox-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.84rem;color:#cbd5e1}',
+    '.he-inbox-item{display:flex;flex-direction:column;gap:0;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.84rem;color:#cbd5e1}',
     '.he-inbox-item:last-child{border:none}',
+    '.he-inbox-item-row{display:flex;align-items:center;gap:10px}',
     '.he-inbox-type{padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700;flex-shrink:0}',
-    '.he-inbox-text{flex:1}',
-    '.he-inbox-del{background:none;border:none;color:#475569;cursor:pointer;font-size:.8rem;padding:2px}',
+    '.he-inbox-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:300px}',
+    '.he-inbox-log-btn{background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3);color:#fbbf24;cursor:pointer;font-size:.71rem;font-weight:700;padding:3px 10px;border-radius:7px;white-space:nowrap;flex-shrink:0}',
+    '.he-inbox-log-btn:hover{background:rgba(251,191,36,.22)}',
+    '.he-inbox-del{background:none;border:none;color:#475569;cursor:pointer;font-size:.85rem;padding:2px 4px;flex-shrink:0}',
+    '.he-inbox-del:hover{color:#f87171}',
+    '.he-inbox-form{margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;gap:8px}',
+    '.he-inbox-form-row{display:flex;gap:8px;flex-wrap:wrap}',
     '.he-inbox-empty{color:#475569;font-size:.84rem;padding:8px 0}',
 
     /* Session log badge */
@@ -2428,11 +2434,115 @@
   function renderLedgerInbox(){
     var el=document.getElementById('he-ledger-inbox-items');if(!el)return;
     var inbox=safeJson(localStorage.getItem('homer-inbox'),[]);
-    if(!inbox.length){el.innerHTML='<div class="he-inbox-empty">Inbox is empty.</div>';return;}
+    if(!inbox.length){el.innerHTML='<div class="he-inbox-empty">Inbox is empty — voice/text captures appear here.</div>';return;}
     var TC={thought:'#a78bfa',task:'#34d399',link:'#60a5fa',expense:'#fbbf24'};
-    el.innerHTML=inbox.map(function(item,i){var tc=TC[item.type||'thought']||'#94a3b8';return'<div class="he-inbox-item" data-idx="'+i+'"><span class="he-inbox-type" style="background:'+tc+'22;color:'+tc+'">'+esc(item.type||'thought')+'</span><span class="he-inbox-text">'+esc((item.text||'').slice(0,120))+'</span><button class="he-inbox-del">&#xD7;</button></div>';}).join('');
+    var today=new Date().toISOString().slice(0,10);
+    var cats=getAllCats();
+    var catOpts=cats.map(function(c){return'<option value="'+c+'">'+getCatIcon(c)+' '+getCatLabel(c)+'</option>';}).join('');
+
+    // Try to extract a number from the end of text (the likely amount)
+    function guessAmt(text){
+      var m=text.match(/([0-9]+(?:[.,][0-9]{1,2})?)\s*(?:ron|lei|mdl|€|eur|\$|usd)?[\s.!?]*$/i)||
+             text.match(/(?:ron|lei|mdl|€|eur|\$|usd)\s*([0-9]+(?:[.,][0-9]{1,2})?)/i)||
+             text.match(/([0-9]+(?:\.[0-9]{1,2})?)[\s.!?]*$/);
+      return m?parseFloat((m[1]||'').replace(',','.'))||0:0;
+    }
+    // Guess category from keywords in text
+    function guessCat(text){
+      var low=text.toLowerCase();
+      var kw={groceries:['grocer','supermarket','lidl','kaufland','mega','penny','carrefour'],
+        restaurants:['restaurant','pizza','burger','mcdonald','kfc','subway','delivery','takeaway','takeout'],
+        coffee:['coffee','café','cafe','starbucks','espresso','latte'],
+        transport:['uber','taxi','bolt','fuel','petrol','gas station','benzina'],
+        health:['doctor','medical','pharmacy','farmacie','dentist','stomatolog'],
+        fitness:['gym','fitness','workout','sala'],
+        utilities:['electricity','bill','internet','telefon','curent','apa'],
+        entertainment:['netflix','cinema','movie','concert','bilet'],
+        subscriptions:['subscription','spotify','apple','google','adobe'],
+        shopping:['amazon','emag','fashion','clothes','haine']};
+      for(var k in kw){
+        if(cats.indexOf(k)>=0){
+          for(var j=0;j<kw[k].length;j++){if(low.indexOf(kw[k][j])>=0)return k;}
+        }
+      }
+      for(var ci=0;ci<cats.length;ci++){if(low.indexOf(cats[ci])>=0||low.indexOf(getCatLabel(cats[ci]).toLowerCase())>=0)return cats[ci];}
+      return _ledgerSelectedCat||cats[0]||'other';
+    }
+
+    el.innerHTML=inbox.map(function(item,i){
+      var tc=TC[item.type||'thought']||'#94a3b8';
+      var text=item.text||'';
+      var amt=guessAmt(text);
+      var guessedCat=guessCat(text);
+      var catOptsSelected=cats.map(function(c){return'<option value="'+c+'"'+(c===guessedCat?' selected':'')+'>'+getCatIcon(c)+' '+getCatLabel(c)+'</option>';}).join('');
+      return'<div class="he-inbox-item" data-idx="'+i+'">'+
+        '<div class="he-inbox-item-row">'+
+          '<span class="he-inbox-type" style="background:'+tc+'22;color:'+tc+'">'+esc(item.type||'thought')+'</span>'+
+          '<span class="he-inbox-text" title="'+esc(text)+'">'+esc(text.slice(0,90))+'</span>'+
+          '<button class="he-inbox-log-btn">&#x2B; Log</button>'+
+          '<button class="he-inbox-del" title="Dismiss">&#xD7;</button>'+
+        '</div>'+
+        '<div class="he-inbox-form" style="display:none">'+
+          '<div class="he-inbox-form-row">'+
+            '<input type="text" class="he-ibox-desc he-ledger-input" style="flex:1;min-width:130px;font-size:.82rem;" placeholder="Description *" value="'+esc(text.slice(0,200))+'">'+
+            '<input type="number" class="he-ibox-amt he-ledger-input" style="width:95px;font-size:.82rem;" placeholder="Amount *" min="0" step="0.01" value="'+(amt||'')+'">'+
+            '<input type="date" class="he-ibox-date he-ledger-input" style="width:132px;font-size:.82rem;" value="'+today+'">'+
+          '</div>'+
+          '<div class="he-inbox-form-row">'+
+            '<select class="he-ibox-cat he-ledger-filter" style="flex:1;min-width:130px;font-size:.82rem;">'+catOptsSelected+'</select>'+
+            '<button class="he-ibox-save" style="padding:6px 14px;background:#22c55e;border:none;border-radius:9px;color:#fff;font-weight:700;cursor:pointer;font-size:.82rem;white-space:nowrap;">&#x2713; Add Expense</button>'+
+            '<button class="he-ibox-cancel" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:.82rem;padding:4px 8px;">&#x2715; Cancel</button>'+
+          '</div>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+
+    // Dismiss
     el.querySelectorAll('.he-inbox-del').forEach(function(btn){
-      btn.addEventListener('click',function(){var idx=parseInt(btn.closest('[data-idx]').dataset.idx,10);var all=safeJson(localStorage.getItem('homer-inbox'),[]);all.splice(idx,1);localStorage.setItem('homer-inbox',JSON.stringify(all));renderLedgerInbox();});
+      btn.addEventListener('click',function(){
+        var idx=parseInt(btn.closest('[data-idx]').dataset.idx,10);
+        var all=safeJson(localStorage.getItem('homer-inbox'),[]);all.splice(idx,1);
+        localStorage.setItem('homer-inbox',JSON.stringify(all));
+        renderLedgerInbox();toast('Capture dismissed','info',1500);
+      });
+    });
+
+    // Toggle form
+    el.querySelectorAll('.he-inbox-log-btn').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var form=btn.closest('.he-inbox-item').querySelector('.he-inbox-form');
+        var opening=form.style.display==='none';
+        form.style.display=opening?'flex':'none';
+        if(opening){var d=form.querySelector('.he-ibox-desc');if(d)d.focus();}
+      });
+    });
+
+    // Cancel form
+    el.querySelectorAll('.he-ibox-cancel').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        btn.closest('.he-inbox-form').style.display='none';
+      });
+    });
+
+    // Save as expense
+    el.querySelectorAll('.he-ibox-save').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var item=btn.closest('.he-inbox-item');
+        var idx=parseInt(item.dataset.idx,10);
+        var desc=((item.querySelector('.he-ibox-desc')||{}).value||'').trim();
+        var amt=parseFloat((item.querySelector('.he-ibox-amt')||{}).value||'0');
+        var date=(item.querySelector('.he-ibox-date')||{}).value||today;
+        var cat=(item.querySelector('.he-ibox-cat')||{}).value||_ledgerSelectedCat||'other';
+        if(!desc||isNaN(amt)||amt<=0){toast('Enter description and a positive amount','warn');return;}
+        var exp=getExpenses();
+        exp.push({id:Date.now(),desc:desc,amount:amt,cat:cat,date:date});
+        saveExpenses(exp);
+        var b=getBudgets();if(b[cat]===undefined){b[cat]=0;saveBudgets(b);}
+        var all=safeJson(localStorage.getItem('homer-inbox'),[]);all.splice(idx,1);
+        localStorage.setItem('homer-inbox',JSON.stringify(all));
+        toast(getCatIcon(cat)+' '+esc(desc)+' \u2014 '+amt.toFixed(2)+' RON added','success',2200);
+        renderLedgerInbox();buildMonthFilter();renderTxTable();
+      });
     });
   }
 
