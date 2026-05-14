@@ -1750,6 +1750,13 @@
         var style=sel?'background:'+col+'22;color:'+col+';border-color:'+col+'55;font-weight:700;':'';
         return'<span class="he-cat-chip-lbl" data-cat="'+c+'" style="'+style+'">'+icon+' '+esc(lbl)+'</span>';
       }).join('')+
+      '<span class="he-cat-chip-lbl" id="he-cat-new-chip" style="border-style:dashed;color:#60a5fa;border-color:rgba(96,165,250,.3);">&#xFF0B; New</span>'+
+    '</div>'+
+    '<div id="he-cat-new-form" style="display:none;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;">'+
+      '<input type="text" id="he-cat-new-emoji" class="he-ledger-input" placeholder="&#x1F3F7;" style="width:52px;text-align:center;font-size:1.1rem;padding:4px 6px;">'+
+      '<input type="text" id="he-cat-new-name" class="he-ledger-input" placeholder="Category name" style="flex:1;min-width:110px;padding:5px 8px;font-size:.84rem;">'+
+      '<button id="he-cat-new-save" class="he-ledger-add-btn" style="padding:5px 14px;white-space:nowrap;">&#x2713; Add</button>'+
+      '<button id="he-cat-new-cancel" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:.9rem;padding:4px 8px;font-family:inherit;">&#x2715;</button>'+
     '</div>';
   }
 
@@ -1796,15 +1803,45 @@
 
     // Category chip selection
     if(_txType==='expense'){
-      view.querySelectorAll('.he-cat-chip-lbl').forEach(function(chip){
+      view.querySelectorAll('.he-cat-chip-lbl[data-cat]').forEach(function(chip){
         chip.addEventListener('click',function(){
           _ledgerSelectedCat=chip.dataset.cat;
-          view.querySelectorAll('.he-cat-chip-lbl').forEach(function(c){
+          view.querySelectorAll('.he-cat-chip-lbl[data-cat]').forEach(function(c){
             var col=getCatColor(c.dataset.cat),sel=(c.dataset.cat===_ledgerSelectedCat);
             c.style.cssText=sel?'background:'+col+'22;color:'+col+';border-color:'+col+'55;font-weight:700;':'';
           });
         });
       });
+      // "+ New category" chip
+      var newChip=document.getElementById('he-cat-new-chip');
+      var newForm=document.getElementById('he-cat-new-form');
+      if(newChip&&newForm){
+        newChip.addEventListener('click',function(){
+          var open=newForm.style.display==='flex';
+          newForm.style.display=open?'none':'flex';
+          if(!open){var ni=document.getElementById('he-cat-new-name');if(ni)ni.focus();}
+        });
+        function doAddCat(){
+          var emoji=((document.getElementById('he-cat-new-emoji')||{}).value||'').trim()||'🏷️';
+          var rawName=((document.getElementById('he-cat-new-name')||{}).value||'').trim();
+          var name=rawName.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+          if(!name){toast('Enter a category name','warn');return;}
+          if(getAllCats().indexOf(name)>=0){toast('Category already exists','warn');return;}
+          var col=CPALS_HE[getCustomCats().length%CPALS_HE.length];
+          var customs=getCustomCats();customs.push({name:name,emoji:emoji,color:col});
+          saveCustomCats(customs);
+          var b=getBudgets();if(b[name]===undefined){b[name]=0;saveBudgets(b);}
+          _ledgerSelectedCat=name;
+          renderTransactions(view);
+          toast(emoji+' '+rawName+' added as new category','success',2000);
+        }
+        var ncSave=document.getElementById('he-cat-new-save');
+        var ncCancel=document.getElementById('he-cat-new-cancel');
+        var ncName=document.getElementById('he-cat-new-name');
+        if(ncSave)ncSave.addEventListener('click',doAddCat);
+        if(ncCancel)ncCancel.addEventListener('click',function(){newForm.style.display='none';});
+        if(ncName)ncName.addEventListener('keydown',function(e){if(e.key==='Enter')doAddCat();if(e.key==='Escape')newForm.style.display='none';});
+      }
     }
 
     ['he-l-fmo','he-l-fcat'].forEach(function(id){var el=document.getElementById(id);if(el)el.addEventListener('change',renderTxTable);});
@@ -1828,7 +1865,9 @@
     } else {
       var cat=_ledgerSelectedCat||'other';
       var exp=getExpenses();exp.push({id:Date.now(),desc:desc,amount:amt,cat:cat,date:date,note:note||undefined});
-      saveExpenses(exp);toast('Expense added','success',1800);
+      saveExpenses(exp);
+      var b=getBudgets();if(b[cat]===undefined){b[cat]=0;saveBudgets(b);}
+      toast('Expense added','success',1800);
     }
     document.getElementById('he-l-desc').value='';document.getElementById('he-l-amt').value='';
     var ne=document.getElementById('he-l-note');if(ne)ne.value='';
