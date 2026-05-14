@@ -2927,9 +2927,15 @@ let tvWidgetCreated = false;
         setTimeout(function(){ unlockBtn.click(); }, 80);
       }
     } else {
-      vaultNoAccount.style.display = '';
-      vaultLoginFields.style.display = 'none';
-      unlockBtn.style.display = 'none';
+      // No Homer account session — but vault works from browser cache independently.
+      // Still show the form so users can type their username + password.
+      vaultNoAccount.style.display = 'none';
+      vaultLoginFields.style.display = '';
+      unlockBtn.style.display = '';
+      if(isNew){
+        lockLabel.textContent = 'Create Vault';
+        unlockBtn.textContent = 'Create Vault';
+      }
     }
   });
 
