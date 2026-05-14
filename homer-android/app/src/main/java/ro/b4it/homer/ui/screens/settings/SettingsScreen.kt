@@ -1,12 +1,18 @@
 package ro.b4it.homer.ui.screens.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -16,7 +22,7 @@ import ro.b4it.homer.ui.screens.home.HomerCard
 import ro.b4it.homer.ui.theme.*
 
 @Composable
-fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(vm: SettingsViewModel = hiltViewModel(), onNavigateReminders: (() -> Unit)? = null) {
     val state by vm.state.collectAsStateWithLifecycle()
 
     LazyColumn(
@@ -54,6 +60,25 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                     SettingToggle("Auto-start next phase", state.autoStart, vm::setAutoStart)
                     SettingToggle("Notifications", state.notifications, vm::setNotifications)
                     SettingToggle("Sound effects", state.sfx, vm::setSfx)
+                }
+            }
+        }
+
+        item {
+            HomerCard {
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clickable(enabled = onNavigateReminders != null) { onNavigateReminders?.invoke() }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Filled.Notifications, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Reminders & Alerts", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                        Text("Manage scheduled reminders", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                    }
+                    Icon(Icons.Filled.ChevronRight, null, tint = TextSubtle, modifier = Modifier.size(18.dp))
                 }
             }
         }

@@ -8,12 +8,16 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import ro.b4it.homer.data.local.dao.CalendarDao
 import ro.b4it.homer.data.local.entity.CalendarEvent
+import ro.b4it.homer.notification.ReminderManager
 import java.util.Calendar
 import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
-class CalendarViewModel @Inject constructor(private val dao: CalendarDao) : ViewModel() {
+class CalendarViewModel @Inject constructor(
+    private val dao: CalendarDao,
+    private val reminderManager: ReminderManager,
+) : ViewModel() {
 
     private val _selectedMonth = MutableStateFlow(
         Calendar.getInstance().let { it[Calendar.YEAR] * 12 + it[Calendar.MONTH] }
@@ -35,16 +39,21 @@ class CalendarViewModel @Inject constructor(private val dao: CalendarDao) : View
     fun nextMonth() { _selectedMonth.value += 1 }
 
     fun addEvent(title: String, startMs: Long, endMs: Long, location: String, desc: String, allDay: Boolean) {
+        val event = CalendarEvent(
+            id = UUID.randomUUID().toString(), title = title,
+            start = startMs, end = endMs, location = location,
+            description = desc, allDay = allDay,
+        )
         viewModelScope.launch {
-            dao.upsert(CalendarEvent(
-                id = UUID.randomUUID().toString(), title = title,
-                start = startMs, end = endMs, location = location,
-                description = desc, allDay = allDay,
-            ))
+            dao.upsert(event)
+            reminderManager.scheduleCalendarEvent(event)
         }
     }
 
     fun deleteEvent(event: CalendarEvent) {
-        viewModelScope.launch { dao.delete(event) }
+        viewModelScope.launch {
+            dao.delete(event)
+            reminderManager.cancelCalendarEvent(event.id)
+        }
     }
 }

@@ -102,7 +102,7 @@ fun KanbanScreen(vm: KanbanViewModel = hiltViewModel()) {
         AddProjectDialog(onAdd = { n, k, d, ic, c -> vm.addProject(n, k, d, ic, c); showAddProject = false }, onDismiss = { showAddProject = false })
     }
     if (showAddTask) {
-        AddTaskDialog(onAdd = { s, d, p -> vm.addTask(s, d, p); showAddTask = false }, onDismiss = { showAddTask = false })
+        AddTaskDialog(onAdd = { s, d, p, due -> vm.addTask(s, d, p, due); showAddTask = false }, onDismiss = { showAddTask = false })
     }
 }
 
@@ -224,16 +224,19 @@ private fun AddProjectDialog(onAdd: (String, String, String, String, String) -> 
 }
 
 @Composable
-private fun AddTaskDialog(onAdd: (String, String, String) -> Unit, onDismiss: () -> Unit) {
+private fun AddTaskDialog(onAdd: (String, String, String, String) -> Unit, onDismiss: () -> Unit) {
     var summary  by remember { mutableStateOf("") }
     var desc     by remember { mutableStateOf("") }
     var priority by remember { mutableStateOf("medium") }
+    var dueDate  by remember { mutableStateOf("") }
     AlertDialog(onDismissRequest = onDismiss, containerColor = BgCard, title = { Text("New Task") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(value = summary, onValueChange = { summary = it }, label = { Text("Summary *") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AccentBlue, unfocusedBorderColor = BorderDefault, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedLabelColor = AccentBlue))
                 OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AccentBlue, unfocusedBorderColor = BorderDefault, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedLabelColor = AccentBlue))
+                OutlinedTextField(value = dueDate, onValueChange = { dueDate = it }, label = { Text("Due date (YYYY-MM-DD)") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AccentBlue, unfocusedBorderColor = BorderDefault, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedLabelColor = AccentBlue))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Priority:", style = MaterialTheme.typography.labelSmall, color = TextMuted)
@@ -244,6 +247,6 @@ private fun AddTaskDialog(onAdd: (String, String, String) -> Unit, onDismiss: ()
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { if (summary.isNotBlank()) onAdd(summary, desc, priority) }) { Text("Add", color = AccentBlue) } },
+        confirmButton = { TextButton(onClick = { if (summary.isNotBlank()) onAdd(summary, desc, priority, dueDate) }) { Text("Add", color = AccentBlue) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = TextMuted) } })
 }

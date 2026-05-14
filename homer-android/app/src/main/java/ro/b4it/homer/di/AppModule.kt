@@ -1,5 +1,6 @@
 package ro.b4it.homer.di
 
+import android.app.AlarmManager
 import android.content.Context
 import androidx.room.Room
 import dagger.Module
@@ -33,4 +34,9 @@ object AppModule {
     @Provides fun provideCalendarDao(db: HomerDatabase)   = db.calendarDao()
     @Provides fun provideAppSettingDao(db: HomerDatabase) = db.appSettingDao()
     @Provides fun provideNoteDao(db: HomerDatabase)       = db.noteDao()
+    @Provides fun provideReminderDao(db: HomerDatabase)   = db.reminderDao()
+
+    @Provides @Singleton
+    fun provideAlarmManager(@ApplicationContext ctx: Context): AlarmManager =
+        ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 }

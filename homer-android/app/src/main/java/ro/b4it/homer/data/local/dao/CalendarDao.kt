@@ -21,6 +21,9 @@ interface CalendarDao {
     @Query("DELETE FROM calendar_events WHERE icsSource = :source")
     suspend fun deleteBySource(source: String)
 
+    @Query("SELECT * FROM calendar_events WHERE start > :now ORDER BY start ASC")
+    suspend fun getFutureEvents(now: Long): List<CalendarEvent>
+
     @Delete
     suspend fun delete(event: CalendarEvent)
 }

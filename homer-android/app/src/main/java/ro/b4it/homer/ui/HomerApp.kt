@@ -1,5 +1,7 @@
 package ro.b4it.homer.ui
 
+import android.Manifest
+import android.os.Build
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
@@ -13,6 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import ro.b4it.homer.ui.navigation.AppNavHost
 import ro.b4it.homer.ui.navigation.Screen
 import ro.b4it.homer.ui.theme.*
@@ -31,12 +36,20 @@ private val bottomNavItems = listOf(
     BottomNavItem(Screen.Joey,  "Joey",  Icons.Filled.Chat),
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun HomerApp() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+
+    // Request POST_NOTIFICATIONS permission on Android 13+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val notifPermission = rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
+        LaunchedEffect(Unit) {
+            if (!notifPermission.status.isGranted) notifPermission.launchPermissionRequest()
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),

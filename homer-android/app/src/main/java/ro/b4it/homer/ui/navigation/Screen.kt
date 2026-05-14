@@ -33,4 +33,5 @@ sealed class Screen(val route: String) {
     object Calendar       : Screen("calendar")
     object Ledger         : Screen("ledger")
     object Inbox          : Screen("inbox")
+    object Reminders      : Screen("reminders")
 }

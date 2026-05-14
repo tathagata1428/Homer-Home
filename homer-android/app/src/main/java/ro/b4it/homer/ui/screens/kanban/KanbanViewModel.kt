@@ -9,11 +9,15 @@ import kotlinx.coroutines.launch
 import ro.b4it.homer.data.local.dao.KanbanDao
 import ro.b4it.homer.data.local.entity.KanbanProject
 import ro.b4it.homer.data.local.entity.KanbanTask
+import ro.b4it.homer.notification.ReminderManager
 import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
-class KanbanViewModel @Inject constructor(private val dao: KanbanDao) : ViewModel() {
+class KanbanViewModel @Inject constructor(
+    private val dao: KanbanDao,
+    private val reminderManager: ReminderManager,
+) : ViewModel() {
 
     val projects = dao.getActiveProjects()
 
@@ -43,21 +47,30 @@ class KanbanViewModel @Inject constructor(private val dao: KanbanDao) : ViewMode
         viewModelScope.launch { dao.deleteProject(project) }
     }
 
-    fun addTask(summary: String, desc: String = "", priority: String = "medium") {
+    fun addTask(summary: String, desc: String = "", priority: String = "medium", dueDate: String = "") {
         val pid = _selectedProjectId.value ?: return
+        val task = KanbanTask(
+            id = UUID.randomUUID().toString(), projectId = pid,
+            summary = summary, description = desc, priority = priority, dueDate = dueDate,
+        )
         viewModelScope.launch {
-            dao.upsertTask(KanbanTask(
-                id = UUID.randomUUID().toString(), projectId = pid,
-                summary = summary, description = desc, priority = priority,
-            ))
+            dao.upsertTask(task)
+            if (dueDate.isNotBlank()) reminderManager.scheduleTaskDue(task)
         }
     }
 
     fun moveTask(task: KanbanTask, column: String) {
-        viewModelScope.launch { dao.moveTask(task.id, column) }
+        viewModelScope.launch {
+            dao.moveTask(task.id, column)
+            // Cancel due-date alarm when task is done
+            if (column == "done") reminderManager.cancelTask(task.id)
+        }
     }
 
     fun deleteTask(task: KanbanTask) {
-        viewModelScope.launch { dao.deleteTask(task) }
+        viewModelScope.launch {
+            dao.deleteTask(task)
+            reminderManager.cancelTask(task.id)
+        }
     }
 }

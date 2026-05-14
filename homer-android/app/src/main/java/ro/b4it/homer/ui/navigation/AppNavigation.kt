@@ -25,6 +25,7 @@ import ro.b4it.homer.ui.screens.lifegoals.LifeGoalsScreen
 import ro.b4it.homer.ui.screens.links.LinksScreen
 import ro.b4it.homer.ui.screens.news.NewsScreen
 import ro.b4it.homer.ui.screens.notes.NotesScreen
+import ro.b4it.homer.ui.screens.reminders.RemindersScreen
 import ro.b4it.homer.ui.screens.secrets.SecretNotesScreen
 import ro.b4it.homer.ui.screens.secrets.SecretsScreen
 import ro.b4it.homer.ui.screens.settings.SettingsScreen
@@ -60,7 +61,8 @@ fun AppNavHost(
         composable(Screen.DailyBrief.route) { DailyBriefScreen() }
         composable(Screen.Account.route)    { AccountScreen() }
         composable(Screen.Sync.route)       { SyncScreen() }
-        composable(Screen.Settings.route)   { SettingsScreen() }
+        composable(Screen.Settings.route)    { SettingsScreen(onNavigateReminders = { navController.navigate(Screen.Reminders.route) }) }
+        composable(Screen.Reminders.route)   { RemindersScreen() }
 
         // ---- Vault sub-screens ----
         composable(Screen.Ledger.route)      { LedgerScreen() }
