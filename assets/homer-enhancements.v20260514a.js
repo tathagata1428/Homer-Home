@@ -1580,7 +1580,7 @@
   var CPALS_HE=['#84cc16','#2dd4bf','#fb923c','#c084fc','#e11d48','#0ea5e9','#d97706','#0d9488','#7c3aed','#b45309','#be185d','#1d4ed8'];
   function getCustomCats(){return safeJson(localStorage.getItem(CUSTOM_CATS_KEY),[]); }
   function saveCustomCats(a){localStorage.setItem(CUSTOM_CATS_KEY,JSON.stringify(a));}
-  function getAllCats(){return BUILTIN_CATS.concat(getCustomCats().map(function(c){return c.name;}));}
+  function getAllCats(){var ex=getExcludedBudgets();return BUILTIN_CATS.filter(function(c){return ex.indexOf(c)<0;}).concat(getCustomCats().filter(function(c){return c&&c.name&&ex.indexOf(c.name)<0;}).map(function(c){return c.name;}));}
   function getCatColor(c){if(CAT_COLOR[c])return CAT_COLOR[c];var cc=getCustomCats().find(function(x){return x.name===c;});return cc?(cc.color||'#94a3b8'):'#94a3b8';}
   function getCatLabel(c){if(CAT_LABEL[c])return CAT_LABEL[c];return c.charAt(0).toUpperCase()+c.slice(1);}
   function getCatIcon(c){if(CAT_ICON[c])return CAT_ICON[c];var cc=getCustomCats().find(function(x){return x.name===c;});return cc?(cc.emoji||'🏷️'):'📦';}
@@ -1598,6 +1598,51 @@
   function saveBudgets(b){try{localStorage.setItem(BUDGET_KEY,JSON.stringify(b));}catch(_){}}
   function getExcludedBudgets(){return safeJson(localStorage.getItem(EXCLUDED_BUDGETS_KEY),[]);}
   function saveExcludedBudgets(a){try{localStorage.setItem(EXCLUDED_BUDGETS_KEY,JSON.stringify(a));}catch(_){}}
+
+  function doDeleteCat(cat){
+    var saved=safeJson(localStorage.getItem(BUDGET_KEY),{});delete saved[cat];saveBudgets(saved);
+    var ex=getExcludedBudgets();if(ex.indexOf(cat)<0){ex.push(cat);saveExcludedBudgets(ex);}
+    if(_ledgerSelectedCat===cat){var rem=getAllCats();_ledgerSelectedCat=rem.length?rem[0]:'other';}
+  }
+  function showDeleteCatModal(cat,allExpenses,onDone){
+    var allExp=getExpenses(),inCat=allExp.filter(function(e){return(e.cat||'other')===cat;}),
+        total=inCat.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0),
+        otherCats=getAllCats().filter(function(c){return c!==cat;});
+    var old=document.getElementById('he-del-cat-modal');if(old)old.remove();
+    var modal=document.createElement('div');
+    modal.id='he-del-cat-modal';
+    modal.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.8);padding:16px;';
+    var body=inCat.length>0?
+      '<div style="font-size:1rem;font-weight:700;color:#e5e7eb;margin-bottom:8px;">'+getCatIcon(cat)+' '+esc(getCatLabel(cat))+' has transactions</div>'+
+      '<div style="font-size:.83rem;color:#94a3b8;margin-bottom:16px;line-height:1.5">'+inCat.length+' transaction'+(inCat.length!==1?'s':'')+' — <b style="color:#f87171;">'+total.toFixed(0)+' RON</b>. Move them to another category:</div>'+
+      '<select id="he-del-to" style="width:100%;padding:9px 12px;background:#0f172a;border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#e5e7eb;font-size:.83rem;margin-bottom:16px;">'+
+      otherCats.map(function(c){return'<option value="'+c+'">'+getCatIcon(c)+' '+getCatLabel(c)+'</option>';}).join('')+
+      '</select>'+
+      '<div style="display:flex;gap:8px;"><button id="he-del-go" style="flex:1;padding:10px;background:#ef4444;border:none;border-radius:10px;color:#fff;font-weight:700;cursor:pointer;font-size:.84rem;">Migrate & Delete</button>'+
+      '<button id="he-del-cancel" style="flex:1;padding:10px;background:rgba(255,255,255,.07);border:none;border-radius:10px;color:#94a3b8;cursor:pointer;font-size:.84rem;">Cancel</button></div>'
+      :
+      '<div style="font-size:1rem;font-weight:700;color:#e5e7eb;margin-bottom:8px;">Delete '+getCatIcon(cat)+' '+esc(getCatLabel(cat))+'?</div>'+
+      '<div style="font-size:.83rem;color:#94a3b8;margin-bottom:20px;">No transactions in this category.</div>'+
+      '<div style="display:flex;gap:8px;"><button id="he-del-go" style="flex:1;padding:10px;background:#ef4444;border:none;border-radius:10px;color:#fff;font-weight:700;cursor:pointer;font-size:.84rem;">Delete</button>'+
+      '<button id="he-del-cancel" style="flex:1;padding:10px;background:rgba(255,255,255,.07);border:none;border-radius:10px;color:#94a3b8;cursor:pointer;font-size:.84rem;">Cancel</button></div>';
+    modal.innerHTML='<div style="background:#1e293b;border-radius:16px;padding:24px;max-width:400px;width:100%;border:1px solid rgba(255,255,255,.12);">'+body+'</div>';
+    modal.querySelector('#he-del-go').addEventListener('click',function(){
+      if(inCat.length>0){
+        var to=modal.querySelector('#he-del-to').value;
+        saveExpenses(getExpenses().map(function(e){return(e.cat||'other')===cat?Object.assign({},e,{cat:to}):e;}));
+        doDeleteCat(cat);modal.remove();
+        toast(getCatLabel(cat)+' \u2192 '+getCatLabel(to)+' ('+inCat.length+' tx)','success',2500);
+      } else {
+        doDeleteCat(cat);modal.remove();
+        toast(getCatLabel(cat)+' deleted','info',1800);
+      }
+      if(onDone)onDone();
+    });
+    modal.querySelector('#he-del-cancel').addEventListener('click',function(){modal.remove();});
+    modal.addEventListener('click',function(e){if(e.target===modal)modal.remove();});
+    document.body.appendChild(modal);
+  }
+
   function getGoals(){return safeJson(localStorage.getItem('homer-expense-goals'),[]);}
   function saveGoals(a){localStorage.setItem('homer-expense-goals',JSON.stringify(a));}
   function getTemplates(){return safeJson(localStorage.getItem('homer-expense-templates'),[]);}
@@ -2114,7 +2159,33 @@
         '</div>';}).join('')+
       '</div>';
     }
+    var now2=new Date(),dE=now2.getDate(),dM=new Date(now2.getFullYear(),now2.getMonth()+1,0).getDate();
+    var moKey=now2.toISOString().slice(0,7);
+    var moExp=expenses.filter(function(e){return(e.date||'').startsWith(moKey);});
+    var spentMo=moExp.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+    var dayBurn=dE>0?spentMo/dE:0,projMo=dayBurn*dM;
+    var budgetsAll=getBudgets(),excAll=getExcludedBudgets();
+    var totalBudget=Object.keys(budgetsAll).filter(function(c){return excAll.indexOf(c)<0;}).reduce(function(s,k){return s+(budgetsAll[k]||0);},0);
+    var burnPct=totalBudget>0?projMo/totalBudget*100:0;
+    var burnCol=burnPct>=100?'#ef4444':burnPct>=80?'#f97316':burnPct>=60?'#fbbf24':'#22c55e';
+    var burnStatus=burnPct>=100?'Over Budget':burnPct>=80?'Burning Fast':burnPct>=60?'Watch Spending':'On Track';
     view.innerHTML=
+      '<div>'+
+        '<div style="font-size:.72rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">&#x1F525; Burn Rate — '+esc(mo)+'</div>'+
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px;">'+
+          '<div class="he-insight-card"><div class="he-insight-icon">&#x1F4C5;</div><div class="he-insight-val">Day '+dE+'/'+dM+'</div><div class="he-insight-lbl">Month progress</div></div>'+
+          '<div class="he-insight-card"><div class="he-insight-icon">&#x1F525;</div><div class="he-insight-val">'+dayBurn.toFixed(0)+' RON</div><div class="he-insight-lbl">Daily burn</div></div>'+
+          '<div class="he-insight-card"><div class="he-insight-icon">&#x1F52E;</div><div class="he-insight-val">'+projMo.toFixed(0)+' RON</div><div class="he-insight-lbl">Projected spend</div></div>'+
+          '<div class="he-insight-card"><div class="he-insight-icon">&#x2714;</div><div class="he-insight-val" style="color:'+burnCol+'">'+burnStatus+'</div><div class="he-insight-lbl">vs total budget</div></div>'+
+        '</div>'+
+        '<div style="height:8px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden;margin-bottom:4px;">'+
+          '<div style="height:100%;width:'+Math.min(burnPct,100).toFixed(1)+'%;background:'+burnCol+';border-radius:99px;transition:width .4s;"></div>'+
+        '</div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:.68rem;color:#475569;margin-bottom:16px;">'+
+          '<span>'+spentMo.toFixed(0)+' RON spent</span>'+
+          '<span>Budget: '+totalBudget.toFixed(0)+' RON</span>'+
+        '</div>'+
+      '</div>'+
       '<div>'+
         '<div style="font-size:.72rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;">6-Month Overview</div>'+
         '<div id="he-6mo-chart"></div>'+
@@ -2274,7 +2345,7 @@
     var restoreHtml='';
     if(excluded.length){
       restoreHtml='<div class="he-budget-restore">'+
-        '<div class="he-budget-restore-lbl">Hidden envelopes</div>'+
+        '<div class="he-budget-restore-lbl">Deleted — click to restore</div>'+
         excluded.map(function(cat){return'<span class="he-budget-restore-chip" data-cat="'+cat+'">+ '+esc(getCatIcon(cat))+' '+esc(getCatLabel(cat))+'</span>';}).join('')+
       '</div>';
     }
@@ -2311,12 +2382,7 @@
     });
     el.querySelectorAll('.he-budget-rm-btn').forEach(function(btn){
       btn.addEventListener('click',function(){
-        var cat=btn.dataset.cat;
-        var ex=getExcludedBudgets();
-        if(ex.indexOf(cat)<0)ex.push(cat);
-        saveExcludedBudgets(ex);
-        renderBudgets(allExpenses);
-        toast(getCatLabel(cat)+' envelope hidden','info',1800);
+        showDeleteCatModal(btn.dataset.cat,allExpenses,function(){refreshLedgerView();});
       });
     });
     el.querySelectorAll('.he-budget-restore-chip').forEach(function(chip){
@@ -2324,8 +2390,8 @@
         var cat=chip.dataset.cat;
         var ex=getExcludedBudgets().filter(function(c){return c!==cat;});
         saveExcludedBudgets(ex);
-        renderBudgets(allExpenses);
-        toast(getCatLabel(cat)+' envelope restored','success',1800);
+        refreshLedgerView();
+        toast(getCatLabel(cat)+' restored','success',1800);
       });
     });
   }
