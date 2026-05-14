@@ -226,6 +226,8 @@
     '.he-ledger-cat-pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.72rem;font-weight:700}',
     '.he-ledger-del{background:none;border:none;color:#475569;cursor:pointer;font-size:.85rem;padding:4px;border-radius:6px;transition:color .15s}',
     '.he-ledger-del:hover{color:#f87171}',
+    '.he-ledger-edit-btn{background:none;border:none;color:#475569;cursor:pointer;font-size:.82rem;padding:4px;border-radius:6px;transition:color .15s}',
+    '.he-ledger-edit-btn:hover{color:#60a5fa}',
     '.he-ledger-empty{text-align:center;color:#475569;padding:40px;font-size:.9rem}',
     '#he-ledger-inbox{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px}',
     '#he-ledger-inbox h3{margin:0 0 12px;font-size:.78rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.08em}',
@@ -295,6 +297,12 @@
     '.he-budget-info.bad{color:#f87171;}',
     '.he-budget-edit-btn{background:none;border:none;color:#475569;cursor:pointer;font-size:.7rem;padding:1px 5px;border-radius:5px;transition:color .15s;}',
     '.he-budget-edit-btn:hover{color:#94a3b8;background:rgba(255,255,255,.06);}',
+    '.he-budget-rm-btn{background:none;border:none;color:#334155;cursor:pointer;font-size:.72rem;padding:1px 4px;border-radius:5px;transition:color .15s;line-height:1;}',
+    '.he-budget-rm-btn:hover{color:#f87171;}',
+    '.he-budget-restore{margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);}',
+    '.he-budget-restore-lbl{font-size:.68rem;font-weight:800;color:#334155;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}',
+    '.he-budget-restore-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:#64748b;font-size:.72rem;cursor:pointer;margin:2px 3px;transition:border-color .15s,color .15s;}',
+    '.he-budget-restore-chip:hover{border-color:rgba(52,211,153,.35);color:#34d399;}',
 
     /* Export button + notes */
     '#he-ledger-export{padding:7px 14px;border-radius:9px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#94a3b8;font-size:.8rem;font-weight:700;cursor:pointer;white-space:nowrap;}',
@@ -1557,6 +1565,7 @@
   function getCatIcon(c){if(CAT_ICON[c])return CAT_ICON[c];var cc=getCustomCats().find(function(x){return x.name===c;});return cc?(cc.emoji||'🏷️'):'📦';}
   var GOAL_COLORS=['#3b82f6','#34d399','#f87171','#fbbf24','#a78bfa','#fb7185','#60a5fa'];
   var BUDGET_KEY='homer-expense-budgets';
+  var EXCLUDED_BUDGETS_KEY='homer-expense-budgets-excluded';
   var DEFAULT_BUDGETS={groceries:1200,restaurants:600,coffee:200,food:500,rent:3000,home:400,transport:400,utilities:500,insurance:300,health:300,fitness:200,work:400,education:200,shopping:400,travel:1000,personal:200,subscriptions:150,entertainment:300,savings:1000,gifts:200,other:200};
 
   /* Data helpers */
@@ -1566,6 +1575,8 @@
   function saveIncome(a){localStorage.setItem('homer-income',JSON.stringify(a));}
   function getBudgets(){return safeJson(localStorage.getItem(BUDGET_KEY),Object.assign({},DEFAULT_BUDGETS));}
   function saveBudgets(b){try{localStorage.setItem(BUDGET_KEY,JSON.stringify(b));}catch(_){}}
+  function getExcludedBudgets(){return safeJson(localStorage.getItem(EXCLUDED_BUDGETS_KEY),[]);}
+  function saveExcludedBudgets(a){try{localStorage.setItem(EXCLUDED_BUDGETS_KEY,JSON.stringify(a));}catch(_){}}
   function getGoals(){return safeJson(localStorage.getItem('homer-expense-goals'),[]);}
   function saveGoals(a){localStorage.setItem('homer-expense-goals',JSON.stringify(a));}
   function getTemplates(){return safeJson(localStorage.getItem('homer-expense-templates'),[]);}
@@ -1826,11 +1837,11 @@
       var isSub=!isInc&&subSet[(e.desc||'').toLowerCase()];
       return'<tr data-id="'+e.id+'" data-t="'+e._t+'">'+
         '<td>'+esc(e.date||'')+'</td>'+
-        (isInc?'<td><span class="he-ledger-cat-pill" style="background:rgba(52,211,153,.15);color:#34d399">Income</span></td>':'<td><span class="he-ledger-cat-pill" style="background:'+col+'22;color:'+col+'">'+esc(CAT_LABEL[cat]||cat)+'</span></td>')+
+        (isInc?'<td><span class="he-ledger-cat-pill" style="background:rgba(52,211,153,.15);color:#34d399">Income</span></td>':'<td><span class="he-ledger-cat-pill" style="background:'+col+'22;color:'+col+'">'+esc(getCatLabel(cat))+'</span></td>')+
         '<td>'+esc(e.desc||'')+(isSub?'<span class="he-sub-badge">&#x1F501;</span>':'')+'</td>'+
         '<td class="he-ledger-note-cell">'+esc(e.note||'')+'</td>'+
         '<td style="text-align:right;font-weight:700;color:'+(isInc?'#34d399':'')+';">'+(isInc?'+':'')+parseFloat(e.amount||0).toFixed(2)+'</td>'+
-        '<td><button class="he-ledger-del" title="Delete">&#xD7;</button></td>'+
+        '<td><div style="display:flex;gap:2px;justify-content:flex-end;"><button class="he-ledger-edit-btn" title="Edit">&#x270E;</button><button class="he-ledger-del" title="Delete">&#xD7;</button></div></td>'+
       '</tr>';
     }).join('');
     tbody.querySelectorAll('.he-ledger-del').forEach(function(btn){
@@ -1839,6 +1850,51 @@
         if(tr.dataset.t==='income'){saveIncome(getIncome().filter(function(e){return e.id!==id;}));}
         else{saveExpenses(getExpenses().filter(function(e){return e.id!==id;}));}
         renderTxTable();toast('Deleted','info',1500);
+      });
+    });
+    tbody.querySelectorAll('.he-ledger-edit-btn').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var tr=btn.closest('tr');var id=parseInt(tr.dataset.id,10);var type=tr.dataset.t;
+        var arr=type==='income'?getIncome():getExpenses();
+        var entry=arr.find(function(e){return e.id===id;});if(!entry)return;
+        var allCL=getAllCats();
+        var catOpts=allCL.map(function(c){return'<option value="'+c+'"'+(c===(entry.cat||'other')?' selected':'')+'>'+getCatIcon(c)+' '+getCatLabel(c)+'</option>';}).join('');
+        tr.innerHTML=
+          '<td><input type="date" class="he-ledger-input he-edit-date" style="width:118px;padding:3px 6px;font-size:.78rem;"></td>'+
+          (type==='income'?'<td><span class="he-ledger-cat-pill" style="background:rgba(52,211,153,.15);color:#34d399">Income</span></td>':'<td><select class="he-ledger-input he-edit-cat" style="padding:3px 6px;font-size:.78rem;">'+catOpts+'</select></td>')+
+          '<td><input type="text" class="he-ledger-input he-edit-desc" style="width:100%;min-width:100px;padding:3px 6px;font-size:.78rem;"></td>'+
+          '<td><input type="text" class="he-ledger-input he-edit-note" style="width:100%;min-width:70px;padding:3px 6px;font-size:.78rem;"></td>'+
+          '<td><input type="number" class="he-ledger-input he-edit-amt" min="0" step="0.01" style="width:80px;padding:3px 6px;font-size:.78rem;text-align:right;"></td>'+
+          '<td><div style="display:flex;gap:3px;justify-content:flex-end;">'+
+            '<button class="he-edit-save" style="background:#3b82f6;border:none;color:#fff;cursor:pointer;font-size:.75rem;padding:3px 10px;border-radius:6px;font-weight:700;">&#x2713;</button>'+
+            '<button class="he-edit-cancel" style="background:none;border:1px solid rgba(255,255,255,.1);color:#64748b;cursor:pointer;font-size:.78rem;padding:3px 8px;border-radius:6px;">&#x2715;</button>'+
+          '</div></td>';
+        tr.querySelector('.he-edit-date').value=entry.date||'';
+        tr.querySelector('.he-edit-desc').value=entry.desc||'';
+        tr.querySelector('.he-edit-note').value=entry.note||'';
+        tr.querySelector('.he-edit-amt').value=parseFloat(entry.amount||0).toFixed(2);
+        tr.querySelector('.he-edit-desc').focus();
+        function doSave(){
+          var newAmt=parseFloat(tr.querySelector('.he-edit-amt').value);
+          var newDesc=(tr.querySelector('.he-edit-desc').value||'').trim();
+          var newDate=tr.querySelector('.he-edit-date').value;
+          var newNote=(tr.querySelector('.he-edit-note').value||'').trim();
+          if(!newDesc||isNaN(newAmt)||newAmt<=0){toast('Description and positive amount required','warn');return;}
+          if(type==='income'){
+            var inc=getIncome();var ii=inc.findIndex(function(e){return e.id===id;});
+            if(ii>=0)inc[ii]=Object.assign({},inc[ii],{desc:newDesc,amount:newAmt,date:newDate,note:newNote||undefined});
+            saveIncome(inc);
+          } else {
+            var newCat=(tr.querySelector('.he-edit-cat')||{}).value||'other';
+            var exp=getExpenses();var ei=exp.findIndex(function(e){return e.id===id;});
+            if(ei>=0)exp[ei]=Object.assign({},exp[ei],{desc:newDesc,amount:newAmt,cat:newCat,date:newDate,note:newNote||undefined});
+            saveExpenses(exp);
+          }
+          toast('Updated','success',1800);buildMonthFilter();renderTxTable();
+        }
+        tr.querySelector('.he-edit-save').addEventListener('click',doSave);
+        tr.querySelector('.he-edit-cancel').addEventListener('click',function(){renderTxTable();});
+        tr.querySelector('.he-edit-amt').addEventListener('keydown',function(e){if(e.key==='Enter')doSave();if(e.key==='Escape')renderTxTable();});
       });
     });
   }
@@ -2082,9 +2138,11 @@
   function renderBudgets(allExpenses){
     var el=document.getElementById('he-ledger-budgets');if(!el)return;
     var budgets=getBudgets();
+    var excluded=getExcludedBudgets();
     var mo=new Date().toISOString().slice(0,7);var spent={};
     allExpenses.filter(function(e){return(e.date||'').startsWith(mo);}).forEach(function(e){var c=e.cat||'other';spent[c]=(spent[c]||0)+(parseFloat(e.amount)||0);});
-    var rows=Object.keys(budgets).map(function(cat){
+    var visibleCats=Object.keys(budgets).filter(function(cat){return excluded.indexOf(cat)<0;});
+    var rows=visibleCats.map(function(cat){
       var budget=budgets[cat]||0,s=spent[cat]||0,rawPct=budget>0?s/budget*100:0,pct=Math.min(rawPct,100);
       var barCol=rawPct>=100?'#ef4444':rawPct>=90?'#f97316':rawPct>=70?'#fbbf24':'#22c55e';
       var iClass=rawPct>=100?'bad':rawPct>=80?'warn':'';
@@ -2094,9 +2152,17 @@
         '<div class="he-budget-track" style="background:rgba(255,255,255,.1);"><div class="he-budget-fill" style="width:'+pct.toFixed(1)+'%;background:'+barCol+';transition:width .5s,background .4s;"></div></div>'+
         '<span class="he-budget-info '+(iClass)+'">'+s.toFixed(0)+' / '+budget+' RON</span>'+
         '<button class="he-budget-edit-btn" data-cat="'+cat+'" title="Set budget limit">&#x270E;</button>'+
+        '<button class="he-budget-rm-btn" data-cat="'+cat+'" title="Hide envelope">&#x2715;</button>'+
       '</div>';
     }).join('');
-    el.innerHTML='<h3>Budget Envelopes <small style="font-size:.65rem;font-weight:400;color:#475569;text-transform:none;letter-spacing:0">'+esc(new Date().toLocaleDateString('en-GB',{month:'long',year:'numeric'}))+'</small></h3>'+rows;
+    var restoreHtml='';
+    if(excluded.length){
+      restoreHtml='<div class="he-budget-restore">'+
+        '<div class="he-budget-restore-lbl">Hidden envelopes</div>'+
+        excluded.map(function(cat){return'<span class="he-budget-restore-chip" data-cat="'+cat+'">+ '+esc(getCatIcon(cat))+' '+esc(getCatLabel(cat))+'</span>';}).join('')+
+      '</div>';
+    }
+    el.innerHTML='<h3>Budget Envelopes <small style="font-size:.65rem;font-weight:400;color:#475569;text-transform:none;letter-spacing:0">'+esc(new Date().toLocaleDateString('en-GB',{month:'long',year:'numeric'}))+'</small></h3>'+rows+restoreHtml;
     el.querySelectorAll('.he-budget-edit-btn').forEach(function(btn){
       btn.addEventListener('click',function(){
         var cat=btn.dataset.cat,cur=getBudgets()[cat]||0;
@@ -2125,6 +2191,25 @@
         if(okBtn)okBtn.addEventListener('click',doSave);
         if(cancelBtn)cancelBtn.addEventListener('click',doCancel);
         if(inp)inp.addEventListener('keydown',function(e){if(e.key==='Enter')doSave();if(e.key==='Escape')doCancel();});
+      });
+    });
+    el.querySelectorAll('.he-budget-rm-btn').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var cat=btn.dataset.cat;
+        var ex=getExcludedBudgets();
+        if(ex.indexOf(cat)<0)ex.push(cat);
+        saveExcludedBudgets(ex);
+        renderBudgets(allExpenses);
+        toast(getCatLabel(cat)+' envelope hidden','info',1800);
+      });
+    });
+    el.querySelectorAll('.he-budget-restore-chip').forEach(function(chip){
+      chip.addEventListener('click',function(){
+        var cat=chip.dataset.cat;
+        var ex=getExcludedBudgets().filter(function(c){return c!==cat;});
+        saveExcludedBudgets(ex);
+        renderBudgets(allExpenses);
+        toast(getCatLabel(cat)+' envelope restored','success',1800);
       });
     });
   }
