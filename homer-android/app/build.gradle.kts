@@ -49,12 +49,15 @@ android {
             "\"${localProps["HOMER_BASE_URL"] ?: "https://b4it.ro"}\"")
     }
 
-    signingConfigs {
-        create("release") {
-            storeFile     = file(localProps["KEYSTORE_PATH"] as String? ?: "")
-            storePassword = localProps["KEYSTORE_PASSWORD"] as String? ?: ""
-            keyAlias      = localProps["KEY_ALIAS"] as String? ?: ""
-            keyPassword   = localProps["KEY_PASSWORD"] as String? ?: ""
+    val keystorePath = localProps["KEYSTORE_PATH"] as String? ?: ""
+    if (keystorePath.isNotEmpty()) {
+        signingConfigs {
+            create("release") {
+                storeFile     = file(keystorePath)
+                storePassword = localProps["KEYSTORE_PASSWORD"] as String? ?: ""
+                keyAlias      = localProps["KEY_ALIAS"] as String? ?: ""
+                keyPassword   = localProps["KEY_PASSWORD"] as String? ?: ""
+            }
         }
     }
 
@@ -66,7 +69,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            if (keystorePath.isNotEmpty()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
