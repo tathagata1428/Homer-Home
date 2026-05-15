@@ -58,7 +58,7 @@ fun SyncScreen(vm: SyncViewModel = hiltViewModel()) {
 
                 Button(
                     onClick = vm::syncNow,
-                    enabled = state.isBogdan && !state.syncing,
+                    enabled = !state.syncing,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
                 ) {

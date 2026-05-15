@@ -43,10 +43,12 @@ class SupabaseManager @Inject constructor(
      * Called automatically by getFieldState / setFieldState so timing of
      * the HomerApplication auto-sign-in doesn't matter.
      */
+    /** Ensures an active Supabase session. Throws if sign-in fails. */
     suspend fun ensureSignedIn() {
         if (userId != null) return          // already authenticated
-        if (syncEmail.isBlank() || syncPass.isBlank()) return
-        runCatching { signIn(syncEmail, syncPass) }
+        if (syncEmail.isBlank() || syncPass.isBlank())
+            throw IllegalStateException("Sync credentials not set in BuildConfig")
+        signIn(syncEmail, syncPass)         // throws on failure — caller decides how to handle
     }
 
     /** Sign in to Supabase with email + password (bogdan only). */

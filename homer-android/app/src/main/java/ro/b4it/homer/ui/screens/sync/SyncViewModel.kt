@@ -40,21 +40,18 @@ class SyncViewModel @Inject constructor(
     }
 
     fun syncNow() {
-        if (!supabase.isBogdan()) {
-            _state.value = _state.value.copy(error = "Sync is only available for Bogdan's account.")
-            return
-        }
         viewModelScope.launch {
-            _state.value = _state.value.copy(syncing = true, error = null)
+            _state.update { it.copy(syncing = true, error = null) }
             try {
-                sync.pushAll()  // push local → cloud first (captures any pending deletions)
-                sync.pullAll()  // then pull cloud → local
-                _state.value = _state.value.copy(
+                sync.pushAll()
+                sync.pullAll()
+                _state.update { it.copy(
                     syncing = false,
+                    isBogdan = supabase.isBogdan(),
                     lastSyncMsg = "Synced at ${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}",
-                )
+                ) }
             } catch (e: Exception) {
-                _state.value = _state.value.copy(syncing = false, error = e.message)
+                _state.update { it.copy(syncing = false, error = e.message ?: e.toString()) }
             }
         }
     }

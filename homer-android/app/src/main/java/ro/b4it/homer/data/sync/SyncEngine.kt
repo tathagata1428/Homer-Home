@@ -43,8 +43,9 @@ class SyncEngine @Inject constructor(
         scope.launch { pullAll() }
     }
 
-    /** Pull all synced fields from Supabase and merge into Room. */
+    /** Pull all synced fields from Supabase and merge into Room. Throws on auth failure. */
     suspend fun pullAll() {
+        supabase.ensureSignedIn()           // throws if credentials bad — surfaces to SyncViewModel
         if (!supabase.isBogdan()) return
         runCatching { pullExpenses() }
         runCatching { pullHabits() }
@@ -77,8 +78,9 @@ class SyncEngine @Inject constructor(
     fun pushJournalDebounced()       = schedulePush("ls:homer-journal")    { pushJournal() }
     fun pushCarDebounced()           = schedulePush("ls:homer-car")        { pushCar() }
 
-    /** Push all data to Supabase immediately (no debounce). Used by manual sync + delete operations. */
+    /** Push all data to Supabase immediately (no debounce). Throws on auth failure. */
     suspend fun pushAll() {
+        supabase.ensureSignedIn()
         if (!supabase.isBogdan()) return
         runCatching { pushExpenses() }
         runCatching { pushHabits() }
