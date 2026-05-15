@@ -1,6 +1,8 @@
 package ro.b4it.homer.data.remote
 
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
@@ -13,30 +15,34 @@ class WeatherApi @Inject constructor(private val http: OkHttpClient) {
 
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
-    suspend fun getForecast(lat: Double, lon: Double): WeatherResponse? = try {
-        val url = "https://api.open-meteo.com/v1/forecast" +
-            "?latitude=$lat&longitude=$lon" +
-            "&current=temperature_2m,weathercode,windspeed_10m,is_day" +
-            "&daily=temperature_2m_max,temperature_2m_min,weathercode" +
-            "&timezone=auto"
-        val body = http.newCall(Request.Builder().url(url).build()).execute().body?.string()
-        body?.let { json.decodeFromString<WeatherResponse>(it) }
-    } catch (e: Exception) { Log.e("WeatherApi", "forecast error", e); null }
+    suspend fun getForecast(lat: Double, lon: Double): WeatherResponse? = withContext(Dispatchers.IO) {
+        try {
+            val url = "https://api.open-meteo.com/v1/forecast" +
+                "?latitude=$lat&longitude=$lon" +
+                "&current=temperature_2m,weathercode,windspeed_10m,is_day" +
+                "&daily=temperature_2m_max,temperature_2m_min,weathercode" +
+                "&timezone=auto"
+            val body = http.newCall(Request.Builder().url(url).build()).execute().body?.string()
+            body?.let { json.decodeFromString<WeatherResponse>(it) }
+        } catch (e: Exception) { Log.e("WeatherApi", "forecast error", e); null }
+    }
 
-    suspend fun getPlaceName(lat: Double, lon: Double): String = try {
-        val url = "https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lon&format=json"
-        val body = http.newCall(
-            Request.Builder().url(url)
-                .header("User-Agent", "HomerApp/1.0")
-                .build()
-        ).execute().body?.string()
-        val place = body?.let { json.decodeFromString<NominatimResponse>(it) }
-        place?.address?.city
-            ?: place?.address?.town
-            ?: place?.address?.village
-            ?: place?.address?.county
-            ?: "Unknown"
-    } catch (e: Exception) { "Unknown" }
+    suspend fun getPlaceName(lat: Double, lon: Double): String = withContext(Dispatchers.IO) {
+        try {
+            val url = "https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lon&format=json"
+            val body = http.newCall(
+                Request.Builder().url(url)
+                    .header("User-Agent", "HomerApp/1.0")
+                    .build()
+            ).execute().body?.string()
+            val place = body?.let { json.decodeFromString<NominatimResponse>(it) }
+            place?.address?.city
+                ?: place?.address?.town
+                ?: place?.address?.village
+                ?: place?.address?.county
+                ?: "Unknown"
+        } catch (e: Exception) { "Unknown" }
+    }
 }
 
 @Serializable

@@ -25,7 +25,7 @@ fun InvestingScreen() {
             .verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Investing", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("Market Intelligence", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 
         HomerCard {
             Column(Modifier.padding(12.dp)) {

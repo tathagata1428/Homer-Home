@@ -11,9 +11,11 @@ import kotlinx.coroutines.launch
 import ro.b4it.homer.data.local.dao.ExpenseDao
 import ro.b4it.homer.data.local.dao.HabitDao
 import ro.b4it.homer.data.local.dao.InboxDao
-import ro.b4it.homer.data.local.dao.PomodoroDao
+import ro.b4it.homer.data.local.dao.KanbanDao
+import ro.b4it.homer.data.local.dao.LifeGoalDao
 import ro.b4it.homer.data.local.entity.Habit
-import ro.b4it.homer.data.local.entity.PomodoroTask
+import ro.b4it.homer.data.local.entity.KanbanTask
+import ro.b4it.homer.data.local.entity.LifeGoal
 import ro.b4it.homer.data.remote.Quote
 import ro.b4it.homer.data.remote.QuotesApi
 import java.text.SimpleDateFormat
@@ -23,8 +25,9 @@ import javax.inject.Inject
 
 data class DailyBriefState(
     val quote: Quote = Quote("Make today count.", ""),
-    val pendingTasks: List<PomodoroTask> = emptyList(),
+    val inProgressTasks: List<KanbanTask> = emptyList(),
     val habits: List<Habit> = emptyList(),
+    val lifeGoals: List<LifeGoal> = emptyList(),
     val inboxCount: Int = 0,
     val totalExpensesToday: Double = 0.0,
     val loading: Boolean = true,
@@ -33,8 +36,9 @@ data class DailyBriefState(
 @HiltViewModel
 class DailyBriefViewModel @Inject constructor(
     private val inboxDao: InboxDao,
-    private val pomDao: PomodoroDao,
+    private val kanbanDao: KanbanDao,
     private val habitDao: HabitDao,
+    private val lifeGoalDao: LifeGoalDao,
     private val expenseDao: ExpenseDao,
     private val quotesApi: QuotesApi,
 ) : ViewModel() {
@@ -51,8 +55,9 @@ class DailyBriefViewModel @Inject constructor(
             val allQuotes = try { quotesApi.fetchAll() } catch (_: Exception) { quotesApi.motivationalFallback() }
             val quote = allQuotes.randomOrNull() ?: Quote("Make today count.", "")
 
-            val tasks  = try { pomDao.getOpenTasks().first() } catch (_: Exception) { emptyList() }
+            val inProgress = try { kanbanDao.getInProgressTasks() } catch (_: Exception) { emptyList() }
             val habits = try { habitDao.getActiveHabits().first() } catch (_: Exception) { emptyList() }
+            val goals  = try { lifeGoalDao.getGoalsWithTargetDates() } catch (_: Exception) { emptyList() }
             val inbox  = try { inboxDao.getAll().first() } catch (_: Exception) { emptyList() }
 
             val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
@@ -61,8 +66,9 @@ class DailyBriefViewModel @Inject constructor(
 
             _state.value = DailyBriefState(
                 quote = quote,
-                pendingTasks = tasks.filter { !it.done }.take(5),
+                inProgressTasks = inProgress.take(8),
                 habits = habits.take(5),
+                lifeGoals = goals.take(4),
                 inboxCount = inbox.size,
                 totalExpensesToday = todayTotal,
                 loading = false,

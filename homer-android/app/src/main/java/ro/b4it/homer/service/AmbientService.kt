@@ -8,34 +8,34 @@ import ro.b4it.homer.HomerApplication
 import ro.b4it.homer.MainActivity
 import ro.b4it.homer.R
 
-class PomodoroService : Service() {
+/** Foreground service that keeps the process alive while ambient sounds are playing.
+ *  This prevents the OS from suspending the WebView's JavaScript execution in background. */
+class AmbientService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val text = intent?.getStringExtra(EXTRA_TIMER_TEXT) ?: "Pomodoro running…"
-        startForeground(NOTIF_ID, buildNotification(text))
+        startForeground(NOTIF_ID, buildNotification())
         return START_STICKY
     }
 
-    private fun buildNotification(text: String): Notification {
-        val tapIntent = PendingIntent.getActivity(
+    private fun buildNotification(): Notification {
+        val tap = PendingIntent.getActivity(
             this, 0,
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE,
         )
-        return NotificationCompat.Builder(this, HomerApplication.CHANNEL_POMODORO)
+        return NotificationCompat.Builder(this, HomerApplication.CHANNEL_AMBIENT)
             .setSmallIcon(R.drawable.ic_homer_splash)
-            .setContentTitle("Homer Pomodoro")
-            .setContentText(text)
-            .setContentIntent(tapIntent)
+            .setContentTitle("Homer Ambient")
+            .setContentText("Ambient sounds playing")
+            .setContentIntent(tap)
             .setOngoing(true)
             .setSilent(true)
             .build()
     }
 
     companion object {
-        const val NOTIF_ID = 1001
-        const val EXTRA_TIMER_TEXT = "timer_text"
+        const val NOTIF_ID = 1002
     }
 }

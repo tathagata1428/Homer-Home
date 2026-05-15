@@ -9,6 +9,7 @@ sealed class Screen(val route: String) {
     object Joey       : Screen("joey")
 
     // More sheet destinations
+    object Ambient    : Screen("ambient")
     object FocusLab   : Screen("focus_lab")
     object Investing  : Screen("investing")
     object Links      : Screen("links")

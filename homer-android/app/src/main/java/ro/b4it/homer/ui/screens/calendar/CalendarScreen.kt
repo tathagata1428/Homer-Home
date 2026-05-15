@@ -196,28 +196,46 @@ private fun EventRow(event: CalendarEvent, onDelete: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddEventDialog(
     onAdd: (String, Long, Long, String, String, Boolean) -> Unit,
     onDismiss: () -> Unit,
     defaultDay: Int, year: Int, month: Int,
 ) {
-    var title   by remember { mutableStateOf("") }
-    var loc     by remember { mutableStateOf("") }
-    var desc    by remember { mutableStateOf("") }
-    var allDay  by remember { mutableStateOf(false) }
-    var startHH by remember { mutableStateOf("09") }
-    var startMM by remember { mutableStateOf("00") }
-    var endHH   by remember { mutableStateOf("10") }
-    var endMM   by remember { mutableStateOf("00") }
-    var dayStr  by remember { mutableStateOf(defaultDay.toString()) }
+    var title  by remember { mutableStateOf("") }
+    var loc    by remember { mutableStateOf("") }
+    var desc   by remember { mutableStateOf("") }
+    var allDay by remember { mutableStateOf(false) }
+    var dayStr by remember { mutableStateOf(defaultDay.toString()) }
+    var showStartPicker by remember { mutableStateOf(false) }
+    var showEndPicker   by remember { mutableStateOf(false) }
+    val startState = rememberTimePickerState(initialHour = 9,  initialMinute = 0)
+    val endState   = rememberTimePickerState(initialHour = 10, initialMinute = 0)
 
-    fun buildMs(hh: String, mm: String): Long {
+    fun buildMs(hour: Int, minute: Int): Long {
         val d = dayStr.toIntOrNull() ?: defaultDay
         return Calendar.getInstance().apply {
-            set(year, month, d, hh.toIntOrNull() ?: 0, mm.toIntOrNull() ?: 0, 0)
+            set(year, month, d, hour, minute, 0)
             set(Calendar.MILLISECOND, 0)
         }.timeInMillis
+    }
+
+    if (showStartPicker) {
+        AlertDialog(onDismissRequest = { showStartPicker = false }, containerColor = BgCard,
+            title = { Text("Start Time") },
+            text = { TimePicker(state = startState, colors = TimePickerDefaults.colors(clockDialColor = BgCardAlt, selectorColor = AccentBlue, clockDialSelectedContentColor = TextPrimary, clockDialUnselectedContentColor = TextMuted)) },
+            confirmButton = { TextButton(onClick = { showStartPicker = false }) { Text("OK", color = AccentBlue) } },
+            dismissButton = { TextButton(onClick = { showStartPicker = false }) { Text("Cancel", color = TextMuted) } })
+        return
+    }
+    if (showEndPicker) {
+        AlertDialog(onDismissRequest = { showEndPicker = false }, containerColor = BgCard,
+            title = { Text("End Time") },
+            text = { TimePicker(state = endState, colors = TimePickerDefaults.colors(clockDialColor = BgCardAlt, selectorColor = AccentBlue, clockDialSelectedContentColor = TextPrimary, clockDialUnselectedContentColor = TextMuted)) },
+            confirmButton = { TextButton(onClick = { showEndPicker = false }) { Text("OK", color = AccentBlue) } },
+            dismissButton = { TextButton(onClick = { showEndPicker = false }) { Text("Cancel", color = TextMuted) } })
+        return
     }
 
     AlertDialog(
@@ -232,15 +250,9 @@ private fun AddEventDialog(
                     Triple("Location", loc, { v: String -> loc = v }),
                     Triple("Description", desc, { v: String -> desc = v }),
                 ).forEach { (lbl, value, setter) ->
-                    OutlinedTextField(
-                        value = value, onValueChange = setter,
-                        label = { Text(lbl) }, singleLine = true,
+                    OutlinedTextField(value = value, onValueChange = setter, label = { Text(lbl) }, singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AccentBlue, unfocusedBorderColor = BorderDefault,
-                            focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedLabelColor = AccentBlue,
-                        ),
-                    )
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AccentBlue, unfocusedBorderColor = BorderDefault, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedLabelColor = AccentBlue))
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = allDay, onCheckedChange = { allDay = it }, colors = CheckboxDefaults.colors(checkedColor = AccentBlue))
@@ -248,26 +260,18 @@ private fun AddEventDialog(
                 }
                 if (!allDay) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = startHH, onValueChange = { startHH = it },
-                            label = { Text("Start HH") }, singleLine = true, modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AccentBlue, unfocusedBorderColor = BorderDefault, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary),
-                        )
-                        OutlinedTextField(
-                            value = startMM, onValueChange = { startMM = it },
-                            label = { Text("MM") }, singleLine = true, modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AccentBlue, unfocusedBorderColor = BorderDefault, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary),
-                        )
-                        OutlinedTextField(
-                            value = endHH, onValueChange = { endHH = it },
-                            label = { Text("End HH") }, singleLine = true, modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AccentBlue, unfocusedBorderColor = BorderDefault, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary),
-                        )
-                        OutlinedTextField(
-                            value = endMM, onValueChange = { endMM = it },
-                            label = { Text("MM") }, singleLine = true, modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AccentBlue, unfocusedBorderColor = BorderDefault, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary),
-                        )
+                        OutlinedButton(onClick = { showStartPicker = true }, modifier = Modifier.weight(1f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderDefault)) {
+                            Icon(Icons.Filled.Schedule, null, modifier = Modifier.size(15.dp), tint = AccentBlue)
+                            Spacer(Modifier.width(4.dp))
+                            Text("Start %02d:%02d".format(startState.hour, startState.minute), style = MaterialTheme.typography.labelSmall, color = TextPrimary)
+                        }
+                        OutlinedButton(onClick = { showEndPicker = true }, modifier = Modifier.weight(1f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderDefault)) {
+                            Icon(Icons.Filled.Schedule, null, modifier = Modifier.size(15.dp), tint = AccentBlue)
+                            Spacer(Modifier.width(4.dp))
+                            Text("End %02d:%02d".format(endState.hour, endState.minute), style = MaterialTheme.typography.labelSmall, color = TextPrimary)
+                        }
                     }
                 }
             }
@@ -277,9 +281,9 @@ private fun AddEventDialog(
                 if (title.isNotBlank()) {
                     val d = dayStr.toIntOrNull() ?: defaultDay
                     val startMs = if (allDay) Calendar.getInstance().apply { set(year, month, d, 0, 0, 0); set(Calendar.MILLISECOND, 0) }.timeInMillis
-                                  else buildMs(startHH, startMM)
+                                  else buildMs(startState.hour, startState.minute)
                     val endMs   = if (allDay) startMs + 86_400_000L - 1
-                                  else buildMs(endHH, endMM)
+                                  else buildMs(endState.hour, endState.minute)
                     onAdd(title, startMs, endMs, loc, desc, allDay)
                 }
             }) { Text("Add", color = AccentBlue) }

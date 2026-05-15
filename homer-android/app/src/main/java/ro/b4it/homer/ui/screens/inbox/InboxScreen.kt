@@ -26,9 +26,16 @@ fun InboxScreen(vm: InboxViewModel = hiltViewModel()) {
     val items  by vm.items.collectAsStateWithLifecycle(emptyList())
     var input  by remember { mutableStateOf("") }
 
-    Column(Modifier.fillMaxSize().background(BgPrimary)) {
+    Column(Modifier.fillMaxSize().background(BgPrimary).imePadding()) {
+        // Header
+        Row(
+            Modifier.fillMaxWidth().padding(16.dp, 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Quick Capture", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        }
         // Quick capture input
-        HomerCard {
+        HomerCard(modifier = Modifier.padding(horizontal = 16.dp)) {
             Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = input, onValueChange = { input = it },
@@ -48,29 +55,41 @@ fun InboxScreen(vm: InboxViewModel = hiltViewModel()) {
 
         LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(items) { item ->
-                InboxItemRow(item = item, onDelete = { vm.delete(item) })
+                InboxItemRow(item = item, onDelete = { vm.delete(item) }, onProcess = { vm.process(item) })
             }
         }
     }
 }
 
 @Composable
-fun InboxItemRow(item: InboxItem, onDelete: () -> Unit) {
-    val (typeColor, typeLabel) = when (item.type) {
-        "task"    -> AccentBlue   to "Task"
-        "link"    -> AccentViolet to "Link"
-        "expense" -> AccentGreen  to "Expense"
-        else      -> AccentAmber  to "Thought"
+fun InboxItemRow(item: InboxItem, onDelete: () -> Unit, onProcess: () -> Unit) {
+    val (typeColor, typeLabel, actionLabel) = when (item.type) {
+        "task"    -> Triple(AccentBlue,   "Task",    "→ Focus")
+        "link"    -> Triple(AccentViolet, "Link",    "→ Links")
+        "expense" -> Triple(AccentGreen,  "Expense", "→ Ledger")
+        else      -> Triple(AccentAmber,  "Thought", null)
     }
     HomerCard {
-        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.clip(RoundedCornerShape(6.dp)).background(typeColor.copy(0.15f)).padding(horizontal = 8.dp, vertical = 3.dp)
-            ) { Text(typeLabel, style = MaterialTheme.typography.labelSmall, color = typeColor, fontWeight = FontWeight.Bold) }
-            Spacer(Modifier.width(10.dp))
-            Text(item.text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f), maxLines = 2)
-            IconButton(onClick = onDelete, Modifier.size(28.dp)) {
-                Icon(Icons.Filled.Close, null, tint = TextSubtle, modifier = Modifier.size(14.dp))
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.clip(RoundedCornerShape(6.dp)).background(typeColor.copy(0.15f)).padding(horizontal = 8.dp, vertical = 3.dp)
+                ) { Text(typeLabel, style = MaterialTheme.typography.labelSmall, color = typeColor, fontWeight = FontWeight.Bold) }
+                Spacer(Modifier.width(10.dp))
+                Text(item.text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f), maxLines = 2)
+                IconButton(onClick = onDelete, Modifier.size(28.dp)) {
+                    Icon(Icons.Filled.Close, null, tint = TextSubtle, modifier = Modifier.size(14.dp))
+                }
+            }
+            if (actionLabel != null) {
+                Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                    Box(
+                        Modifier.clip(RoundedCornerShape(6.dp)).background(typeColor.copy(0.12f))
+                            .clickable(onClick = onProcess).padding(horizontal = 10.dp, vertical = 4.dp),
+                    ) {
+                        Text(actionLabel, style = MaterialTheme.typography.labelSmall, color = typeColor, fontWeight = FontWeight.SemiBold)
+                    }
+                }
             }
         }
     }

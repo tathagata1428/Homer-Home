@@ -40,7 +40,7 @@ private val RSS_SOURCES = mapOf(
     "International" to mapOf(
         "BBC World"   to "http://feeds.bbci.co.uk/news/world/rss.xml",
         "Reuters"     to "https://feeds.reuters.com/reuters/topNews",
-        "The Guardian"to "https://www.theguardian.com/world/rss",
+        "The Guardian" to "https://www.theguardian.com/world/rss",
         "Al Jazeera"  to "https://www.aljazeera.com/xml/rss/all.xml",
     ),
 )

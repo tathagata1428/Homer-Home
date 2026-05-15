@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import io.github.jan.supabase.auth.auth
 import ro.b4it.homer.data.preferences.AppPreferences
 import ro.b4it.homer.data.supabase.SupabaseManager
 import javax.inject.Inject

@@ -17,6 +17,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -24,20 +26,25 @@ import androidx.compose.ui.unit.sp
 import ro.b4it.homer.ui.screens.home.HomerCard
 import ro.b4it.homer.ui.theme.*
 
-private data class Tool(val emoji: String, val name: String, val desc: String, val url: String)
+private data class Tool(
+    val emoji: String,
+    val name: String,
+    val desc: String,
+    val url: String,       // empty = action
+)
 
 private val TOOLS = listOf(
-    Tool("☁️", "Nextcloud",   "Files & sync",       "https://cloud.b4it.ro"),
-    Tool("📝", "Docs",        "Office suite",        "https://docs.b4it.ro"),
-    Tool("✅", "Reminders",   "Task lists",          "https://tasks.b4it.ro"),
-    Tool("📔", "Journal",     "Personal journal",    "https://journal.b4it.ro"),
-    Tool("🎬", "Jellyfin",    "Media server",        "https://media.b4it.ro"),
-    Tool("📒", "Notes",       "Quick notes",         "https://notes.b4it.ro"),
-    Tool("📊", "Glance",      "Analytics",           "https://glance.b4it.ro"),
-    Tool("📷", "Immich",      "Photo backup",        "https://photos.b4it.ro"),
-    Tool("🔧", "Omnitools",   "Utility tools",       "https://tools.b4it.ro"),
-    Tool("⬇️", "YT Download", "YouTube downloader", "https://ytdl.b4it.ro"),
-    Tool("✉️", "AI Email",    "Email rewriter",      "https://email.b4it.ro"),
+    Tool("☁️", "Nextcloud",           "Files & sync",               "https://cloud.b4it.ro"),
+    Tool("📚", "Docs",                "Personal documentation",     "https://docs.b4it.ro"),
+    Tool("⏰", "Reminders",           "Manage reminders & tasks",   "https://reminder.b4it.ro/reminders"),
+    Tool("📔", "Journal",             "Daily notes & reflections",  "https://journal.b4it.ro"),
+    Tool("🍿", "Jellyfin",            "Personal media server",      "https://jellyfin.b4it.ro"),
+    Tool("✏️", "Notes",               "Quick notes & to-dos",       "https://tasks.b4it.ro"),
+    Tool("✨", "Glance",              "Various widgets",            "https://glance.b4it.ro"),
+    Tool("🖼️", "Immich",              "Self-hosted photos",         "https://immich.b4it.ro"),
+    Tool("🛠️", "Omnitools",           "All-in-one utility toolkit", "https://omnitools.b4it.ro"),
+    Tool("🎬", "YT Download",         "Download videos & audio",    "https://getyoutube.b4it.ro"),
+    Tool("✉️", "AI Email",            "Email & text proofer",       "https://redefine.b4it.ro"),
 )
 
 @Composable
@@ -45,7 +52,6 @@ fun ToolsScreen() {
     val ctx = LocalContext.current
     var keepAwake by remember { mutableStateOf(false) }
 
-    // Keep awake effect
     DisposableEffect(keepAwake) {
         val activity = ctx as? ComponentActivity
         if (keepAwake) activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -54,33 +60,26 @@ fun ToolsScreen() {
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(BgPrimary)
-            .verticalScroll(rememberScrollState()).padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BgPrimary)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Tools", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("My Tools", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 
-        // Keep awake toggle
-        HomerCard {
-            Row(
-                Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("Keep Screen Awake", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                Switch(
-                    checked = keepAwake, onCheckedChange = { keepAwake = it },
-                    colors = SwitchDefaults.colors(checkedThumbColor = AccentAmber, checkedTrackColor = AccentAmber.copy(alpha = 0.3f)),
-                )
-            }
-        }
-
-        // Tools grid
+        // Tools grid — 3 columns like the website
         LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier.heightIn(max = 2000.dp),
+            columns = GridCells.Fixed(3),
+            modifier = Modifier.heightIn(max = 2400.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            // Keep Awake — first grid item like website
+            item {
+                KeepAwakeCard(keepAwake = keepAwake, onToggle = { keepAwake = !keepAwake })
+            }
             items(TOOLS) { tool ->
                 ToolCard(tool = tool, onClick = { openUrl(ctx, tool.url) })
             }
@@ -89,24 +88,73 @@ fun ToolsScreen() {
 }
 
 @Composable
-fun ToolCard(tool: Tool, onClick: () -> Unit) {
+private fun KeepAwakeCard(keepAwake: Boolean, onToggle: () -> Unit) {
     Box(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                if (keepAwake)
+                    Brush.verticalGradient(listOf(AccentAmber.copy(alpha = 0.15f), AccentAmber.copy(alpha = 0.08f)))
+                else
+                    Brush.verticalGradient(listOf(Color(0x10FFFFFF), Color(0x07FFFFFF)))
+            )
+            .border(
+                1.dp,
+                if (keepAwake) AccentAmber.copy(alpha = 0.4f) else Color(0x1FFFFFFF),
+                RoundedCornerShape(14.dp),
+            )
+            .clickable(onClick = onToggle)
+            .padding(14.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("☀️", fontSize = 24.sp)
+            Text(
+                "Keep Awake",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = if (keepAwake) AccentAmber else TextPrimary,
+            )
+            Text(
+                if (keepAwake) "On" else "Prevents sleep",
+                style = MaterialTheme.typography.labelSmall,
+                color = if (keepAwake) AccentAmber.copy(alpha = 0.8f) else TextMuted,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ToolCard(tool: Tool, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(BgCard)
-            .border(1.dp, BorderDefault, RoundedCornerShape(14.dp))
+            .background(Brush.verticalGradient(listOf(Color(0x10FFFFFF), Color(0x07FFFFFF))))
+            .border(1.dp, Color(0x1FFFFFFF), RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
             .padding(14.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(tool.emoji, fontSize = 28.sp)
-            Text(tool.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Text(tool.desc, style = MaterialTheme.typography.labelSmall, color = TextMuted)
+            Text(tool.emoji, fontSize = 24.sp)
+            Text(
+                tool.name,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                tool.desc,
+                style = MaterialTheme.typography.labelSmall,
+                color = TextMuted,
+                maxLines = 2,
+            )
         }
     }
 }
 
 private fun openUrl(ctx: Context, url: String) {
+    if (url.isBlank()) return
     try {
         CustomTabsIntent.Builder()
             .setShowTitle(true)

@@ -30,8 +30,12 @@ fun NewsScreen(vm: NewsViewModel = hiltViewModel()) {
     val ctx = LocalContext.current
 
     Column(Modifier.fillMaxSize().background(BgPrimary)) {
+        // Header
+        Row(Modifier.fillMaxWidth().padding(16.dp, 12.dp, 16.dp, 0.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("News & Videos", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        }
         // Region + Source selectors
-        Row(Modifier.fillMaxWidth().padding(16.dp, 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth().padding(16.dp, 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             RegionChips(state.region, state.availableRegions, onSelect = vm::setRegion, modifier = Modifier.weight(1f))
         }
 

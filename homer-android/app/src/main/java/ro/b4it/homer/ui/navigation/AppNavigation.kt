@@ -10,6 +10,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import ro.b4it.homer.ui.screens.account.AccountScreen
+import ro.b4it.homer.ui.screens.ambient.AmbientSoundsScreen
 import ro.b4it.homer.ui.screens.calendar.CalendarScreen
 import ro.b4it.homer.ui.screens.dailybrief.DailyBriefScreen
 import ro.b4it.homer.ui.screens.focus.FocusScreen
@@ -20,6 +21,7 @@ import ro.b4it.homer.ui.screens.inbox.InboxScreen
 import ro.b4it.homer.ui.screens.investing.InvestingScreen
 import ro.b4it.homer.ui.screens.joey.JoeyScreen
 import ro.b4it.homer.ui.screens.kanban.KanbanScreen
+import ro.b4it.homer.ui.screens.kanban.KanbanTaskDetailScreen
 import ro.b4it.homer.ui.screens.ledger.LedgerScreen
 import ro.b4it.homer.ui.screens.lifegoals.LifeGoalsScreen
 import ro.b4it.homer.ui.screens.links.LinksScreen
@@ -32,7 +34,6 @@ import ro.b4it.homer.ui.screens.settings.SettingsScreen
 import ro.b4it.homer.ui.screens.sync.SyncScreen
 import ro.b4it.homer.ui.screens.tools.ToolsScreen
 import ro.b4it.homer.ui.screens.vault.VaultScreen
-import ro.b4it.homer.ui.screens.placeholder.PlaceholderScreen
 
 @Composable
 fun AppNavHost(
@@ -53,6 +54,7 @@ fun AppNavHost(
         composable(Screen.Joey.route)       { JoeyScreen() }
 
         // ---- More sheet ----
+        composable(Screen.Ambient.route)    { AmbientSoundsScreen() }
         composable(Screen.FocusLab.route)   { FocusLabScreen() }
         composable(Screen.Investing.route)  { InvestingScreen() }
         composable(Screen.Links.route)      { LinksScreen() }
@@ -72,14 +74,13 @@ fun AppNavHost(
         composable(Screen.Secrets.route)     { SecretsScreen() }
         composable(Screen.SecretNotes.route) { SecretNotesScreen() }
         composable(Screen.Calendar.route)    { CalendarScreen() }
-        composable(Screen.Kanban.route)      { KanbanScreen() }
+        composable(Screen.Kanban.route)      { KanbanScreen(onTaskClick = { taskId -> navController.navigate(Screen.KanbanTask.route(taskId)) }) }
 
         composable(
             route     = Screen.KanbanTask.route,
             arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
-        ) { back ->
-            val taskId = back.arguments?.getString("taskId") ?: return@composable
-            PlaceholderScreen("Task: $taskId")
+        ) {
+            KanbanTaskDetailScreen(onBack = { navController.popBackStack() })
         }
     }
 }

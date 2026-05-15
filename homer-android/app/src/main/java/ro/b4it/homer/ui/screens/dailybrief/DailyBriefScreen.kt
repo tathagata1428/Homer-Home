@@ -68,10 +68,10 @@ fun DailyBriefScreen(vm: DailyBriefViewModel = hiltViewModel()) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(
-                    Triple(state.pendingTasks.size.toString(), "Tasks", AccentBlue),
+                    Triple(state.inProgressTasks.size.toString(), "In Progress", AccentAmber),
                     Triple(state.habits.size.toString(), "Habits", AccentGreen),
-                    Triple(state.inboxCount.toString(), "Inbox", AccentAmber),
-                    Triple("€%.0f".format(state.totalExpensesToday), "Today", AccentViolet),
+                    Triple(state.inboxCount.toString(), "Inbox", AccentViolet),
+                    Triple("€%.0f".format(state.totalExpensesToday), "Today", AccentBlue),
                 ).forEach { (val_, lbl, color) ->
                     Box(
                         Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(color.copy(0.12f)).padding(10.dp),
@@ -86,18 +86,25 @@ fun DailyBriefScreen(vm: DailyBriefViewModel = hiltViewModel()) {
             }
         }
 
-        // Pending tasks
-        if (state.pendingTasks.isNotEmpty()) {
-            item {
-                SectionHeader("Focus Tasks")
-            }
-            state.pendingTasks.forEach { task ->
+        // In-progress Kanban tasks
+        if (state.inProgressTasks.isNotEmpty()) {
+            item { SectionHeader("In Progress") }
+            state.inProgressTasks.forEach { task ->
                 item {
                     HomerCard {
                         Row(Modifier.fillMaxWidth().padding(12.dp, 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(AccentBlue))
+                            val priorityColor = when (task.priority) {
+                                "high"     -> AccentAmber
+                                "critical" -> AccentRed
+                                "low"      -> AccentGreen
+                                else       -> TextMuted
+                            }
+                            Box(Modifier.width(4.dp).height(36.dp).clip(RoundedCornerShape(2.dp)).background(priorityColor))
                             Spacer(Modifier.width(10.dp))
-                            Text(task.text, style = MaterialTheme.typography.bodySmall, color = TextPrimary)
+                            Column(Modifier.weight(1f)) {
+                                Text(task.summary, style = MaterialTheme.typography.bodySmall, color = TextPrimary, fontWeight = FontWeight.SemiBold)
+                                if (task.dueDate.isNotBlank()) Text("Due: ${task.dueDate}", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                            }
                         }
                     }
                 }
@@ -114,6 +121,26 @@ fun DailyBriefScreen(vm: DailyBriefViewModel = hiltViewModel()) {
                             Text(habit.emoji.ifBlank { "✅" }, fontSize = 18.sp, modifier = Modifier.width(28.dp))
                             Text(habit.name, style = MaterialTheme.typography.bodySmall, color = TextPrimary, modifier = Modifier.weight(1f))
                             Text(habit.category.ifBlank { habit.freq }, style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Life goals
+        if (state.lifeGoals.isNotEmpty()) {
+            item { SectionHeader("Life Goals — Upcoming") }
+            state.lifeGoals.forEach { goal ->
+                item {
+                    HomerCard {
+                        Row(Modifier.fillMaxWidth().padding(12.dp, 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(goal.icon.ifBlank { "🎯" }, fontSize = 18.sp, modifier = Modifier.width(28.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(goal.title, style = MaterialTheme.typography.bodySmall, color = TextPrimary, fontWeight = FontWeight.SemiBold)
+                                if (goal.targetDate.isNotBlank()) Text("Target: ${goal.targetDate}", style = MaterialTheme.typography.labelSmall, color = AccentBlue)
+                            }
+                            val pct = (goal.progress / 100f).coerceIn(0f, 1f)
+                            Text("${goal.progress}%", style = MaterialTheme.typography.labelSmall, color = TextMuted)
                         }
                     }
                 }

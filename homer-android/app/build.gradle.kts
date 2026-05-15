@@ -74,7 +74,12 @@ android {
     }
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
+    implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -108,7 +113,9 @@ dependencies {
     // DataStore
     implementation(libs.datastore.preferences)
 
-    // Supabase
+    // Supabase — BOM pins all module versions; core makes SupabaseClient visible to KSP
+    implementation(platform(libs.supabase.bom))
+    implementation(libs.supabase.core)
     implementation(libs.supabase.postgrest)
     implementation(libs.supabase.auth)
     implementation(libs.supabase.realtime)

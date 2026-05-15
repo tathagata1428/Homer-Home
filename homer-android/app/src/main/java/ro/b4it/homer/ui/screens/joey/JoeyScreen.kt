@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import ro.b4it.homer.BuildConfig
 import ro.b4it.homer.ui.screens.home.HomerCard
 import ro.b4it.homer.ui.theme.*
 
@@ -25,23 +26,71 @@ fun JoeyScreen(vm: JoeyViewModel = hiltViewModel()) {
     val messages  by vm.messages.collectAsStateWithLifecycle()
     val input     by vm.input.collectAsStateWithLifecycle()
     val loading   by vm.loading.collectAsStateWithLifecycle()
+    val mode      by vm.mode.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
     }
 
-    Column(Modifier.fillMaxSize().background(BgPrimary)) {
+    Column(Modifier.fillMaxSize().background(BgPrimary).imePadding()) {
         // Header
         Row(
             Modifier.fillMaxWidth().padding(16.dp, 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Joey AI", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text(
+                "Joey",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+            )
+
+            // Mode toggle — matches website personal/work toggle
             Box(
-                Modifier.clip(RoundedCornerShape(20)).background(AccentBlue.copy(0.15f)).padding(horizontal = 10.dp, vertical = 4.dp)
-            ) { Text("ring-2.6-1t", style = MaterialTheme.typography.labelSmall, color = AccentBlue) }
-            IconButton(onClick = vm::clearChat) { Icon(Icons.Filled.Delete, null, tint = TextMuted) }
+                Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(BgCardAlt)
+                    .border(1.dp, BorderDefault, RoundedCornerShape(20.dp))
+                    .clickable { vm.toggleMode() }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        if (mode == "work") "💼" else "🏠",
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                    Text(
+                        mode.replaceFirstChar { it.uppercase() },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (mode == "work") AccentAmber else AccentBlue,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+
+            IconButton(onClick = vm::clearChat) {
+                Icon(Icons.Filled.Delete, null, tint = TextMuted)
+            }
+        }
+
+        // Model chip
+        Row(Modifier.padding(start = 16.dp, bottom = 8.dp)) {
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(AccentBlue.copy(alpha = 0.12f))
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+            ) {
+                Text(
+                    BuildConfig.OC_MODEL.substringAfterLast("/").take(20),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AccentBlue,
+                )
+            }
         }
 
         // Messages
@@ -51,6 +100,31 @@ fun JoeyScreen(vm: JoeyViewModel = hiltViewModel()) {
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            if (messages.isEmpty()) {
+                item {
+                    Box(
+                        Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Text("🤖", style = MaterialTheme.typography.displaySmall)
+                            Text(
+                                "Hey! Ask me anything.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextMuted,
+                            )
+                            Text(
+                                "Mode: ${mode.replaceFirstChar { it.uppercase() }}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TextSubtle,
+                            )
+                        }
+                    }
+                }
+            }
             items(messages) { msg ->
                 ChatBubble(msg)
             }
@@ -58,10 +132,16 @@ fun JoeyScreen(vm: JoeyViewModel = hiltViewModel()) {
                 item {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
                         Box(
-                            Modifier.clip(RoundedCornerShape(12.dp, 12.dp, 12.dp, 4.dp))
-                                .background(BgCard).padding(12.dp, 8.dp)
+                            Modifier
+                                .clip(RoundedCornerShape(4.dp, 12.dp, 12.dp, 12.dp))
+                                .background(BgCard)
+                                .padding(12.dp, 10.dp),
                         ) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = AccentBlue, strokeWidth = 2.dp)
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = AccentBlue,
+                                strokeWidth = 2.dp,
+                            )
                         }
                     }
                 }
@@ -81,8 +161,10 @@ fun JoeyScreen(vm: JoeyViewModel = hiltViewModel()) {
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp, max = 120.dp),
                     maxLines = 4,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = AccentBlue, unfocusedBorderColor = BorderDefault,
-                        focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = AccentBlue,
+                        unfocusedBorderColor = BorderDefault,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
                     ),
                 )
                 Spacer(Modifier.width(6.dp))
@@ -91,7 +173,11 @@ fun JoeyScreen(vm: JoeyViewModel = hiltViewModel()) {
                     enabled = input.isNotBlank() && !loading,
                     modifier = Modifier.align(Alignment.Bottom),
                 ) {
-                    Icon(Icons.Filled.Send, "Send", tint = if (input.isNotBlank()) AccentBlue else TextSubtle)
+                    Icon(
+                        Icons.Filled.Send,
+                        "Send",
+                        tint = if (input.isNotBlank() && !loading) AccentBlue else TextSubtle,
+                    )
                 }
             }
         }
@@ -110,15 +196,15 @@ fun ChatBubble(msg: ChatMessage) {
                 .widthIn(max = 300.dp)
                 .clip(
                     if (isUser) RoundedCornerShape(12.dp, 4.dp, 12.dp, 12.dp)
-                    else RoundedCornerShape(4.dp, 12.dp, 12.dp, 12.dp)
+                    else        RoundedCornerShape(4.dp, 12.dp, 12.dp, 12.dp),
                 )
                 .background(if (isUser) AccentBlue else BgCard)
-                .padding(12.dp, 8.dp)
+                .padding(12.dp, 8.dp),
         ) {
             Text(
                 msg.content,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (isUser) TextPrimary else TextPrimary,
+                color = TextPrimary,
             )
         }
     }

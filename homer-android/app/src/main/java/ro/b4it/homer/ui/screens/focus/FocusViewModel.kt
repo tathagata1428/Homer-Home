@@ -2,6 +2,7 @@ package ro.b4it.homer.ui.screens.focus
 
 import android.content.Context
 import android.content.Intent
+import android.media.MediaPlayer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -73,11 +74,16 @@ class FocusViewModel @Inject constructor(
                 longMin    = arr[2] as Int,
                 autoStart  = arr[3] as Boolean,
                 notifications = arr[4] as Boolean,
+                voice      = _settings.value.voice,
+                sfx        = _settings.value.sfx,
             )}.collect { s ->
                 _settings.value = s
                 if (!_state.value.running) resetTimer(_state.value.phase)
             }
         }
+        // Load sfx + voice independently so they don't reset to defaults
+        viewModelScope.launch { prefs.pomoSfx.collect   { v -> _settings.update { it.copy(sfx   = v) } } }
+        viewModelScope.launch { prefs.pomoVoice.collect { v -> _settings.update { it.copy(voice = v) } } }
     }
 
     fun startPause() {
@@ -92,9 +98,11 @@ class FocusViewModel @Inject constructor(
             while (_state.value.secsLeft > 0 && _state.value.running) {
                 delay(1_000)
                 val cur = _state.value
-                val newSecs   = cur.secsLeft - 1
+                val newSecs    = cur.secsLeft - 1
                 val newElapsed = if (cur.phase == PomodoroPhase.FOCUS) cur.elapsedFocusSecs + 1 else cur.elapsedFocusSecs
                 _state.update { it.copy(secsLeft = newSecs, elapsedFocusSecs = newElapsed) }
+                val label = _state.value.phase.label
+                updateServiceTimer("$label %02d:%02d".format(newSecs / 60, newSecs % 60))
             }
             if (_state.value.secsLeft == 0) onPhaseEnd()
         }
@@ -123,9 +131,22 @@ class FocusViewModel @Inject constructor(
     private fun onPhaseEnd() {
         val cur = _state.value
         if (cur.phase == PomodoroPhase.FOCUS && cur.elapsedFocusSecs >= 60) logSession(cur)
+        // Focus ended → break time → WooHoo! | Break ended → focus time → D'oh!
+        if (cur.phase == PomodoroPhase.FOCUS) playSound(ro.b4it.homer.R.raw.woohoo)
+        else playSound(ro.b4it.homer.R.raw.doh)
         advancePhase()
         stopService()
         if (_settings.value.autoStart) start()
+    }
+
+    private fun playSound(rawRes: Int) {
+        if (!_settings.value.sfx) return
+        try {
+            MediaPlayer.create(ctx, rawRes)?.apply {
+                setOnCompletionListener { it.release() }
+                start()
+            }
+        } catch (_: Exception) {}
     }
 
     private fun advancePhase() {
@@ -207,8 +228,19 @@ class FocusViewModel @Inject constructor(
 
     // ---- Service ----
     private fun startService() {
-        ctx.startForegroundService(Intent(ctx, PomodoroService::class.java))
+        val s = _state.value
+        val text = "${s.phase.label} %02d:%02d".format(s.secsLeft / 60, s.secsLeft % 60)
+        ctx.startForegroundService(Intent(ctx, PomodoroService::class.java).apply {
+            putExtra(PomodoroService.EXTRA_TIMER_TEXT, text)
+        })
     }
+
+    private fun updateServiceTimer(text: String) {
+        ctx.startService(Intent(ctx, PomodoroService::class.java).apply {
+            putExtra(PomodoroService.EXTRA_TIMER_TEXT, text)
+        })
+    }
+
     private fun stopService() {
         ctx.stopService(Intent(ctx, PomodoroService::class.java))
     }

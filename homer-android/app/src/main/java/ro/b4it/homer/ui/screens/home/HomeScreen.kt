@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -44,11 +45,22 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
         if (!locationPerm.status.isGranted) locationPerm.launchPermissionRequest()
     }
 
+    val greeting = when {
+        now.hour < 12 -> "Good Morning"
+        now.hour < 18 -> "Good Afternoon"
+        else          -> "Good Evening"
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(BgPrimary),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        // Hero banner
+        item {
+            HeroBanner(greeting = greeting)
+        }
+
         // Clock
         item {
             ClockCard(
@@ -86,6 +98,70 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
         // Focus tasks
         item {
             FocusTasksCard(tasks = openTasks)
+        }
+    }
+}
+
+// ---- Hero Banner ----
+
+@Composable
+fun HeroBanner(greeting: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(BgCard)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(Color(0x1AFFFFFF), Color(0x0FFFFFFF)),
+                )
+            )
+            .border(1.dp, Color(0x1FFFFFFF), RoundedCornerShape(24.dp)),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 22.dp, vertical = 28.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Text(
+                    "Homer",
+                    style = TextStyle(
+                        brush = Brush.linearGradient(
+                            colors = listOf(Color.White, Color(0xFFCBD5E1), Color.White),
+                        ),
+                        fontSize = 40.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.5.sp,
+                    ),
+                )
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(AccentGreen, Color(0xFF16A34A)),
+                            )
+                        )
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                ) {
+                    Text(
+                        greeting,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF041106),
+                    )
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "\u201cTrying is the first step towards failure.\u201d \u2014 Homer Simpson",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextMuted,
+            )
         }
     }
 }
@@ -234,7 +310,7 @@ fun SavedQuotesCard(quotes: List<SavedQuote>, onDelete: (SavedQuote) -> Unit) {
                             Icon(Icons.Filled.Close, null, tint = TextSubtle, modifier = Modifier.size(16.dp))
                         }
                     }
-                    Divider(color = BorderSubtle)
+                    HorizontalDivider(color = BorderSubtle)
                 }
             }
         }
@@ -281,7 +357,12 @@ fun HomerCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
             .background(BgCard)
-            .border(1.dp, BorderDefault, RoundedCornerShape(18.dp)),
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(Color(0x10FFFFFF), Color(0x07FFFFFF)),
+                )
+            )
+            .border(1.dp, Color(0x1FFFFFFF), RoundedCornerShape(18.dp)),
     ) { content() }
 }
 

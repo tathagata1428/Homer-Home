@@ -17,6 +17,9 @@ interface PomodoroDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertTask(task: PomodoroTask)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAllTasks(tasks: List<PomodoroTask>)
+
     @Query("UPDATE pomodoro_tasks SET done = :done, updatedAt = :ts WHERE id = :id")
     suspend fun setTaskDone(id: String, done: Boolean, ts: Long = System.currentTimeMillis())
 

@@ -40,8 +40,15 @@ fun LinksScreen(vm: LinksViewModel = hiltViewModel()) {
     val grouped = filtered.groupBy { it.category.ifBlank { "Uncategorized" } }
 
     Column(Modifier.fillMaxSize().background(BgPrimary)) {
-        // Search bar
+        // Header
         Row(Modifier.fillMaxWidth().padding(16.dp, 12.dp, 16.dp, 0.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("My Links", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            IconButton(onClick = { showAdd = true }) {
+                Icon(Icons.Filled.Add, "Add", tint = AccentBlue)
+            }
+        }
+        // Search bar
+        Row(Modifier.fillMaxWidth().padding(16.dp, 8.dp, 16.dp, 0.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = search, onValueChange = { search = it },
                 placeholder = { Text("Search links…", color = TextSubtle) },
@@ -53,10 +60,6 @@ fun LinksScreen(vm: LinksViewModel = hiltViewModel()) {
                     focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
                 ),
             )
-            Spacer(Modifier.width(8.dp))
-            IconButton(onClick = { showAdd = true }) {
-                Icon(Icons.Filled.Add, "Add", tint = AccentBlue)
-            }
         }
         Text("${filtered.size} of ${links.size} links", style = MaterialTheme.typography.labelSmall, color = TextSubtle, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
 

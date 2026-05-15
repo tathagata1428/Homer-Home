@@ -1,0 +1,94 @@
+export async function onRequest() {
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>body{margin:0;overflow:hidden;background:#000;}</style>
+</head>
+<body>
+<div id="yt-ocean"></div>
+<div id="yt-fire"></div>
+<div id="yt-rain"></div>
+<div id="yt-rainywindow"></div>
+<div id="yt-cafe"></div>
+<div id="yt-lofi"></div>
+<div id="yt-wind"></div>
+<div id="yt-synthwave"></div>
+<script>
+var tracks = {
+  ocean:      { id:'WHPEKLQID4U', isPlaying:false, volume:70, player:null },
+  fire:       { id:'UgHKb_7884o', isPlaying:false, volume:70, player:null },
+  rain:       { id:'mPZkdNFkNps', isPlaying:false, volume:70, player:null },
+  rainywindow:{ id:'Dx5qFachd3A', isPlaying:false, volume:70, player:null },
+  cafe:       { id:'uiMXGIG_DQo', isPlaying:false, volume:70, player:null },
+  lofi:       { id:'Na0w3Mz46GA', isPlaying:false, volume:70, player:null },
+  wind:       { id:'sGkh1W5cbH4', isPlaying:false, volume:70, player:null },
+  synthwave:  { id:'4xDzrJKXOOY', isPlaying:false, volume:70, player:null }
+};
+
+function onYouTubeIframeAPIReady() {
+  Object.keys(tracks).forEach(function(k) {
+    if (tracks[k].isPlaying && !tracks[k].player) createPlayer(k);
+  });
+}
+
+function createPlayer(key) {
+  var t = tracks[key];
+  if (t.player) return;
+  if (typeof YT === 'undefined' || !YT.Player) return;
+  t.player = new YT.Player('yt-' + key, {
+    height: '1', width: '1',
+    videoId: t.id,
+    playerVars: { autoplay:1, controls:0, loop:1, playlist:t.id, modestbranding:1 },
+    events: {
+      onReady: function(e) {
+        e.target.setVolume(t.volume);
+        if (t.isPlaying) e.target.playVideo(); else e.target.pauseVideo();
+        try { Android.onPlayerReady(key); } catch(err) {}
+      },
+      onError: function() {}
+    }
+  });
+}
+
+function setVolAndPlay(key, vol) {
+  var t = tracks[key];
+  t.isPlaying = true;
+  t.volume = vol;
+  if (!t.player) { createPlayer(key); return; }
+  t.player.setVolume(vol);
+  t.player.playVideo();
+}
+
+function initAndPlay(key, vol) { setVolAndPlay(key, vol); }
+
+function pauseSound(key) {
+  var t = tracks[key];
+  t.isPlaying = false;
+  if (t.player && t.player.pauseVideo) try { t.player.pauseVideo(); } catch(e) {}
+}
+
+function setVolume(key, vol) {
+  var t = tracks[key];
+  t.volume = vol;
+  if (t.player && t.player.setVolume) try { t.player.setVolume(vol); } catch(e) {}
+}
+
+function stopAll() {
+  Object.keys(tracks).forEach(function(k) {
+    tracks[k].isPlaying = false;
+    if (tracks[k].player && tracks[k].player.pauseVideo) try { tracks[k].player.pauseVideo(); } catch(e) {}
+  });
+}
+</script>
+<script src="https://www.youtube.com/iframe_api"></script>
+</body>
+</html>`;
+
+  return new Response(html, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache',
+    },
+  });
+}

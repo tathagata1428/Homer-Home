@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,117 +25,255 @@ import ro.b4it.homer.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 
-private val FMT = SimpleDateFormat("MMM d, yyyy  HH:mm", Locale.getDefault())
+private val FMT = SimpleDateFormat("EEE, MMM d  HH:mm", Locale.getDefault())
 private val RECUR_OPTIONS = listOf("none", "daily", "weekly", "monthly", "yearly")
 
 @Composable
 fun RemindersScreen(vm: RemindersViewModel = hiltViewModel()) {
     val reminders by vm.reminders.collectAsStateWithLifecycle(emptyList())
-    var showAdd   by remember { mutableStateOf(false) }
+    var showAdd by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().background(BgPrimary)) {
-        Row(Modifier.fillMaxWidth().padding(16.dp, 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Reminders", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            IconButton(onClick = { showAdd = true }) { Icon(Icons.Filled.Add, null, tint = AccentBlue) }
+        Row(
+            Modifier.fillMaxWidth().padding(16.dp, 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Reminders",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = { showAdd = true }) {
+                Icon(Icons.Filled.Add, null, tint = AccentBlue)
+            }
         }
 
         if (reminders.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Text("🔔", fontSize = 40.sp)
                     Text("No reminders yet", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
                     TextButton(onClick = { showAdd = true }) { Text("Add reminder", color = AccentBlue) }
                 }
             }
         } else {
-            LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(reminders) { rem ->
+            LazyColumn(
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(reminders, key = { it.id }) { rem ->
                     ReminderCard(reminder = rem, onToggle = { vm.toggle(rem) }, onDelete = { vm.delete(rem) })
                 }
             }
         }
     }
 
-    if (showAdd) AddReminderDialog(onAdd = vm::add, onDismiss = { showAdd = false })
+    if (showAdd) {
+        AddReminderDialog(onAdd = vm::add, onDismiss = { showAdd = false })
+    }
 }
 
 @Composable
 private fun ReminderCard(reminder: Reminder, onToggle: () -> Unit, onDelete: () -> Unit) {
     HomerCard {
-        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(reminder.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
-                    color = if (reminder.enabled) TextPrimary else TextSubtle)
-                if (reminder.body.isNotBlank())
-                    Text(reminder.body, style = MaterialTheme.typography.bodySmall, color = TextMuted, maxLines = 1)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(FMT.format(Date(reminder.triggerAt)), style = MaterialTheme.typography.labelSmall, color = AccentBlue)
+        Row(
+            Modifier.fillMaxWidth().padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    reminder.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (reminder.enabled) TextPrimary else TextSubtle,
+                )
+                if (reminder.body.isNotBlank()) {
+                    Text(
+                        reminder.body,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextMuted,
+                        maxLines = 1,
+                    )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        FMT.format(Date(reminder.triggerAt)),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AccentBlue,
+                    )
                     if (reminder.recurType != "none") {
-                        Box(Modifier.clip(RoundedCornerShape(4.dp)).background(AccentViolet.copy(0.15f)).padding(horizontal = 6.dp, vertical = 2.dp)) {
-                            Text("↻ ${reminder.recurType}", style = MaterialTheme.typography.labelSmall, color = AccentViolet)
+                        Box(
+                            Modifier.clip(RoundedCornerShape(4.dp))
+                                .background(AccentViolet.copy(alpha = 0.15f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                        ) {
+                            Text(
+                                "↻ ${reminder.recurType}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = AccentViolet,
+                            )
                         }
                     }
                 }
             }
             Switch(
-                checked = reminder.enabled, onCheckedChange = { onToggle() },
-                colors = SwitchDefaults.colors(checkedThumbColor = androidx.compose.ui.graphics.Color.White, checkedTrackColor = AccentBlue),
+                checked = reminder.enabled,
+                onCheckedChange = { onToggle() },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = androidx.compose.ui.graphics.Color.White,
+                    checkedTrackColor = AccentBlue,
+                ),
                 modifier = Modifier.padding(horizontal = 4.dp),
             )
-            IconButton(onClick = onDelete, Modifier.size(28.dp)) {
-                Icon(Icons.Filled.Delete, null, tint = AccentRed.copy(0.7f), modifier = Modifier.size(16.dp))
+            IconButton(onClick = onDelete, Modifier.size(32.dp)) {
+                Icon(Icons.Filled.Delete, null, tint = AccentRed.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddReminderDialog(onAdd: (String, String, Long, String) -> Unit, onDismiss: () -> Unit) {
-    var title    by remember { mutableStateOf("") }
-    var body     by remember { mutableStateOf("") }
+    var title by remember { mutableStateOf("") }
+    var body by remember { mutableStateOf("") }
     var recurType by remember { mutableStateOf("none") }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
 
-    // Simple date/time picker via text fields
     val now = Calendar.getInstance()
-    var dateStr by remember { mutableStateOf(
-        "%04d-%02d-%02d".format(now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH))
-    ) }
-    var timeStr by remember { mutableStateOf("%02d:%02d".format(now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE))) }
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }.timeInMillis,
+    )
+    val timePickerState = rememberTimePickerState(
+        initialHour = now.get(Calendar.HOUR_OF_DAY),
+        initialMinute = now.get(Calendar.MINUTE),
+    )
+
+    val displayDate = datePickerState.selectedDateMillis?.let {
+        val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).also { c -> c.timeInMillis = it }
+        "%02d/%02d/%04d".format(
+            utcCal.get(Calendar.DAY_OF_MONTH),
+            utcCal.get(Calendar.MONTH) + 1,
+            utcCal.get(Calendar.YEAR),
+        )
+    } ?: "Select date"
+
+    val displayTime = "%02d:%02d".format(timePickerState.hour, timePickerState.minute)
+
+    // Date picker dialog
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("OK", color = AccentBlue) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel", color = TextMuted) }
+            },
+            colors = DatePickerDefaults.colors(containerColor = BgCard),
+        ) {
+            DatePicker(state = datePickerState)
+        }
+        return
+    }
+
+    // Time picker dialog
+    if (showTimePicker) {
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            containerColor = BgCard,
+            confirmButton = {
+                TextButton(onClick = { showTimePicker = false }) { Text("OK", color = AccentBlue) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) { Text("Cancel", color = TextMuted) }
+            },
+            title = { Text("Select Time") },
+            text = {
+                TimePicker(
+                    state = timePickerState,
+                    colors = TimePickerDefaults.colors(
+                        clockDialColor = BgCardAlt,
+                        selectorColor = AccentBlue,
+                        clockDialSelectedContentColor = TextPrimary,
+                        clockDialUnselectedContentColor = TextMuted,
+                        periodSelectorBorderColor = BorderDefault,
+                    ),
+                )
+            },
+        )
+        return
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = BgCard,
-        title = { Text("New Reminder") },
+        title = { Text("New Reminder", fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(
-                    Triple("Title *", title, { v: String -> title = v }),
-                    Triple("Note (optional)", body, { v: String -> body = v }),
-                    Triple("Date (YYYY-MM-DD)", dateStr, { v: String -> dateStr = v }),
-                    Triple("Time (HH:MM)", timeStr, { v: String -> timeStr = v }),
-                ).forEach { (lbl, value, setter) ->
-                    OutlinedTextField(
-                        value = value, onValueChange = setter,
-                        label = { Text(lbl) }, singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AccentBlue, unfocusedBorderColor = BorderDefault,
-                            focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedLabelColor = AccentBlue,
-                        ),
-                    )
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = title, onValueChange = { title = it },
+                    label = { Text("Title *") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = reminderFieldColors(),
+                )
+                OutlinedTextField(
+                    value = body, onValueChange = { body = it },
+                    label = { Text("Note (optional)") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = reminderFieldColors(),
+                )
+
+                // Date + Time row
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { showDatePicker = true },
+                        modifier = Modifier.weight(1f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderDefault),
+                    ) {
+                        Icon(Icons.Filled.CalendarToday, null, modifier = Modifier.size(15.dp), tint = AccentBlue)
+                        Spacer(Modifier.width(4.dp))
+                        Text(displayDate, style = MaterialTheme.typography.labelSmall, color = TextPrimary)
+                    }
+                    OutlinedButton(
+                        onClick = { showTimePicker = true },
+                        modifier = Modifier.weight(1f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderDefault),
+                    ) {
+                        Icon(Icons.Filled.Schedule, null, modifier = Modifier.size(15.dp), tint = AccentBlue)
+                        Spacer(Modifier.width(4.dp))
+                        Text(displayTime, style = MaterialTheme.typography.labelSmall, color = TextPrimary)
+                    }
                 }
 
+                // Recurrence
                 Text("Repeat", style = MaterialTheme.typography.labelSmall, color = TextMuted)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                ) {
                     RECUR_OPTIONS.forEach { opt ->
                         FilterChip(
                             selected = recurType == opt,
                             onClick = { recurType = opt },
                             label = { Text(opt, style = MaterialTheme.typography.labelSmall) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = AccentBlue.copy(0.2f), selectedLabelColor = AccentBlue,
+                                selectedContainerColor = AccentBlue.copy(alpha = 0.2f),
+                                selectedLabelColor = AccentBlue,
+                                containerColor = BgCardAlt,
+                                labelColor = TextMuted,
                             ),
-                            modifier = Modifier.weight(1f),
                         )
                     }
                 }
@@ -142,21 +282,32 @@ private fun AddReminderDialog(onAdd: (String, String, Long, String) -> Unit, onD
         confirmButton = {
             TextButton(onClick = {
                 if (title.isBlank()) return@TextButton
-                val triggerAt = parseDateTimeToMs(dateStr, timeStr) ?: return@TextButton
-                onAdd(title, body, triggerAt, recurType)
+                val dateMs = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
+                val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).also { it.timeInMillis = dateMs }
+                val triggerMs = Calendar.getInstance().apply {
+                    set(
+                        utcCal.get(Calendar.YEAR),
+                        utcCal.get(Calendar.MONTH),
+                        utcCal.get(Calendar.DAY_OF_MONTH),
+                        timePickerState.hour,
+                        timePickerState.minute,
+                        0,
+                    )
+                    set(Calendar.MILLISECOND, 0)
+                }.timeInMillis
+                onAdd(title, body, triggerMs, recurType)
                 onDismiss()
             }) { Text("Add", color = AccentBlue) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = TextMuted) } },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = TextMuted) }
+        },
     )
 }
 
-private fun parseDateTimeToMs(dateStr: String, timeStr: String): Long? = try {
-    val dp = dateStr.trim().split("-")
-    val tp = timeStr.trim().split(":")
-    Calendar.getInstance().apply {
-        set(dp[0].toInt(), dp[1].toInt() - 1, dp[2].toInt(),
-            tp[0].toInt(), tp[1].toInt(), 0)
-        set(Calendar.MILLISECOND, 0)
-    }.timeInMillis
-} catch (_: Exception) { null }
+@Composable
+private fun reminderFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = AccentBlue, unfocusedBorderColor = BorderDefault,
+    focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
+    focusedLabelColor = AccentBlue, unfocusedLabelColor = TextMuted,
+)

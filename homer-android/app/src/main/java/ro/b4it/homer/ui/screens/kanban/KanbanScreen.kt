@@ -34,7 +34,10 @@ private val COLUMNS = listOf(
 )
 
 @Composable
-fun KanbanScreen(vm: KanbanViewModel = hiltViewModel()) {
+fun KanbanScreen(
+    onTaskClick: (String) -> Unit = {},
+    vm: KanbanViewModel = hiltViewModel(),
+) {
     val projects   by vm.projects.collectAsStateWithLifecycle(emptyList())
     val selectedId by vm.selectedProjectId.collectAsStateWithLifecycle()
     val tasks      by vm.tasks.collectAsStateWithLifecycle(emptyList())
@@ -90,6 +93,7 @@ fun KanbanScreen(vm: KanbanViewModel = hiltViewModel()) {
                     BoardColumn(
                         label = label, color = color,
                         tasks = colTasks,
+                        onTaskClick = onTaskClick,
                         onMoveTask = { task, target -> vm.moveTask(task, target) },
                         onDeleteTask = { vm.deleteTask(it) },
                     )
@@ -136,6 +140,7 @@ private fun ProjectCard(project: KanbanProject, onClick: () -> Unit, onDelete: (
 private fun BoardColumn(
     label: String, color: Color,
     tasks: List<KanbanTask>,
+    onTaskClick: (String) -> Unit,
     onMoveTask: (KanbanTask, String) -> Unit,
     onDeleteTask: (KanbanTask) -> Unit,
 ) {
@@ -152,14 +157,14 @@ private fun BoardColumn(
         }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             items(tasks) { task ->
-                TaskCard(task, onMove = { onMoveTask(task, it) }, onDelete = { onDeleteTask(task) })
+                TaskCard(task, onClick = { onTaskClick(task.id) }, onMove = { onMoveTask(task, it) }, onDelete = { onDeleteTask(task) })
             }
         }
     }
 }
 
 @Composable
-private fun TaskCard(task: KanbanTask, onMove: (String) -> Unit, onDelete: () -> Unit) {
+private fun TaskCard(task: KanbanTask, onClick: () -> Unit, onMove: (String) -> Unit, onDelete: () -> Unit) {
     val priorityColor = when (task.priority) {
         "high"     -> AccentAmber
         "critical" -> AccentRed
@@ -168,7 +173,7 @@ private fun TaskCard(task: KanbanTask, onMove: (String) -> Unit, onDelete: () ->
     }
     var showMenu by remember { mutableStateOf(false) }
     Box(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(BgCardAlt).padding(10.dp)
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(BgCardAlt).clickable(onClick = onClick).padding(10.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

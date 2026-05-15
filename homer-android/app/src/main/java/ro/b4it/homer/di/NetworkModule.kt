@@ -4,13 +4,12 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import io.github.jan.tennert.supabase.SupabaseClient
-import io.github.jan.tennert.supabase.auth.Auth
-import io.github.jan.tennert.supabase.createSupabaseClient
-import io.github.jan.tennert.supabase.postgrest.Postgrest
-import io.github.jan.tennert.supabase.realtime.Realtime
-import io.github.jan.tennert.supabase.storage.Storage
-import io.ktor.client.engine.android.Android
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.Auth
+import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.realtime.Realtime
+import io.github.jan.supabase.storage.Storage
 import okhttp3.OkHttpClient
 import ro.b4it.homer.BuildConfig
 import java.util.concurrent.TimeUnit
@@ -28,13 +27,13 @@ object NetworkModule {
 
     @Provides @Singleton
     fun provideSupabaseClient(): SupabaseClient = createSupabaseClient(
-        supabaseUrl    = BuildConfig.SUPABASE_URL,
-        supabaseKey    = BuildConfig.SUPABASE_ANON_KEY,
+        supabaseUrl = BuildConfig.SUPABASE_URL,
+        supabaseKey = BuildConfig.SUPABASE_ANON_KEY,
     ) {
         install(Auth)
         install(Postgrest)
         install(Realtime)
         install(Storage)
-        httpEngine = Android.create()
+        // Android HTTP engine is auto-selected from ktor-client-android on the classpath
     }
 }

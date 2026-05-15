@@ -41,4 +41,7 @@ interface KanbanDao {
 
     @Query("SELECT * FROM kanban_tasks WHERE archived = 0 AND dueDate != '' ORDER BY dueDate ASC")
     suspend fun getTasksWithDueDates(): List<KanbanTask>
+
+    @Query("SELECT * FROM kanban_tasks WHERE `column` = 'progress' AND archived = 0 ORDER BY updatedAt DESC LIMIT 10")
+    suspend fun getInProgressTasks(): List<KanbanTask>
 }

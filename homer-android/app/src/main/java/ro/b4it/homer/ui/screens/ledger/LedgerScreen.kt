@@ -43,7 +43,7 @@ fun LedgerScreen(vm: LedgerViewModel = hiltViewModel()) {
         }
 
         when (tab) {
-            0 -> TransactionsTab(expenses)
+            0 -> TransactionsTab(expenses, onDelete = vm::deleteExpense)
             1 -> BudgetsTab(expenses, budgets)
         }
     }
@@ -60,22 +60,43 @@ fun LedgerScreen(vm: LedgerViewModel = hiltViewModel()) {
 }
 
 @Composable
-fun TransactionsTab(expenses: List<Expense>) {
+fun TransactionsTab(expenses: List<Expense>, onDelete: (Expense) -> Unit) {
+    val income  = expenses.filter { it.type == "income" }.sumOf { it.amount }
+    val spent   = expenses.filter { it.type == "expense" }.sumOf { it.amount }
+    val balance = income - spent
     val grouped = expenses.groupBy { it.date }.entries.sortedByDescending { it.key }
+
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        grouped.forEach { (date, items) ->
+        item {
+            HomerCard {
+                Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    LedgerStat("Income", "+${String.format("%.0f", income)}", AccentGreen)
+                    LedgerStat("Spent", "-${String.format("%.0f", spent)}", AccentRed)
+                    LedgerStat("Balance", String.format("%.0f", balance), if (balance >= 0) AccentGreen else AccentRed)
+                }
+            }
+        }
+        grouped.forEach { (date, dayItems) ->
             item {
                 Text(date, style = MaterialTheme.typography.labelMedium, color = TextMuted, modifier = Modifier.padding(top = 8.dp))
             }
-            items(items) { exp ->
-                ExpenseRow(exp)
+            items(dayItems) { exp ->
+                ExpenseRow(exp, onDelete = { onDelete(exp) })
             }
         }
     }
 }
 
 @Composable
-fun ExpenseRow(exp: Expense) {
+private fun LedgerStat(label: String, value: String, color: androidx.compose.ui.graphics.Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = color)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = TextMuted)
+    }
+}
+
+@Composable
+fun ExpenseRow(exp: Expense, onDelete: () -> Unit) {
     HomerCard {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -88,6 +109,9 @@ fun ExpenseRow(exp: Expense) {
                 fontWeight = FontWeight.Bold,
                 color = if (exp.type == "income") AccentGreen else AccentRed,
             )
+            IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
+                Icon(Icons.Filled.Delete, null, tint = AccentRed.copy(alpha = 0.7f), modifier = Modifier.size(14.dp))
+            }
         }
     }
 }

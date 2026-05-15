@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Base theme; Compose takes over from here. Dark-only. -->
-    <style name="Theme.Homer" parent="android:Theme.Material.NoTitleBar">
+    <style name="Theme.Homer" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:windowBackground">@color/bg_primary</item>
         <item name="android:statusBarColor">@color/bg_primary</item>
         <item name="android:navigationBarColor">@color/bg_primary</item>

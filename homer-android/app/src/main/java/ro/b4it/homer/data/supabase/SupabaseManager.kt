@@ -1,11 +1,9 @@
 package ro.b4it.homer.data.supabase
 
-import io.github.jan.tennert.supabase.SupabaseClient
-import io.github.jan.tennert.supabase.auth.Auth
-import io.github.jan.tennert.supabase.auth.auth
-import io.github.jan.tennert.supabase.auth.status.SessionStatus
-import io.github.jan.tennert.supabase.postgrest.postgrest
-import io.github.jan.tennert.supabase.realtime.realtime
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.status.SessionStatus
+import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import ro.b4it.homer.data.preferences.AppPreferences
@@ -38,7 +36,7 @@ class SupabaseManager @Inject constructor(
 
     /** Sign in to Supabase with email + password (bogdan only). */
     suspend fun signIn(email: String, password: String) {
-        client.auth.signInWith(io.github.jan.tennert.supabase.auth.providers.builtin.Email) {
+        client.auth.signInWith(io.github.jan.supabase.auth.providers.builtin.Email) {
             this.email = email
             this.password = password
         }
@@ -71,9 +69,8 @@ class SupabaseManager @Inject constructor(
         val uid = userId ?: return
         try {
             client.postgrest["field_state"].upsert(
-                FieldStateRow(userId = uid, key = key, value = FieldStateValue(ts = ts, data = data)),
-                onConflict = "user_id,key",
-            )
+                listOf(FieldStateRow(userId = uid, key = key, value = FieldStateValue(ts = ts, data = data)))
+            ) { onConflict = "user_id,key" }
         } catch (_: Exception) { }
     }
 
@@ -83,12 +80,19 @@ class SupabaseManager @Inject constructor(
         val uid = userId ?: return
         try {
             client.postgrest["joey_meta"].upsert(
-                mapOf("user_id" to uid, "mode" to mode, "key" to key, "value" to value),
-                onConflict = "user_id,mode,key",
-            )
+                listOf(JoeyMetaRow(userId = uid, mode = mode, key = key, value = value))
+            ) { onConflict = "user_id,mode,key" }
         } catch (_: Exception) { }
     }
 }
+
+@kotlinx.serialization.Serializable
+data class JoeyMetaRow(
+    @kotlinx.serialization.SerialName("user_id") val userId: String,
+    val mode: String,
+    val key: String,
+    val value: String,
+)
 
 @kotlinx.serialization.Serializable
 data class FieldStateRow(
