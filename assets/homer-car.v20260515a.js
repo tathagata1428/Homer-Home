@@ -295,6 +295,14 @@
     .car-modal-delete:hover { background:rgba(239,68,68,.12); }
     .car-checkbox-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:.85rem; color:#94a3b8; cursor:pointer; }
     .car-checkbox-row input { width:auto; }
+
+    /* File attachment */
+    .car-file-zone { border:1px dashed rgba(255,0,102,.35); border-radius:10px; padding:16px; text-align:center; cursor:pointer; color:#64748b; font-size:.82rem; transition:all .15s; margin-top:4px; }
+    .car-file-zone:hover { border-color:rgba(255,0,102,.65); color:#94a3b8; background:rgba(255,0,102,.03); }
+    .car-file-zone.has-file { border-color:rgba(0,255,255,.5); background:rgba(0,255,255,.04); color:#f0f0ff; }
+    .car-file-btn { background:none; border:1px solid rgba(0,255,255,.25); border-radius:6px; color:#00FFFF; font-size:.72rem; padding:2px 7px; cursor:pointer; flex-shrink:0; }
+    .car-file-btn:hover { background:rgba(0,255,255,.08); }
+    .car-file-remove { color:#ef4444; cursor:pointer; margin-left:8px; font-size:.85rem; }
   `;
 
   /* ── State ────────────────────────────────────────────────────────── */
@@ -550,6 +558,7 @@
         if (hasExpiry) html += '<span class="car-urg-badge">' + ul + '</span>';
         if (doc.cost) html += '<span class="car-doc-cost">' + fmtMoney(doc.cost) + '</span>';
         html += '</div>';
+        if (doc.fileData) html += '<button class="car-file-btn" data-view-doc="' + esc(doc.id) + '" title="' + esc(doc.fileName || 'View file') + '">📎</button>';
         html += '<button class="car-del-btn" data-del-doc="' + esc(doc.id) + '">🗑</button>';
         html += '</div>';
       });
@@ -680,6 +689,22 @@
         if (e.target.closest('[data-del-maint]')) return;
         var rec = state.data.maintenance.find(function(m) { return m.id === card.getAttribute('data-maint-id'); });
         if (rec) openMaintModal(rec, vehicle);
+      };
+    });
+
+    // View attached file
+    container.querySelectorAll('[data-view-doc]').forEach(function(btn) {
+      btn.onclick = function(e) {
+        e.stopPropagation();
+        var doc = state.data.documents.find(function(d) { return d.id === btn.getAttribute('data-view-doc'); });
+        if (!doc || !doc.fileData) return;
+        var a = document.createElement('a');
+        a.href = doc.fileData;
+        a.download = doc.fileName || 'document';
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
       };
     });
 
@@ -876,6 +901,11 @@
         '<div class="car-field"><label>Document Number (optional)</label><input id="cd-number" value="' + esc(d.docNumber||'') + '" placeholder="e.g. B 123456 or policy no." autocomplete="off"/></div>' +
         '<div class="car-field"><label>Cost (lei)</label><input id="cd-cost" type="number" inputmode="decimal" step="0.01" value="' + esc(d.cost||'') + '" placeholder="0.00"/></div>' +
       '</div>' +
+      '<div class="car-modal-section" style="color:#00FFFF80">ATTACHED FILE</div>' +
+      '<div class="car-file-zone' + (d.fileData ? ' has-file' : '') + '" id="cd-file-zone">' +
+        (d.fileData ? ('📎 ' + esc(d.fileName || 'File attached') + ' <span class="car-file-remove" id="cd-file-remove">✕</span>') : '📎 Tap to attach PDF or photo · max 3 MB') +
+      '</div>' +
+      '<input type="file" id="cd-file-input" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic" style="display:none">' +
       '<div class="car-modal-btns">' +
         (existing ? '<button class="car-modal-delete" id="cd-del-btn">Delete</button>' : '') +
         '<button class="car-modal-cancel" id="cd-cancel-btn">Cancel</button>' +
@@ -883,6 +913,38 @@
       '</div>' +
     '</div>';
     document.body.appendChild(overlay);
+
+    // ── File attachment ───────────────────────────────────────────────
+    var fileData = (existing && existing.fileData) || null;
+    var fileName = (existing && existing.fileName) || null;
+    var fileType = (existing && existing.fileType) || null;
+
+    function updateFileZone() {
+      var zone = document.getElementById('cd-file-zone');
+      if (!zone) return;
+      if (fileData) {
+        zone.classList.add('has-file');
+        zone.innerHTML = '📎 ' + esc(fileName || 'File attached') + ' <span class="car-file-remove" id="cd-file-remove">✕</span>';
+        var rem = document.getElementById('cd-file-remove');
+        if (rem) rem.onclick = function(e) { e.stopPropagation(); fileData = null; fileName = null; fileType = null; updateFileZone(); };
+      } else {
+        zone.classList.remove('has-file');
+        zone.innerHTML = '📎 Tap to attach PDF or photo · max 3 MB';
+      }
+    }
+    // Wire existing-file remove on open
+    var remBtn = document.getElementById('cd-file-remove');
+    if (remBtn) remBtn.onclick = function(e) { e.stopPropagation(); fileData = null; fileName = null; fileType = null; updateFileZone(); };
+
+    document.getElementById('cd-file-zone').onclick = function() { document.getElementById('cd-file-input').click(); };
+    document.getElementById('cd-file-input').onchange = function(e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      if (file.size > 3 * 1024 * 1024) { alert('File is too large (max 3 MB). Please compress or crop it first.'); return; }
+      var reader = new FileReader();
+      reader.onload = function(ev) { fileData = ev.target.result; fileName = file.name; fileType = file.type; updateFileZone(); };
+      reader.readAsDataURL(file);
+    };
 
     function updateExpiryLabel() {
       var field = document.getElementById('cd-expiry-field');
@@ -935,6 +997,9 @@
         docNumber: document.getElementById('cd-number').value.trim(),
         provider: document.getElementById('cd-provider').value.trim(),
         cost: parseFloat(document.getElementById('cd-cost').value) || 0,
+        fileData: fileData,
+        fileName: fileName,
+        fileType: fileType,
         createdAt: (existing && existing.createdAt) || Date.now(),
         updatedAt: Date.now(),
       };
