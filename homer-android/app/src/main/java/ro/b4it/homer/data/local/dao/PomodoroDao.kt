@@ -29,6 +29,9 @@ interface PomodoroDao {
     @Query("DELETE FROM pomodoro_tasks WHERE done = 1")
     suspend fun clearDoneTasks()
 
+    @Query("DELETE FROM pomodoro_tasks")
+    suspend fun clearAllTasks()
+
     // Sessions
     @Query("SELECT * FROM pomodoro_sessions ORDER BY ts DESC LIMIT 100")
     fun getRecentSessions(): Flow<List<PomodoroSession>>

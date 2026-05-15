@@ -39,7 +39,7 @@ fun LinksScreen(vm: LinksViewModel = hiltViewModel()) {
 
     val grouped = filtered.groupBy { it.category.ifBlank { "Uncategorized" } }
 
-    Column(Modifier.fillMaxSize().background(BgPrimary)) {
+    Column(Modifier.fillMaxSize().background(BgPrimary).imePadding()) {
         // Header
         Row(Modifier.fillMaxWidth().padding(16.dp, 12.dp, 16.dp, 0.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("My Links", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))

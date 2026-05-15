@@ -1,0 +1,82 @@
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SHORT DESCRIPTION  (max 80 chars — paste into Play Console)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Personal life OS: habits, goals, focus timer, vault & AI — always yours.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FULL DESCRIPTION  (paste into Play Console > Store listing)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+HOMER — Your Personal Life OS
+
+What if one app replaced your habit tracker, goal planner, task board, budget ledger, focus timer, password vault, and AI assistant — with zero ads, zero subscriptions, and your data staying on your device?
+
+That's Homer.
+
+────────────────────────
+FEATURES
+────────────────────────
+
+🏠 DAILY BRIEF
+Start every morning with a personalised dashboard: today's weather, breaking news, a market snapshot, and an inspiring quote — all in one glance.
+
+✅ HABIT TRACKER
+Track daily, weekday, or weekly habits. Build streaks. Visualise your 90-day completion history. Small wins, compounded.
+
+🎯 LIFE GOALS
+Define goals across career, health, finance, relationships, and personal growth. Set milestones, track progress, and watch the neon bars fill up.
+
+📋 KANBAN BOARD
+Manage projects visually. Move tasks from idea → in progress → done. Add subtasks, due dates, and priorities. See a portfolio overview at a glance.
+
+💰 LEDGER
+Log income and expenses by category. Set monthly budgets and get a real-time balance. Your financial life, simplified.
+
+⏱️ FOCUS TIMER
+Pomodoro-style deep work with customisable session lengths. Live Kanban task overview keeps you locked in on what matters most.
+
+🎵 AMBIENT SOUNDS
+Built-in ambient soundscapes for deep focus — rain, lo-fi beats, nature, and more. They keep playing in the background while you work.
+
+🤖 JOEY — AI ASSISTANT
+Your private AI companion. Ask questions, draft messages, plan your week, or just think out loud. Powered by cutting-edge AI. All conversations stay yours.
+
+🔐 VAULT
+Store credentials, secure notes, and private data behind a PIN. Encrypted on-device. No cloud required.
+
+🚗 CAR TRACKER
+Log vehicle documents (insurance, ITP, vignette, driver's licence), maintenance history, and fuel records. Get expiry reminders 30 and 7 days in advance — before they sneak up on you.
+
+📓 JOURNAL
+Private daily journaling. Capture thoughts, reflections, and memories with optional cloud sync.
+
+📥 INBOX
+Lightning-fast capture. Tasks, links, ideas — grab them now, process later.
+
+🔗 MY LINKS
+Save and organise links by category. Your personal bookmarks, always with you.
+
+🔔 SMART REMINDERS
+Habit alerts. Document expiry warnings. Recurring reminders. Fully managed on-device — no cloud required, no sign-up needed.
+
+🔄 OFFLINE-FIRST SYNC
+Your data is always saved locally first. Optional cloud sync keeps everything in sync across your devices, seamlessly and securely.
+
+────────────────────────
+WHY HOMER?
+────────────────────────
+
+Most productivity apps want your subscription, your data, and your attention.
+Homer doesn't.
+
+Homer is built for one person: you.
+Private by default. Beautiful by design. Powerful by necessity.
+
+One app. Your whole life. Neon-lit.
+
+✦ No ads
+✦ No subscription
+✦ No data collection
+✦ Your rules

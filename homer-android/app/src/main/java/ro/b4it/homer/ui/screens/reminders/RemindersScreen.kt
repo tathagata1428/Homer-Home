@@ -1,6 +1,6 @@
 package ro.b4it.homer.ui.screens.reminders
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,18 +36,20 @@ fun RemindersScreen(vm: RemindersViewModel = hiltViewModel()) {
 
     Column(Modifier.fillMaxSize().background(BgPrimary)) {
         Row(
-            Modifier.fillMaxWidth().padding(16.dp, 12.dp),
+            Modifier.fillMaxWidth().padding(start = 20.dp, top = 16.dp, end = 12.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                "Reminders",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f),
-            )
-            IconButton(onClick = { showAdd = true }) {
-                Icon(Icons.Filled.Add, null, tint = AccentBlue)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("REMINDERS", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp, color = TextPrimary)
+                Box(Modifier.width(54.dp).height(2.dp).background(Brush.horizontalGradient(listOf(NeonGold, NeonCyan))))
             }
+            Box(
+                Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
+                    .background(NeonGold.copy(0.1f))
+                    .border(1.dp, NeonGold.copy(0.55f), RoundedCornerShape(12.dp))
+                    .clickable { showAdd = true },
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.Filled.Add, null, tint = NeonGold, modifier = Modifier.size(20.dp)) }
         }
 
         if (reminders.isEmpty()) {

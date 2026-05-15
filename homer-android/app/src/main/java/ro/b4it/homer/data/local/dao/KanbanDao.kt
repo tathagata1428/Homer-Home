@@ -39,9 +39,15 @@ interface KanbanDao {
     @Query("UPDATE kanban_tasks SET `column` = :column, updatedAt = :ts WHERE id = :id")
     suspend fun moveTask(id: String, column: String, ts: Long = System.currentTimeMillis())
 
+    @Query("SELECT * FROM kanban_tasks WHERE archived = 0 ORDER BY updatedAt DESC")
+    fun getAllTasks(): Flow<List<KanbanTask>>
+
     @Query("SELECT * FROM kanban_tasks WHERE archived = 0 AND dueDate != '' ORDER BY dueDate ASC")
     suspend fun getTasksWithDueDates(): List<KanbanTask>
 
     @Query("SELECT * FROM kanban_tasks WHERE `column` = 'progress' AND archived = 0 ORDER BY updatedAt DESC LIMIT 10")
     suspend fun getInProgressTasks(): List<KanbanTask>
+
+    @Query("SELECT * FROM kanban_tasks WHERE `column` = 'progress' AND archived = 0 ORDER BY updatedAt DESC LIMIT 10")
+    fun getInProgressTasksFlow(): Flow<List<KanbanTask>>
 }

@@ -1,10 +1,17 @@
 package ro.b4it.homer.ui
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.os.Build
+import android.webkit.CookieManager
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -20,6 +27,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -27,6 +39,9 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import ro.b4it.homer.ui.navigation.AppNavHost
 import ro.b4it.homer.ui.navigation.Screen
+import ro.b4it.homer.ui.screens.ambient.AmbientSoundsViewModel
+import ro.b4it.homer.ui.screens.ambient.JsBridge
+import ro.b4it.homer.ui.screens.ambient.LocalAmbientVm
 import ro.b4it.homer.ui.theme.*
 
 private data class BottomNavItem(val screen: Screen, val label: String, val icon: ImageVector)
@@ -48,6 +63,7 @@ private val moreItems = listOf(
     MoreItem("📋", "Daily Brief", Screen.DailyBrief),
     MoreItem("💰", "Investing",   Screen.Investing),
     MoreItem("🔗", "Links",       Screen.Links),
+    MoreItem("📔", "Journal",     Screen.Journal),
     MoreItem("📝", "Notes",       Screen.Notes),
     MoreItem("📥", "Inbox",       Screen.Inbox),
     MoreItem("⏰", "Reminders",   Screen.Reminders),
@@ -59,12 +75,18 @@ private val moreItems = listOf(
 private val moreRoutes = moreItems.map { it.screen.route }.toSet()
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
+@SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun HomerApp() {
-    val navController = rememberNavController()
+    val navController  = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = backStackEntry?.destination?.route
-    var showMore by remember { mutableStateOf(false) }
+    val currentRoute   = backStackEntry?.destination?.route
+    var showMore       by remember { mutableStateOf(false) }
+
+    // Activity-scoped ambient VM — survives tab navigation
+    val ambientVm: AmbientSoundsViewModel = hiltViewModel()
+    val webViewRef = remember { mutableStateOf<WebView?>(null) }
+    val lifecycle  = LocalLifecycleOwner.current.lifecycle
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val notifPermission = rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
@@ -73,6 +95,73 @@ fun HomerApp() {
         }
     }
 
+    // Persistent hidden WebView for ambient sounds — lives at Activity level,
+    // never destroyed by navigation. Lifecycle keeps JS timers alive when minimised.
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            webViewRef.value?.let { wv ->
+                when (event) {
+                    Lifecycle.Event.ON_RESUME -> { wv.onResume(); wv.resumeTimers() }
+                    Lifecycle.Event.ON_PAUSE,
+                    Lifecycle.Event.ON_STOP   -> {
+                        if (ambientVm.anyPlaying) {
+                            // Post to the end of the main thread queue so we run AFTER the
+                            // system has propagated pauseTimers() through the view hierarchy.
+                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                wv.onResume()      // cancel any system-applied onPause
+                                wv.resumeTimers()  // keep JS timers alive
+                            }
+                        } else {
+                            wv.onPause()
+                            wv.pauseTimers()
+                        }
+                    }
+                    else -> {}
+                }
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(Unit) {
+        ambientVm.jsCommands.collect { cmd ->
+            if (cmd == "__reload__") webViewRef.value?.reload()
+            else webViewRef.value?.evaluateJavascript(cmd, null)
+        }
+    }
+
+    // 1×1 dp WebView — invisible but keeps YouTube players alive
+    AndroidView(
+        factory = { ctx ->
+            WebView(ctx).apply {
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                @Suppress("DEPRECATION")
+                settings.mediaPlaybackRequiresUserGesture = false
+                @Suppress("DEPRECATION")
+                settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                settings.userAgentString =
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+                CookieManager.getInstance().setAcceptCookie(true)
+                CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView, url: String) {
+                        view.evaluateJavascript("""
+                            Object.defineProperty(document,'visibilityState',{configurable:true,get:function(){return 'visible';}});
+                            Object.defineProperty(document,'hidden',{configurable:true,get:function(){return false;}});
+                        """.trimIndent(), null)
+                    }
+                }
+                addJavascriptInterface(JsBridge(ambientVm), "Android")
+                loadUrl("https://b4it.ro/api/ambient")
+                webViewRef.value = this
+            }
+        },
+        modifier = Modifier.size(1.dp),
+    )
+
+    CompositionLocalProvider(LocalAmbientVm provides ambientVm) {
     if (showMore) {
         ModalBottomSheet(
             onDismissRequest = { showMore = false },
@@ -84,12 +173,16 @@ fun HomerApp() {
                     .padding(horizontal = 16.dp)
                     .navigationBarsPadding(),
             ) {
-                Text(
-                    "More",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                Column(
                     modifier = Modifier.padding(bottom = 16.dp),
-                )
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text("MORE", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 3.sp, color = TextPrimary)
+                    Box(
+                        Modifier.width(36.dp).height(2.dp)
+                            .background(Brush.horizontalGradient(listOf(NeonPink, NeonCyan)))
+                    )
+                }
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -102,7 +195,12 @@ fun HomerApp() {
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(14.dp))
-                                .background(if (isSelected) AccentBlue.copy(alpha = 0.15f) else BgCardAlt)
+                                .background(if (isSelected) NeonPink.copy(alpha = 0.1f) else BgCardAlt)
+                                .border(
+                                    1.dp,
+                                    if (isSelected) NeonPink.copy(0.55f) else androidx.compose.ui.graphics.Color(0x12FFFFFF),
+                                    RoundedCornerShape(14.dp),
+                                )
                                 .clickable {
                                     showMore = false
                                     navController.navigate(item.screen.route) {
@@ -111,15 +209,15 @@ fun HomerApp() {
                                         restoreState = true
                                     }
                                 }
-                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                                .padding(vertical = 14.dp, horizontal = 8.dp),
                         ) {
                             Text(item.emoji, fontSize = 26.sp)
-                            Spacer(Modifier.height(6.dp))
+                            Spacer(Modifier.height(7.dp))
                             Text(
                                 item.label,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (isSelected) AccentBlue else TextMuted,
-                                fontWeight = FontWeight.Medium,
+                                color = if (isSelected) NeonPink else TextMuted,
+                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
                             )
                         }
                     }
@@ -133,47 +231,54 @@ fun HomerApp() {
         modifier = Modifier.fillMaxSize(),
         containerColor = BgPrimary,
         bottomBar = {
-            NavigationBar(
-                containerColor = BgCard,
-                tonalElevation = 0.dp,
-            ) {
-                bottomNavItems.forEach { item ->
+            Column {
+                HorizontalDivider(
+                    thickness = 1.dp,
+                    color = NeonPink.copy(alpha = 0.25f),
+                )
+                NavigationBar(
+                    containerColor = BgCard,
+                    tonalElevation = 0.dp,
+                ) {
+                    bottomNavItems.forEach { item ->
+                        NavigationBarItem(
+                            selected = currentRoute == item.screen.route,
+                            onClick = {
+                                navController.navigate(item.screen.route) {
+                                    popUpTo(Screen.Home.route) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            icon = { Icon(item.icon, contentDescription = item.label) },
+                            label = { Text(item.label, fontSize = 10.sp, letterSpacing = 0.5.sp) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor   = NeonPink,
+                                selectedTextColor   = NeonPink,
+                                unselectedIconColor = TextMuted,
+                                unselectedTextColor = TextSubtle,
+                                indicatorColor      = NeonPink.copy(alpha = 0.12f),
+                            ),
+                        )
+                    }
                     NavigationBarItem(
-                        selected = currentRoute == item.screen.route,
-                        onClick = {
-                            navController.navigate(item.screen.route) {
-                                popUpTo(Screen.Home.route) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { Icon(item.icon, contentDescription = item.label) },
-                        label = { Text(item.label) },
+                        selected = currentRoute in moreRoutes,
+                        onClick = { showMore = true },
+                        icon = { Icon(Icons.Filled.GridView, contentDescription = "More") },
+                        label = { Text("More", fontSize = 10.sp, letterSpacing = 0.5.sp) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor   = AccentBlue,
-                            selectedTextColor   = AccentBlue,
+                            selectedIconColor   = NeonCyan,
+                            selectedTextColor   = NeonCyan,
                             unselectedIconColor = TextMuted,
-                            unselectedTextColor = TextMuted,
-                            indicatorColor      = BgCardAlt,
+                            unselectedTextColor = TextSubtle,
+                            indicatorColor      = NeonCyan.copy(alpha = 0.12f),
                         ),
                     )
                 }
-                NavigationBarItem(
-                    selected = currentRoute in moreRoutes,
-                    onClick = { showMore = true },
-                    icon = { Icon(Icons.Filled.GridView, contentDescription = "More") },
-                    label = { Text("More") },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor   = AccentBlue,
-                        selectedTextColor   = AccentBlue,
-                        unselectedIconColor = TextMuted,
-                        unselectedTextColor = TextMuted,
-                        indicatorColor      = BgCardAlt,
-                    ),
-                )
             }
         },
     ) { innerPadding ->
         AppNavHost(navController = navController, innerPadding = innerPadding)
     }
+    } // end CompositionLocalProvider
 }

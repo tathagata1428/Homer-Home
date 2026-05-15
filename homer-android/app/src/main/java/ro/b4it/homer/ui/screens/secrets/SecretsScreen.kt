@@ -33,7 +33,7 @@ fun SecretsScreen(vm: SecretsViewModel = hiltViewModel()) {
     var showAddCred  by remember { mutableStateOf(false) }
     var showAddLink  by remember { mutableStateOf(false) }
 
-    Column(Modifier.fillMaxSize().background(BgPrimary)) {
+    Column(Modifier.fillMaxSize().background(BgPrimary).imePadding()) {
         Row(Modifier.fillMaxWidth().padding(16.dp, 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Passwords & Secrets", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             IconButton(onClick = { if (tab == 0) showAddCred = true else showAddLink = true }) {
@@ -41,7 +41,7 @@ fun SecretsScreen(vm: SecretsViewModel = hiltViewModel()) {
             }
         }
 
-        TabRow(selectedTabIndex = tab, containerColor = BgCard) {
+        TabRow(selectedTabIndex = tab, containerColor = BgCard, contentColor = AccentBlue) {
             listOf("Passwords", "Secret Links").forEachIndexed { i, label ->
                 Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label, style = MaterialTheme.typography.labelMedium) })
             }

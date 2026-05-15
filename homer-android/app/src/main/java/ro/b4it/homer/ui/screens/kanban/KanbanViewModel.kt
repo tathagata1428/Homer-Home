@@ -20,6 +20,7 @@ class KanbanViewModel @Inject constructor(
 ) : ViewModel() {
 
     val projects = dao.getActiveProjects()
+    val allTasks = dao.getAllTasks()
 
     private val _selectedProjectId = MutableStateFlow<String?>(null)
     val selectedProjectId: StateFlow<String?> = _selectedProjectId.asStateFlow()

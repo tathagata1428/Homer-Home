@@ -6,6 +6,9 @@ import ro.b4it.homer.data.local.entity.Note
 
 @Dao
 interface NoteDao {
+    @Query("SELECT * FROM notes ORDER BY updatedAt DESC")
+    fun getAll(): Flow<List<Note>>
+
     @Query("SELECT * FROM notes WHERE parentId IS NULL ORDER BY pinned DESC, updatedAt DESC")
     fun getRootPages(): Flow<List<Note>>
 

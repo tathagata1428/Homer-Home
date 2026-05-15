@@ -2,6 +2,8 @@ package ro.b4it.homer.ui.screens.account
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -24,7 +26,12 @@ fun AccountScreen(vm: AccountViewModel = hiltViewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
 
     Column(
-        Modifier.fillMaxSize().background(BgPrimary).padding(16.dp),
+        Modifier
+            .fillMaxSize()
+            .background(BgPrimary)
+            .verticalScroll(rememberScrollState())
+            .imePadding()
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text("Account", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)

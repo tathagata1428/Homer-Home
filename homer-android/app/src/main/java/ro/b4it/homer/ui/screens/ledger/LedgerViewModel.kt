@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import ro.b4it.homer.data.local.dao.ExpenseDao
+import ro.b4it.homer.data.local.entity.Budget
 import ro.b4it.homer.data.local.entity.Expense
 import ro.b4it.homer.data.sync.SyncEngine
 import javax.inject.Inject
@@ -29,5 +30,15 @@ class LedgerViewModel @Inject constructor(
             dao.delete(expense)
             sync.pushExpensesDebounced()
         }
+    }
+
+    fun addBudget(category: String, limit: Double) {
+        viewModelScope.launch {
+            dao.upsertBudget(Budget(category = category.trim(), limit = limit))
+        }
+    }
+
+    fun deleteBudget(budget: Budget) {
+        viewModelScope.launch { dao.deleteBudget(budget) }
     }
 }

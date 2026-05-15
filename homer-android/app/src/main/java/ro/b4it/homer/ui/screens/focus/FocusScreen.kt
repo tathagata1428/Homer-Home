@@ -5,6 +5,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -13,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -24,42 +26,44 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ro.b4it.homer.ui.screens.home.HomerCard
-import ro.b4it.homer.ui.screens.home.SmallChip
 import ro.b4it.homer.ui.theme.*
 
 @Composable
 fun FocusScreen(vm: FocusViewModel = hiltViewModel()) {
     val state     by vm.state.collectAsStateWithLifecycle()
     val settings  by vm.settings.collectAsStateWithLifecycle()
-    val tasks     by vm.openTasks.collectAsStateWithLifecycle(emptyList())
-    val doneTasks by vm.allTasks.collectAsStateWithLifecycle(emptyList())
-    val newTask   by vm.newTask.collectAsStateWithLifecycle()
+    val tasks   by vm.openTasks.collectAsStateWithLifecycle(emptyList())
+    val newTask by vm.newTask.collectAsStateWithLifecycle()
     var showSettings by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(BgPrimary).imePadding(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // Title
         item {
-            Text(
-                "Focus",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 4.dp)) {
+                Text("FOCUS", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp, color = TextPrimary)
+                Box(Modifier.width(54.dp).height(2.dp).background(Brush.horizontalGradient(listOf(NeonPink, NeonCyan))))
+            }
         }
 
-        // Timer card — wraps phase pill + ring + controls like the website
+        // ── Timer card ───────────────────────────────────────────────────────
         item {
             HomerCard {
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(24.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp, horizontal = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp),
                 ) {
-                    // Phase pill
-                    PhasePill(state.phase, state.cycleCount)
+                    // Phase pill + cycle dots
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        PhasePill(state.phase)
+                        CycleDots(state.phase, state.cycleCount)
+                    }
 
                     // Timer ring
                     TimerRing(
@@ -69,68 +73,89 @@ fun FocusScreen(vm: FocusViewModel = hiltViewModel()) {
                         phase     = state.phase,
                     )
 
-                    // Controls
+                    // Controls: Reset | ▶ Play/Pause | Skip
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(24.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        IconButton(onClick = vm::reset) {
-                            Icon(Icons.Filled.Replay, "Reset", tint = TextMuted)
+                        FilledTonalIconButton(
+                            onClick = vm::reset,
+                            modifier = Modifier.size(48.dp),
+                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = Color(0xFF1E293B),
+                            ),
+                        ) {
+                            Icon(Icons.Filled.Replay, "Reset", tint = TextMuted, modifier = Modifier.size(20.dp))
                         }
+
                         Button(
                             onClick = vm::startPause,
-                            shape = RoundedCornerShape(50),
-                            colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                            modifier = Modifier.height(48.dp).width(130.dp),
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(containerColor = phaseColor(state.phase)),
+                            modifier = Modifier.size(68.dp),
+                            contentPadding = PaddingValues(0.dp),
                         ) {
-                            Text(
-                                if (state.running) "Pause" else "Start",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
+                            Icon(
+                                if (state.running) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                contentDescription = if (state.running) "Pause" else "Start",
+                                modifier = Modifier.size(30.dp),
                             )
                         }
-                        IconButton(onClick = vm::skip) {
-                            Icon(Icons.Filled.SkipNext, "Skip", tint = TextMuted)
+
+                        FilledTonalIconButton(
+                            onClick = vm::skip,
+                            modifier = Modifier.size(48.dp),
+                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = Color(0xFF1E293B),
+                            ),
+                        ) {
+                            Icon(Icons.Filled.SkipNext, "Skip", tint = TextMuted, modifier = Modifier.size(20.dp))
                         }
                     }
 
-                    // Session counter + settings chip
+                    // Mini stats + settings toggle
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        val sessionsToday = state.cycleCount
                         Text(
-                            "Session ${sessionsToday + 1}/4",
+                            "Cycle ${state.cycleCount + 1} of 4",
                             style = MaterialTheme.typography.labelSmall,
                             color = TextSubtle,
                         )
-                        SmallChip(if (showSettings) "Hide Settings" else "Settings") {
-                            showSettings = !showSettings
+                        TextButton(
+                            onClick = { showSettings = !showSettings },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                        ) {
+                            Icon(
+                                if (showSettings) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                                null, tint = TextMuted, modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("Settings", style = MaterialTheme.typography.labelSmall, color = TextMuted)
                         }
                     }
                 }
             }
         }
 
-        // Settings panel
+        // ── Settings panel (expandable) ──────────────────────────────────────
         if (showSettings) {
-            item {
-                PomodoroSettingsCard(settings = settings, vm = vm)
-            }
+            item { PomodoroSettingsCard(settings = settings, vm = vm) }
         }
 
-        // Task input
+        // ── Task input ───────────────────────────────────────────────────────
         item {
             HomerCard {
                 Row(
-                    Modifier.fillMaxWidth().padding(12.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     OutlinedTextField(
                         value = newTask,
                         onValueChange = vm::setNewTask,
-                        placeholder = { Text("Add a focus task...", color = TextSubtle) },
+                        placeholder = { Text("Add a focus task…", color = TextSubtle) },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -148,149 +173,259 @@ fun FocusScreen(vm: FocusViewModel = hiltViewModel()) {
             }
         }
 
-        // Open tasks
-        if (tasks.isNotEmpty()) {
+        // ── Open tasks ───────────────────────────────────────────────────────
+        val openList = tasks
+        if (openList.isNotEmpty()) {
             item {
-                Text(
-                    "Tasks (${tasks.size})",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TextMuted,
-                )
-            }
-            items(tasks) { task ->
-                TaskRow(task = task, onToggle = { vm.toggleTask(task) }, onDelete = { vm.deleteTask(task) })
-            }
-        }
-
-        // Done tasks
-        val done = doneTasks.filter { it.done }
-        if (done.isNotEmpty()) {
-            item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "Completed (${done.size})",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = TextMuted,
-                    )
-                    Spacer(Modifier.weight(1f))
-                    TextButton(onClick = vm::clearDone) {
-                        Text("Clear", color = AccentRed, style = MaterialTheme.typography.labelSmall)
+                Row(
+                    Modifier.padding(top = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("FOCUS TASKS", fontSize = 9.sp, letterSpacing = 2.sp, color = NeonPink.copy(0.75f), fontWeight = FontWeight.Bold)
+                    Box(Modifier.weight(1f).height(1.dp).background(Brush.horizontalGradient(listOf(NeonPink.copy(0.3f), Color.Transparent))))
+                    Text("${openList.size}", fontSize = 10.sp, color = NeonPink, fontWeight = FontWeight.ExtraBold)
+                    Box(
+                        Modifier.clip(RoundedCornerShape(6.dp))
+                            .background(AccentRed.copy(0.08f))
+                            .border(1.dp, AccentRed.copy(0.35f), RoundedCornerShape(6.dp))
+                            .clickable { vm.clearAllTasks() }
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                    ) {
+                        Text("CLEAR ALL", fontSize = 7.sp, letterSpacing = 0.8.sp, color = AccentRed.copy(0.85f), fontWeight = FontWeight.Bold)
                     }
                 }
             }
-            items(done) { task ->
-                TaskRow(task = task, onToggle = { vm.toggleTask(task) }, onDelete = { vm.deleteTask(task) })
+            items(openList) { task ->
+                // Tap checkbox = done = task is deleted immediately (clears from In Focus on Home too)
+                TaskRow(task, onToggle = { vm.toggleTask(task) }, onDelete = { vm.deleteTask(task) })
             }
         }
+
+        // ── Tips card (mirrors website) ──────────────────────────────────────
+        item {
+            HomerCard {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Tips", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    val tips = listOf(
+                        "25/5 is classic — 25 min focus, 5 min short break, long break every 4th cycle.",
+                        "Add one task per focus block before you start — it keeps you locked in.",
+                        "Enable Notifications to get alerted when a phase ends.",
+                        "Enable Auto-start so breaks and focus sessions begin automatically.",
+                    )
+                    tips.forEach { tip ->
+                        Text(
+                            "• $tip",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextMuted,
+                            lineHeight = 18.sp,
+                        )
+                    }
+                }
+            }
+        }
+
+        item { Spacer(Modifier.height(8.dp)) }
     }
 }
 
+// ── Timer Ring ────────────────────────────────────────────────────────────────
+
 @Composable
 fun TimerRing(secsLeft: Int, totalSecs: Int, running: Boolean, phase: PomodoroPhase) {
-    val progress  = if (totalSecs > 0) secsLeft.toFloat() / totalSecs.toFloat() else 0f
-    val ringColor = when (phase) {
-        PomodoroPhase.FOCUS -> AccentBlue
-        PomodoroPhase.SHORT -> AccentGreen
-        PomodoroPhase.LONG  -> AccentViolet
-    }
-    val animProg by animateFloatAsState(progress, animationSpec = tween(800), label = "ring")
+    val progress   = if (totalSecs > 0) secsLeft.toFloat() / totalSecs.toFloat() else 0f
+    val color      = phaseColor(phase)
+    val animProg   by animateFloatAsState(progress, animationSpec = tween(800), label = "ring")
+    val glowAlpha  by animateFloatAsState(if (running) 1f else 0.3f, tween(600), label = "glow")
 
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(220.dp)) {
-        androidx.compose.foundation.Canvas(modifier = Modifier.size(220.dp)) {
-            val stroke = Stroke(width = 14.dp.toPx(), cap = StrokeCap.Round)
-            drawArc(color = Color(0xFF1E293B), startAngle = -90f, sweepAngle = 360f, useCenter = false, style = stroke)
-            drawArc(color = ringColor, startAngle = -90f, sweepAngle = -360f * (1f - animProg), useCenter = false, style = stroke)
+    val pulseScale by rememberInfiniteTransition(label = "pulse").animateFloat(
+        initialValue  = 1.00f,
+        targetValue   = if (running) 1.035f else 1.00f,
+        animationSpec = infiniteRepeatable(tween(2000, easing = EaseInOutSine), RepeatMode.Reverse),
+        label         = "pulseScale",
+    )
+
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(270.dp)) {
+        // Outer ambient glow (large soft halo)
+        androidx.compose.foundation.Canvas(modifier = Modifier.size(270.dp)) {
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        color.copy(alpha = 0.30f * glowAlpha),
+                        color.copy(alpha = 0.10f * glowAlpha),
+                        Color.Transparent,
+                    ),
+                    radius = size.minDimension / 2f,
+                    center = center,
+                ),
+            )
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // Ring canvas
+        androidx.compose.foundation.Canvas(
+            modifier = Modifier.size(220.dp).scale(pulseScale),
+        ) {
+            val strokePx = 18.dp.toPx()
+            val sweepAngle = -360f * (1f - animProg)
+
+            // Track (dark purple with subtle glow)
+            drawArc(
+                color     = Color(0xFF1A0040),
+                startAngle = -90f, sweepAngle = 360f,
+                useCenter = false, style = Stroke(strokePx, cap = StrokeCap.Round),
+            )
+
+            if (animProg > 0f) {
+                // Glow layer — layered semi-transparent arcs simulate blur glow
+                for (i in 4 downTo 1) {
+                    drawArc(
+                        color      = color.copy(alpha = 0.07f * i * glowAlpha),
+                        startAngle = -90f, sweepAngle = sweepAngle,
+                        useCenter  = false,
+                        style      = Stroke(strokePx + strokePx * 0.55f * i, cap = StrokeCap.Round),
+                    )
+                }
+                // Progress arc (crisp, on top)
+                drawArc(
+                    color     = color,
+                    startAngle = -90f, sweepAngle = sweepAngle,
+                    useCenter = false, style = Stroke(strokePx, cap = StrokeCap.Round),
+                )
+                // Bright dot centered exactly on the arc tip
+                val angleRad = Math.toRadians((-90f + sweepAngle).toDouble())
+                val r = (size.minDimension / 2f) - strokePx / 2f
+                val dotCenter = androidx.compose.ui.geometry.Offset(
+                    x = center.x + (r * Math.cos(angleRad)).toFloat(),
+                    y = center.y + (r * Math.sin(angleRad)).toFloat(),
+                )
+                // Glow halo rings around dot (matches arc glow bloom)
+                for (i in 3 downTo 1) {
+                    drawCircle(
+                        color  = color.copy(alpha = 0.09f * i * glowAlpha),
+                        radius = strokePx / 2f + strokePx * 0.35f * i,
+                        center = dotCenter,
+                    )
+                }
+                // Crisp white dot — radius exactly half stroke so it fills the arc width
+                drawCircle(
+                    color  = Color.White.copy(alpha = 0.92f * glowAlpha),
+                    radius = strokePx / 2f,
+                    center = dotCenter,
+                )
+            }
+        }
+        // Time + label
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             val mins = secsLeft / 60
             val secs = secsLeft % 60
             Text(
                 "%02d:%02d".format(mins, secs),
-                fontSize = 46.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary,
+                fontSize      = 56.sp,
+                fontWeight    = FontWeight.Bold,
+                color         = TextPrimary,
+                letterSpacing = (-2).sp,
             )
-            Text(phase.label, style = MaterialTheme.typography.labelMedium, color = TextMuted)
+            Text(phase.label, style = MaterialTheme.typography.labelMedium, color = color)
         }
     }
 }
 
+// ── Phase pill ────────────────────────────────────────────────────────────────
+
 @Composable
-fun PhasePill(phase: PomodoroPhase, cycle: Int) {
-    val color = when (phase) {
-        PomodoroPhase.FOCUS -> AccentBlue
-        PomodoroPhase.SHORT -> AccentGreen
-        PomodoroPhase.LONG  -> AccentViolet
-    }
+fun PhasePill(phase: PomodoroPhase) {
+    val color = phaseColor(phase)
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(Brush.linearGradient(listOf(color.copy(alpha = 0.20f), color.copy(alpha = 0.10f))))
+            .background(color.copy(alpha = 0.15f))
             .border(1.dp, color.copy(alpha = 0.35f), RoundedCornerShape(50))
-            .padding(horizontal = 16.dp, vertical = 7.dp),
+            .padding(horizontal = 14.dp, vertical = 6.dp),
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                phase.label,
-                color = color,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                "●".repeat(cycle + 1).padEnd(4, '○'),
-                fontSize = 8.sp,
-                color = color.copy(alpha = 0.7f),
-                letterSpacing = 2.sp,
+        Text(phase.label, color = color, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+    }
+}
+
+// ── Cycle dots ────────────────────────────────────────────────────────────────
+
+@Composable
+fun CycleDots(phase: PomodoroPhase, cycleCount: Int) {
+    val color = phaseColor(phase)
+    Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+        repeat(4) { i ->
+            val isCompleted = i < cycleCount
+            val isActive    = (i == cycleCount) && phase == PomodoroPhase.FOCUS
+            Box(
+                Modifier
+                    .size(if (isActive) 9.dp else 7.dp)
+                    .clip(CircleShape)
+                    .background(when {
+                        isActive    -> color
+                        isCompleted -> color.copy(alpha = 0.45f)
+                        else        -> Color(0xFF1E293B)
+                    }),
             )
         }
     }
 }
 
+// ── Task row ──────────────────────────────────────────────────────────────────
+
 @Composable
-fun TaskRow(task: ro.b4it.homer.data.local.entity.PomodoroTask, onToggle: () -> Unit, onDelete: () -> Unit) {
-    HomerCard {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+fun TaskRow(
+    task: ro.b4it.homer.data.local.entity.PomodoroTask,
+    onToggle: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(BgCard)
+            .border(
+                1.dp,
+                Brush.linearGradient(listOf(NeonCyan.copy(0.25f), NeonPurple.copy(0.12f))),
+                RoundedCornerShape(12.dp),
+            )
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        // Tap-to-complete circle
+        Box(
+            Modifier.size(28.dp).clip(CircleShape)
+                .background(NeonCyan.copy(0.06f))
+                .border(1.5.dp, NeonCyan.copy(0.5f), CircleShape)
+                .clickable(onClick = onToggle),
+            contentAlignment = Alignment.Center,
         ) {
-            Checkbox(
-                checked = task.done, onCheckedChange = { onToggle() },
-                colors = CheckboxDefaults.colors(
-                    checkedColor = AccentBlue,
-                    uncheckedColor = TextMuted,
-                    checkmarkColor = TextPrimary,
-                ),
-            )
-            Text(
-                task.text,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    textDecoration = if (task.done) TextDecoration.LineThrough else null,
-                    color = if (task.done) TextMuted else TextPrimary,
-                ),
-                modifier = Modifier.weight(1f),
-            )
-            IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
-                Icon(Icons.Filled.Close, null, tint = TextSubtle, modifier = Modifier.size(16.dp))
-            }
+            Icon(Icons.Filled.Check, null, tint = NeonCyan.copy(0.3f), modifier = Modifier.size(14.dp))
+        }
+        Text(
+            task.text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = TextPrimary,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
+            Icon(Icons.Filled.Close, null, tint = TextSubtle.copy(0.5f), modifier = Modifier.size(14.dp))
         }
     }
 }
+
+// ── Settings card ─────────────────────────────────────────────────────────────
 
 @Composable
 fun PomodoroSettingsCard(settings: PomodoroSettings, vm: FocusViewModel) {
     HomerCard {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Timer Settings", style = MaterialTheme.typography.titleSmall, color = TextMuted)
-            DurationSetting("Focus", settings.focusMin, 1..120) { vm.setFocusMin(it) }
-            DurationSetting("Short Break", settings.shortMin, 1..30) { vm.setShortMin(it) }
-            DurationSetting("Long Break", settings.longMin, 1..60) { vm.setLongMin(it) }
-            ToggleSetting("Auto-start phases", settings.autoStart) { vm.setAutoStart(it) }
-            ToggleSetting("Notifications", settings.notifications) { vm.setNotifications(it) }
-            ToggleSetting("Voice (D'oh!)", settings.voice) { vm.setVoice(it) }
-            ToggleSetting("Sound effects", settings.sfx) { vm.setSfx(it) }
+            DurationSetting("Focus",       settings.focusMin, 1..120) { vm.setFocusMin(it) }
+            DurationSetting("Short Break", settings.shortMin, 1..30)  { vm.setShortMin(it) }
+            DurationSetting("Long Break",  settings.longMin,  1..60)  { vm.setLongMin(it)  }
+            HorizontalDivider(color = Color(0x1AFFFFFF))
+            ToggleSetting("Auto-start phases",   settings.autoStart)     { vm.setAutoStart(it)     }
+            ToggleSetting("Notifications",       settings.notifications) { vm.setNotifications(it) }
+            ToggleSetting("Sound effects (SFX)", settings.sfx)          { vm.setSfx(it)           }
+            ToggleSetting("Homer voice (D'oh!)", settings.voice)         { vm.setVoice(it)         }
         }
     }
 }
@@ -304,9 +439,9 @@ fun DurationSetting(label: String, value: Int, range: IntRange, onChange: (Int) 
         }
         Text(
             "$value min",
-            style = MaterialTheme.typography.bodySmall,
-            color = AccentBlue,
-            modifier = Modifier.widthIn(min = 54.dp),
+            style    = MaterialTheme.typography.bodySmall,
+            color    = AccentBlue,
+            modifier = Modifier.widthIn(min = 52.dp),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
         IconButton(onClick = { if (value < range.last) onChange(value + 1) }, Modifier.size(32.dp)) {
@@ -327,4 +462,13 @@ fun ToggleSetting(label: String, checked: Boolean, onChange: (Boolean) -> Unit) 
             ),
         )
     }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+@Composable
+fun phaseColor(phase: PomodoroPhase) = when (phase) {
+    PomodoroPhase.FOCUS -> AccentBlue
+    PomodoroPhase.SHORT -> AccentGreen
+    PomodoroPhase.LONG  -> AccentViolet
 }

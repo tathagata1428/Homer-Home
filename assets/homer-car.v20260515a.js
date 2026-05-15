@@ -59,7 +59,7 @@
   /* ── Supabase ─────────────────────────────────────────────────────── */
   function getSbClient() { return window.__supabase || null; }
   function getSbUid() {
-    var sess = window.__supabaseSession || null;
+    var sess = window.__sbSession || null;
     return sess && sess.user ? sess.user.id : null;
   }
   function isSyncUser() {

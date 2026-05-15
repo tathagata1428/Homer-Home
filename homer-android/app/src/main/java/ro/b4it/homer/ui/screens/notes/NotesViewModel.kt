@@ -90,9 +90,5 @@ class NotesViewModel @Inject constructor(
         }
     }
 
-    private fun pushSync() {
-        sync.schedulePush("homer-notes") {
-            // push all notes to field_state
-        }
-    }
+    private fun pushSync() = sync.pushNotesDebounced()
 }

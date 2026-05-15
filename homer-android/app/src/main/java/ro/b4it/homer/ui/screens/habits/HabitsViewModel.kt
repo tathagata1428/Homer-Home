@@ -19,12 +19,13 @@ class HabitsViewModel @Inject constructor(
 ) : ViewModel() {
     val habits = dao.getActiveHabits()
     val todayCompletions = dao.getCompletionsForDate(LocalDate.now().toString())
+    val recentCompletions = dao.getCompletionsSince(LocalDate.now().minusDays(90).toString())
 
-    fun addHabit(name: String, emoji: String, color: String, category: String) {
+    fun addHabit(name: String, emoji: String, color: String, category: String, freq: String) {
         viewModelScope.launch {
             dao.upsert(Habit(
                 clientId = UUID.randomUUID().toString(),
-                name = name, emoji = emoji, color = color, category = category,
+                name = name, emoji = emoji, color = color, category = category, freq = freq,
             ))
             sync.pushHabitsDebounced()
         }

@@ -12,8 +12,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import ro.b4it.homer.data.local.dao.KanbanDao
 import ro.b4it.homer.data.local.dao.PomodoroDao
 import ro.b4it.homer.data.local.dao.QuoteDao
+import ro.b4it.homer.data.local.entity.KanbanTask
 import ro.b4it.homer.data.local.entity.SavedQuote
 import ro.b4it.homer.data.remote.Quote
 import ro.b4it.homer.data.remote.QuotesApi
@@ -21,6 +23,7 @@ import ro.b4it.homer.data.remote.WeatherApi
 import ro.b4it.homer.data.remote.WeatherResponse
 import ro.b4it.homer.data.remote.weatherCodeToDesc
 import ro.b4it.homer.data.remote.weatherCodeToIcon
+import ro.b4it.homer.data.sync.SyncEngine
 import java.time.LocalDateTime
 import javax.inject.Inject
 import kotlin.random.Random
@@ -31,7 +34,9 @@ class HomeViewModel @Inject constructor(
     private val weatherApi: WeatherApi,
     private val quotesApi: QuotesApi,
     private val pomodoroDao: PomodoroDao,
+    private val kanbanDao: KanbanDao,
     private val quoteDao: QuoteDao,
+    private val sync: SyncEngine,
 ) : ViewModel() {
 
     // ---- Clock ----
@@ -66,6 +71,8 @@ class HomeViewModel @Inject constructor(
 
     // ---- Focus Tasks ----
     val openTasks = pomodoroDao.getOpenTasks()
+
+    val inProgressKanban = kanbanDao.getInProgressTasksFlow()
 
     // Internal
     private var allQuotes: List<Quote> = emptyList()
@@ -186,6 +193,18 @@ class HomeViewModel @Inject constructor(
 
     fun deleteSavedQuote(quote: SavedQuote) {
         viewModelScope.launch { quoteDao.delete(quote) }
+    }
+
+    fun deleteFocusTask(task: ro.b4it.homer.data.local.entity.PomodoroTask) {
+        viewModelScope.launch { pomodoroDao.deleteTask(task); sync.pushPomodoroTasksNow() }
+    }
+
+    fun clearAllFocusTasks() {
+        viewModelScope.launch { pomodoroDao.clearAllTasks(); sync.pushPomodoroTasksNow() }
+    }
+
+    fun moveKanbanTaskToDone(task: KanbanTask) {
+        viewModelScope.launch { kanbanDao.moveTask(task.id, "done") }
     }
 
     fun refreshWeather() = loadWeather()

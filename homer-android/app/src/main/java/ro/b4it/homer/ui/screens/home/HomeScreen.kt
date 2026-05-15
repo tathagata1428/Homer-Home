@@ -4,7 +4,6 @@ import android.Manifest
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,17 +27,19 @@ import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.isGranted
 import ro.b4it.homer.data.local.entity.PomodoroTask
 import ro.b4it.homer.data.local.entity.SavedQuote
+import androidx.compose.foundation.shape.CircleShape
 import ro.b4it.homer.ui.theme.*
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
-    val now        by vm.now.collectAsStateWithLifecycle()
-    val weather    by vm.weather.collectAsStateWithLifecycle()
-    val quote      by vm.quote.collectAsStateWithLifecycle()
-    val openTasks  by vm.openTasks.collectAsStateWithLifecycle(emptyList())
-    val savedQuotes by vm.savedQuotes.collectAsStateWithLifecycle(emptyList())
+    val now              by vm.now.collectAsStateWithLifecycle()
+    val weather          by vm.weather.collectAsStateWithLifecycle()
+    val quote            by vm.quote.collectAsStateWithLifecycle()
+    val openTasks        by vm.openTasks.collectAsStateWithLifecycle(emptyList())
+    val inProgressKanban by vm.inProgressKanban.collectAsStateWithLifecycle(emptyList())
+    val savedQuotes      by vm.savedQuotes.collectAsStateWithLifecycle(emptyList())
 
     val locationPerm = rememberPermissionState(Manifest.permission.ACCESS_COARSE_LOCATION)
     LaunchedEffect(Unit) {
@@ -96,8 +97,16 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
         }
 
         // Focus tasks
-        item {
-            FocusTasksCard(tasks = openTasks)
+        if (openTasks.isNotEmpty() || inProgressKanban.isNotEmpty()) {
+            item {
+                FocusTasksCard(
+                    pomodoroTasks    = openTasks,
+                    kanbanTasks      = inProgressKanban,
+                    onDeleteTask     = vm::deleteFocusTask,
+                    onClearAll       = vm::clearAllFocusTasks,
+                    onDoneKanbanTask = vm::moveKanbanTaskToDone,
+                )
+            }
         }
     }
 }
@@ -110,57 +119,59 @@ fun HeroBanner(greeting: String) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
-            .background(BgCard)
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0x1AFFFFFF), Color(0x0FFFFFFF)),
-                )
-            )
-            .border(1.dp, Color(0x1FFFFFFF), RoundedCornerShape(24.dp)),
+            .background(Brush.linearGradient(listOf(Color(0xFF0D0020), Color(0xFF110025), Color(0xFF080015))))
+            .border(
+                1.dp,
+                Brush.linearGradient(listOf(NeonPink.copy(0.6f), NeonPurple.copy(0.3f), NeonCyan.copy(0.4f))),
+                RoundedCornerShape(24.dp),
+            ),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 22.dp, vertical = 28.dp),
-        ) {
+        // Background glow orbs
+        Box(Modifier.size(180.dp).background(Brush.radialGradient(listOf(NeonPink.copy(0.08f), Color.Transparent))))
+        Box(
+            Modifier.size(140.dp).align(Alignment.TopEnd)
+                .background(Brush.radialGradient(listOf(NeonCyan.copy(0.06f), Color.Transparent)))
+        )
+        Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 26.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
-                    "Homer",
+                    "HOMER",
                     style = TextStyle(
-                        brush = Brush.linearGradient(
-                            colors = listOf(Color.White, Color(0xFFCBD5E1), Color.White),
-                        ),
-                        fontSize = 40.sp,
+                        brush = Brush.linearGradient(listOf(Color.White, NeonCyan.copy(0.9f), NeonPink.copy(0.7f))),
+                        fontSize = 36.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 0.5.sp,
+                        letterSpacing = 4.sp,
                     ),
                 )
                 Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(AccentGreen, Color(0xFF16A34A)),
-                            )
-                        )
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    Modifier.clip(RoundedCornerShape(20.dp))
+                        .background(NeonCyan.copy(0.1f))
+                        .border(1.dp, NeonCyan.copy(0.5f), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
                 ) {
-                    Text(
-                        greeting,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF041106),
-                    )
+                    Text(greeting.uppercase(), fontSize = 10.sp, letterSpacing = 1.sp, fontWeight = FontWeight.Bold, color = NeonCyan)
                 }
             }
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(10.dp))
+            Box(Modifier.width(160.dp).height(1.dp).background(Brush.horizontalGradient(listOf(NeonPink.copy(0.5f), NeonCyan.copy(0.3f), Color.Transparent))))
+            Spacer(Modifier.height(10.dp))
             Text(
-                "\u201cTrying is the first step towards failure.\u201d \u2014 Homer Simpson",
-                style = MaterialTheme.typography.bodyMedium,
+                "\u201cTrying is the first step towards failure.\u201d",
+                style = MaterialTheme.typography.bodySmall,
                 color = TextMuted,
+                lineHeight = 18.sp,
+            )
+            Text(
+                "\u2014 Homer Simpson",
+                fontSize = 10.sp,
+                letterSpacing = 0.5.sp,
+                color = NeonPink.copy(0.5f),
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 4.dp),
             )
         }
     }
@@ -193,6 +204,8 @@ fun ClockCard(time: String, seconds: Int, date: String) {
 
 @Composable
 fun WeatherCard(ui: HomeViewModel.WeatherUi, onRefresh: () -> Unit) {
+    var showForecast by remember { mutableStateOf(false) }
+
     HomerCard {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -208,7 +221,7 @@ fun WeatherCard(ui: HomeViewModel.WeatherUi, onRefresh: () -> Unit) {
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(ui.icon, fontSize = 40.sp)
-                    Column {
+                    Column(Modifier.weight(1f)) {
                         Text(ui.temp, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                         Text(ui.desc, style = MaterialTheme.typography.bodySmall, color = TextMuted)
                         if (ui.place.isNotBlank())
@@ -216,20 +229,56 @@ fun WeatherCard(ui: HomeViewModel.WeatherUi, onRefresh: () -> Unit) {
                     }
                 }
                 if (ui.forecast.isNotEmpty()) {
-                    Spacer(Modifier.height(12.dp))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(ui.forecast) { day ->
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(BgCardAlt)
-                                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                            ) {
-                                Text(day.day, style = MaterialTheme.typography.labelSmall, color = TextMuted)
-                                Text(day.icon, fontSize = 20.sp)
-                                Text(day.hi, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                                Text(day.lo, style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(BgCardAlt)
+                            .border(1.dp, Color(0x12FFFFFF), RoundedCornerShape(8.dp))
+                            .clickable { showForecast = !showForecast }
+                            .padding(horizontal = 12.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "This week",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSubtle,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Icon(
+                            if (showForecast) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            null, tint = TextSubtle, modifier = Modifier.size(16.dp),
+                        )
+                    }
+                    if (showForecast) {
+                        Spacer(Modifier.height(6.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            ui.forecast.forEach { day ->
+                                Row(
+                                    Modifier.fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(BgCardAlt)
+                                        .border(1.dp, Color(0x0CFFFFFF), RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        day.day,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = TextMuted,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    Text(day.icon, fontSize = 18.sp)
+                                    Spacer(Modifier.width(10.dp))
+                                    Text(
+                                        day.hi,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary,
+                                    )
+                                    Text("  /  ", style = MaterialTheme.typography.labelSmall, color = TextSubtle)
+                                    Text(day.lo, style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                                }
                             }
                         }
                     }
@@ -319,30 +368,120 @@ fun SavedQuotesCard(quotes: List<SavedQuote>, onDelete: (SavedQuote) -> Unit) {
 
 // ---- Focus Tasks Card ----
 
+private fun relativeTime(ms: Long): String {
+    val diff = System.currentTimeMillis() - ms
+    return when {
+        diff < 60_000       -> "just now"
+        diff < 3_600_000    -> "${diff / 60_000}m ago"
+        diff < 86_400_000   -> "${diff / 3_600_000}h ago"
+        else                -> "${diff / 86_400_000}d ago"
+    }
+}
+
 @Composable
-fun FocusTasksCard(tasks: List<PomodoroTask>) {
+fun FocusTasksCard(
+    pomodoroTasks: List<PomodoroTask>,
+    kanbanTasks: List<ro.b4it.homer.data.local.entity.KanbanTask>,
+    onDeleteTask: (PomodoroTask) -> Unit = {},
+    onClearAll: () -> Unit = {},
+    onDoneKanbanTask: (ro.b4it.homer.data.local.entity.KanbanTask) -> Unit = {},
+) {
     HomerCard {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            Text("Focus Tasks", style = MaterialTheme.typography.titleSmall, color = TextMuted)
-            Spacer(Modifier.height(8.dp))
-            if (tasks.isEmpty()) {
-                Text("No open tasks", style = MaterialTheme.typography.bodySmall, color = TextSubtle)
-            } else {
-                tasks.take(5).forEach { task ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(vertical = 4.dp),
-                    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Header
+            Box(Modifier.fillMaxWidth().height(2.dp).background(
+                Brush.horizontalGradient(listOf(AccentBlue, AccentViolet.copy(0.4f), Color.Transparent))
+            ))
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("IN FOCUS", fontSize = 10.sp, letterSpacing = 2.sp, color = NeonPink.copy(0.8f), fontWeight = FontWeight.ExtraBold)
+                        val total = pomodoroTasks.size + kanbanTasks.size
+                        Text("$total active item${if (total != 1) "s" else ""}", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                    }
+                    if (pomodoroTasks.isNotEmpty()) {
                         Box(
-                            Modifier.size(6.dp).clip(RoundedCornerShape(3.dp))
-                                .background(AccentBlue),
+                            Modifier.clip(RoundedCornerShape(6.dp))
+                                .background(AccentRed.copy(0.07f))
+                                .border(1.dp, AccentRed.copy(0.3f), RoundedCornerShape(6.dp))
+                                .clickable { onClearAll() }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        ) {
+                            Text("CLEAR", fontSize = 7.sp, letterSpacing = 1.sp, color = AccentRed.copy(0.8f), fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text("⚡", fontSize = 16.sp)
+                }
+
+                // Kanban in-progress tasks
+                kanbanTasks.take(3).forEach { task ->
+                    val priorityColor = when (task.priority) {
+                        "critical" -> AccentRed
+                        "high"     -> AccentAmber
+                        "low"      -> AccentGreen
+                        else       -> AccentBlue
+                    }
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(BgCardAlt)
+                            .border(1.dp, priorityColor.copy(0.2f), RoundedCornerShape(8.dp))
+                            .padding(start = 10.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Box(Modifier.size(6.dp).clip(CircleShape).background(priorityColor))
+                        Text(
+                            task.summary,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
-                        Spacer(Modifier.width(10.dp))
-                        Text(task.text, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Box(
+                            Modifier.clip(RoundedCornerShape(4.dp))
+                                .background(AccentAmber.copy(0.15f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                        ) {
+                            Text("In Progress", style = MaterialTheme.typography.labelSmall, color = AccentAmber, fontWeight = FontWeight.SemiBold)
+                        }
+                        IconButton(onClick = { onDoneKanbanTask(task) }, modifier = Modifier.size(20.dp)) {
+                            Icon(Icons.Filled.Check, null, tint = AccentGreen.copy(0.7f), modifier = Modifier.size(13.dp))
+                        }
                     }
                 }
-                if (tasks.size > 5)
-                    Text("+${tasks.size - 5} more", style = MaterialTheme.typography.labelSmall, color = TextMuted, modifier = Modifier.padding(top = 4.dp))
+
+                // Pomodoro tasks
+                pomodoroTasks.take(4).forEach { task ->
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(BgCardAlt)
+                            .border(1.dp, NeonCyan.copy(0.15f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Box(Modifier.size(6.dp).clip(CircleShape).background(NeonCyan.copy(0.7f)))
+                        Text(
+                            task.text,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        IconButton(onClick = { onDeleteTask(task) }, modifier = Modifier.size(20.dp)) {
+                            Icon(Icons.Filled.Close, null, tint = TextSubtle.copy(0.5f), modifier = Modifier.size(12.dp))
+                        }
+                    }
+                }
+
+                val extra = (pomodoroTasks.size - 4).coerceAtLeast(0) + (kanbanTasks.size - 3).coerceAtLeast(0)
+                if (extra > 0) {
+                    Text("+$extra more task${if (extra > 1) "s" else ""}", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                }
             }
         }
     }
@@ -358,11 +497,15 @@ fun HomerCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
             .clip(RoundedCornerShape(18.dp))
             .background(BgCard)
             .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0x10FFFFFF), Color(0x07FFFFFF)),
+                Brush.linearGradient(
+                    colors = listOf(NeonPink.copy(0.06f), Color.Transparent, NeonCyan.copy(0.04f)),
                 )
             )
-            .border(1.dp, Color(0x1FFFFFFF), RoundedCornerShape(18.dp)),
+            .border(
+                1.dp,
+                Brush.linearGradient(listOf(NeonPink.copy(0.7f), NeonPurple.copy(0.4f), NeonCyan.copy(0.5f))),
+                RoundedCornerShape(18.dp),
+            ),
     ) { content() }
 }
 

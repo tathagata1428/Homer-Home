@@ -1,6 +1,7 @@
 package ro.b4it.homer.ui.screens.dailybrief
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -74,7 +75,10 @@ fun DailyBriefScreen(vm: DailyBriefViewModel = hiltViewModel()) {
                     Triple("€%.0f".format(state.totalExpensesToday), "Today", AccentBlue),
                 ).forEach { (val_, lbl, color) ->
                     Box(
-                        Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(color.copy(0.12f)).padding(10.dp),
+                        Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
+                            .background(color.copy(0.12f))
+                            .border(1.dp, color.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
+                            .padding(10.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {

@@ -60,7 +60,14 @@ function setVolAndPlay(key, vol) {
   t.player.playVideo();
 }
 
-function initAndPlay(key, vol) { setVolAndPlay(key, vol); }
+function initAndPlay(key, vol) {
+  if (typeof YT !== 'undefined' && YT.Player) {
+    setVolAndPlay(key, vol);
+  } else {
+    // YouTube API not loaded yet — retry until ready
+    setTimeout(function() { initAndPlay(key, vol); }, 1500);
+  }
+}
 
 function pauseSound(key) {
   var t = tracks[key];

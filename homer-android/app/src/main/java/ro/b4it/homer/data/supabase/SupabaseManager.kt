@@ -5,7 +5,8 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import ro.b4it.homer.data.preferences.AppPreferences
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -47,15 +48,21 @@ class SupabaseManager @Inject constructor(
         try { client.auth.signOut() } catch (_: Exception) { }
     }
 
-    /** Read a single row from `field_state` by key. Returns null if not found. */
-    suspend fun getFieldState(key: String): FieldStateRow? {
+    /**
+     * Read a single row from `field_state` by field_id.
+     * Returns null if not found or not authenticated.
+     *
+     * Column mapping matches the website's field_state table schema:
+     *   user_id, field_id, kind, value, client_ts, server_ts, ...
+     */
+    suspend fun getFieldState(fieldId: String): FieldStateRow? {
         val uid = userId ?: return null
         return try {
             client.postgrest["field_state"]
                 .select {
                     filter {
                         eq("user_id", uid)
-                        eq("key", key)
+                        eq("field_id", fieldId)
                     }
                     limit(1)
                 }
@@ -63,14 +70,33 @@ class SupabaseManager @Inject constructor(
         } catch (_: Exception) { null }
     }
 
-    /** Upsert a row in `field_state`. No-op if not bogdan. */
-    suspend fun setFieldState(key: String, data: String, ts: Long = System.currentTimeMillis()) {
+    /**
+     * Upsert a row in `field_state`. No-op if not bogdan.
+     *
+     * `data` is the JSON-encoded payload (e.g. serialized list of expenses).
+     * Stored in the `value` column as a plain JSON string, matching the website schema.
+     * Conflict key: user_id,field_id — same as the website's upsert constraint.
+     */
+    suspend fun setFieldState(fieldId: String, data: String, ts: Long = System.currentTimeMillis()) {
         if (!isBogdan()) return
         val uid = userId ?: return
         try {
             client.postgrest["field_state"].upsert(
-                listOf(FieldStateRow(userId = uid, key = key, value = FieldStateValue(ts = ts, data = data)))
-            ) { onConflict = "user_id,key" }
+                listOf(
+                    FieldStateRow(
+                        userId    = uid,
+                        fieldId   = fieldId,
+                        kind      = "json",
+                        value     = data,
+                        clientTs  = ts,
+                        clientSeq = 0L,
+                        deleted   = false,
+                        deviceId  = "android",
+                        updatedAt = java.time.Instant.ofEpochMilli(ts)
+                            .toString(),   // ISO-8601, e.g. "2026-05-15T12:00:00Z"
+                    )
+                )
+            ) { onConflict = "user_id,field_id" }
         } catch (_: Exception) { }
     }
 
@@ -86,23 +112,26 @@ class SupabaseManager @Inject constructor(
     }
 }
 
-@kotlinx.serialization.Serializable
+// ── Data models — columns match the website's field_state table schema ─────────
+
+@Serializable
+data class FieldStateRow(
+    @SerialName("user_id")    val userId:    String,
+    @SerialName("field_id")   val fieldId:   String,
+    val kind:                                String  = "json",
+    val value:                               String  = "",
+    val deleted:                             Boolean = false,
+    @SerialName("client_ts")  val clientTs:  Long    = 0L,
+    @SerialName("client_seq") val clientSeq: Long    = 0L,
+    @SerialName("device_id")  val deviceId:  String  = "android",
+    @SerialName("server_ts")  val serverTs:  Long    = 0L,
+    @SerialName("updated_at") val updatedAt: String  = "",
+)
+
+@Serializable
 data class JoeyMetaRow(
-    @kotlinx.serialization.SerialName("user_id") val userId: String,
+    @SerialName("user_id") val userId: String,
     val mode: String,
     val key: String,
     val value: String,
-)
-
-@kotlinx.serialization.Serializable
-data class FieldStateRow(
-    @kotlinx.serialization.SerialName("user_id")  val userId: String,
-    val key: String,
-    val value: FieldStateValue,
-)
-
-@kotlinx.serialization.Serializable
-data class FieldStateValue(
-    @kotlinx.serialization.SerialName("_ts")   val ts: Long,
-    @kotlinx.serialization.SerialName("_data") val data: String,
 )

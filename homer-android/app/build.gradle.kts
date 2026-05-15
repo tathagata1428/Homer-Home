@@ -47,6 +47,12 @@ android {
         // Homer website base URL
         buildConfigField("String", "HOMER_BASE_URL",
             "\"${localProps["HOMER_BASE_URL"] ?: "https://b4it.ro"}\"")
+
+        // Supabase auto sign-in credentials (set in local.properties, never committed)
+        buildConfigField("String", "SUPABASE_SYNC_EMAIL",
+            "\"${localProps["SUPABASE_SYNC_EMAIL"] ?: ""}\"")
+        buildConfigField("String", "SUPABASE_SYNC_PASSWORD",
+            "\"${localProps["SUPABASE_SYNC_PASSWORD"] ?: ""}\"")
     }
 
     val keystorePath = localProps["KEYSTORE_PATH"] as String? ?: ""

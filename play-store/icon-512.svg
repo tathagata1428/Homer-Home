@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Homer App Icon — 512×512 — Play Store Hi-Res Icon -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="38%" cy="32%" r="75%">
+      <stop offset="0%"   stop-color="#1E0042"/>
+      <stop offset="100%" stop-color="#0B0018"/>
+    </radialGradient>
+    <linearGradient id="hGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#FF0066"/>
+      <stop offset="100%" stop-color="#CC00FF"/>
+    </linearGradient>
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#FF0066"/>
+      <stop offset="50%"  stop-color="#CC00FF"/>
+      <stop offset="100%" stop-color="#00FFFF"/>
+    </linearGradient>
+    <!-- Glow filters -->
+    <filter id="hGlow" x="-35%" y="-35%" width="170%" height="170%">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="borderGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="dotGlow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+
+  <!-- Subtle dot grid -->
+  <g fill="#FFFFFF" opacity="0.04">
+    <circle cx="64"  cy="64"  r="1.5"/> <circle cx="128" cy="64"  r="1.5"/> <circle cx="192" cy="64"  r="1.5"/>
+    <circle cx="256" cy="64"  r="1.5"/> <circle cx="320" cy="64"  r="1.5"/> <circle cx="384" cy="64"  r="1.5"/> <circle cx="448" cy="64"  r="1.5"/>
+    <circle cx="64"  cy="128" r="1.5"/> <circle cx="128" cy="128" r="1.5"/> <circle cx="192" cy="128" r="1.5"/>
+    <circle cx="256" cy="128" r="1.5"/> <circle cx="320" cy="128" r="1.5"/> <circle cx="384" cy="128" r="1.5"/> <circle cx="448" cy="128" r="1.5"/>
+    <circle cx="64"  cy="192" r="1.5"/> <circle cx="128" cy="192" r="1.5"/> <circle cx="192" cy="192" r="1.5"/>
+    <circle cx="256" cy="192" r="1.5"/> <circle cx="320" cy="192" r="1.5"/> <circle cx="384" cy="192" r="1.5"/> <circle cx="448" cy="192" r="1.5"/>
+    <circle cx="64"  cy="256" r="1.5"/> <circle cx="128" cy="256" r="1.5"/> <circle cx="192" cy="256" r="1.5"/>
+    <circle cx="256" cy="256" r="1.5"/> <circle cx="320" cy="256" r="1.5"/> <circle cx="384" cy="256" r="1.5"/> <circle cx="448" cy="256" r="1.5"/>
+    <circle cx="64"  cy="320" r="1.5"/> <circle cx="128" cy="320" r="1.5"/> <circle cx="192" cy="320" r="1.5"/>
+    <circle cx="256" cy="320" r="1.5"/> <circle cx="320" cy="320" r="1.5"/> <circle cx="384" cy="320" r="1.5"/> <circle cx="448" cy="320" r="1.5"/>
+    <circle cx="64"  cy="384" r="1.5"/> <circle cx="128" cy="384" r="1.5"/> <circle cx="192" cy="384" r="1.5"/>
+    <circle cx="256" cy="384" r="1.5"/> <circle cx="320" cy="384" r="1.5"/> <circle cx="384" cy="384" r="1.5"/> <circle cx="448" cy="384" r="1.5"/>
+    <circle cx="64"  cy="448" r="1.5"/> <circle cx="128" cy="448" r="1.5"/> <circle cx="192" cy="448" r="1.5"/>
+    <circle cx="256" cy="448" r="1.5"/> <circle cx="320" cy="448" r="1.5"/> <circle cx="384" cy="448" r="1.5"/> <circle cx="448" cy="448" r="1.5"/>
+  </g>
+
+  <!-- Outer border — glow -->
+  <rect x="20" y="20" width="472" height="472" rx="76" fill="none"
+    stroke="url(#borderGrad)" stroke-width="12" opacity="0.20" filter="url(#borderGlow)"/>
+  <!-- Outer border — sharp -->
+  <rect x="20" y="20" width="472" height="472" rx="76" fill="none"
+    stroke="url(#borderGrad)" stroke-width="2.5" opacity="0.75"/>
+
+  <!-- Inner accent ring -->
+  <rect x="36" y="36" width="440" height="440" rx="62" fill="none"
+    stroke="#CC00FF" stroke-width="1" opacity="0.18"/>
+
+  <!-- Corner accent dots — glow -->
+  <circle cx="74"  cy="74"  r="5" fill="#FF0066" opacity="0.75" filter="url(#dotGlow)"/>
+  <circle cx="438" cy="74"  r="5" fill="#00FFFF" opacity="0.75" filter="url(#dotGlow)"/>
+  <circle cx="74"  cy="438" r="5" fill="#CC00FF" opacity="0.75" filter="url(#dotGlow)"/>
+  <circle cx="438" cy="438" r="5" fill="#FF0066" opacity="0.75" filter="url(#dotGlow)"/>
+
+  <!-- Corner tick lines -->
+  <line x1="126" y1="128" x2="168" y2="128" stroke="#FF0066" stroke-width="2" opacity="0.38"/>
+  <line x1="344" y1="128" x2="386" y2="128" stroke="#00FFFF" stroke-width="2" opacity="0.38"/>
+  <line x1="126" y1="384" x2="168" y2="384" stroke="#CC00FF" stroke-width="2" opacity="0.38"/>
+  <line x1="344" y1="384" x2="386" y2="384" stroke="#FF0066" stroke-width="2" opacity="0.38"/>
+
+  <!-- H glyph — glow pass -->
+  <!-- Center 256×256. Width=220 (x:146–366). Height=256 (y:128–384). Legs=44px. Crossbar y:234–278 -->
+  <path d="M146,128 L146,384 L190,384 L190,278 L322,278 L322,384 L366,384
+           L366,128 L322,128 L322,234 L190,234 L190,128 Z"
+    fill="url(#hGrad)" filter="url(#hGlow)"/>
+
+  <!-- H glyph — sharp pass -->
+  <path d="M146,128 L146,384 L190,384 L190,278 L322,278 L322,384 L366,384
+           L366,128 L322,128 L322,234 L190,234 L190,128 Z"
+    fill="url(#hGrad)"/>
+</svg>

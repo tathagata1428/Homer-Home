@@ -12,8 +12,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ro.b4it.homer.data.local.entity.InboxItem
@@ -28,11 +30,14 @@ fun InboxScreen(vm: InboxViewModel = hiltViewModel()) {
 
     Column(Modifier.fillMaxSize().background(BgPrimary).imePadding()) {
         // Header
-        Row(
-            Modifier.fillMaxWidth().padding(16.dp, 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            Modifier.fillMaxWidth().padding(start = 20.dp, top = 16.dp, end = 16.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text("Quick Capture", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("QUICK", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp, color = TextPrimary)
+            Text("CAPTURE", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp, color = NeonCyan)
+            Box(Modifier.width(54.dp).height(2.dp).background(Brush.horizontalGradient(listOf(NeonCyan, NeonPink))))
+            Text("Dump thoughts fast — process later", fontSize = 11.sp, color = TextSubtle)
         }
         // Quick capture input
         HomerCard(modifier = Modifier.padding(horizontal = 16.dp)) {

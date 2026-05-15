@@ -8,6 +8,7 @@ import kotlinx.coroutines.launch
 import io.github.jan.supabase.auth.auth
 import ro.b4it.homer.data.preferences.AppPreferences
 import ro.b4it.homer.data.supabase.SupabaseManager
+import ro.b4it.homer.data.sync.SyncEngine
 import javax.inject.Inject
 
 data class AccountState(
@@ -24,6 +25,7 @@ data class AccountState(
 class AccountViewModel @Inject constructor(
     private val prefs: AppPreferences,
     private val supabase: SupabaseManager,
+    private val sync: SyncEngine,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AccountState())
@@ -51,6 +53,7 @@ class AccountViewModel @Inject constructor(
                 val sessionEmail = try { supabase.client.auth.currentUserOrNull()?.email } catch (_: Exception) { null }
                 prefs.setAuthUser(sessionEmail?.substringBefore("@") ?: email.substringBefore("@"))
                 supabase.setCachedAuthUser(sessionEmail?.substringBefore("@"))
+                sync.start()
                 _state.update { it.copy(loading = false, supabaseEmail = sessionEmail, isBogdan = supabase.isBogdan()) }
             } catch (e: Exception) {
                 _state.update { it.copy(loading = false, error = e.message ?: "Sign in failed") }

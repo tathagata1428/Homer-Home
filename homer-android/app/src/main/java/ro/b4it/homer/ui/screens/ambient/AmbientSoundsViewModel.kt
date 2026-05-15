@@ -2,6 +2,7 @@ package ro.b4it.homer.ui.screens.ambient
 
 import android.content.Context
 import android.content.Intent
+import androidx.compose.runtime.compositionLocalOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -15,6 +16,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import ro.b4it.homer.service.AmbientService
 import javax.inject.Inject
+
+/** Activity-scoped ViewModel provided at the root so the WebView survives navigation. */
+val LocalAmbientVm = compositionLocalOf<AmbientSoundsViewModel> { error("AmbientSoundsVm not provided") }
 
 /** Mirrors the website's ambient sound definitions exactly (same YouTube IDs). */
 enum class AmbientSound(val key: String, val emoji: String, val label: String, val ytId: String) {
@@ -108,6 +112,13 @@ class AmbientSoundsViewModel @Inject constructor(
         }
         emit("stopAll()")
         stopAmbientService()
+    }
+
+    /** Reload the WebView page and reset all player state (fixes YouTube API load failures). */
+    fun reloadWebView() {
+        _state.value = AmbientSound.values().associateWith { SoundState() }
+        stopAmbientService()
+        emit("__reload__")
     }
 
     private fun startAmbientService() {

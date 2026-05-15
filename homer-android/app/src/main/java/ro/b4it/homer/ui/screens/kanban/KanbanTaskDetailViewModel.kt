@@ -8,10 +8,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import ro.b4it.homer.data.local.dao.KanbanDao
 import ro.b4it.homer.data.local.entity.KanbanTask
 import ro.b4it.homer.notification.ReminderManager
+import java.util.UUID
 import javax.inject.Inject
+
+@Serializable
+data class SubTaskDto(val id: String, val text: String, val done: Boolean = false)
 
 @HiltViewModel
 class KanbanTaskDetailViewModel @Inject constructor(
@@ -28,11 +35,20 @@ class KanbanTaskDetailViewModel @Inject constructor(
     private val _saved = MutableStateFlow(false)
     val saved: StateFlow<Boolean> = _saved.asStateFlow()
 
+    private val json = Json { ignoreUnknownKeys = true }
+
     init {
         viewModelScope.launch {
             _task.value = dao.getTaskById(taskId)
         }
     }
+
+    fun parseSubtasks(jsonStr: String): List<SubTaskDto> =
+        try { json.decodeFromString(jsonStr) } catch (_: Exception) { emptyList() }
+
+    private fun encode(list: List<SubTaskDto>): String = json.encodeToString(list)
+
+    // ── Main task save ────────────────────────────────────────────────────────
 
     fun save(
         summary: String,
@@ -44,13 +60,13 @@ class KanbanTaskDetailViewModel @Inject constructor(
     ) {
         val current = _task.value ?: return
         val updated = current.copy(
-            summary = summary.trim(),
+            summary     = summary.trim(),
             description = desc.trim(),
-            priority = priority,
-            dueDate = dueDate.trim(),
-            assignee = assignee.trim(),
-            column = column,
-            updatedAt = System.currentTimeMillis(),
+            priority    = priority,
+            dueDate     = dueDate.trim(),
+            assignee    = assignee.trim(),
+            column      = column,
+            updatedAt   = System.currentTimeMillis(),
         )
         viewModelScope.launch {
             dao.upsertTask(updated)
@@ -58,6 +74,38 @@ class KanbanTaskDetailViewModel @Inject constructor(
             if (dueDate.isNotBlank()) reminderManager.scheduleTaskDue(updated)
             else reminderManager.cancelTask(updated.id)
             _saved.value = true
+        }
+    }
+
+    // ── Subtask CRUD ──────────────────────────────────────────────────────────
+
+    fun addSubtask(text: String) {
+        if (text.isBlank()) return
+        val current   = _task.value ?: return
+        val subtasks  = parseSubtasks(current.subtasksJson).toMutableList()
+        subtasks.add(SubTaskDto(id = UUID.randomUUID().toString(), text = text.trim()))
+        persist(current.copy(subtasksJson = encode(subtasks)))
+    }
+
+    fun toggleSubtask(subtaskId: String) {
+        val current  = _task.value ?: return
+        val subtasks = parseSubtasks(current.subtasksJson).map {
+            if (it.id == subtaskId) it.copy(done = !it.done) else it
+        }
+        persist(current.copy(subtasksJson = encode(subtasks)))
+    }
+
+    fun deleteSubtask(subtaskId: String) {
+        val current  = _task.value ?: return
+        val subtasks = parseSubtasks(current.subtasksJson).filter { it.id != subtaskId }
+        persist(current.copy(subtasksJson = encode(subtasks)))
+    }
+
+    private fun persist(updated: KanbanTask) {
+        val task = updated.copy(updatedAt = System.currentTimeMillis())
+        viewModelScope.launch {
+            dao.upsertTask(task)
+            _task.value = task
         }
     }
 }

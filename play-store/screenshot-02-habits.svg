@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Homer Screenshot 2: Habits — 1080×1920 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <defs>
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00FFFF"/><stop offset="100%" stop-color="#CC00FF"/>
+    </linearGradient>
+    <linearGradient id="pinkGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FF0066"/><stop offset="100%" stop-color="#CC00FF"/>
+    </linearGradient>
+    <linearGradient id="fade" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0B0018" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#0B0018" stop-opacity="1"/>
+    </linearGradient>
+    <filter id="softglow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <!-- Checkmark clip (green circle) -->
+  </defs>
+
+  <!-- BG -->
+  <rect width="1080" height="1920" fill="#0B0018"/>
+
+  <!-- STATUS BAR -->
+  <text x="60" y="46" font-family="Arial" font-size="30" font-weight="600" fill="#F0F0FF">9:41</text>
+  <rect x="900" y="36" width="9"  height="10" rx="2" fill="#F0F0FF" opacity="0.6"/>
+  <rect x="914" y="30" width="9"  height="16" rx="2" fill="#F0F0FF" opacity="0.6"/>
+  <rect x="928" y="22" width="9"  height="24" rx="2" fill="#F0F0FF" opacity="0.8"/>
+  <rect x="942" y="14" width="9"  height="32" rx="2" fill="#F0F0FF"/>
+  <rect x="964"  y="18" width="72" height="30" rx="5" fill="none" stroke="#F0F0FF" stroke-width="2.5"/>
+  <rect x="1036" y="26" width="7"  height="14" rx="2" fill="#F0F0FF" opacity="0.7"/>
+  <rect x="968"  y="22" width="50" height="22" rx="3" fill="#F0F0FF" opacity="0.9"/>
+
+  <!-- PAGE TITLE -->
+  <text x="60" y="128" font-family="'Arial Black',Arial,sans-serif" font-size="52" font-weight="900"
+    letter-spacing="6" fill="url(#cyanGrad)">HABITS</text>
+  <text x="60" y="168" font-family="Arial,sans-serif" font-size="28" fill="#888899" letter-spacing="2">Build streaks. Stay consistent.</text>
+
+  <!-- STAT CARDS ROW -->
+  <!-- Today -->
+  <rect x="40" y="192" width="306" height="148" rx="16" fill="#110025"/>
+  <rect x="40" y="192" width="306" height="148" rx="16" fill="none" stroke="#FF0066" stroke-width="1.2" opacity="0.32"/>
+  <text x="193" y="260" text-anchor="middle" font-family="'Arial Black',Arial,sans-serif" font-size="60" font-weight="900" fill="#FF0066" filter="url(#softglow)">4/5</text>
+  <text x="193" y="318" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" letter-spacing="2" fill="#888899">TODAY</text>
+  <!-- Best streak -->
+  <rect x="364" y="192" width="306" height="148" rx="16" fill="#110025"/>
+  <rect x="364" y="192" width="306" height="148" rx="16" fill="none" stroke="#FFD700" stroke-width="1.2" opacity="0.32"/>
+  <text x="517" y="260" text-anchor="middle" font-family="'Arial Black',Arial,sans-serif" font-size="60" font-weight="900" fill="#FFD700" filter="url(#softglow)">22</text>
+  <text x="517" y="318" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" letter-spacing="2" fill="#888899">BEST STREAK</text>
+  <!-- Week -->
+  <rect x="688" y="192" width="352" height="148" rx="16" fill="#110025"/>
+  <rect x="688" y="192" width="352" height="148" rx="16" fill="none" stroke="#00FFFF" stroke-width="1.2" opacity="0.32"/>
+  <text x="864" y="260" text-anchor="middle" font-family="'Arial Black',Arial,sans-serif" font-size="60" font-weight="900" fill="#00FFFF" filter="url(#softglow)">18/25</text>
+  <text x="864" y="318" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" letter-spacing="2" fill="#888899">THIS WEEK</text>
+
+  <!-- HABIT CARDS (5 habits) -->
+
+  <!-- Habit 1: Morning Workout ✓ -->
+  <rect x="40" y="364" width="1000" height="148" rx="18" fill="#110025"/>
+  <rect x="40" y="364" width="1000" height="148" rx="18" fill="none" stroke="#FF0066" stroke-width="1.2" opacity="0.32"/>
+  <rect x="40" y="364" width="6"   height="148" rx="3" fill="#FF0066"/>
+  <text x="90" y="428" font-family="'Arial Black',Arial,sans-serif" font-size="38" font-weight="700" fill="#F0F0FF">Morning Workout</text>
+  <text x="90" y="478" font-family="Arial,sans-serif" font-size="26" fill="#888899">15-day streak  ·  </text>
+  <rect x="292" y="458" width="110" height="32" rx="16" fill="#FF006622"/>
+  <text x="347" y="479" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" letter-spacing="2" fill="#FF0066">DAILY</text>
+  <!-- Check circle (done) -->
+  <circle cx="992" cy="438" r="32" fill="#00CC66" opacity="0.9" filter="url(#softglow)"/>
+  <path d="M978,438 L988,450 L1006,426" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Habit 2: Read 30 min ✓ -->
+  <rect x="40" y="532" width="1000" height="148" rx="18" fill="#110025"/>
+  <rect x="40" y="532" width="1000" height="148" rx="18" fill="none" stroke="#CC00FF" stroke-width="1.2" opacity="0.32"/>
+  <rect x="40" y="532" width="6"   height="148" rx="3" fill="#CC00FF"/>
+  <text x="90" y="596" font-family="'Arial Black',Arial,sans-serif" font-size="38" font-weight="700" fill="#F0F0FF">Read 30 Minutes</text>
+  <text x="90" y="646" font-family="Arial,sans-serif" font-size="26" fill="#888899">8-day streak  ·  </text>
+  <rect x="260" y="626" width="110" height="32" rx="16" fill="#CC00FF22"/>
+  <text x="315" y="647" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" letter-spacing="2" fill="#CC00FF">DAILY</text>
+  <!-- Check circle (done) -->
+  <circle cx="992" cy="606" r="32" fill="#00CC66" opacity="0.9" filter="url(#softglow)"/>
+  <path d="M978,606 L988,618 L1006,594" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Habit 3: No social media ✓ -->
+  <rect x="40" y="700" width="1000" height="148" rx="18" fill="#110025"/>
+  <rect x="40" y="700" width="1000" height="148" rx="18" fill="none" stroke="#00FFFF" stroke-width="1.2" opacity="0.32"/>
+  <rect x="40" y="700" width="6"   height="148" rx="3" fill="#00FFFF"/>
+  <text x="90" y="764" font-family="'Arial Black',Arial,sans-serif" font-size="38" font-weight="700" fill="#F0F0FF">No Social Media Before 10am</text>
+  <text x="90" y="814" font-family="Arial,sans-serif" font-size="26" fill="#888899">5-day streak  ·  </text>
+  <rect x="264" y="794" width="168" height="32" rx="16" fill="#00FFFF18"/>
+  <text x="348" y="815" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" letter-spacing="2" fill="#00FFFF">WEEKDAYS</text>
+  <!-- Check circle (done) -->
+  <circle cx="992" cy="774" r="32" fill="#00CC66" opacity="0.9" filter="url(#softglow)"/>
+  <path d="M978,774 L988,786 L1006,762" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Habit 4: Take vitamins ✓ -->
+  <rect x="40" y="868" width="1000" height="148" rx="18" fill="#110025"/>
+  <rect x="40" y="868" width="1000" height="148" rx="18" fill="none" stroke="#FFD700" stroke-width="1.2" opacity="0.32"/>
+  <rect x="40" y="868" width="6"   height="148" rx="3" fill="#FFD700"/>
+  <text x="90" y="932" font-family="'Arial Black',Arial,sans-serif" font-size="38" font-weight="700" fill="#F0F0FF">Take Vitamins</text>
+  <text x="90" y="982" font-family="Arial,sans-serif" font-size="26" fill="#888899">22-day streak  ·  </text>
+  <rect x="280" y="962" width="110" height="32" rx="16" fill="#FFD70022"/>
+  <text x="335" y="983" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" letter-spacing="2" fill="#FFD700">DAILY</text>
+  <!-- Check circle (done) -->
+  <circle cx="992" cy="942" r="32" fill="#00CC66" opacity="0.9" filter="url(#softglow)"/>
+  <path d="M978,942 L988,954 L1006,930" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Habit 5: Evening meditation (not done) -->
+  <rect x="40" y="1036" width="1000" height="148" rx="18" fill="#110025"/>
+  <rect x="40" y="1036" width="1000" height="148" rx="18" fill="none" stroke="#FF0066" stroke-width="1.2" opacity="0.18"/>
+  <rect x="40" y="1036" width="6"   height="148" rx="3" fill="#FF0066" opacity="0.5"/>
+  <text x="90" y="1100" font-family="'Arial Black',Arial,sans-serif" font-size="38" font-weight="700" fill="#F0F0FF" opacity="0.55">Evening Meditation</text>
+  <text x="90" y="1150" font-family="Arial,sans-serif" font-size="26" fill="#888899" opacity="0.55">3-day streak  ·  </text>
+  <rect x="264" y="1130" width="110" height="32" rx="16" fill="#FF006612"/>
+  <text x="319" y="1151" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" letter-spacing="2" fill="#FF0066" opacity="0.55">DAILY</text>
+  <!-- Empty circle (not done) -->
+  <circle cx="992" cy="1110" r="32" fill="none" stroke="#444466" stroke-width="3"/>
+
+  <!-- ADD HABIT button -->
+  <rect x="40" y="1210" width="1000" height="72" rx="18" fill="#FF006618"/>
+  <rect x="40" y="1210" width="1000" height="72" rx="18" fill="none" stroke="#FF0066" stroke-width="1.5" opacity="0.50"/>
+  <text x="540" y="1255" text-anchor="middle" font-family="Arial,sans-serif" font-size="28" letter-spacing="4" fill="#FF0066">+ ADD HABIT</text>
+
+  <!-- Fade -->
+  <rect x="0" y="1700" width="1080" height="120" fill="url(#fade)"/>
+
+  <!-- BOTTOM NAV -->
+  <rect x="0" y="1820" width="1080" height="100" fill="#0D001E"/>
+  <line x1="0" y1="1820" x2="1080" y2="1820" stroke="#2A0050" stroke-width="1.5"/>
+  <g transform="translate(108,1860)">
+    <path d="M0,-22 L24,0 L16,0 L16,22 L6,22 L6,10 L-6,10 L-6,22 L-16,22 L-16,0 L-24,0 Z" fill="#FF0066" filter="url(#softglow)"/>
+    <text y="46" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" letter-spacing="1" fill="#FF0066">HOME</text>
+  </g>
+  <g transform="translate(324,1860)">
+    <circle r="22" fill="none" stroke="#444466" stroke-width="2.5"/>
+    <line x1="0" y1="-13" x2="0" y2="0" stroke="#444466" stroke-width="2.5"/>
+    <line x1="0" y1="0" x2="10" y2="-8" stroke="#444466" stroke-width="2.5"/>
+    <text y="46" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" letter-spacing="1" fill="#444466">FOCUS</text>
+  </g>
+  <g transform="translate(540,1860)">
+    <rect x="-16" y="-4" width="32" height="26" rx="4" fill="none" stroke="#444466" stroke-width="2.5"/>
+    <path d="M-10,-4 L-10,-18 A10,10 0 0,1 10,-18 L10,-4" fill="none" stroke="#444466" stroke-width="2.5"/>
+    <circle r="5" cy="9" fill="#444466"/>
+    <text y="46" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" letter-spacing="1" fill="#444466">VAULT</text>
+  </g>
+  <g transform="translate(756,1860)">
+    <path d="M-18,-20 L18,-20 L18,8 L8,8 L0,22 L0,8 L-18,8 Z" fill="none" stroke="#444466" stroke-width="2.5" stroke-linejoin="round"/>
+    <circle cx="-8" cy="-6" r="3" fill="#444466"/>
+    <circle cx="0"  cy="-6" r="3" fill="#444466"/>
+    <circle cx="8"  cy="-6" r="3" fill="#444466"/>
+    <text y="46" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" letter-spacing="1" fill="#444466">JOEY</text>
+  </g>
+  <g transform="translate(972,1860)">
+    <circle cx="-20" r="6" fill="#444466"/>
+    <circle r="6" fill="#444466"/>
+    <circle cx="20" r="6" fill="#444466"/>
+    <text y="46" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" letter-spacing="1" fill="#444466">MORE</text>
+  </g>
+</svg>

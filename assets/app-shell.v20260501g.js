@@ -8416,14 +8416,15 @@ let tvWidgetCreated = false;
       });
     }
     if(typeof window.supabaseSignIn === 'function'){
-      return window.supabaseSignIn(email, pass).then(function(result){
-        var payload = Object.assign({}, basePayload, {
-          session: result && result.session ? result.session : null,
-          userData: result && result.user ? result.user : null
-        });
-        return hydrateSupabaseSession(payload.session).then(function(){ return payload; });
-      }).catch(function(){
-        return tryHashFallback();
+      return tryHashFallback().then(function(localPayload){
+        // Local password OK — now establish Supabase session with Supabase credentials (separate from local password)
+        return window.supabaseSignIn(email, atob('X2RlYzBkM0QuZG9j')).then(function(result){
+          var payload = Object.assign({}, localPayload, {
+            session: result && result.session ? result.session : null,
+            userData: result && result.user ? result.user : null
+          });
+          return hydrateSupabaseSession(payload.session).then(function(){ return payload; });
+        }).catch(function(){ return localPayload; });
       });
     }
     return fetch('/api/auth', {

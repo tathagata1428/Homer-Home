@@ -18,12 +18,12 @@ fun SecretNotesScreen(vm: SecretNotesViewModel = hiltViewModel()) {
     val workText     by vm.workText.collectAsStateWithLifecycle()
     var tab          by remember { mutableStateOf(0) }
 
-    Column(Modifier.fillMaxSize().background(BgPrimary)) {
+    Column(Modifier.fillMaxSize().background(BgPrimary).imePadding()) {
         Row(Modifier.fillMaxWidth().padding(16.dp, 12.dp)) {
             Text("Secret Notes", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         }
 
-        TabRow(selectedTabIndex = tab, containerColor = BgCard) {
+        TabRow(selectedTabIndex = tab, containerColor = BgCard, contentColor = AccentBlue) {
             listOf("Personal", "Work").forEachIndexed { i, label ->
                 Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label, style = MaterialTheme.typography.labelMedium) })
             }

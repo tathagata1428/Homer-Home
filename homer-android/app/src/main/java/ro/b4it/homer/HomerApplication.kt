@@ -7,6 +7,16 @@ import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
+import io.github.jan.supabase.auth.status.SessionStatus
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import ro.b4it.homer.BuildConfig
+import ro.b4it.homer.data.preferences.AppPreferences
+import ro.b4it.homer.data.supabase.SupabaseManager
+import ro.b4it.homer.data.sync.SyncEngine
 import ro.b4it.homer.notification.ReminderManager
 import javax.inject.Inject
 
@@ -15,6 +25,11 @@ class HomerApplication : Application(), Configuration.Provider {
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var reminderManager: ReminderManager
+    @Inject lateinit var supabase: SupabaseManager
+    @Inject lateinit var syncEngine: SyncEngine
+    @Inject lateinit var prefs: AppPreferences
+
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -25,6 +40,46 @@ class HomerApplication : Application(), Configuration.Provider {
         super.onCreate()
         createNotificationChannels()
         reminderManager.scheduleAll()
+        initSupabaseSync()
+    }
+
+    /**
+     * Auto sign-in to Supabase on every launch (credentials baked into BuildConfig),
+     * then watch session status and start sync on authentication.
+     *
+     * We do NOT clear cachedAuthUser on NotAuthenticated — that would race with
+     * the savedUser restoration and disable sync. Explicit sign-out is handled
+     * in AccountViewModel which calls setCachedAuthUser(null) directly.
+     */
+    private fun initSupabaseSync() {
+        appScope.launch {
+            // Restore saved username so isBogdan() can return true immediately.
+            val savedUser = prefs.authUser.first()
+            if (savedUser != null) supabase.setCachedAuthUser(savedUser)
+
+            // Auto sign-in using BuildConfig credentials (set in local.properties).
+            // This re-establishes the Supabase session on every launch without
+            // requiring the user to enter credentials manually each time.
+            val syncEmail = BuildConfig.SUPABASE_SYNC_EMAIL
+            val syncPass  = BuildConfig.SUPABASE_SYNC_PASSWORD
+            if (syncEmail.isNotBlank() && syncPass.isNotBlank()) {
+                runCatching { supabase.signIn(syncEmail, syncPass) }
+            }
+
+            // Watch session status and start sync on authentication.
+            supabase.sessionStatus.collect { status ->
+                when (status) {
+                    is SessionStatus.Authenticated -> {
+                        val email = status.session.user?.email
+                        supabase.setCachedAuthUser(email?.substringBefore("@"))
+                        syncEngine.start()
+                    }
+                    // NotAuthenticated: don't touch cachedAuthUser here —
+                    // explicit sign-out clears it via AccountViewModel.
+                    else -> Unit
+                }
+            }
+        }
     }
 
     private fun createNotificationChannels() {

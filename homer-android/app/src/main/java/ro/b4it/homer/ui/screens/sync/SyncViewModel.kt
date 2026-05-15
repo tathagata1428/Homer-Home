@@ -35,10 +35,11 @@ class SyncViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(syncing = true, error = null)
             try {
-                sync.schedulePush("homer-manual-sync") { }
+                sync.pushAll()  // push local → cloud first (captures any pending deletions)
+                sync.pullAll()  // then pull cloud → local
                 _state.value = _state.value.copy(
                     syncing = false,
-                    lastSyncMsg = "Sync scheduled at ${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}",
+                    lastSyncMsg = "Synced at ${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}",
                 )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(syncing = false, error = e.message)
