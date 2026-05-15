@@ -71,7 +71,9 @@ class HomerApplication : Application(), Configuration.Provider {
                 when (status) {
                     is SessionStatus.Authenticated -> {
                         val email = status.session.user?.email
-                        supabase.setCachedAuthUser(email?.substringBefore("@"))
+                        val username = email?.substringBefore("@")
+                        supabase.setCachedAuthUser(username)
+                        prefs.setAuthUser(username)
                         syncEngine.start()
                     }
                     // NotAuthenticated: don't touch cachedAuthUser here —

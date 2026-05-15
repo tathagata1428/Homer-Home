@@ -72,16 +72,16 @@ fun AccountScreen(vm: AccountViewModel = hiltViewModel()) {
             // Sign in card
             HomerCard {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Sign in to Supabase", style = MaterialTheme.typography.titleSmall, color = TextPrimary, fontWeight = FontWeight.SemiBold)
+                    Text("Sign In", style = MaterialTheme.typography.titleSmall, color = TextPrimary, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "Only Bogdan's account syncs data. All other features work offline.",
+                        "Enter your Homer username and password.",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextMuted,
                     )
                     OutlinedTextField(
-                        value = state.signInEmail,
-                        onValueChange = vm::setEmail,
-                        label = { Text("Email") },
+                        value = state.signInUsername,
+                        onValueChange = vm::setUsername,
+                        label = { Text("Username") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(

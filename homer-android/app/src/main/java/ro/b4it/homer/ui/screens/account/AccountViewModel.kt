@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import io.github.jan.supabase.auth.auth
 import ro.b4it.homer.data.preferences.AppPreferences
 import ro.b4it.homer.data.supabase.SupabaseManager
 import ro.b4it.homer.data.sync.SyncEngine
@@ -17,7 +16,7 @@ data class AccountState(
     val isBogdan: Boolean = false,
     val loading: Boolean = false,
     val error: String? = null,
-    val signInEmail: String = "",
+    val signInUsername: String = "",
     val signInPassword: String = "",
 )
 
@@ -39,24 +38,23 @@ class AccountViewModel @Inject constructor(
         }
     }
 
-    fun setEmail(v: String) { _state.update { it.copy(signInEmail = v, error = null) } }
+    fun setUsername(v: String) { _state.update { it.copy(signInUsername = v, error = null) } }
     fun setPassword(v: String) { _state.update { it.copy(signInPassword = v, error = null) } }
 
     fun signIn() {
-        val email = _state.value.signInEmail.trim()
-        val pw    = _state.value.signInPassword
-        if (email.isBlank() || pw.isBlank()) return
+        val username = _state.value.signInUsername.trim()
+        val pw       = _state.value.signInPassword
+        if (username.isBlank() || pw.isBlank()) return
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
-            try {
-                supabase.signIn(email, pw)
-                val sessionEmail = try { supabase.client.auth.currentUserOrNull()?.email } catch (_: Exception) { null }
-                prefs.setAuthUser(sessionEmail?.substringBefore("@") ?: email.substringBefore("@"))
-                supabase.setCachedAuthUser(sessionEmail?.substringBefore("@"))
+            // Validate local Homer credentials (same as website: bogdan / qaz123pl.)
+            if (username.equals("bogdan", ignoreCase = true) && pw == "qaz123pl.") {
+                prefs.setAuthUser("bogdan")
+                supabase.setCachedAuthUser("bogdan")
                 sync.start()
-                _state.update { it.copy(loading = false, supabaseEmail = sessionEmail, isBogdan = supabase.isBogdan()) }
-            } catch (e: Exception) {
-                _state.update { it.copy(loading = false, error = e.message ?: "Sign in failed") }
+                _state.update { it.copy(loading = false, isBogdan = true) }
+            } else {
+                _state.update { it.copy(loading = false, error = "Invalid username or password") }
             }
         }
     }
