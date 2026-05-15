@@ -11,11 +11,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import ro.b4it.homer.data.local.dao.CalendarDao
+import ro.b4it.homer.data.local.dao.CarDao
 import ro.b4it.homer.data.local.dao.KanbanDao
 import ro.b4it.homer.data.local.dao.LifeGoalDao
 import ro.b4it.homer.data.local.dao.ReminderDao
 import ro.b4it.homer.data.local.entity.CalendarEvent
+import ro.b4it.homer.data.local.entity.CarDocument
 import ro.b4it.homer.data.local.entity.KanbanTask
 import ro.b4it.homer.data.local.entity.LifeGoal
 import ro.b4it.homer.data.local.entity.Reminder
@@ -34,6 +37,7 @@ class ReminderManager @Inject constructor(
     private val kanbanDao: KanbanDao,
     private val lifeGoalDao: LifeGoalDao,
     private val reminderDao: ReminderDao,
+    private val carDao: CarDao,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -85,6 +89,11 @@ class ReminderManager @Inject constructor(
                     reminderId = rem.id,
                     recurType = rem.recurType,
                 )
+            }
+
+            // Car documents: 30 days and 7 days before expiry
+            carDao.getAllDocuments().first().forEach { doc ->
+                scheduleCarDocumentAlarms(doc)
             }
 
             // Daily habit reminder at 9:00 AM
@@ -145,6 +154,36 @@ class ReminderManager @Inject constructor(
     }
 
     fun cancelReminder(reminderId: String) = cancelAlarm(alarmId("rem", reminderId))
+
+    fun scheduleCarDocument(doc: CarDocument) = scheduleCarDocumentAlarms(doc)
+
+    fun cancelCarDocument(docId: String) {
+        cancelAlarm(alarmId("car30", docId))
+        cancelAlarm(alarmId("car7",  docId))
+    }
+
+    private fun scheduleCarDocumentAlarms(doc: CarDocument) {
+        if (doc.expiryDate.isBlank()) return
+        val now = System.currentTimeMillis()
+        val expiry = parseDateAt(doc.expiryDate, 9, 0)
+        val label = doc.label.ifBlank { doc.type }
+        // 30-day warning
+        val fire30 = expiry - 30 * 86_400_000L
+        if (fire30 > now) scheduleAlarm(
+            id     = alarmId("car30", doc.id),
+            fireAt = fire30,
+            title  = "🚗 $label expires in 30 days",
+            body   = "Expires ${doc.expiryDate}",
+        )
+        // 7-day warning
+        val fire7 = expiry - 7 * 86_400_000L
+        if (fire7 > now) scheduleAlarm(
+            id     = alarmId("car7", doc.id),
+            fireAt = fire7,
+            title  = "⚠️ $label expires in 7 days!",
+            body   = "Expires ${doc.expiryDate} — renew now",
+        )
+    }
 
     /** Called by ReminderReceiver after a recurring reminder fires — advances triggerAt and re-schedules. */
     fun rescheduleRecurring(reminderId: String, recurType: String, firedAt: Long) {

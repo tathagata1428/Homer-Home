@@ -26,6 +26,8 @@ import ro.b4it.homer.ui.screens.ledger.LedgerScreen
 import ro.b4it.homer.ui.screens.lifegoals.LifeGoalsScreen
 import ro.b4it.homer.ui.screens.links.LinksScreen
 import ro.b4it.homer.ui.screens.news.NewsScreen
+import ro.b4it.homer.ui.screens.journal.JournalEditorScreen
+import ro.b4it.homer.ui.screens.journal.JournalScreen
 import ro.b4it.homer.ui.screens.notes.NotesScreen
 import ro.b4it.homer.ui.screens.reminders.RemindersScreen
 import ro.b4it.homer.ui.screens.secrets.SecretNotesScreen
@@ -33,6 +35,7 @@ import ro.b4it.homer.ui.screens.secrets.SecretsScreen
 import ro.b4it.homer.ui.screens.settings.SettingsScreen
 import ro.b4it.homer.ui.screens.sync.SyncScreen
 import ro.b4it.homer.ui.screens.tools.ToolsScreen
+import ro.b4it.homer.ui.screens.car.CarScreen
 import ro.b4it.homer.ui.screens.vault.VaultScreen
 
 @Composable
@@ -65,6 +68,18 @@ fun AppNavHost(
         composable(Screen.Sync.route)       { SyncScreen() }
         composable(Screen.Settings.route)    { SettingsScreen(onNavigateReminders = { navController.navigate(Screen.Reminders.route) }) }
         composable(Screen.Reminders.route)   { RemindersScreen() }
+        composable(Screen.Journal.route)     {
+            JournalScreen(
+                onNewEntry   = { navController.navigate(Screen.JournalEditor.route("new")) },
+                onEntryClick = { id -> navController.navigate(Screen.JournalEditor.route(id)) },
+            )
+        }
+        composable(
+            route     = Screen.JournalEditor.route,
+            arguments = listOf(navArgument("entryId") { type = NavType.StringType }),
+        ) {
+            JournalEditorScreen(onBack = { navController.popBackStack() })
+        }
 
         // ---- Vault sub-screens ----
         composable(Screen.Ledger.route)      { LedgerScreen() }
@@ -75,6 +90,7 @@ fun AppNavHost(
         composable(Screen.SecretNotes.route) { SecretNotesScreen() }
         composable(Screen.Calendar.route)    { CalendarScreen() }
         composable(Screen.Kanban.route)      { KanbanScreen(onTaskClick = { taskId -> navController.navigate(Screen.KanbanTask.route(taskId)) }) }
+        composable(Screen.Car.route)         { CarScreen(onBack = { navController.popBackStack() }) }
 
         composable(
             route     = Screen.KanbanTask.route,

@@ -50,7 +50,7 @@ fun VaultLockScreen(vm: VaultViewModel) {
     LaunchedEffect(storedUser) { if (storedUser != null && username.isEmpty()) username = storedUser!! }
 
     Box(
-        Modifier.fillMaxSize().background(BgPrimary),
+        Modifier.fillMaxSize().background(BgPrimary).imePadding(),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -121,6 +121,7 @@ private val TILES = listOf(
     VaultTile("✅", "Habits",              "Daily habit tracker",   Screen.Habits.route),
     VaultTile("📅", "Calendar",            "Events & reminders",    Screen.Calendar.route),
     VaultTile("💰", "Expense Ledger",      "Track spending",        Screen.Ledger.route),
+    VaultTile("🚗", "Car Tracker",         "Maintenance & docs",    Screen.Car.route),
 )
 
 @Composable

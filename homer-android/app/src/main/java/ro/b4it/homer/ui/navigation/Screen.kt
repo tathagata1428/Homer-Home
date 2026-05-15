@@ -35,4 +35,9 @@ sealed class Screen(val route: String) {
     object Ledger         : Screen("ledger")
     object Inbox          : Screen("inbox")
     object Reminders      : Screen("reminders")
+    object Journal        : Screen("journal")
+    object JournalEditor  : Screen("journal_entry/{entryId}") {
+        fun route(entryId: String) = "journal_entry/$entryId"
+    }
+    object Car            : Screen("car")
 }

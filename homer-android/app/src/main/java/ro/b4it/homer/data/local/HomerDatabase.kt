@@ -27,8 +27,13 @@ import ro.b4it.homer.data.local.entity.*
         AppSetting::class,
         Note::class,
         Reminder::class,
+        JournalEntry::class,
+        CarVehicle::class,
+        CarDocument::class,
+        CarMaintenance::class,
+        CarFuelLog::class,
     ],
-    version = 3,
+    version = 5,
     exportSchema = true,
 )
 abstract class HomerDatabase : RoomDatabase() {
@@ -45,4 +50,6 @@ abstract class HomerDatabase : RoomDatabase() {
     abstract fun appSettingDao(): AppSettingDao
     abstract fun noteDao(): NoteDao
     abstract fun reminderDao(): ReminderDao
+    abstract fun journalDao(): JournalDao
+    abstract fun carDao(): CarDao
 }
