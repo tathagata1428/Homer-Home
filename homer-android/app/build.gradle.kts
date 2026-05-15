@@ -20,7 +20,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "ro.b4it.homer"
+        applicationId = "com.homer.com"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
