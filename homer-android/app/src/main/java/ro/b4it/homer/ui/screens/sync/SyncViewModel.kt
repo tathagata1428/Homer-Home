@@ -3,9 +3,11 @@ package ro.b4it.homer.ui.screens.sync
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import ro.b4it.homer.data.supabase.SupabaseManager
 import ro.b4it.homer.data.sync.SyncEngine
@@ -26,6 +28,16 @@ class SyncViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(SyncState(isBogdan = supabase.isBogdan()))
     val state: StateFlow<SyncState> = _state.asStateFlow()
+
+    init {
+        // Keep isBogdan in sync with session changes (auto sign-in may arrive late)
+        viewModelScope.launch {
+            supabase.sessionStatus.collect { status ->
+                val bogdan = status is SessionStatus.Authenticated && supabase.isBogdan()
+                _state.update { it.copy(isBogdan = bogdan) }
+            }
+        }
+    }
 
     fun syncNow() {
         if (!supabase.isBogdan()) {

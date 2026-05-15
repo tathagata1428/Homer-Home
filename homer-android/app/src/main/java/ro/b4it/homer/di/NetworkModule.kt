@@ -13,11 +13,15 @@ import io.github.jan.supabase.storage.Storage
 import okhttp3.OkHttpClient
 import ro.b4it.homer.BuildConfig
 import java.util.concurrent.TimeUnit
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
+
+    @Provides @Named("syncEmail") fun provideSyncEmail(): String = BuildConfig.SUPABASE_SYNC_EMAIL
+    @Provides @Named("syncPass")  fun provideSyncPass():  String = BuildConfig.SUPABASE_SYNC_PASSWORD
 
     @Provides @Singleton
     fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder()

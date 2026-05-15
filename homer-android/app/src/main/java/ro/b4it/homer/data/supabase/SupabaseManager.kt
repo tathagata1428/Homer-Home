@@ -9,12 +9,15 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ro.b4it.homer.data.preferences.AppPreferences
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Singleton
 class SupabaseManager @Inject constructor(
     val client: SupabaseClient,
     private val prefs: AppPreferences,
+    @Named("syncEmail") private val syncEmail: String,
+    @Named("syncPass")  private val syncPass:  String,
 ) {
 
     /** True when the signed-in user is "bogdan" — only then do we enable Supabase sync. */
@@ -34,6 +37,17 @@ class SupabaseManager @Inject constructor(
 
     /** Current Supabase user ID, or null if not signed in. */
     val userId: String? get() = try { client.auth.currentUserOrNull()?.id } catch (_: Exception) { null }
+
+    /**
+     * Ensure a Supabase session exists before any sync operation.
+     * Called automatically by getFieldState / setFieldState so timing of
+     * the HomerApplication auto-sign-in doesn't matter.
+     */
+    suspend fun ensureSignedIn() {
+        if (userId != null) return          // already authenticated
+        if (syncEmail.isBlank() || syncPass.isBlank()) return
+        runCatching { signIn(syncEmail, syncPass) }
+    }
 
     /** Sign in to Supabase with email + password (bogdan only). */
     suspend fun signIn(email: String, password: String) {
@@ -56,6 +70,7 @@ class SupabaseManager @Inject constructor(
      *   user_id, field_id, kind, value, client_ts, server_ts, ...
      */
     suspend fun getFieldState(fieldId: String): FieldStateRow? {
+        ensureSignedIn()
         val uid = userId ?: return null
         return try {
             client.postgrest["field_state"]
@@ -79,6 +94,7 @@ class SupabaseManager @Inject constructor(
      */
     suspend fun setFieldState(fieldId: String, data: String, ts: Long = System.currentTimeMillis()) {
         if (!isBogdan()) return
+        ensureSignedIn()
         val uid = userId ?: return
         try {
             client.postgrest["field_state"].upsert(
