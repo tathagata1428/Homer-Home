@@ -1,6 +1,7 @@
 package ro.b4it.homer.data.sync
 
 import android.content.Context
+import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
@@ -45,16 +46,20 @@ class SyncEngine @Inject constructor(
 
     /** Pull all synced fields from Supabase and merge into Room. Throws on auth failure. */
     suspend fun pullAll() {
-        supabase.ensureSignedIn()           // throws if credentials bad — surfaces to SyncViewModel
-        if (!supabase.isBogdan()) return
-        runCatching { pullExpenses() }
-        runCatching { pullHabits() }
-        runCatching { pullInbox() }
-        runCatching { pullLinks() }
-        runCatching { pullPomodoroTasks() }
-        runCatching { pullNotes() }
-        runCatching { pullJournal() }
-        runCatching { pullCar() }
+        supabase.ensureSignedIn()
+        Log.d("HomerSync", "pullAll: userId=${supabase.userId} isBogdan=${supabase.isBogdan()}")
+        if (!supabase.isBogdan()) { Log.w("HomerSync", "pullAll: not Bogdan, aborting"); return }
+        runCatching { pullExpenses()     }.onFailure { Log.e("HomerSync", "pullExpenses failed", it) }
+        runCatching { pullHabits()       }.onFailure { Log.e("HomerSync", "pullHabits failed", it) }
+        runCatching { pullInbox()        }.onFailure { Log.e("HomerSync", "pullInbox failed", it) }
+        runCatching { pullLinks()        }.onFailure { Log.e("HomerSync", "pullLinks failed", it) }
+        runCatching { pullPomodoroTasks()}.onFailure { Log.e("HomerSync", "pullTasks failed", it) }
+        runCatching { pullNotes()        }.onFailure { Log.e("HomerSync", "pullNotes failed", it) }
+        runCatching { pullJournal()      }.onFailure { Log.e("HomerSync", "pullJournal failed", it) }
+        runCatching { pullCar()          }.onFailure { Log.e("HomerSync", "pullCar failed", it) }
+        runCatching { pullKanban()       }.onFailure { Log.e("HomerSync", "pullKanban failed", it) }
+        runCatching { pullLifeGoals()    }.onFailure { Log.e("HomerSync", "pullLifeGoals failed", it) }
+        Log.d("HomerSync", "pullAll: done")
     }
 
     // ---- Debounced push ----
@@ -77,6 +82,8 @@ class SyncEngine @Inject constructor(
     fun pushNotesDebounced()         = schedulePush("ls:homer-notes")      { pushNotes() }
     fun pushJournalDebounced()       = schedulePush("ls:homer-journal")    { pushJournal() }
     fun pushCarDebounced()           = schedulePush("ls:homer-car")        { pushCar() }
+    fun pushKanbanDebounced()        = schedulePush("android:kanban")      { pushKanban() }
+    fun pushLifeGoalsDebounced()     = schedulePush("android:life-goals")  { pushLifeGoals() }
 
     /** Push all data to Supabase immediately (no debounce). Throws on auth failure. */
     suspend fun pushAll() {
@@ -90,6 +97,8 @@ class SyncEngine @Inject constructor(
         runCatching { pushNotes() }
         runCatching { pushJournal() }
         runCatching { pushCar() }
+        runCatching { pushKanban() }
+        runCatching { pushLifeGoals() }
     }
 
     /** Push Pomodoro tasks immediately — called on delete so Supabase is updated before any pull. */
@@ -406,6 +415,50 @@ class SyncEngine @Inject constructor(
             blob.documents.forEach   { db.carDao().upsertDocument(it) }
             blob.maintenance.forEach { db.carDao().upsertMaintenance(it) }
             blob.fuel.forEach        { db.carDao().upsertFuelLog(it) }
+        }
+    }
+
+    // ── Kanban ────────────────────────────────────────────────────────────────
+    // Field IDs: "android:kanban-projects" and "android:kanban-tasks"
+    // Format: plain JSON arrays of KanbanProject / KanbanTask
+
+    @Serializable
+    private data class KanbanBlob(
+        val projects: List<KanbanProject> = emptyList(),
+        val tasks: List<KanbanTask> = emptyList(),
+    )
+
+    private suspend fun pushKanban() {
+        val projects = db.kanbanDao().getAllProjects().first()
+        val tasks    = db.kanbanDao().getAllTasks().first()
+        val blob = KanbanBlob(projects = projects, tasks = tasks)
+        supabase.setFieldState("android:kanban", json.encodeToString(KanbanBlob.serializer(), blob))
+    }
+
+    private suspend fun pullKanban() {
+        supabase.getFieldState("android:kanban")?.let { row ->
+            if (row.value.isBlank()) return@let
+            val blob = json.decodeFromString(KanbanBlob.serializer(), row.value)
+            if (blob.projects.isNotEmpty()) db.kanbanDao().upsertProjects(blob.projects)
+            if (blob.tasks.isNotEmpty()) db.kanbanDao().upsertTasks(blob.tasks)
+        }
+    }
+
+    // ── Life Goals ────────────────────────────────────────────────────────────
+    // Field ID: "android:life-goals"
+    // Format: plain JSON array of LifeGoal
+
+    private suspend fun pushLifeGoals() {
+        val goals = db.lifeGoalDao().getAll().first()
+        supabase.setFieldState("android:life-goals",
+            json.encodeToString(ListSerializer(LifeGoal.serializer()), goals))
+    }
+
+    private suspend fun pullLifeGoals() {
+        supabase.getFieldState("android:life-goals")?.let { row ->
+            if (row.value.isBlank()) return@let
+            val goals = json.decodeFromString(ListSerializer(LifeGoal.serializer()), row.value)
+            if (goals.isNotEmpty()) db.lifeGoalDao().upsertAll(goals)
         }
     }
 

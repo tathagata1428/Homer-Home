@@ -2,7 +2,9 @@ package ro.b4it.homer.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
+@Serializable
 @Entity(tableName = "kanban_projects")
 data class KanbanProject(
     @PrimaryKey val id: String,

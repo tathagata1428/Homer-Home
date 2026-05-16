@@ -13,6 +13,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import ro.b4it.homer.data.local.dao.KanbanDao
 import ro.b4it.homer.data.local.entity.KanbanTask
+import ro.b4it.homer.data.sync.SyncEngine
 import ro.b4it.homer.notification.ReminderManager
 import java.util.UUID
 import javax.inject.Inject
@@ -25,6 +26,7 @@ class KanbanTaskDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val dao: KanbanDao,
     private val reminderManager: ReminderManager,
+    private val sync: SyncEngine,
 ) : ViewModel() {
 
     private val taskId: String = checkNotNull(savedStateHandle["taskId"])
@@ -74,6 +76,7 @@ class KanbanTaskDetailViewModel @Inject constructor(
             if (dueDate.isNotBlank()) reminderManager.scheduleTaskDue(updated)
             else reminderManager.cancelTask(updated.id)
             _saved.value = true
+            sync.pushKanbanDebounced()
         }
     }
 
@@ -106,6 +109,7 @@ class KanbanTaskDetailViewModel @Inject constructor(
         viewModelScope.launch {
             dao.upsertTask(task)
             _task.value = task
+            sync.pushKanbanDebounced()
         }
     }
 }

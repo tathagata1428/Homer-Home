@@ -17,6 +17,9 @@ interface KanbanDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertProject(project: KanbanProject)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertProjects(projects: List<KanbanProject>)
+
     @Delete
     suspend fun deleteProject(project: KanbanProject)
 

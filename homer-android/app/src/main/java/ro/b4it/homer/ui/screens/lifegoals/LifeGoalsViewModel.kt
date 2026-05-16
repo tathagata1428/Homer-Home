@@ -9,6 +9,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import ro.b4it.homer.data.local.dao.LifeGoalDao
 import ro.b4it.homer.data.local.entity.LifeGoal
+import ro.b4it.homer.data.sync.SyncEngine
 import ro.b4it.homer.notification.ReminderManager
 import java.util.UUID
 import javax.inject.Inject
@@ -20,6 +21,7 @@ data class MilestoneDto(val id: String, val text: String, val done: Boolean = fa
 class LifeGoalsViewModel @Inject constructor(
     private val dao: LifeGoalDao,
     private val reminderManager: ReminderManager,
+    private val sync: SyncEngine,
 ) : ViewModel() {
 
     val goals = dao.getAll()
@@ -45,6 +47,7 @@ class LifeGoalsViewModel @Inject constructor(
         viewModelScope.launch {
             dao.upsert(goal)
             if (target.isNotBlank()) reminderManager.scheduleGoalReminder(goal)
+            sync.pushLifeGoalsDebounced()
         }
     }
 
@@ -57,6 +60,7 @@ class LifeGoalsViewModel @Inject constructor(
                 updatedAt = System.currentTimeMillis(),
             ))
             if (!done) reminderManager.cancelGoal(goal.id)
+            sync.pushLifeGoalsDebounced()
         }
     }
 
@@ -64,6 +68,7 @@ class LifeGoalsViewModel @Inject constructor(
         viewModelScope.launch {
             dao.delete(goal)
             reminderManager.cancelGoal(goal.id)
+            sync.pushLifeGoalsDebounced()
         }
     }
 
@@ -78,6 +83,7 @@ class LifeGoalsViewModel @Inject constructor(
                 milestonesJson = encode(milestones),
                 updatedAt      = System.currentTimeMillis(),
             ))
+            sync.pushLifeGoalsDebounced()
         }
     }
 
@@ -98,6 +104,7 @@ class LifeGoalsViewModel @Inject constructor(
                 status         = status,
                 updatedAt      = System.currentTimeMillis(),
             ))
+            sync.pushLifeGoalsDebounced()
         }
     }
 
@@ -110,6 +117,7 @@ class LifeGoalsViewModel @Inject constructor(
                 progress       = progress,
                 updatedAt      = System.currentTimeMillis(),
             ))
+            sync.pushLifeGoalsDebounced()
         }
     }
 

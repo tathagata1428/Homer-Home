@@ -12,6 +12,9 @@ interface LifeGoalDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(goal: LifeGoal)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(goals: List<LifeGoal>)
+
     @Query("SELECT * FROM life_goals WHERE targetDate != '' AND status != 'completed' ORDER BY targetDate ASC")
     suspend fun getGoalsWithTargetDates(): List<LifeGoal>
 

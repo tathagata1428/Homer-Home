@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import ro.b4it.homer.data.local.dao.KanbanDao
 import ro.b4it.homer.data.local.entity.KanbanProject
 import ro.b4it.homer.data.local.entity.KanbanTask
+import ro.b4it.homer.data.sync.SyncEngine
 import ro.b4it.homer.notification.ReminderManager
 import java.util.UUID
 import javax.inject.Inject
@@ -17,6 +18,7 @@ import javax.inject.Inject
 class KanbanViewModel @Inject constructor(
     private val dao: KanbanDao,
     private val reminderManager: ReminderManager,
+    private val sync: SyncEngine,
 ) : ViewModel() {
 
     val projects = dao.getActiveProjects()
@@ -41,11 +43,12 @@ class KanbanViewModel @Inject constructor(
                     description = desc, icon = icon, color = color.ifBlank { "#3B82F6" },
                 )
             )
+            sync.pushKanbanDebounced()
         }
     }
 
     fun deleteProject(project: KanbanProject) {
-        viewModelScope.launch { dao.deleteProject(project) }
+        viewModelScope.launch { dao.deleteProject(project); sync.pushKanbanDebounced() }
     }
 
     fun addTask(summary: String, desc: String = "", priority: String = "medium", dueDate: String = "") {
@@ -57,14 +60,15 @@ class KanbanViewModel @Inject constructor(
         viewModelScope.launch {
             dao.upsertTask(task)
             if (dueDate.isNotBlank()) reminderManager.scheduleTaskDue(task)
+            sync.pushKanbanDebounced()
         }
     }
 
     fun moveTask(task: KanbanTask, column: String) {
         viewModelScope.launch {
             dao.moveTask(task.id, column)
-            // Cancel due-date alarm when task is done
             if (column == "done") reminderManager.cancelTask(task.id)
+            sync.pushKanbanDebounced()
         }
     }
 
@@ -72,6 +76,7 @@ class KanbanViewModel @Inject constructor(
         viewModelScope.launch {
             dao.deleteTask(task)
             reminderManager.cancelTask(task.id)
+            sync.pushKanbanDebounced()
         }
     }
 }

@@ -8423,7 +8423,16 @@ let tvWidgetCreated = false;
             session: result && result.session ? result.session : null,
             userData: result && result.user ? result.user : null
           });
-          return hydrateSupabaseSession(payload.session).then(function(){ return payload; });
+          return hydrateSupabaseSession(payload.session).then(function(){
+            // Push all existing localStorage data to Supabase now that session is active
+            setTimeout(function(){
+              Object.keys(LS_FIELD_MAP).forEach(function(k){
+                var v = localStorage.getItem(k);
+                if(v !== null && v !== '') queueLsFieldOp(k, v);
+              });
+            }, 500);
+            return payload;
+          });
         }).catch(function(){ return localPayload; });
       });
     }
@@ -8434,7 +8443,16 @@ let tvWidgetCreated = false;
     }).then(function(r){ return r.json(); }).then(function(d){
       if(d && d.ok) {
         var payload = Object.assign({}, basePayload, { session: d.session || null, userData: d.user || null });
-        return hydrateSupabaseSession(payload.session).then(function(){ return payload; });
+        return hydrateSupabaseSession(payload.session).then(function(){
+          // Push all existing localStorage data to Supabase now that session is active
+          setTimeout(function(){
+            Object.keys(LS_FIELD_MAP).forEach(function(k){
+              var v = localStorage.getItem(k);
+              if(v !== null && v !== '') queueLsFieldOp(k, v);
+            });
+          }, 500);
+          return payload;
+        });
       }
       return tryHashFallback();
     });
@@ -9096,7 +9114,9 @@ let tvWidgetCreated = false;
     'homer-notes':              'ls:homer-notes',
     'homer-recurring':          'ls:homer-recurring',
     'homer-sessions':           'ls:homer-sessions',
-    'homer-weekly-reviews':     'ls:homer-weekly-reviews'
+    'homer-weekly-reviews':     'ls:homer-weekly-reviews',
+    'homer-car':                'ls:homer-car',
+    'homer-journal':            'ls:homer-journal'
   };
   var LS_FIELD_MAP_REVERSE = {};
   Object.keys(LS_FIELD_MAP).forEach(function(k){ LS_FIELD_MAP_REVERSE[LS_FIELD_MAP[k]] = k; });
@@ -9189,6 +9209,7 @@ let tvWidgetCreated = false;
   function isSharedSyncUser(user){
     return String(user || getSharedAuthUser()).trim().toLowerCase() === SHARED_SYNC_USER;
   }
+  window.isSharedSyncUser = isSharedSyncUser;
   function getActiveSyncPass(){
     return String(localStorage.getItem(SYNC_PASS_KEY) || pass.value || '').trim();
   }
