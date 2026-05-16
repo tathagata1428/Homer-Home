@@ -1013,7 +1013,7 @@
       // Embed timestamp inside the stored value so any device can compare freshness
       var ts=getLocalTs(key)||Date.now();
       showBadge('Syncing\u2026','syncing');
-      client.from('field_state').upsert({key:'he_'+key,value:JSON.stringify({_ts:ts,_data:val}),user_id:uid},{onConflict:'key,user_id'})
+      client.from('field_state').upsert({field_id:'ls:'+key,value:val,user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',updated_at:new Date(ts).toISOString()},{onConflict:'user_id,field_id'})
         .then(function(r){
           if(r.error)showBadge('Sync error','error');
           else{delete _syncDirty[key];showBadge('Synced \u2713','synced');}
@@ -1023,20 +1023,18 @@
     function pullKey(key){
       if(!canSync())return;
       var client=getClient(),uid=getUid();if(!client||!uid)return;
-      client.from('field_state').select('value').eq('key','he_'+key).eq('user_id',uid).maybeSingle()
+      client.from('field_state').select('value,server_ts').eq('field_id','ls:'+key).eq('user_id',uid).maybeSingle()
         .then(function(r){
           if(!r.data||!r.data.value)return;
+          // Support old {_ts,_data} wrapper AND new plain-JSON format
           var parsed=safeJson(r.data.value,null);
-          // Support new {_ts,_data} format AND legacy plain-JSON values
-          var remoteTs=parsed&&typeof parsed._ts==='number'?parsed._ts:0;
-          var remoteData=parsed&&typeof parsed._ts==='number'?parsed._data:r.data.value;
+          var remoteData=(parsed&&typeof parsed._ts==='number')?parsed._data:r.data.value;
+          var remoteTs=(parsed&&typeof parsed._ts==='number')?parsed._ts:(r.data.server_ts||0);
           var localTs=getLocalTs(key);
           if(remoteTs>localTs||(localTs===0&&remoteData)){
-            // Remote is newer (or no local timestamp yet — trust remote on first sync)
-            nativeSetItem(key,remoteData);     // native write: bypasses all patches
+            nativeSetItem(key,remoteData);
             setLocalTs(key,remoteTs||Date.now());
           }else if(localTs>remoteTs){
-            // Local is newer — push it next cycle
             markDirty(key);
           }
         })
@@ -1062,25 +1060,24 @@
       var key='homer-inbox';
       var local=safeJson(localStorage.getItem(key),[]);
       showBadge('Syncing\u2026','syncing');
-      client.from('field_state').select('value').eq('key','he_'+key).eq('user_id',uid).maybeSingle()
+      client.from('field_state').select('value,server_ts').eq('field_id','ls:'+key).eq('user_id',uid).maybeSingle()
         .then(function(r){
           var remote=[];
           if(r.data&&r.data.value){
             var parsed=safeJson(r.data.value,null);
-            var remoteData=parsed&&typeof parsed._ts==='number'?parsed._data:r.data.value;
+            var remoteData=(parsed&&typeof parsed._ts==='number')?parsed._data:r.data.value;
             remote=safeJson(remoteData,[]);
           }
           var merged=mergeInboxArrays(local,remote);
           var mergedStr=JSON.stringify(merged);
           if(mergedStr!==JSON.stringify(local)){
             nativeSetItem(key,mergedStr);
-            var mergedTs=Date.now();
-            nativeSetItem('_he_ts_'+key,String(mergedTs));
+            nativeSetItem('_he_ts_'+key,String(Date.now()));
             window.dispatchEvent(new Event('homer-inbox-changed'));
           }
           var ts=getLocalTs(key)||Date.now();
           delete _syncDirty[key];
-          return client.from('field_state').upsert({key:'he_'+key,value:JSON.stringify({_ts:ts,_data:mergedStr}),user_id:uid},{onConflict:'key,user_id'});
+          return client.from('field_state').upsert({field_id:'ls:'+key,value:mergedStr,user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',updated_at:new Date(ts).toISOString()},{onConflict:'user_id,field_id'});
         })
         .then(function(r){
           if(r&&r.error)showBadge('Sync error','error');
@@ -1123,14 +1120,13 @@
       var localRaw=localStorage.getItem(key);
       var local=safeJson(localRaw,null)||{habits:[],completions:{}};
       showBadge('Syncing\u2026','syncing');
-      client.from('field_state').select('value').eq('key','he_'+key).eq('user_id',uid).maybeSingle()
+      client.from('field_state').select('value,server_ts').eq('field_id','ls:'+key).eq('user_id',uid).maybeSingle()
         .then(function(r){
           _habitsPullDone=true;
-          var remoteTs=0,remoteParsed=null;
+          var remoteParsed=null;
           if(r.data&&r.data.value){
             var stored=safeJson(r.data.value,null);
-            remoteTs=stored&&typeof stored._ts==='number'?stored._ts:0;
-            remoteParsed=stored&&typeof stored._ts==='number'?safeJson(stored._data,null):stored;
+            remoteParsed=(stored&&typeof stored._ts==='number')?safeJson(stored._data,null):stored;
           }
           var remote=remoteParsed||{habits:[],completions:{}};
           var merged=mergeHabitsData(local,remote);
@@ -1139,12 +1135,12 @@
             nativeSetItem(key,mergedStr);
             try{window.dispatchEvent(new CustomEvent('homer-habits-restored'));}catch(_e){}
           }
-          var ts=Math.max(getLocalTs(key)||0,remoteTs||0)||Date.now();
+          var ts=getLocalTs(key)||Date.now();
           setLocalTs(key,ts);
           delete _syncDirty[key];
           return client.from('field_state').upsert(
-            {key:'he_'+key,value:JSON.stringify({_ts:ts,_data:mergedStr}),user_id:uid},
-            {onConflict:'key,user_id'}
+            {field_id:'ls:'+key,value:mergedStr,user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',updated_at:new Date(ts).toISOString()},
+            {onConflict:'user_id,field_id'}
           );
         })
         .then(function(r){
@@ -1190,24 +1186,23 @@
       var localRaw=localStorage.getItem(key);
       var local=safeJson(localRaw,null)||emptyVal;
       showBadge('Syncing\u2026','syncing');
-      client.from('field_state').select('value').eq('key','he_'+key).eq('user_id',uid).maybeSingle()
+      client.from('field_state').select('value,server_ts').eq('field_id','ls:'+key).eq('user_id',uid).maybeSingle()
         .then(function(r){
-          var remoteTs=0,remoteParsed=null;
+          var remoteParsed=null;
           if(r.data&&r.data.value){
             var stored=safeJson(r.data.value,null);
-            remoteTs=stored&&typeof stored._ts==='number'?stored._ts:0;
-            remoteParsed=stored&&typeof stored._ts==='number'?safeJson(stored._data,null):stored;
+            remoteParsed=(stored&&typeof stored._ts==='number')?safeJson(stored._data,null):stored;
           }
           var remote=remoteParsed||emptyVal;
           var merged=mergeFn(local,remote);
           var mergedStr=JSON.stringify(merged);
           if(mergedStr!==localRaw)nativeSetItem(key,mergedStr);
-          var ts=Math.max(getLocalTs(key)||0,remoteTs||0)||Date.now();
+          var ts=getLocalTs(key)||Date.now();
           setLocalTs(key,ts);
           delete _syncDirty[key];
           return client.from('field_state').upsert(
-            {key:'he_'+key,value:JSON.stringify({_ts:ts,_data:mergedStr}),user_id:uid},
-            {onConflict:'key,user_id'}
+            {field_id:'ls:'+key,value:mergedStr,user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',updated_at:new Date(ts).toISOString()},
+            {onConflict:'user_id,field_id'}
           );
         })
         .then(function(r){
