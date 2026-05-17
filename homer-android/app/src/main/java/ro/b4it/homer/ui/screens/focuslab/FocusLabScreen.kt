@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import ro.b4it.homer.ui.theme.*
 
 @Composable
@@ -289,16 +291,38 @@ private enum class BreathPhase(val label: String, val durationMs: Int) {
 @Composable
 fun BreathingCircle(active: Boolean) {
     var phase by remember { mutableStateOf(BreathPhase.INHALE) }
-    val targetScale = if (!active) 0.45f else when (phase) {
-        BreathPhase.INHALE, BreathPhase.HOLD_IN -> 1f
-        else -> 0.45f
+    var countdown by remember { mutableIntStateOf(4) }
+    val scale = remember { Animatable(0.45f) }
+
+    LaunchedEffect(active) {
+        if (!active) {
+            scale.animateTo(0.45f, tween(600))
+            phase = BreathPhase.INHALE
+            countdown = 4
+            return@LaunchedEffect
+        }
+        while (true) {
+            // INHALE — animate expand while counting down
+            phase = BreathPhase.INHALE
+            coroutineScope {
+                launch { for (i in 4 downTo 1) { countdown = i; kotlinx.coroutines.delay(1000L) } }
+                scale.animateTo(1f, tween(4000, easing = EaseInOutCubic))
+            }
+            // HOLD IN — stay expanded for 4 beats
+            phase = BreathPhase.HOLD_IN
+            for (i in 4 downTo 1) { countdown = i; kotlinx.coroutines.delay(1000L) }
+            // EXHALE — animate contract while counting down
+            phase = BreathPhase.EXHALE
+            coroutineScope {
+                launch { for (i in 4 downTo 1) { countdown = i; kotlinx.coroutines.delay(1000L) } }
+                scale.animateTo(0.45f, tween(4000, easing = EaseInOutCubic))
+            }
+            // HOLD OUT — stay contracted for 4 beats
+            phase = BreathPhase.HOLD_OUT
+            for (i in 4 downTo 1) { countdown = i; kotlinx.coroutines.delay(1000L) }
+        }
     }
-    val scale by animateFloatAsState(
-        targetValue   = targetScale,
-        animationSpec = tween(if (active) phase.durationMs else 600, easing = EaseInOutCubic),
-        label         = "breathScale",
-        finishedListener = { if (active) phase = BreathPhase.values()[(phase.ordinal + 1) % 4] },
-    )
+
     val glowAlpha by animateFloatAsState(
         targetValue   = if (active) 0.35f else 0.1f,
         animationSpec = tween(600),
@@ -310,21 +334,21 @@ fun BreathingCircle(active: Boolean) {
         androidx.compose.foundation.Canvas(modifier = Modifier.size(200.dp)) {
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(NeonCyan.copy(glowAlpha * scale), NeonPurple.copy(glowAlpha * 0.3f * scale), Color.Transparent),
-                    radius = size.minDimension / 2f * scale,
+                    colors = listOf(NeonCyan.copy(glowAlpha * scale.value), NeonPurple.copy(glowAlpha * 0.3f * scale.value), Color.Transparent),
+                    radius = size.minDimension / 2f * scale.value,
                     center = center,
                 ),
             )
         }
         // Middle ring
         Box(
-            Modifier.size(160.dp).scale(scale * 0.75f + 0.25f).clip(CircleShape)
+            Modifier.size(160.dp).scale(scale.value * 0.75f + 0.25f).clip(CircleShape)
                 .background(Color.Transparent)
                 .border(1.dp, NeonCyan.copy(0.2f), CircleShape),
         )
         // Core circle
         Box(
-            Modifier.size(120.dp).scale(scale).clip(CircleShape)
+            Modifier.size(120.dp).scale(scale.value).clip(CircleShape)
                 .background(Brush.radialGradient(listOf(NeonCyan.copy(0.18f), NeonPurple.copy(0.08f), Color.Transparent)))
                 .border(2.dp, Brush.sweepGradient(listOf(NeonCyan, NeonPurple, NeonCyan)), CircleShape),
             contentAlignment = Alignment.Center,
@@ -332,7 +356,7 @@ fun BreathingCircle(active: Boolean) {
             if (active) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(phase.label, fontSize = 11.sp, letterSpacing = 2.sp, color = NeonCyan, fontWeight = FontWeight.ExtraBold)
-                    Text("4s", fontSize = 9.sp, color = NeonCyan.copy(0.6f), fontWeight = FontWeight.SemiBold)
+                    Text("${countdown}s", fontSize = 9.sp, color = NeonCyan.copy(0.6f), fontWeight = FontWeight.SemiBold)
                 }
             } else {
                 Text("4-4-4-4", fontSize = 10.sp, letterSpacing = 1.sp, color = NeonCyan.copy(0.5f), fontWeight = FontWeight.Bold)

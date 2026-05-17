@@ -15,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,26 +62,34 @@ fun LifeGoalsScreen(vm: LifeGoalsViewModel = hiltViewModel()) {
             }
         }
 
-        // ── Stats grid ──────────────────────────────────────────────────────
+        // ── Stats hero ──────────────────────────────────────────────────────
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(
-                    Triple(total.toString(),      "TOTAL",  NeonCyan),
-                    Triple(inProgress.toString(), "ACTIVE", NeonPink),
-                    Triple(completed.toString(),  "DONE",   AccentGreen),
-                    Triple("$rate%",              "RATE",   NeonGold),
-                ).forEach { (value, label, color) ->
-                    Column(
-                        Modifier.weight(1f)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(color.copy(0.07f))
-                            .border(1.dp, Brush.verticalGradient(listOf(color.copy(0.6f), color.copy(0.2f))), RoundedCornerShape(14.dp))
-                            .padding(vertical = 14.dp, horizontal = 4.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Text(value, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = color)
-                        Text(label, fontSize = 8.sp, letterSpacing = 1.5.sp, color = color.copy(0.65f), fontWeight = FontWeight.Bold)
+            Column(
+                Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(BgCard)
+                    .border(1.dp, Brush.linearGradient(listOf(NeonPurple.copy(0.5f), NeonPink.copy(0.3f), NeonCyan.copy(0.2f))), RoundedCornerShape(20.dp)),
+            ) {
+                Box(Modifier.fillMaxWidth().height(3.dp).background(Brush.horizontalGradient(listOf(NeonPurple, NeonPink, NeonCyan))))
+                Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        Triple(total.toString(),      "TOTAL",       NeonCyan),
+                        Triple(inProgress.toString(), "ACTIVE",      NeonPink),
+                        Triple(completed.toString(),  "COMPLETED",   AccentGreen),
+                        Triple("$rate%",              "RATE",        NeonGold),
+                    ).forEach { (value, label, color) ->
+                        Column(
+                            Modifier.weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(color.copy(0.07f))
+                                .border(1.dp, color.copy(0.3f), RoundedCornerShape(12.dp))
+                                .padding(vertical = 12.dp, horizontal = 2.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                        ) {
+                            Text(value, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = color)
+                            Text(label, fontSize = 7.sp, letterSpacing = 1.2.sp, color = color.copy(0.6f), fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -151,41 +161,71 @@ fun GoalCard(
             Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            // Header row
-            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(
-                    Modifier.size(50.dp).clip(RoundedCornerShape(14.dp))
-                        .background(accent1.copy(0.1f))
-                        .border(1.dp, Brush.linearGradient(listOf(accent1.copy(0.6f), accent2.copy(0.3f))), RoundedCornerShape(14.dp)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(goal.icon.ifBlank { "🎯" }, fontSize = 22.sp)
+            // Header row — ring icon + title + badges
+            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                // Progress ring around goal icon
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(62.dp)) {
+                    androidx.compose.foundation.Canvas(Modifier.size(62.dp)) {
+                        val strokePx = 5.dp.toPx()
+                        val sweep    = -360f * (1f - pct)
+                        drawArc(
+                            color = Color(0xFF110030),
+                            startAngle = -90f, sweepAngle = 360f,
+                            useCenter = false,
+                            style = Stroke(strokePx, cap = StrokeCap.Round),
+                        )
+                        if (pct > 0f) {
+                            drawArc(
+                                color = accent1.copy(0.2f),
+                                startAngle = -90f, sweepAngle = sweep,
+                                useCenter = false,
+                                style = Stroke(strokePx + 7.dp.toPx(), cap = StrokeCap.Round),
+                            )
+                            drawArc(
+                                color = accent1,
+                                startAngle = -90f, sweepAngle = sweep,
+                                useCenter = false,
+                                style = Stroke(strokePx, cap = StrokeCap.Round),
+                            )
+                        }
+                    }
+                    Box(
+                        Modifier.size(46.dp).clip(RoundedCornerShape(13.dp))
+                            .background(accent1.copy(0.1f))
+                            .border(1.dp, accent1.copy(0.4f), RoundedCornerShape(13.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(goal.icon.ifBlank { "🎯" }, fontSize = 20.sp)
+                    }
                 }
+
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(goal.title, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = TextPrimary)
-                    if (goal.category.isNotBlank()) {
-                        Box(
-                            Modifier.clip(RoundedCornerShape(5.dp))
-                                .background(NeonPurple.copy(0.08f))
-                                .border(1.dp, NeonPurple.copy(0.3f), RoundedCornerShape(5.dp))
-                                .padding(horizontal = 8.dp, vertical = 2.dp),
-                        ) {
-                            Text(goal.category.uppercase(), fontSize = 8.sp, letterSpacing = 1.2.sp, color = NeonPurple.copy(0.85f), fontWeight = FontWeight.Bold)
+                    Text(goal.title, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = TextPrimary, lineHeight = 20.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (goal.category.isNotBlank()) {
+                            Box(
+                                Modifier.clip(RoundedCornerShape(5.dp))
+                                    .background(NeonPurple.copy(0.08f))
+                                    .border(1.dp, NeonPurple.copy(0.3f), RoundedCornerShape(5.dp))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                            ) {
+                                Text(goal.category.uppercase(), fontSize = 7.sp, letterSpacing = 1.2.sp, color = NeonPurple.copy(0.85f), fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        if (done) {
+                            Box(
+                                Modifier.clip(RoundedCornerShape(5.dp))
+                                    .background(NeonCyan.copy(0.1f))
+                                    .border(1.dp, NeonCyan.copy(0.55f), RoundedCornerShape(5.dp))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                            ) {
+                                Text("✓ DONE", fontSize = 7.sp, letterSpacing = 1.sp, color = NeonCyan, fontWeight = FontWeight.ExtraBold)
+                            }
                         }
                     }
                 }
-                if (done) {
-                    Box(
-                        Modifier.clip(RoundedCornerShape(20.dp))
-                            .background(NeonCyan.copy(0.1f))
-                            .border(1.dp, NeonCyan.copy(0.55f), RoundedCornerShape(20.dp))
-                            .padding(horizontal = 10.dp, vertical = 5.dp),
-                    ) {
-                        Text("✓ DONE", fontSize = 9.sp, letterSpacing = 1.sp, color = NeonCyan, fontWeight = FontWeight.ExtraBold)
-                    }
-                }
                 IconButton(onClick = onDelete, Modifier.size(30.dp)) {
-                    Icon(Icons.Filled.Delete, null, tint = TextSubtle.copy(0.45f), modifier = Modifier.size(15.dp))
+                    Icon(Icons.Filled.Delete, null, tint = TextSubtle.copy(0.4f), modifier = Modifier.size(14.dp))
                 }
             }
 
@@ -193,13 +233,13 @@ fun GoalCard(
                 Text(goal.description, style = MaterialTheme.typography.bodySmall, color = TextMuted, lineHeight = 18.sp)
             }
 
-            // Progress bar
-            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            // Progress bar with percentage inline
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("PROGRESS", fontSize = 8.sp, letterSpacing = 2.sp, color = TextSubtle, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    Text("${goal.progress}%", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = accent1)
+                    Text("${goal.progress}%", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = accent1)
                 }
-                Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(BgCardAlt)) {
+                Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(Color(0xFF110030))) {
                     if (pct > 0f) {
                         Box(
                             Modifier.fillMaxWidth(pct).height(8.dp).clip(RoundedCornerShape(4.dp))

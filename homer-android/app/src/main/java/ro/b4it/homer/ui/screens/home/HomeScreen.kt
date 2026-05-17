@@ -28,6 +28,8 @@ import com.google.accompanist.permissions.isGranted
 import ro.b4it.homer.data.local.entity.PomodoroTask
 import ro.b4it.homer.data.local.entity.SavedQuote
 import androidx.compose.foundation.shape.CircleShape
+import ro.b4it.homer.ui.screens.focus.PomodoroPhase
+import ro.b4it.homer.ui.screens.focus.PomodoroState
 import ro.b4it.homer.ui.theme.*
 import java.time.format.DateTimeFormatter
 
@@ -40,6 +42,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     val openTasks        by vm.openTasks.collectAsStateWithLifecycle(emptyList())
     val inProgressKanban by vm.inProgressKanban.collectAsStateWithLifecycle(emptyList())
     val savedQuotes      by vm.savedQuotes.collectAsStateWithLifecycle(emptyList())
+    val pomodoroState    by vm.pomodoroState.collectAsStateWithLifecycle()
 
     val locationPerm = rememberPermissionState(Manifest.permission.ACCESS_COARSE_LOCATION)
     LaunchedEffect(Unit) {
@@ -102,6 +105,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                 FocusTasksCard(
                     pomodoroTasks    = openTasks,
                     kanbanTasks      = inProgressKanban,
+                    pomodoroState    = pomodoroState,
                     onDeleteTask     = vm::deleteFocusTask,
                     onClearAll       = vm::clearAllFocusTasks,
                     onDoneKanbanTask = vm::moveKanbanTaskToDone,
@@ -382,10 +386,17 @@ private fun relativeTime(ms: Long): String {
 fun FocusTasksCard(
     pomodoroTasks: List<PomodoroTask>,
     kanbanTasks: List<ro.b4it.homer.data.local.entity.KanbanTask>,
+    pomodoroState: PomodoroState = PomodoroState(),
     onDeleteTask: (PomodoroTask) -> Unit = {},
     onClearAll: () -> Unit = {},
     onDoneKanbanTask: (ro.b4it.homer.data.local.entity.KanbanTask) -> Unit = {},
 ) {
+    val timerColor = when (pomodoroState.phase) {
+        PomodoroPhase.FOCUS  -> NeonPink
+        PomodoroPhase.SHORT  -> AccentGreen
+        PomodoroPhase.LONG   -> AccentBlue
+    }
+
     HomerCard {
         Column(modifier = Modifier.fillMaxWidth()) {
             // Header
@@ -412,6 +423,37 @@ fun FocusTasksCard(
                         Spacer(Modifier.width(6.dp))
                     }
                     Text("⚡", fontSize = 16.sp)
+                }
+
+                // Timer status strip (shown when timer has time remaining)
+                if (pomodoroState.secsLeft > 0) {
+                    val mins = pomodoroState.secsLeft / 60
+                    val secs = pomodoroState.secsLeft % 60
+                    val timeStr = "%02d:%02d".format(mins, secs)
+                    val phaseLabel = pomodoroState.phase.label
+                    val statusIcon = if (pomodoroState.running) "▶" else "⏸"
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(timerColor.copy(0.08f))
+                            .border(1.dp, timerColor.copy(0.3f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(statusIcon, fontSize = 10.sp, color = timerColor)
+                        Text(
+                            phaseLabel.uppercase(),
+                            fontSize = 9.sp, letterSpacing = 1.sp,
+                            fontWeight = FontWeight.ExtraBold, color = timerColor,
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            timeStr,
+                            fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                            color = timerColor, letterSpacing = (-0.5).sp,
+                        )
+                    }
                 }
 
                 // Kanban in-progress tasks

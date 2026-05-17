@@ -232,7 +232,13 @@ fun KanbanScreen(
                     }
 
                     items(projects) { proj ->
-                        ProjectCard(proj, onClick = { vm.selectProject(proj.id) }, onDelete = { vm.deleteProject(proj) })
+                        val projTasks = allTasks.filter { it.projectId == proj.id }
+                        ProjectCard(
+                            project  = proj,
+                            tasks    = projTasks,
+                            onClick  = { vm.selectProject(proj.id) },
+                            onDelete = { vm.deleteProject(proj) },
+                        )
                     }
                 }
             }
@@ -262,43 +268,102 @@ fun KanbanScreen(
 // ── Project card ──────────────────────────────────────────────────────────────
 
 @Composable
-private fun ProjectCard(project: KanbanProject, onClick: () -> Unit, onDelete: () -> Unit) {
-    Row(
+private fun ProjectCard(
+    project: KanbanProject,
+    tasks: List<KanbanTask>,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val projColor = try { Color(android.graphics.Color.parseColor(project.color)) } catch (_: Exception) { NeonPink }
+    val todoCnt  = tasks.count { it.column == "todo" }
+    val progCnt  = tasks.count { it.column == "progress" }
+    val doneCnt  = tasks.count { it.column == "done" }
+    val totalCnt = tasks.size
+    val donePct  = if (totalCnt > 0) doneCnt.toFloat() / totalCnt else 0f
+
+    Box(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(BgCard)
-            .border(1.dp, Brush.linearGradient(listOf(NeonPink.copy(0.4f), NeonCyan.copy(0.2f))), RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+            .border(1.dp, Brush.linearGradient(listOf(projColor.copy(0.45f), NeonCyan.copy(0.15f))), RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick),
     ) {
+        Row(Modifier.height(IntrinsicSize.Min)) {
+        // Left color stripe
         Box(
-            Modifier.size(50.dp).clip(RoundedCornerShape(14.dp))
-                .background(NeonPink.copy(0.08f))
-                .border(1.dp, Brush.linearGradient(listOf(NeonPink.copy(0.5f), NeonCyan.copy(0.3f))), RoundedCornerShape(14.dp)),
-            contentAlignment = Alignment.Center,
-        ) { Text(project.icon.ifBlank { "📋" }, fontSize = 22.sp) }
+            Modifier.width(4.dp).fillMaxHeight().background(
+                Brush.verticalGradient(listOf(projColor, projColor.copy(0.3f)))
+            )
+        )
+        Row(
+            Modifier.weight(1f).padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            // Icon badge with project color
+            Box(
+                Modifier.size(48.dp).clip(RoundedCornerShape(13.dp))
+                    .background(projColor.copy(0.1f))
+                    .border(1.dp, projColor.copy(0.45f), RoundedCornerShape(13.dp)),
+                contentAlignment = Alignment.Center,
+            ) { Text(project.icon.ifBlank { "📋" }, fontSize = 22.sp) }
 
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(project.name, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = TextPrimary)
-            if (project.key.isNotBlank()) {
-                Box(
-                    Modifier.clip(RoundedCornerShape(4.dp))
-                        .background(NeonCyan.copy(0.07f))
-                        .border(1.dp, NeonCyan.copy(0.3f), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 7.dp, vertical = 2.dp),
-                ) {
-                    Text(project.key, fontSize = 9.sp, letterSpacing = 1.2.sp, color = NeonCyan.copy(0.85f), fontWeight = FontWeight.ExtraBold)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text(project.name, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = TextPrimary, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (project.key.isNotBlank()) {
+                        Box(
+                            Modifier.clip(RoundedCornerShape(4.dp))
+                                .background(projColor.copy(0.1f))
+                                .border(1.dp, projColor.copy(0.4f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 6.dp, vertical = 1.dp),
+                        ) {
+                            Text(project.key, fontSize = 8.sp, letterSpacing = 1.2.sp, color = projColor, fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
                 }
-            } else if (project.description.isNotBlank()) {
-                Text(project.description, style = MaterialTheme.typography.bodySmall, color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (totalCnt > 0) {
+                    // Task stat chips
+                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        listOf(
+                            Triple(todoCnt, "TODO",  NeonCyan.copy(0.7f)),
+                            Triple(progCnt, "DOING", NeonPink),
+                            Triple(doneCnt, "DONE",  AccentGreen),
+                        ).forEach { (count, label, c) ->
+                            Box(
+                                Modifier.clip(RoundedCornerShape(4.dp))
+                                    .background(c.copy(0.07f))
+                                    .border(1.dp, c.copy(0.25f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                            ) {
+                                Text("$count $label", fontSize = 7.sp, letterSpacing = 0.5.sp, color = c, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    // Mini completion bar
+                    Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0xFF110030))) {
+                        if (donePct > 0f) {
+                            Box(
+                                Modifier.fillMaxWidth(donePct).height(4.dp).clip(RoundedCornerShape(2.dp))
+                                    .background(Brush.horizontalGradient(listOf(NeonCyan, AccentGreen)))
+                            )
+                        }
+                    }
+                } else if (project.description.isNotBlank()) {
+                    Text(project.description, style = MaterialTheme.typography.bodySmall, color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
         }
-        IconButton(onClick = onDelete, Modifier.size(32.dp)) {
-            Icon(Icons.Filled.Delete, null, tint = AccentRed.copy(0.45f), modifier = Modifier.size(16.dp))
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(end = 8.dp),
+        ) {
+            IconButton(onClick = onDelete, Modifier.size(28.dp)) {
+                Icon(Icons.Filled.Delete, null, tint = AccentRed.copy(0.35f), modifier = Modifier.size(14.dp))
+            }
+            Icon(Icons.Filled.ChevronRight, null, tint = projColor.copy(0.6f), modifier = Modifier.size(18.dp))
         }
-        Icon(Icons.Filled.ChevronRight, null, tint = NeonPink.copy(0.5f), modifier = Modifier.size(20.dp))
+        } // end inner Row
     }
 }
 

@@ -1222,8 +1222,10 @@
       if (ct && ct.style.display !== 'none') renderTab();
     });
 
-    // Pull from Supabase, merge with local, push merged result back
-    setTimeout(function() {
+    // Pull from Supabase, merge with local, push merged result back.
+    // Uses a polling retry so fresh browser sessions (where Supabase auth
+    // takes >2.5s to initialise) still get their data.
+    function doPullAndSync() {
       pullFromSupabase(function(remote) {
         var merged;
         if (remote) {
@@ -1238,8 +1240,7 @@
         } else {
           merged = state.data;
         }
-        // Always push so Android can pull the latest (handles case where
-        // old save() failed before reaching pushToSupabase due to quota error)
+        // Always push so Android can pull the latest
         if (merged.vehicles.length || merged.documents.length ||
             merged.maintenance.length || merged.fuel.length) {
           pushToSupabase(merged);
@@ -1247,7 +1248,33 @@
         var container = document.getElementById(CONTAINER_ID);
         if (container && container.style.display !== 'none') renderTab();
       });
-    }, 2500);
+    }
+    // Poll every 2s (up to 8 retries = 16s) until session is ready
+    var _syncDone = false;
+    (function pollSync(retries) {
+      setTimeout(function() {
+        if (isSyncUser() && getSbClient() && getSbUid()) {
+          _syncDone = true;
+          doPullAndSync();
+        } else if (retries > 0) {
+          pollSync(retries - 1);
+        }
+      }, 2000);
+    })(8);
+
+    // Re-pull whenever car tab becomes visible (handles tab opens after the
+    // 16s init window — e.g. user added car on phone, opens website later)
+    var _tabEl = document.getElementById(CONTAINER_ID);
+    if (_tabEl) {
+      new MutationObserver(function() {
+        if (_tabEl.style.display !== 'none' && !_syncDone) {
+          if (isSyncUser() && getSbClient() && getSbUid()) {
+            _syncDone = true;
+            doPullAndSync();
+          }
+        }
+      }).observe(_tabEl, { attributes: true, attributeFilter: ['style'] });
+    }
   });
 
   function mergeById(local, remote) {

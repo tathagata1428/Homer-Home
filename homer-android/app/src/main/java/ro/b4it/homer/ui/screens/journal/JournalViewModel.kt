@@ -103,9 +103,13 @@ class JournalViewModel @Inject constructor(
                 addJsonObject { put("role", "user");   put("content", user)   }
             }
         }.toString()
+        val isNemotron = "nemotron" in BuildConfig.OC_MODEL.lowercase()
+        val nemoUrl = BuildConfig.NEMOCLAW_GATEWAY_URL.takeIf { it.isNotBlank() }
+        val aiUrl   = if (isNemotron && nemoUrl != null) nemoUrl else BuildConfig.OC_GATEWAY_URL
+        val aiToken = if (isNemotron && nemoUrl != null) BuildConfig.NEMOCLAW_GATEWAY_TOKEN else BuildConfig.OC_GATEWAY_TOKEN
         val req = Request.Builder()
-            .url("${BuildConfig.OC_GATEWAY_URL}/chat/completions")
-            .header("Authorization", "Bearer ${BuildConfig.OC_GATEWAY_TOKEN}")
+            .url("$aiUrl/chat/completions")
+            .header("Authorization", "Bearer $aiToken")
             .header("Content-Type", "application/json")
             .post(body.toRequestBody("application/json".toMediaType()))
             .build()

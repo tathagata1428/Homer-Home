@@ -292,7 +292,7 @@ fun TimerRing(secsLeft: Int, totalSecs: Int, running: Boolean, phase: PomodoroPh
                 )
                 // Bright dot centered exactly on the arc tip
                 val angleRad = Math.toRadians((-90f + sweepAngle).toDouble())
-                val r = (size.minDimension / 2f) - strokePx / 2f
+                val r = size.minDimension / 2f
                 val dotCenter = androidx.compose.ui.geometry.Offset(
                     x = center.x + (r * Math.cos(angleRad)).toFloat(),
                     y = center.y + (r * Math.sin(angleRad)).toFloat(),
