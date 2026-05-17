@@ -13229,7 +13229,6 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   function updateFabVisibility(){
     var access = getJoeyAccessState();
     var show = !!access.ok;
-    console.log('[Joey] Checking visibility - user:', (access.user || '').toLowerCase(), 'show:', show);
     fabBtn.classList.toggle('visible', show);
     fabBtn.style.display = show ? 'flex' : 'none';
     var mnavJoey = document.getElementById('mnav-joey');

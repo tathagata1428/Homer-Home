@@ -17,6 +17,9 @@ data class CarDocument(
     val provider: String = "",     // insurer, authority, etc.
     val cost: Double = 0.0,
     val notes: String = "",
+    val fileData: String? = null,   // base64 data URL — set by website, preserved on Android
+    val fileName: String? = null,
+    val fileType: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
 )

@@ -94,9 +94,13 @@ class CarViewModel @Inject constructor(
         docNumber: String = "", provider: String, cost: Double, notes: String,
     ) {
         viewModelScope.launch {
+            val existing = dao.getDocumentById(id)
             val doc = CarDocument(
                 id = id, vehicleId = vehicleId, type = type, label = label,
                 expiryDate = expiryDate, docNumber = docNumber, provider = provider, cost = cost, notes = notes,
+                fileData = existing?.fileData,
+                fileName = existing?.fileName,
+                fileType = existing?.fileType,
             )
             dao.upsertDocument(doc)
             reminderManager.scheduleCarDocument(doc)

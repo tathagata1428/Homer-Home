@@ -34,25 +34,49 @@
   }
 
   var SB_FIELD_ID = 'ls:homer-car';
-  var LS_KEY = 'homer-car';
+  var LS_KEY      = 'homer-car';   // kept for one-time migration only
   var CONTAINER_ID = 'tab-car';
   var TAB_KEY = 'car';
 
-  /* ── Data helpers ─────────────────────────────────────────────────── */
-  function load() {
-    var raw = localStorage.getItem(LS_KEY);
-    var data = safeJson(raw, null);
-    if (!data || typeof data !== 'object' || Array.isArray(data)) {
-      data = { vehicles: [], documents: [], maintenance: [], fuel: [] };
-    }
-    data.vehicles    = data.vehicles    || [];
-    data.documents   = data.documents   || [];
-    data.maintenance = data.maintenance || [];
-    data.fuel        = data.fuel        || [];
-    return data;
+  /* ── IndexedDB storage (no quota limits) ──────────────────────────── */
+  var IDB_NAME  = 'homer-car-db';
+  var IDB_STORE = 'car';
+  var IDB_KEY   = 'main';
+
+  function emptyData() {
+    return { vehicles: [], documents: [], maintenance: [], fuel: [] };
   }
+  function openIDB(cb) {
+    var req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = function(e) { e.target.result.createObjectStore(IDB_STORE); };
+    req.onsuccess = function(e) { cb(null, e.target.result); };
+    req.onerror   = function()  { cb(new Error('idb'), null); };
+  }
+  function loadFromIDB(cb) {
+    openIDB(function(err, db) {
+      if (err) { cb(emptyData()); return; }
+      var req = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).get(IDB_KEY);
+      req.onsuccess = function() {
+        var d = req.result || {};
+        cb({ vehicles: d.vehicles||[], documents: d.documents||[], maintenance: d.maintenance||[], fuel: d.fuel||[] });
+      };
+      req.onerror = function() { cb(emptyData()); };
+    });
+  }
+  function saveToIDB(data, cb) {
+    openIDB(function(err, db) {
+      if (err) { if (cb) cb(); return; }
+      var tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(data, IDB_KEY);
+      tx.oncomplete = function() { if (cb) cb(); };
+      tx.onerror    = function() { if (cb) cb(); };
+    });
+  }
+
+  /* ── Save ─────────────────────────────────────────────────────────── */
   function save(data) {
-    localStorage.setItem(LS_KEY, JSON.stringify(data));
+    state.data = data;
+    saveToIDB(data);
     pushToSupabase(data);
   }
 
@@ -307,7 +331,7 @@
 
   /* ── State ────────────────────────────────────────────────────────── */
   var state = {
-    data: load(),
+    data: emptyData(),
     selectedVehicleId: null,
     activeTab: 'docs',
     editingDoc: null,
@@ -440,7 +464,6 @@
   function renderTab() {
     var container = document.getElementById(CONTAINER_ID);
     if (!container) return;
-    state.data = load();
     var vehicle = getSelectedVehicle();
 
     var html = '<div class="car-header">';
@@ -1177,18 +1200,39 @@
     }
     tryPatch();
 
+    // Load from IDB; migrate from localStorage on first run
+    loadFromIDB(function(data) {
+      if (!data.vehicles.length && !data.documents.length) {
+        var lsRaw = localStorage.getItem(LS_KEY);
+        var lsData = safeJson(lsRaw, null);
+        if (lsData && typeof lsData === 'object' && !Array.isArray(lsData)) {
+          data = {
+            vehicles:    lsData.vehicles    || [],
+            documents:   lsData.documents   || [],
+            maintenance: lsData.maintenance || [],
+            fuel:        lsData.fuel        || [],
+          };
+          saveToIDB(data, function() {
+            try { localStorage.removeItem(LS_KEY); } catch(_) {}
+          });
+        }
+      }
+      state.data = data;
+      var ct = document.getElementById(CONTAINER_ID);
+      if (ct && ct.style.display !== 'none') renderTab();
+    });
+
     // Pull from Supabase if sync user
     setTimeout(function() {
       pullFromSupabase(function(remote) {
         if (!remote) return;
-        var local = load();
         var merged = {
-          vehicles:    mergeById(local.vehicles, remote.vehicles || []),
-          documents:   mergeById(local.documents, remote.documents || []),
-          maintenance: mergeById(local.maintenance, remote.maintenance || []),
-          fuel:        mergeById(local.fuel, remote.fuel || []),
+          vehicles:    mergeById(state.data.vehicles,    remote.vehicles    || []),
+          documents:   mergeById(state.data.documents,   remote.documents   || []),
+          maintenance: mergeById(state.data.maintenance, remote.maintenance || []),
+          fuel:        mergeById(state.data.fuel,        remote.fuel        || []),
         };
-        localStorage.setItem(LS_KEY, JSON.stringify(merged));
+        saveToIDB(merged);
         state.data = merged;
         var container = document.getElementById(CONTAINER_ID);
         if (container && container.style.display !== 'none') renderTab();

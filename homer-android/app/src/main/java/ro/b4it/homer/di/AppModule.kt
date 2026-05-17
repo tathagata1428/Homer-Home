@@ -91,6 +91,14 @@ private val MIGRATION_4_5 = object : Migration(4, 5) {
     }
 }
 
+private val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `car_documents` ADD COLUMN `fileData` TEXT")
+        db.execSQL("ALTER TABLE `car_documents` ADD COLUMN `fileName` TEXT")
+        db.execSQL("ALTER TABLE `car_documents` ADD COLUMN `fileType` TEXT")
+    }
+}
+
 private val MIGRATION_3_4 = object : Migration(3, 4) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("""
@@ -116,7 +124,7 @@ object AppModule {
     @Provides @Singleton
     fun provideDatabase(@ApplicationContext ctx: Context): HomerDatabase =
         Room.databaseBuilder(ctx, HomerDatabase::class.java, "homer.db")
-            .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             .fallbackToDestructiveMigration()
             .build()
 

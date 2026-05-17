@@ -33,7 +33,7 @@ import ro.b4it.homer.data.local.entity.*
         CarMaintenance::class,
         CarFuelLog::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class HomerDatabase : RoomDatabase() {

@@ -23,6 +23,9 @@ interface CarDao {
     suspend fun deleteVehicle(vehicle: CarVehicle)
 
     // ─── Documents ───────────────────────────────────────────────────────────
+    @Query("SELECT * FROM car_documents WHERE id = :id LIMIT 1")
+    suspend fun getDocumentById(id: String): CarDocument?
+
     @Query("SELECT * FROM car_documents WHERE vehicleId = :vehicleId ORDER BY expiryDate ASC")
     fun getDocuments(vehicleId: String): Flow<List<CarDocument>>
 
