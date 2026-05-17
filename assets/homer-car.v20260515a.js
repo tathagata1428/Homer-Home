@@ -1222,18 +1222,28 @@
       if (ct && ct.style.display !== 'none') renderTab();
     });
 
-    // Pull from Supabase if sync user
+    // Pull from Supabase, merge with local, push merged result back
     setTimeout(function() {
       pullFromSupabase(function(remote) {
-        if (!remote) return;
-        var merged = {
-          vehicles:    mergeById(state.data.vehicles,    remote.vehicles    || []),
-          documents:   mergeById(state.data.documents,   remote.documents   || []),
-          maintenance: mergeById(state.data.maintenance, remote.maintenance || []),
-          fuel:        mergeById(state.data.fuel,        remote.fuel        || []),
-        };
-        saveToIDB(merged);
-        state.data = merged;
+        var merged;
+        if (remote) {
+          merged = {
+            vehicles:    mergeById(state.data.vehicles,    remote.vehicles    || []),
+            documents:   mergeById(state.data.documents,   remote.documents   || []),
+            maintenance: mergeById(state.data.maintenance, remote.maintenance || []),
+            fuel:        mergeById(state.data.fuel,        remote.fuel        || []),
+          };
+          saveToIDB(merged);
+          state.data = merged;
+        } else {
+          merged = state.data;
+        }
+        // Always push so Android can pull the latest (handles case where
+        // old save() failed before reaching pushToSupabase due to quota error)
+        if (merged.vehicles.length || merged.documents.length ||
+            merged.maintenance.length || merged.fuel.length) {
+          pushToSupabase(merged);
+        }
         var container = document.getElementById(CONTAINER_ID);
         if (container && container.style.display !== 'none') renderTab();
       });
