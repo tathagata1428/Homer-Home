@@ -1,5 +1,7 @@
 package ro.b4it.homer.ui.screens.car
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,10 +17,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ro.b4it.homer.data.local.entity.CarDocument
@@ -26,8 +30,25 @@ import ro.b4it.homer.data.local.entity.CarFuelLog
 import ro.b4it.homer.data.local.entity.CarMaintenance
 import ro.b4it.homer.data.local.entity.CarVehicle
 import ro.b4it.homer.ui.theme.*
+import java.io.File
 import java.time.LocalDate
 import java.util.UUID
+
+private fun openDocFile(context: Context, doc: CarDocument) {
+    val raw = doc.fileData ?: return
+    val mimeType = doc.fileType ?: "application/octet-stream"
+    val fileName = doc.fileName ?: "document"
+    val base64 = if (raw.contains(",")) raw.substringAfter(",") else raw
+    val bytes = android.util.Base64.decode(base64, android.util.Base64.DEFAULT)
+    val dir = File(context.cacheDir, "car_docs").also { it.mkdirs() }
+    val file = File(dir, fileName).also { it.writeBytes(bytes) }
+    val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+    val intent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(uri, mimeType)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(intent, "Open with"))
+}
 
 // ─── Document type helpers ────────────────────────────────────────────────────
 
@@ -484,6 +505,7 @@ private fun DashStat(modifier: Modifier, icon: String, label: String, value: Str
 
 @Composable
 private fun DocumentCard(doc: CarDocument, daysUntil: Int, onEdit: () -> Unit, onDelete: () -> Unit) {
+    val context = LocalContext.current
     val hasExpiry = doc.expiryDate.isNotBlank()
     val (urgencyColor, urgencyLabel) = when {
         !hasExpiry      -> NeonCyan.copy(0.6f) to "No expiry"
@@ -521,6 +543,11 @@ private fun DocumentCard(doc: CarDocument, daysUntil: Int, onEdit: () -> Unit, o
                 }
             }
             if (doc.cost > 0) Text("${"%,.2f".format(doc.cost)} lei", fontSize = 10.sp, color = TextSubtle)
+        }
+        if (doc.fileData != null) {
+            IconButton(onClick = { openDocFile(context, doc) }, modifier = Modifier.size(28.dp)) {
+                Text("📎", fontSize = 14.sp)
+            }
         }
         IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
             Icon(Icons.Filled.Delete, null, tint = AccentRed.copy(0.4f), modifier = Modifier.size(14.dp))

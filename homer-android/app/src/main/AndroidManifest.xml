@@ -63,6 +63,17 @@
             android:foregroundServiceType="mediaPlayback"
             android:exported="false" />
 
+        <!-- FileProvider — used to open car documents (PDFs, images) stored as base64 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <!-- WorkManager for background sync -->
         <provider
             android:name="androidx.startup.InitializationProvider"
