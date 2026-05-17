@@ -670,7 +670,7 @@
 
   function patchTabSystem() {
     var orig = window._homerShowTab;
-    if (!orig || orig._hj) return;
+    if (!orig || orig._hjJournal) return;
     function patched(name) {
       var jt = document.getElementById('tab-journal');
       if (jt) jt.style.display = 'none';
@@ -685,7 +685,7 @@
         if (shown) { shown.classList.remove('tab-anim','tab-anim-right','tab-anim-left'); void shown.offsetWidth; shown.classList.add('tab-anim'); }
       }
     }
-    patched._hj = true;
+    patched._hjJournal = true;
     window._homerShowTab = patched;
 
     if (!window._hjTabHideBound) {

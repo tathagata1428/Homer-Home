@@ -407,7 +407,7 @@
 
   function patchTabSystem() {
     var orig = window._homerShowTab;
-    if (!orig || orig._hj) return;
+    if (!orig || orig._hjCar) return;
     function patched(name) {
       var ct = document.getElementById(CONTAINER_ID);
       if (ct) ct.style.display = 'none';
@@ -418,7 +418,7 @@
         if (ct) { ct.classList.remove('tab-anim','tab-anim-right','tab-anim-left'); void ct.offsetWidth; ct.classList.add('tab-anim'); }
       }
     }
-    patched._hj = true;
+    patched._hjCar = true;
     window._homerShowTab = patched;
 
     if (!window._hjCarHideBound) {
