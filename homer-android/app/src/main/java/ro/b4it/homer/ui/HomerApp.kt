@@ -39,31 +39,10 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import ro.b4it.homer.ui.navigation.AppNavHost
 import ro.b4it.homer.ui.navigation.Screen
-import ro.b4it.homer.ui.screens.ambient.AmbientSound
 import ro.b4it.homer.ui.screens.ambient.AmbientSoundsViewModel
 import ro.b4it.homer.ui.screens.ambient.JsBridge
 import ro.b4it.homer.ui.screens.ambient.LocalAmbientVm
 import ro.b4it.homer.ui.theme.*
-
-/** Minimal single-track ambient page. One per WebView so each has its own YT API instance. */
-private fun ambientSoundHtml(key: String, ytId: String): String = """<!DOCTYPE html>
-<html><head><meta charset="utf-8"><style>body{margin:0;overflow:hidden;background:#000;}</style></head>
-<body><div id="yt-$key"></div>
-<script>
-var tracks={'$key':{id:'$ytId',isPlaying:false,volume:70,player:null}};
-function onYouTubeIframeAPIReady(){Object.keys(tracks).forEach(function(k){if(tracks[k].isPlaying&&!tracks[k].player)createPlayer(k);});}
-function createPlayer(key){var t=tracks[key];if(t.player)return;if(typeof YT==='undefined'||!YT.Player)return;
-t.player=new YT.Player('yt-'+key,{height:'1',width:'1',videoId:t.id,
-playerVars:{autoplay:1,controls:0,loop:1,playlist:t.id,modestbranding:1},
-events:{onReady:function(e){e.target.setVolume(t.volume);if(t.isPlaying)e.target.playVideo();else e.target.pauseVideo();try{Android.onPlayerReady(key);}catch(err){}},onError:function(){}}});}
-function setVolAndPlay(key,vol){var t=tracks[key];if(!t)return;t.isPlaying=true;t.volume=vol;if(!t.player){createPlayer(key);return;}t.player.setVolume(vol);t.player.playVideo();}
-function initAndPlay(key,vol){if(typeof YT!=='undefined'&&YT.Player){setVolAndPlay(key,vol);}else{setTimeout(function(){initAndPlay(key,vol);},1500);}}
-function pauseSound(key){var t=tracks[key];if(!t)return;t.isPlaying=false;if(t.player&&t.player.pauseVideo)try{t.player.pauseVideo();}catch(e){}}
-function setVolume(key,vol){var t=tracks[key];if(!t)return;t.volume=vol;if(t.player&&t.player.setVolume)try{t.player.setVolume(vol);}catch(e){}}
-function stopAll(){Object.keys(tracks).forEach(function(k){tracks[k].isPlaying=false;if(tracks[k].player&&tracks[k].player.pauseVideo)try{tracks[k].player.pauseVideo();}catch(e){}});}
-</script>
-<script src="https://www.youtube.com/iframe_api"></script>
-</body></html>"""
 
 private data class BottomNavItem(val screen: Screen, val label: String, val icon: ImageVector)
 
@@ -106,8 +85,7 @@ fun HomerApp() {
 
     // Activity-scoped ambient VM — survives tab navigation
     val ambientVm: AmbientSoundsViewModel = hiltViewModel()
-    // One WebView per sound — separate YT API instances = no one-at-a-time enforcement
-    val soundWebViews = remember { mutableMapOf<String, WebView>() }
+    val webViewRef = remember { mutableStateOf<WebView?>(null) }
     val lifecycle  = LocalLifecycleOwner.current.lifecycle
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -117,10 +95,10 @@ fun HomerApp() {
         }
     }
 
-    // Keep all sound WebViews alive through lifecycle events
+    // Persistent hidden WebView — single AudioContext so all sounds mix simultaneously
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
-            soundWebViews.values.forEach { wv ->
+            webViewRef.value?.let { wv ->
                 when (event) {
                     Lifecycle.Event.ON_RESUME -> { wv.onResume(); wv.resumeTimers() }
                     Lifecycle.Event.ON_PAUSE,
@@ -143,56 +121,42 @@ fun HomerApp() {
         onDispose { lifecycle.removeObserver(observer) }
     }
 
-    // Route JS commands to the correct per-sound WebView by extracting the track key
     LaunchedEffect(Unit) {
         ambientVm.jsCommands.collect { cmd ->
-            when {
-                cmd == "__reload__" -> soundWebViews.values.forEach { it.reload() }
-                cmd.startsWith("stopAll") -> soundWebViews.values.forEach { it.evaluateJavascript(cmd, null) }
-                else -> {
-                    val key = Regex("""'([^']+)'""").find(cmd)?.groupValues?.getOrNull(1)
-                    soundWebViews[key]?.evaluateJavascript(cmd, null)
-                }
-            }
+            if (cmd == "__reload__") webViewRef.value?.reload()
+            else webViewRef.value?.evaluateJavascript(cmd, null)
         }
     }
 
-    // One 1×1 dp WebView per sound — each has its own YouTube API instance so they
-    // never share state and can all play audio simultaneously
-    AmbientSound.values().forEach { sound ->
-        AndroidView(
-            factory = { ctx ->
-                WebView(ctx).apply {
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    @Suppress("DEPRECATION")
-                    settings.mediaPlaybackRequiresUserGesture = false
-                    @Suppress("DEPRECATION")
-                    settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                    settings.userAgentString =
-                        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-                    CookieManager.getInstance().setAcceptCookie(true)
-                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-                    webViewClient = object : WebViewClient() {
-                        override fun onPageFinished(view: WebView, url: String) {
-                            view.evaluateJavascript("""
-                                Object.defineProperty(document,'visibilityState',{configurable:true,get:function(){return 'visible';}});
-                                Object.defineProperty(document,'hidden',{configurable:true,get:function(){return false;}});
-                            """.trimIndent(), null)
-                        }
+    AndroidView(
+        factory = { ctx ->
+            WebView(ctx).apply {
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                @Suppress("DEPRECATION")
+                settings.mediaPlaybackRequiresUserGesture = false
+                @Suppress("DEPRECATION")
+                settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                settings.userAgentString =
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+                CookieManager.getInstance().setAcceptCookie(true)
+                CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView, url: String) {
+                        view.evaluateJavascript("""
+                            Object.defineProperty(document,'visibilityState',{configurable:true,get:function(){return 'visible';}});
+                            Object.defineProperty(document,'hidden',{configurable:true,get:function(){return false;}});
+                        """.trimIndent(), null)
                     }
-                    addJavascriptInterface(JsBridge(ambientVm), "Android")
-                    soundWebViews[sound.key] = this
-                    loadDataWithBaseURL(
-                        "https://b4it.ro/",
-                        ambientSoundHtml(sound.key, sound.ytId),
-                        "text/html", "UTF-8", null,
-                    )
                 }
-            },
-            modifier = Modifier.size(1.dp),
-        )
-    }
+                addJavascriptInterface(JsBridge(ambientVm), "Android")
+                val html = ctx.assets.open("ambient.html").bufferedReader().use { it.readText() }
+                loadDataWithBaseURL("https://b4it.ro/", html, "text/html", "UTF-8", null)
+                webViewRef.value = this
+            }
+        },
+        modifier = Modifier.size(1.dp),
+    )
 
     CompositionLocalProvider(LocalAmbientVm provides ambientVm) {
     if (showMore) {

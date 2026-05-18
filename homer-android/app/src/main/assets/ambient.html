@@ -5,87 +5,169 @@
 <style>body{margin:0;overflow:hidden;background:#000;}</style>
 </head>
 <body>
-<div id="yt-ocean"></div>
-<div id="yt-fire"></div>
-<div id="yt-rain"></div>
-<div id="yt-rainywindow"></div>
-<div id="yt-cafe"></div>
-<div id="yt-lofi"></div>
-<div id="yt-wind"></div>
-<div id="yt-synthwave"></div>
 <script>
+/*
+ * Ambient audio engine — same-origin AudioContext + <audio> streams.
+ * All nodes share ONE AudioContext so Android mixes them natively.
+ * Nature sounds are synthesised; music tracks stream from SomaFM (free, no auth).
+ */
+var ctx = null;
 var tracks = {
-  ocean:       { id:'WHPEKLQID4U', isPlaying:false, volume:70, player:null },
-  fire:        { id:'UgHKb_7884o', isPlaying:false, volume:70, player:null },
-  rain:        { id:'mPZkdNFkNps', isPlaying:false, volume:70, player:null },
-  rainywindow: { id:'Dx5qFachd3A', isPlaying:false, volume:70, player:null },
-  cafe:        { id:'uiMXGIG_DQo', isPlaying:false, volume:70, player:null },
-  lofi:        { id:'Na0w3Mz46GA', isPlaying:false, volume:70, player:null },
-  wind:        { id:'sGkh1W5cbH4', isPlaying:false, volume:70, player:null },
-  synthwave:   { id:'4xDzrJKXOOY', isPlaying:false, volume:70, player:null }
+  ocean:       { type:'synth', synth:'ocean',     gain:null, nodes:[] },
+  fire:        { type:'synth', synth:'fire',       gain:null, nodes:[] },
+  rain:        { type:'synth', synth:'rain',       gain:null, nodes:[] },
+  rainywindow: { type:'stream', url:'https://ice1.somafm.com/lush-128-mp3',      el:null, gain:null },
+  cafe:        { type:'stream', url:'https://ice1.somafm.com/groovesalad-128-mp3',el:null, gain:null },
+  lofi:        { type:'stream', url:'https://ice1.somafm.com/dronezone-128-mp3', el:null, gain:null },
+  wind:        { type:'synth', synth:'wind',       gain:null, nodes:[] },
+  synthwave:   { type:'stream', url:'https://ice1.somafm.com/digitalis-128-mp3', el:null, gain:null }
 };
 
-function onYouTubeIframeAPIReady() {
-  Object.keys(tracks).forEach(function(k) {
-    if (tracks[k].isPlaying && !tracks[k].player) createPlayer(k);
-  });
+function ensureCtx() {
+  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+  if (ctx.state === 'suspended') ctx.resume();
+  return ctx;
 }
 
-function createPlayer(key) {
-  var t = tracks[key];
-  if (t.player) return;
-  if (typeof YT === 'undefined' || !YT.Player) return;
-  t.player = new YT.Player('yt-' + key, {
-    height: '1', width: '1',
-    videoId: t.id,
-    playerVars: { autoplay:1, controls:0, loop:1, playlist:t.id, modestbranding:1 },
-    events: {
-      onReady: function(e) {
-        e.target.setVolume(t.volume);
-        if (t.isPlaying) e.target.playVideo(); else e.target.pauseVideo();
-        try { Android.onPlayerReady(key); } catch(err) {}
-      },
-      onError: function() {}
+/* ── Noise synthesisers ─────────────────────────────────────── */
+function makeNoise(type) {
+  // type: 'white' | 'pink' | 'brown'
+  var ac = ensureCtx();
+  var bufSize = ac.sampleRate * 2;
+  var buf = ac.createBuffer(1, bufSize, ac.sampleRate);
+  var data = buf.getChannelData(0);
+  var b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+  for (var i = 0; i < bufSize; i++) {
+    var white = Math.random() * 2 - 1;
+    if (type === 'pink') {
+      b0=0.99886*b0+white*0.0555179; b1=0.99332*b1+white*0.0750759;
+      b2=0.96900*b2+white*0.1538520; b3=0.86650*b3+white*0.3104856;
+      b4=0.55000*b4+white*0.5329522; b5=-0.7616*b5-white*0.0168980;
+      data[i]=(b0+b1+b2+b3+b4+b5+b6+white*0.5362)/7; b6=white*0.115926;
+    } else if (type === 'brown') {
+      b0=(b0+0.02*white)/1.02; data[i]=b0*3.5;
+    } else {
+      data[i]=white;
     }
-  });
-}
-
-function setVolAndPlay(key, vol) {
-  var t = tracks[key];
-  t.isPlaying = true;
-  t.volume = vol;
-  if (!t.player) { createPlayer(key); return; }
-  t.player.setVolume(vol);
-  t.player.playVideo();
-}
-
-function initAndPlay(key, vol) {
-  if (typeof YT !== 'undefined' && YT.Player) {
-    setVolAndPlay(key, vol);
-  } else {
-    setTimeout(function() { initAndPlay(key, vol); }, 1500);
   }
+  var src = ac.createBufferSource();
+  src.buffer = buf; src.loop = true;
+  return src;
 }
+
+function buildOcean(gainNode) {
+  var ac = ensureCtx();
+  var noise = makeNoise('pink');
+  var lp = ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=500;
+  var lfo = ac.createOscillator(); lfo.frequency.value=0.08;
+  var lfoGain = ac.createGain(); lfoGain.gain.value=200;
+  lfo.connect(lfoGain); lfoGain.connect(lp.frequency);
+  noise.connect(lp); lp.connect(gainNode);
+  lfo.start(); noise.start();
+  return [noise, lp, lfo, lfoGain];
+}
+
+function buildFire(gainNode) {
+  var ac = ensureCtx();
+  var noise = makeNoise('brown');
+  var lp = ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=800;
+  var lfo = ac.createOscillator(); lfo.type='triangle'; lfo.frequency.value=2.5;
+  var lfoGain = ac.createGain(); lfoGain.gain.value=300;
+  lfo.connect(lfoGain); lfoGain.connect(lp.frequency);
+  noise.connect(lp); lp.connect(gainNode);
+  lfo.start(); noise.start();
+  return [noise, lp, lfo, lfoGain];
+}
+
+function buildRain(gainNode) {
+  var ac = ensureCtx();
+  var noise = makeNoise('white');
+  var hp = ac.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=3000;
+  var lp = ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=10000;
+  noise.connect(hp); hp.connect(lp); lp.connect(gainNode);
+  noise.start();
+  return [noise, hp, lp];
+}
+
+function buildWind(gainNode) {
+  var ac = ensureCtx();
+  var noise = makeNoise('pink');
+  var bp = ac.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=400; bp.Q.value=0.5;
+  var lfo = ac.createOscillator(); lfo.frequency.value=0.15;
+  var lfoGain = ac.createGain(); lfoGain.gain.value=150;
+  lfo.connect(lfoGain); lfoGain.connect(bp.frequency);
+  noise.connect(bp); bp.connect(gainNode);
+  lfo.start(); noise.start();
+  return [noise, bp, lfo, lfoGain];
+}
+
+function startSynth(key, vol) {
+  var t = tracks[key];
+  var ac = ensureCtx();
+  if (!t.gain) { t.gain = ac.createGain(); t.gain.connect(ac.destination); }
+  if (t.nodes.length) return; // already running
+  t.gain.gain.value = vol / 100;
+  if      (key === 'ocean') t.nodes = buildOcean(t.gain);
+  else if (key === 'fire')  t.nodes = buildFire(t.gain);
+  else if (key === 'rain')  t.nodes = buildRain(t.gain);
+  else if (key === 'wind')  t.nodes = buildWind(t.gain);
+}
+
+function stopSynth(key) {
+  var t = tracks[key];
+  t.nodes.forEach(function(n) { try { n.stop(); } catch(e) {} try { n.disconnect(); } catch(e) {} });
+  t.nodes = [];
+  if (t.gain) { try { t.gain.disconnect(); } catch(e) {} t.gain = null; }
+}
+
+/* ── Stream players ─────────────────────────────────────────── */
+function startStream(key, vol) {
+  var t = tracks[key];
+  var ac = ensureCtx();
+  if (!t.gain) { t.gain = ac.createGain(); t.gain.connect(ac.destination); }
+  t.gain.gain.value = vol / 100;
+  if (!t.el) {
+    t.el = new Audio();
+    t.el.crossOrigin = 'anonymous';
+    t.el.src = t.url;
+    t.el.loop = true;
+    var src = ac.createMediaElementSource(t.el);
+    src.connect(t.gain);
+  }
+  t.el.play().catch(function(){});
+}
+
+function stopStream(key) {
+  var t = tracks[key];
+  if (t.el) { t.el.pause(); }
+}
+
+/* ── Public API (called from Android via evaluateJavascript) ── */
+function setVolAndPlay(key, vol) {
+  var t = tracks[key]; if (!t) return;
+  ensureCtx();
+  if (t.gain) t.gain.gain.value = vol / 100;
+  if (t.type === 'synth')  startSynth(key, vol);
+  else                     startStream(key, vol);
+  try { Android.onPlayerReady(key); } catch(e) {}
+}
+
+function initAndPlay(key, vol) { setVolAndPlay(key, vol); }
 
 function pauseSound(key) {
-  var t = tracks[key];
-  t.isPlaying = false;
-  if (t.player && t.player.pauseVideo) try { t.player.pauseVideo(); } catch(e) {}
+  var t = tracks[key]; if (!t) return;
+  if (t.type === 'synth') stopSynth(key);
+  else                    stopStream(key);
 }
 
 function setVolume(key, vol) {
-  var t = tracks[key];
-  t.volume = vol;
-  if (t.player && t.player.setVolume) try { t.player.setVolume(vol); } catch(e) {}
+  var t = tracks[key]; if (!t) return;
+  if (t.gain) t.gain.gain.value = vol / 100;
 }
 
 function stopAll() {
-  Object.keys(tracks).forEach(function(k) {
-    tracks[k].isPlaying = false;
-    if (tracks[k].player && tracks[k].player.pauseVideo) try { tracks[k].player.pauseVideo(); } catch(e) {}
-  });
+  Object.keys(tracks).forEach(function(k) { pauseSound(k); });
 }
 </script>
-<script src="https://www.youtube.com/iframe_api"></script>
 </body>
 </html>
