@@ -1,5 +1,4 @@
-export async function onRequest() {
-  const html = `<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
@@ -16,14 +15,14 @@ export async function onRequest() {
 <div id="yt-synthwave"></div>
 <script>
 var tracks = {
-  ocean:      { id:'WHPEKLQID4U', isPlaying:false, volume:70, player:null },
-  fire:       { id:'UgHKb_7884o', isPlaying:false, volume:70, player:null },
-  rain:       { id:'mPZkdNFkNps', isPlaying:false, volume:70, player:null },
-  rainywindow:{ id:'Dx5qFachd3A', isPlaying:false, volume:70, player:null },
-  cafe:       { id:'uiMXGIG_DQo', isPlaying:false, volume:70, player:null },
-  lofi:       { id:'Na0w3Mz46GA', isPlaying:false, volume:70, player:null },
-  wind:       { id:'sGkh1W5cbH4', isPlaying:false, volume:70, player:null },
-  synthwave:  { id:'4xDzrJKXOOY', isPlaying:false, volume:70, player:null }
+  ocean:       { id:'WHPEKLQID4U', isPlaying:false, volume:70, player:null },
+  fire:        { id:'UgHKb_7884o', isPlaying:false, volume:70, player:null },
+  rain:        { id:'mPZkdNFkNps', isPlaying:false, volume:70, player:null },
+  rainywindow: { id:'Dx5qFachd3A', isPlaying:false, volume:70, player:null },
+  cafe:        { id:'uiMXGIG_DQo', isPlaying:false, volume:70, player:null },
+  lofi:        { id:'Na0w3Mz46GA', isPlaying:false, volume:70, player:null },
+  wind:        { id:'sGkh1W5cbH4', isPlaying:false, volume:70, player:null },
+  synthwave:   { id:'4xDzrJKXOOY', isPlaying:false, volume:70, player:null }
 };
 
 function onYouTubeIframeAPIReady() {
@@ -89,12 +88,4 @@ function stopAll() {
 </script>
 <script src="https://www.youtube.com/iframe_api"></script>
 </body>
-</html>`;
-
-  return new Response(html, {
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'no-cache',
-    },
-  });
-}
+</html>
