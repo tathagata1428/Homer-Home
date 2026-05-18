@@ -454,6 +454,204 @@ class SyncEngine @Inject constructor(
         }
     }
 
+    // ── Conflict detection ────────────────────────────────────────────────────
+
+    /**
+     * Fetch cloud counts for each synced field and compare to local Room counts.
+     * Returns one [ConflictInfo] per field where the counts differ and cloud is non-empty.
+     * Call this before pulling to decide whether to prompt the user for resolution.
+     */
+    suspend fun detectConflicts(): List<ConflictInfo> {
+        supabase.ensureSignedIn()
+        if (!supabase.isBogdan()) return emptyList()
+        val result = mutableListOf<ConflictInfo>()
+
+        fun add(key: String, label: String, emoji: String, local: Int, cloud: Int) {
+            if (cloud > 0 && local != cloud) result += ConflictInfo(key, label, emoji, local, cloud)
+        }
+
+        runCatching {
+            val local = db.expenseDao().getAll().first().size
+            val cloud = supabase.getFieldState("ls:homer-expenses")?.let { row ->
+                if (row.value.isBlank()) return@let 0
+                json.decodeFromString(ListSerializer(Expense.serializer()), row.value).size
+            } ?: 0
+            add("ls:homer-expenses", "Expenses", "💰", local, cloud)
+        }
+
+        runCatching {
+            val local = db.habitDao().getAllHabits().first().size
+            val cloud = supabase.getFieldState("ls:homer-habits")?.let { row ->
+                if (row.value.isBlank()) return@let 0
+                json.decodeFromString(WsHabitsBlob.serializer(), row.value).habits.size
+            } ?: 0
+            add("ls:homer-habits", "Habits", "✅", local, cloud)
+        }
+
+        runCatching {
+            val local = db.inboxDao().getAll().first().size
+            val cloud = supabase.getFieldState("ls:homer-inbox")?.let { row ->
+                if (row.value.isBlank()) return@let 0
+                json.decodeFromString(ListSerializer(InboxItem.serializer()), row.value).size
+            } ?: 0
+            add("ls:homer-inbox", "Inbox", "📥", local, cloud)
+        }
+
+        runCatching {
+            val local = db.linkDao().getAll().first().size
+            val cloud = supabase.getFieldState("ls:homer-links")?.let { row ->
+                if (row.value.isBlank()) return@let 0
+                json.decodeFromString(ListSerializer(WsLink.serializer()), row.value).size
+            } ?: 0
+            add("ls:homer-links", "Links", "🔗", local, cloud)
+        }
+
+        runCatching {
+            val local = db.noteDao().getAll().first().size
+            val cloud = supabase.getFieldState("ls:homer-notes")?.let { row ->
+                if (row.value.isBlank()) return@let 0
+                json.decodeFromString(ListSerializer(Note.serializer()), row.value).size
+            } ?: 0
+            add("ls:homer-notes", "Notes", "📝", local, cloud)
+        }
+
+        runCatching {
+            val local = db.journalDao().getAll().first().size
+            val cloud = supabase.getFieldState("ls:homer-journal")?.let { row ->
+                if (row.value.isBlank()) return@let 0
+                json.decodeFromString(ListSerializer(JournalEntry.serializer()), row.value).size
+            } ?: 0
+            add("ls:homer-journal", "Journal", "📔", local, cloud)
+        }
+
+        runCatching {
+            val local = db.kanbanDao().getAllProjects().first().size
+            val cloud = supabase.getFieldState("android:kanban")?.let { row ->
+                if (row.value.isBlank()) return@let 0
+                json.decodeFromString(KanbanBlob.serializer(), row.value).projects.size
+            } ?: 0
+            add("android:kanban", "Projects & Tasks", "📋", local, cloud)
+        }
+
+        runCatching {
+            val local = db.lifeGoalDao().getAll().first().size
+            val cloud = supabase.getFieldState("android:life-goals")?.let { row ->
+                if (row.value.isBlank()) return@let 0
+                json.decodeFromString(ListSerializer(LifeGoal.serializer()), row.value).size
+            } ?: 0
+            add("android:life-goals", "Life Goals", "🎯", local, cloud)
+        }
+
+        runCatching {
+            val local = db.carDao().getVehicles().first().size
+            val cloud = supabase.getFieldState("ls:homer-car")?.let { row ->
+                if (row.value.isBlank()) return@let 0
+                json.decodeFromString(CarBlob.serializer(), row.value).vehicles.size
+            } ?: 0
+            add("ls:homer-car", "Car Data", "🚗", local, cloud)
+        }
+
+        return result
+    }
+
+    /**
+     * Pull all synced fields applying per-field [SyncResolution] decisions.
+     * Fields not present in [resolutions] default to [SyncResolution.MERGE_BOTH].
+     *  - KEEP_LOCAL → push local to cloud; skip pull.
+     *  - MERGE_BOTH → upsert cloud into local (safe, no deletions).
+     *  - USE_CLOUD  → clear local table first, then pull from cloud.
+     */
+    suspend fun pullWithResolutions(resolutions: Map<String, SyncResolution>) {
+        supabase.ensureSignedIn()
+        if (!supabase.isBogdan()) return
+
+        suspend fun apply(
+            key: String,
+            clearFn: suspend () -> Unit,
+            pullFn: suspend () -> Unit,
+            pushFn: suspend () -> Unit,
+        ) = when (resolutions[key] ?: SyncResolution.MERGE_BOTH) {
+            SyncResolution.KEEP_LOCAL -> pushFn()
+            SyncResolution.USE_CLOUD  -> { clearFn(); pullFn() }
+            SyncResolution.MERGE_BOTH -> pullFn()
+        }
+
+        runCatching {
+            apply("ls:homer-expenses",
+                clearFn = { db.expenseDao().clearAll(); db.expenseDao().clearAllBudgets() },
+                pullFn  = ::pullExpenses,
+                pushFn  = ::pushExpenses)
+        }.onFailure { Log.e("HomerSync", "expenses resolution failed", it) }
+
+        runCatching {
+            apply("ls:homer-habits",
+                clearFn = { db.habitDao().clearAll(); db.habitDao().clearAllCompletions() },
+                pullFn  = ::pullHabits,
+                pushFn  = ::pushHabits)
+        }.onFailure { Log.e("HomerSync", "habits resolution failed", it) }
+
+        runCatching {
+            apply("ls:homer-inbox",
+                clearFn = { db.inboxDao().clearAll() },
+                pullFn  = ::pullInbox,
+                pushFn  = ::pushInbox)
+        }.onFailure { Log.e("HomerSync", "inbox resolution failed", it) }
+
+        runCatching {
+            apply("ls:homer-links",
+                clearFn = { db.linkDao().deleteAll() },
+                pullFn  = ::pullLinks,
+                pushFn  = ::pushLinks)
+        }.onFailure { Log.e("HomerSync", "links resolution failed", it) }
+
+        runCatching {
+            apply("ls:pom-tasks",
+                clearFn = { db.pomodoroDao().clearAllTasks() },
+                pullFn  = ::pullPomodoroTasks,
+                pushFn  = ::pushPomodoroTasks)
+        }.onFailure { Log.e("HomerSync", "tasks resolution failed", it) }
+
+        runCatching {
+            apply("ls:homer-notes",
+                clearFn = { db.noteDao().clearAll() },
+                pullFn  = ::pullNotes,
+                pushFn  = ::pushNotes)
+        }.onFailure { Log.e("HomerSync", "notes resolution failed", it) }
+
+        runCatching {
+            apply("ls:homer-journal",
+                clearFn = { db.journalDao().clearAll() },
+                pullFn  = ::pullJournal,
+                pushFn  = ::pushJournal)
+        }.onFailure { Log.e("HomerSync", "journal resolution failed", it) }
+
+        runCatching {
+            apply("ls:homer-car",
+                clearFn = {
+                    db.carDao().clearAllVehicles()
+                    db.carDao().clearAllDocuments()
+                    db.carDao().clearAllMaintenance()
+                    db.carDao().clearAllFuelLog()
+                },
+                pullFn  = ::pullCar,
+                pushFn  = ::pushCar)
+        }.onFailure { Log.e("HomerSync", "car resolution failed", it) }
+
+        runCatching {
+            apply("android:kanban",
+                clearFn = { db.kanbanDao().clearAllProjects(); db.kanbanDao().clearAllTasks() },
+                pullFn  = ::pullKanban,
+                pushFn  = ::pushKanban)
+        }.onFailure { Log.e("HomerSync", "kanban resolution failed", it) }
+
+        runCatching {
+            apply("android:life-goals",
+                clearFn = { db.lifeGoalDao().clearAll() },
+                pullFn  = ::pullLifeGoals,
+                pushFn  = ::pushLifeGoals)
+        }.onFailure { Log.e("HomerSync", "life-goals resolution failed", it) }
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /** Stable, reproducible ID derived from url + name (for links pulled from website). */

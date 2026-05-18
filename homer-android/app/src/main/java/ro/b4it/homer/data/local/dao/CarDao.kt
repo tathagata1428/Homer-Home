@@ -66,4 +66,28 @@ interface CarDao {
 
     @Delete
     suspend fun deleteFuelLog(entry: CarFuelLog)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertVehicles(vehicles: List<CarVehicle>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertDocuments(docs: List<CarDocument>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertMaintenanceAll(records: List<CarMaintenance>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertFuelLogAll(entries: List<CarFuelLog>)
+
+    @Query("DELETE FROM car_vehicles")
+    suspend fun clearAllVehicles()
+
+    @Query("DELETE FROM car_documents")
+    suspend fun clearAllDocuments()
+
+    @Query("DELETE FROM car_maintenance")
+    suspend fun clearAllMaintenance()
+
+    @Query("DELETE FROM car_fuel_log")
+    suspend fun clearAllFuelLog()
 }

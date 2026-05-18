@@ -34,4 +34,10 @@ interface ExpenseDao {
 
     @Delete
     suspend fun deleteBudget(budget: Budget)
+
+    @Query("DELETE FROM expenses")
+    suspend fun clearAll()
+
+    @Query("DELETE FROM budgets")
+    suspend fun clearAllBudgets()
 }

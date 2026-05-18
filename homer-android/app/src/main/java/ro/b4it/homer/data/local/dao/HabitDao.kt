@@ -40,4 +40,10 @@ interface HabitDao {
 
     @Query("DELETE FROM habit_completions WHERE habitClientId = :habitId AND date = :date")
     suspend fun deleteCompletion(habitId: String, date: String)
+
+    @Query("DELETE FROM habits")
+    suspend fun clearAll()
+
+    @Query("DELETE FROM habit_completions")
+    suspend fun clearAllCompletions()
 }

@@ -20,4 +20,7 @@ interface LifeGoalDao {
 
     @Delete
     suspend fun delete(goal: LifeGoal)
+
+    @Query("DELETE FROM life_goals")
+    suspend fun clearAll()
 }

@@ -53,4 +53,10 @@ interface KanbanDao {
 
     @Query("SELECT * FROM kanban_tasks WHERE `column` = 'progress' AND archived = 0 ORDER BY updatedAt DESC LIMIT 10")
     fun getInProgressTasksFlow(): Flow<List<KanbanTask>>
+
+    @Query("DELETE FROM kanban_projects")
+    suspend fun clearAllProjects()
+
+    @Query("DELETE FROM kanban_tasks")
+    suspend fun clearAllTasks()
 }
