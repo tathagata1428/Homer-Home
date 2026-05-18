@@ -431,6 +431,8 @@ class SyncEngine @Inject constructor(
     private suspend fun pushKanban() {
         val projects = db.kanbanDao().getAllProjects().first()
         val tasks    = db.kanbanDao().getAllTasks().first()
+        // Safety guard: never overwrite Supabase with empty local data (prevents wipe on fresh install)
+        if (projects.isEmpty() && tasks.isEmpty()) return
         val blob = KanbanBlob(projects = projects, tasks = tasks)
         supabase.setFieldState("android:kanban", json.encodeToString(KanbanBlob.serializer(), blob))
     }
@@ -450,6 +452,7 @@ class SyncEngine @Inject constructor(
 
     private suspend fun pushLifeGoals() {
         val goals = db.lifeGoalDao().getAll().first()
+        if (goals.isEmpty()) return // don't overwrite Supabase with empty local data
         supabase.setFieldState("android:life-goals",
             json.encodeToString(ListSerializer(LifeGoal.serializer()), goals))
     }

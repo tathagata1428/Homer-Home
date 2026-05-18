@@ -1225,32 +1225,43 @@
       if (ct && ct.style.display !== 'none') renderTab();
     });
 
-    // Pull from Supabase, merge with local, push merged result back
-    setTimeout(function() {
-      pullFromSupabase(function(remote) {
-        var merged;
-        if (remote) {
-          merged = {
-            vehicles:    mergeById(state.data.vehicles,    remote.vehicles    || []),
-            documents:   mergeById(state.data.documents,   remote.documents   || []),
-            maintenance: mergeById(state.data.maintenance, remote.maintenance || []),
-            fuel:        mergeById(state.data.fuel,        remote.fuel        || []),
-          };
-          saveToIDB(merged);
-          state.data = merged;
-        } else {
-          merged = state.data;
-        }
-        // Always push so Android can pull the latest (handles case where
-        // old save() failed before reaching pushToSupabase due to quota error)
-        if (merged.vehicles.length || merged.documents.length ||
-            merged.maintenance.length || merged.fuel.length) {
-          pushToSupabase(merged);
-        }
-        var container = document.getElementById(CONTAINER_ID);
-        if (container && container.style.display !== 'none') renderTab();
-      });
-    }, 2500);
+    // Pull from Supabase when session is ready (fires after Supabase auth)
+    function applyRemote(remote) {
+      if (!remote) return;
+      var merged = {
+        vehicles:    mergeById(state.data.vehicles,    remote.vehicles    || []),
+        documents:   mergeById(state.data.documents,   remote.documents   || []),
+        maintenance: mergeById(state.data.maintenance, remote.maintenance || []),
+        fuel:        mergeById(state.data.fuel,        remote.fuel        || []),
+      };
+      saveToIDB(merged);
+      state.data = merged;
+      if (merged.vehicles.length || merged.documents.length ||
+          merged.maintenance.length || merged.fuel.length) {
+        pushToSupabase(merged);
+      }
+      var container = document.getElementById(CONTAINER_ID);
+      if (container && container.style.display !== 'none') renderTab();
+    }
+
+    window.addEventListener('supabase:session', function(e) {
+      if (e.detail && isBogdan()) pullFromSupabase(applyRemote);
+    });
+
+    // Realtime: react immediately when Android pushes new car data
+    window.addEventListener('supabase:field', function(e) {
+      var payload = e && e.detail;
+      if (!payload) return;
+      var rec = payload.new || payload.old;
+      if (!rec || rec.field_id !== SB_FIELD_ID) return;
+      if (rec.device_id === 'web') return; // skip own writes
+      applyRemote(safeJson(String(rec.value || ''), null));
+    });
+
+    // Fallback: pull after 3 s in case session event already fired
+    if (isBogdan()) {
+      setTimeout(function() { pullFromSupabase(applyRemote); }, 3000);
+    }
   });
 
   function mergeById(local, remote) {
