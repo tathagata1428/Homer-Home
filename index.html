@@ -1441,36 +1441,81 @@
 
 <!-- Cloud Backup Modal -->
 <div id="fab-modal-bg" class="fab-overlay">
-  <div class="fab-dialog">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
-      <h3 style="margin:0;font-size:1.15rem;">&#x2601; Cloud Backup</h3>
-      <button id="fab-modal-close" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:0 4px;line-height:1;">&times;</button>
+  <div class="fab-dialog" style="width:min(480px,95vw);padding:24px 20px;max-height:calc(100dvh - 60px);overflow-y:auto;display:flex;flex-direction:column;gap:0;">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div>
+        <div style="font-size:.6rem;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:3px;">DATA MANAGEMENT</div>
+        <h3 style="margin:0;font-size:1.1rem;font-weight:800;color:var(--text);">Sync &amp; Backup</h3>
+      </div>
+      <button id="fab-modal-close" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--muted);font-size:1.1rem;cursor:pointer;padding:4px 10px;line-height:1.4;">&times;</button>
     </div>
-    <p id="fab-sync-info" style="color:var(--muted);font-size:.85rem;margin-bottom:14px;">Syncing as <strong id="fab-sync-user" style="color:var(--text);"></strong>. Fields sync automatically via Supabase Realtime.</p>
-    <p id="fab-sync-warn" style="color:#f59e0b;font-size:.85rem;margin-bottom:14px;display:none;">No account set up. Create one via the Account button to enable sync.</p>
+
+    <!-- Status card -->
+    <div style="background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;">
+      <div id="fab-status-dot" style="width:40px;height:40px;border-radius:12px;background:rgba(34,197,94,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <p id="fab-sync-info" style="margin:0 0 2px;font-size:.85rem;font-weight:600;color:var(--text);">Syncing as <strong id="fab-sync-user" style="color:#22c55e;"></strong></p>
+        <p id="fab-sync-warn" style="margin:0;font-size:.8rem;color:#f59e0b;display:none;">No account — create one in Account to enable sync.</p>
+        <div id="fab-status" style="font-size:.78rem;color:var(--muted);margin-top:2px;min-height:.9em;"></div>
+      </div>
+    </div>
     <input id="fab-pass" type="hidden">
-    <div style="display:flex;gap:8px;margin-bottom:14px;">
-      <button id="fab-backup" class="btn primary" style="flex:1;padding:10px;font-size:.9rem;">Backup Now</button>
-      <button id="fab-restore" class="btn ghost" style="flex:1;padding:10px;font-size:.9rem;">Restore</button>
-    </div>
-    <label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.85rem;cursor:pointer;margin-bottom:10px;">
-      <input id="fab-auto" type="checkbox" style="accent-color:var(--accent);width:16px;height:16px;">
-      Auto-backup on every change (8s debounce)
-    </label>
-    <div id="fab-status" style="color:var(--muted);font-size:.8rem;min-height:1.2em;margin-bottom:8px;"></div>
-    <div id="fab-backup-health" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;"></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-      <button id="fab-local-export" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">&#8615; Export JSON</button>
-      <button id="fab-local-import" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">&#8679; Import JSON</button>
+
+    <!-- Primary action -->
+    <button id="fab-backup" class="btn primary" style="width:100%;padding:12px;font-size:.95rem;font-weight:700;margin-bottom:10px;border-radius:12px;">
+      &#x2601; Backup Now
+    </button>
+
+    <!-- Secondary actions -->
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <button id="fab-restore" class="btn ghost" style="flex:1;padding:10px;font-size:.85rem;border-radius:10px;">&#8617; Restore</button>
+      <button id="fab-local-export" class="btn ghost" style="flex:1;padding:10px;font-size:.85rem;border-radius:10px;">&#8615; Export JSON</button>
+      <button id="fab-local-import" class="btn ghost" style="flex:1;padding:10px;font-size:.85rem;border-radius:10px;">&#8679; Import</button>
       <input type="file" id="fab-local-import-input" accept=".json" style="display:none">
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-      <button id="fab-inspect-latest" class="btn ghost" style="flex:1;min-width:120px;padding:8px 10px;font-size:.8rem;">Inspect Latest</button>
+
+    <!-- Auto-backup toggle -->
+    <label style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 14px;cursor:pointer;margin-bottom:14px;">
+      <input id="fab-auto" type="checkbox" style="accent-color:var(--accent);width:16px;height:16px;flex-shrink:0;">
+      <span style="font-size:.83rem;color:var(--muted);">Auto-backup on every change <span style="opacity:.6;">(8s debounce)</span></span>
+    </label>
+
+    <!-- Backup health -->
+    <div id="fab-backup-health" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;"></div>
+
+    <!-- Sync scope -->
+    <div style="background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:14px 16px;margin-bottom:14px;">
+      <div style="font-size:.6rem;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">SYNC SCOPE</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 8px;">
+        <span style="font-size:.78rem;color:var(--muted);">&#x1F4B0; Expenses &amp; Budgets</span>
+        <span style="font-size:.78rem;color:var(--muted);">&#x2705; Habits &amp; Completions</span>
+        <span style="font-size:.78rem;color:var(--muted);">&#x1F4E5; Inbox</span>
+        <span style="font-size:.78rem;color:var(--muted);">&#x1F517; Links</span>
+        <span style="font-size:.78rem;color:var(--muted);">&#x1F4DD; Notes</span>
+        <span style="font-size:.78rem;color:var(--muted);">&#x1F4D4; Journal</span>
+        <span style="font-size:.78rem;color:var(--muted);">&#x23F1; Pomodoro Tasks</span>
+        <span style="font-size:.78rem;color:var(--muted);">&#x1F4CB; Kanban Projects</span>
+        <span style="font-size:.78rem;color:var(--muted);">&#x1F3AF; Life Goals</span>
+        <span style="font-size:.78rem;color:var(--muted);">&#x1F697; Car Data + PDFs</span>
+      </div>
     </div>
-    <div id="fab-versions" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);">
-      <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Backup History <button id="fab-versions-toggle" style="background:none;border:none;color:#60a5fa;font-size:.72rem;cursor:pointer;font-weight:700;">Show</button></div>
-      <div id="fab-versions-list" style="display:none;max-height:160px;overflow-y:auto;"></div>
+
+    <!-- Backup history -->
+    <div id="fab-versions" style="background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:14px 16px;margin-bottom:10px;display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:.6rem;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);">BACKUP HISTORY</div>
+        <button id="fab-versions-toggle" style="background:none;border:none;color:#60a5fa;font-size:.75rem;cursor:pointer;font-weight:700;padding:0;">Show</button>
+      </div>
+      <div id="fab-versions-list" style="display:none;max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
     </div>
+
+    <!-- Inspect -->
+    <button id="fab-inspect-latest" class="btn ghost" style="width:100%;padding:9px;font-size:.8rem;border-radius:10px;color:var(--muted);">&#x1F50E; Inspect Latest Backup</button>
+
   </div>
 </div>
 
