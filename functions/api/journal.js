@@ -16,9 +16,15 @@ export async function onRequest(context) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: cors });
   if (request.method !== 'POST') return Response.json({ error: 'Method not allowed' }, { status: 405, headers: cors });
 
-  const gatewayUrl   = String(env.OC_GATEWAY_URL   || process.env.OC_GATEWAY_URL   || '').trim();
-  const gatewayToken = String(env.OC_GATEWAY_TOKEN  || process.env.OC_GATEWAY_TOKEN || '').trim();
   const model        = String(env.OC_MODEL          || process.env.OC_MODEL         || 'inclusionai/ring-2.6-1t:free').trim();
+  const isNemotron   = /nemotron/i.test(model);
+
+  const gatewayUrl   = isNemotron
+    ? String(env.NEMOCLAW_GATEWAY_URL   || process.env.NEMOCLAW_GATEWAY_URL   || env.OC_GATEWAY_URL || process.env.OC_GATEWAY_URL || '').trim()
+    : String(env.OC_GATEWAY_URL         || process.env.OC_GATEWAY_URL         || '').trim();
+  const gatewayToken = isNemotron
+    ? String(env.NEMOCLAW_GATEWAY_TOKEN || process.env.NEMOCLAW_GATEWAY_TOKEN || env.OC_GATEWAY_TOKEN || process.env.OC_GATEWAY_TOKEN || '').trim()
+    : String(env.OC_GATEWAY_TOKEN       || process.env.OC_GATEWAY_TOKEN       || '').trim();
 
   if (!gatewayUrl || !gatewayToken) {
     return Response.json({ error: 'AI gateway not configured' }, { status: 503, headers: cors });

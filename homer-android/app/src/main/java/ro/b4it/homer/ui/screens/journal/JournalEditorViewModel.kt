@@ -163,16 +163,23 @@ class JournalEditorViewModel @Inject constructor(
     }
 
     private suspend fun callAI(system: String, user: String): String {
+        val model = BuildConfig.OC_MODEL
+        val isNemotron = model.contains("nemotron", ignoreCase = true)
+        val gatewayUrl = if (isNemotron && BuildConfig.NEMOCLAW_GATEWAY_URL.isNotBlank())
+            BuildConfig.NEMOCLAW_GATEWAY_URL else BuildConfig.OC_GATEWAY_URL
+        val gatewayToken = if (isNemotron && BuildConfig.NEMOCLAW_GATEWAY_TOKEN.isNotBlank())
+            BuildConfig.NEMOCLAW_GATEWAY_TOKEN else BuildConfig.OC_GATEWAY_TOKEN
+
         val body = buildJsonObject {
-            put("model", BuildConfig.OC_MODEL)
+            put("model", model)
             putJsonArray("messages") {
                 addJsonObject { put("role", "system"); put("content", system) }
                 addJsonObject { put("role", "user");   put("content", user)   }
             }
         }.toString()
         val req = Request.Builder()
-            .url("${BuildConfig.OC_GATEWAY_URL}/chat/completions")
-            .header("Authorization", "Bearer ${BuildConfig.OC_GATEWAY_TOKEN}")
+            .url("$gatewayUrl/chat/completions")
+            .header("Authorization", "Bearer $gatewayToken")
             .header("Content-Type", "application/json")
             .post(body.toRequestBody("application/json".toMediaType()))
             .build()
