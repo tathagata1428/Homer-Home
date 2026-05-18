@@ -3,11 +3,8 @@ package ro.b4it.homer.data.sync
 import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
-import io.github.jan.supabase.realtime.PostgresAction
-import io.github.jan.supabase.realtime.channel
-import io.github.jan.supabase.realtime.postgresChangeFlow
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.*
@@ -44,60 +41,7 @@ class SyncEngine @Inject constructor(
     /** Called on app launch after auth is determined. */
     fun start() {
         if (!supabase.isBogdan()) return
-        scope.launch {
-            pullAll()
-            startRealtime()   // subscribe AFTER auth is established by pullAll
-        }
-    }
-
-    /**
-     * Subscribe to Supabase Realtime changes on field_state.
-     * When the website saves any field, Android is notified instantly via WebSocket
-     * and pulls only the changed field — no polling needed.
-     */
-    private suspend fun startRealtime() {
-        val uid = supabase.userId ?: return
-        try {
-            val channel = supabase.client.channel("homer-sync")
-            val inserts = channel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
-                table = "field_state"
-            }
-            val updates = channel.postgresChangeFlow<PostgresAction.Update>(schema = "public") {
-                table = "field_state"
-            }
-            fun handleRecord(record: JsonObject) {
-                val rowUid  = record["user_id"]?.jsonPrimitive?.content ?: return
-                if (rowUid != uid) return
-                val fieldId = record["field_id"]?.jsonPrimitive?.content ?: return
-                Log.d("HomerSync", "Realtime: $fieldId changed — pulling")
-                scope.launch { handleRemoteChange(fieldId) }
-            }
-            inserts.onEach { handleRecord(it.record) }.launchIn(scope)
-            updates.onEach { handleRecord(it.record) }.launchIn(scope)
-            channel.subscribe()
-            Log.d("HomerSync", "Realtime: subscribed to field_state for uid=$uid")
-        } catch (e: Exception) {
-            Log.e("HomerSync", "Realtime: setup failed — ${e.message}")
-        }
-    }
-
-    /** Pull a single field immediately when a remote change arrives. */
-    private suspend fun handleRemoteChange(fieldId: String) {
-        runCatching {
-            when (fieldId) {
-                "ls:homer-expenses",
-                "ls:homer-expense-budgets" -> pullExpenses()
-                "ls:homer-habits"          -> pullHabits()
-                "ls:homer-inbox"           -> pullInbox()
-                "ls:homer-links"           -> pullLinks()
-                "pom.tasks.v1"             -> pullPomodoroTasks()
-                "ls:homer-notes"           -> pullNotes()
-                "ls:homer-journal"         -> pullJournal()
-                "ls:homer-car"             -> pullCar()
-                "android:kanban"           -> pullKanban()
-                "android:life-goals"       -> pullLifeGoals()
-            }
-        }.onFailure { Log.e("HomerSync", "handleRemoteChange($fieldId) failed", it) }
+        scope.launch { pullAll() }
     }
 
     /** Pull all synced fields from Supabase and merge into Room. Throws on auth failure. */

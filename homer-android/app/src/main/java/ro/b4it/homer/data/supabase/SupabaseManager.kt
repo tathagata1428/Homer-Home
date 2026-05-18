@@ -75,7 +75,7 @@ class SupabaseManager @Inject constructor(
         ensureSignedIn()
         val uid = userId ?: return null
         return try {
-            val row = client.postgrest["field_state"]
+            client.postgrest["field_state"]
                 .select {
                     filter {
                         eq("user_id", uid)
@@ -84,12 +84,7 @@ class SupabaseManager @Inject constructor(
                     limit(1)
                 }
                 .decodeSingleOrNull<FieldStateRow>()
-            android.util.Log.d("HomerSync", "getFieldState($fieldId): ${if (row == null) "null" else "value.len=${row.value.length}"}")
-            row
-        } catch (e: Exception) {
-            android.util.Log.e("HomerSync", "getFieldState($fieldId) error: ${e.message}")
-            null
-        }
+        } catch (_: Exception) { null }
     }
 
     /**

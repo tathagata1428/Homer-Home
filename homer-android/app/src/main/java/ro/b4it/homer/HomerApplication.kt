@@ -6,12 +6,7 @@ import android.app.NotificationManager
 import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
 import dagger.hilt.android.HiltAndroidApp
-import ro.b4it.homer.worker.SyncWorker
-import java.util.concurrent.TimeUnit
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -45,7 +40,6 @@ class HomerApplication : Application(), Configuration.Provider {
         super.onCreate()
         createNotificationChannels()
         reminderManager.scheduleAll()
-        scheduleHourlySync()
         initSupabaseSync()
     }
 
@@ -57,15 +51,6 @@ class HomerApplication : Application(), Configuration.Provider {
      * the savedUser restoration and disable sync. Explicit sign-out is handled
      * in AccountViewModel which calls setCachedAuthUser(null) directly.
      */
-    private fun scheduleHourlySync() {
-        val request = PeriodicWorkRequestBuilder<SyncWorker>(1, TimeUnit.HOURS).build()
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            SyncWorker.UNIQUE_NAME,
-            ExistingPeriodicWorkPolicy.KEEP,
-            request,
-        )
-    }
-
     private fun initSupabaseSync() {
         appScope.launch {
             // Restore saved username so isBogdan() can return true immediately.

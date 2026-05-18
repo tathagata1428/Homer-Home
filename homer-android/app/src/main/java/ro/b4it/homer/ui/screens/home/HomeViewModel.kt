@@ -24,8 +24,6 @@ import ro.b4it.homer.data.remote.WeatherResponse
 import ro.b4it.homer.data.remote.weatherCodeToDesc
 import ro.b4it.homer.data.remote.weatherCodeToIcon
 import ro.b4it.homer.data.sync.SyncEngine
-import ro.b4it.homer.timer.PomodoroController
-import ro.b4it.homer.ui.screens.focus.PomodoroState
 import java.time.LocalDateTime
 import javax.inject.Inject
 import kotlin.random.Random
@@ -39,7 +37,6 @@ class HomeViewModel @Inject constructor(
     private val kanbanDao: KanbanDao,
     private val quoteDao: QuoteDao,
     private val sync: SyncEngine,
-    private val pomodoroController: PomodoroController,
 ) : ViewModel() {
 
     // ---- Clock ----
@@ -76,8 +73,6 @@ class HomeViewModel @Inject constructor(
     val openTasks = pomodoroDao.getOpenTasks()
 
     val inProgressKanban = kanbanDao.getInProgressTasksFlow()
-
-    val pomodoroState: StateFlow<PomodoroState> = pomodoroController.state
 
     // Internal
     private var allQuotes: List<Quote> = emptyList()

@@ -1,12 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Allow HTTP to local/VPN Ollama server (Tailscale or LAN IP) -->
-    <base-config cleartextTrafficPermitted="true" />
-    <!-- Enforce HTTPS for cloud services -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">supabase.co</domain>
         <domain includeSubdomains="true">b4it.ro</domain>
         <domain includeSubdomains="true">openrouter.ai</domain>
-        <domain includeSubdomains="true">pages.dev</domain>
     </domain-config>
 </network-security-config>

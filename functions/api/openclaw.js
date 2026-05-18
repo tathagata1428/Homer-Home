@@ -187,24 +187,19 @@ export async function onRequest(context) {
     const rawGatewayUrl  = envGet('OC_GATEWAY_URL');
     const model = (function(m) {
       m = String(m || '').trim();
-      if (!m) m = 'inclusionai/ring-2.6-1t:free';
+      if (!m || /nemotron/i.test(m)) m = 'inclusionai/ring-2.6-1t:free';
       if (/^kimi-k2\.5(:cloud)?$/i.test(m)) m = 'kimi-k2.6:cloud';
       return m;
     })(envGet('OC_MODEL') || 'inclusionai/ring-2.6-1t:free');
     let resolvedUrl = rawPersonalUrl || rawGatewayUrl || 'https://openrouter.ai/api/v1';
-    const isNemotron = /nemotron/i.test(model);
-    const isCloud = !isNemotron && /inclusionai|\/ring-|kimi|mistralai|google\//i.test(model);
-    const isLocal  = !/openrouter\.ai/i.test(resolvedUrl);
-    if (isNemotron) {
-      resolvedUrl = envGet('NEMOCLAW_GATEWAY_URL') || resolvedUrl;
-    } else if (isCloud && isLocal) {
-      resolvedUrl = 'https://openrouter.ai/api/v1';
-    }
+    const isCloud = /inclusionai|\/ring-|kimi|mistralai|google\//i.test(model);
+    const isLocal = !/openrouter\.ai/i.test(resolvedUrl);
+    if (isCloud && isLocal) resolvedUrl = 'https://openrouter.ai/api/v1';
     return Response.json({
       ok: true,
       resolvedGatewayUrl: resolvedUrl,
       rawPersonalUrl, rawGatewayUrl,
-      model, isNemotron, isCloudModel: isCloud, wouldRedirect: isCloud && isLocal,
+      model, isCloudModel: isCloud, wouldRedirect: isCloud && isLocal,
       hasToken: !!(envGet('OC_GATEWAY_TOKEN') || envGet('OC_PERSONAL_GATEWAY_TOKEN')),
       envKeys: Object.keys(env || {})
     });
@@ -217,7 +212,7 @@ export async function onRequest(context) {
       const envGet = (k) => String(e[k] || e[k.trim()] || Object.entries(e || {}).find(([ek]) => ek.trim() === k.trim())?.[1] || '').trim();
       const primaryModel = (function(m) {
         m = String(m || '').trim();
-        if (!m) m = 'inclusionai/ring-2.6-1t:free';
+        if (!m || /nemotron/i.test(m)) m = 'inclusionai/ring-2.6-1t:free';
         if (/^kimi-k2\.5(:cloud)?$/i.test(m)) m = 'kimi-k2.6:cloud';
         return m;
       })(envGet('OC_MODEL') || 'inclusionai/ring-2.6-1t:free');
@@ -225,18 +220,12 @@ export async function onRequest(context) {
       let gatewayUrl   = envGet('OC_PERSONAL_GATEWAY_URL') || envGet('OC_GATEWAY_URL') || 'https://openrouter.ai/api/v1';
       let gatewayToken = envGet('OC_PERSONAL_GATEWAY_TOKEN') || envGet('OC_GATEWAY_TOKEN');
 
-      if (/nemotron/i.test(primaryModel)) {
-        // Nemotron runs on Ollama — share the NemoClaw gateway
-        gatewayUrl   = envGet('NEMOCLAW_GATEWAY_URL') || gatewayUrl;
-        gatewayToken = envGet('NEMOCLAW_GATEWAY_TOKEN') || gatewayToken;
-      } else {
-        // Cloud models (ring, kimi, inclusionai, etc.) must go to OpenRouter, not a local tunnel
-        const isCloudModel   = /inclusionai|\/ring-|kimi|mistralai|google\//i.test(primaryModel);
-        const isLocalGateway = !/openrouter\.ai/i.test(gatewayUrl);
-        if (isCloudModel && isLocalGateway) {
-          gatewayUrl   = 'https://openrouter.ai/api/v1';
-          gatewayToken = envGet('OC_GATEWAY_TOKEN') || envGet('OC_PERSONAL_GATEWAY_TOKEN');
-        }
+      // Cloud models (ring, kimi, inclusionai, etc.) must go to OpenRouter, not a local tunnel
+      const isCloudModel   = /inclusionai|\/ring-|kimi|mistralai|google\//i.test(primaryModel);
+      const isLocalGateway = !/openrouter\.ai/i.test(gatewayUrl);
+      if (isCloudModel && isLocalGateway) {
+        gatewayUrl   = 'https://openrouter.ai/api/v1';
+        gatewayToken = envGet('OC_GATEWAY_TOKEN') || envGet('OC_PERSONAL_GATEWAY_TOKEN');
       }
 
       // Fallback model tried automatically on 429 / rate-limit

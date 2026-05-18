@@ -15,8 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -76,16 +74,8 @@ fun HabitsScreen(vm: HabitsViewModel = hiltViewModel()) {
 
         // ── Today's Mission card ─────────────────────────────────────────────
         item {
-            val ringColor = if (allDone) NeonCyan else NeonPink
-            val topStreaks = habits
-                .map { h -> h to streakDays(h.clientId, recent) }
-                .filter { (_, s) -> s > 0 }
-                .sortedByDescending { (_, s) -> s }
-                .take(3)
-
-            Column(
-                Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
+            Box(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
                     .background(BgCard)
                     .border(
                         1.dp,
@@ -93,118 +83,54 @@ fun HabitsScreen(vm: HabitsViewModel = hiltViewModel()) {
                             if (allDone) listOf(NeonCyan, NeonGold.copy(0.8f))
                             else listOf(NeonPink, NeonCyan.copy(0.6f))
                         ),
-                        RoundedCornerShape(20.dp),
-                    ),
+                        RoundedCornerShape(18.dp),
+                    )
+                    .padding(18.dp),
             ) {
-                // Top neon stripe
-                Box(
-                    Modifier.fillMaxWidth().height(3.dp)
-                        .background(Brush.horizontalGradient(
-                            if (allDone) listOf(NeonCyan, NeonGold) else listOf(NeonPink, NeonCyan)
-                        ))
-                )
-                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    // Title + perfect day badge
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "TODAY'S MISSION",
-                            fontSize = 9.sp, letterSpacing = 2.5.sp,
-                            color = NeonPink.copy(0.75f), fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f),
-                        )
+                        Column(Modifier.weight(1f)) {
+                            Text("TODAY'S MISSION", fontSize = 9.sp, letterSpacing = 2.5.sp, color = NeonPink.copy(0.75f), fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(4.dp))
+                            Text("$doneToday / $total", fontSize = 38.sp, fontWeight = FontWeight.ExtraBold, color = if (allDone) NeonCyan else NeonPink)
+                        }
                         if (allDone) {
                             Box(
-                                Modifier.clip(RoundedCornerShape(20.dp))
-                                    .background(NeonCyan.copy(0.12f))
-                                    .border(1.dp, NeonCyan.copy(0.65f), RoundedCornerShape(20.dp))
-                                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                                Modifier.clip(RoundedCornerShape(12.dp))
+                                    .background(NeonCyan.copy(0.08f))
+                                    .border(1.dp, NeonCyan.copy(0.6f), RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                contentAlignment = Alignment.Center,
                             ) {
-                                Text("PERFECT DAY ✓", fontSize = 8.sp, letterSpacing = 1.sp, color = NeonCyan, fontWeight = FontWeight.ExtraBold)
+                                Text("PERFECT\nDAY  ✓", fontSize = 10.sp, letterSpacing = 1.2.sp, color = NeonCyan, fontWeight = FontWeight.ExtraBold, lineHeight = 15.sp)
+                            }
+                        } else {
+                            Box(
+                                Modifier.size(58.dp).clip(CircleShape)
+                                    .background(NeonPink.copy(0.07f))
+                                    .border(1.dp, NeonPink.copy(0.4f), CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text("${(pct * 100).toInt()}%", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = NeonPink)
                             }
                         }
                     }
-
-                    // Circular ring + stats
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(92.dp)) {
-                            androidx.compose.foundation.Canvas(Modifier.size(92.dp)) {
-                                val strokePx = 9.dp.toPx()
-                                val sweep = -360f * (1f - pct)
-                                drawArc(
-                                    color = Color(0xFF110030),
-                                    startAngle = -90f, sweepAngle = 360f,
-                                    useCenter = false,
-                                    style = Stroke(strokePx, cap = StrokeCap.Round),
-                                )
-                                if (pct > 0f) {
-                                    drawArc(
-                                        color = ringColor.copy(0.20f),
-                                        startAngle = -90f, sweepAngle = sweep,
-                                        useCenter = false,
-                                        style = Stroke(strokePx + 9.dp.toPx(), cap = StrokeCap.Round),
-                                    )
-                                    drawArc(
-                                        color = ringColor,
-                                        startAngle = -90f, sweepAngle = sweep,
-                                        useCenter = false,
-                                        style = Stroke(strokePx, cap = StrokeCap.Round),
-                                    )
-                                }
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                                Text("${(pct * 100).toInt()}%", fontSize = 19.sp, fontWeight = FontWeight.ExtraBold, color = ringColor, letterSpacing = (-0.5).sp)
-                                if (total > 0) Text("$doneToday/$total", fontSize = 9.sp, color = TextMuted)
-                            }
-                        }
-
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(
-                                if (allDone) "ALL DONE!" else "$doneToday of $total habits",
-                                fontSize = 17.sp, fontWeight = FontWeight.ExtraBold,
-                                color = if (allDone) NeonCyan else TextPrimary,
+                    Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(BgCardAlt)) {
+                        if (pct > 0f) {
+                            Box(
+                                Modifier.fillMaxWidth(pct).height(6.dp).clip(RoundedCornerShape(3.dp))
+                                    .background(Brush.horizontalGradient(if (allDone) listOf(NeonCyan, NeonGold) else listOf(NeonPink, NeonCyan)))
                             )
-                            Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFF110030))) {
-                                if (pct > 0f) {
-                                    Box(
-                                        Modifier.fillMaxWidth(pct).height(6.dp).clip(RoundedCornerShape(3.dp))
-                                            .background(Brush.horizontalGradient(if (allDone) listOf(NeonCyan, NeonGold) else listOf(NeonPink, NeonCyan)))
-                                    )
-                                }
-                            }
-                            if (total > 0) {
-                                val filled = (pct * 14).toInt()
-                                Text(
-                                    "${"▓".repeat(filled)}${"░".repeat(14 - filled)}",
-                                    fontSize = 10.sp,
-                                    color = ringColor.copy(0.35f),
-                                    fontFamily = FontFamily.Monospace,
-                                )
-                            }
                         }
                     }
-
-                    // Streak leaders footer
-                    if (topStreaks.isNotEmpty()) {
-                        Box(Modifier.fillMaxWidth().height(1.dp).background(Brush.horizontalGradient(listOf(NeonGold.copy(0.3f), Color.Transparent))))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            topStreaks.forEach { (habit, streak) ->
-                                Row(
-                                    Modifier.weight(1f)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(NeonGold.copy(0.06f))
-                                        .border(1.dp, NeonGold.copy(0.25f), RoundedCornerShape(10.dp))
-                                        .padding(horizontal = 8.dp, vertical = 7.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                ) {
-                                    Text(habit.emoji.ifBlank { "✅" }, fontSize = 14.sp)
-                                    Column {
-                                        Text("$streak", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = NeonGold, letterSpacing = (-0.5).sp)
-                                        Text("day streak", fontSize = 7.sp, color = TextSubtle, letterSpacing = 0.3.sp)
-                                    }
-                                }
-                            }
-                        }
+                    if (total > 0) {
+                        val filled = (pct * 20).toInt()
+                        Text(
+                            "${"▓".repeat(filled)}${"░".repeat(20 - filled)}  ${(pct * 100).toInt()}%",
+                            fontSize = 11.sp,
+                            color = if (allDone) NeonCyan.copy(0.5f) else NeonPink.copy(0.4f),
+                            fontFamily = FontFamily.Monospace,
+                        )
                     }
                 }
             }

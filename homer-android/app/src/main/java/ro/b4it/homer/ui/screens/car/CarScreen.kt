@@ -2,10 +2,6 @@ package ro.b4it.homer.ui.screens.car
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.provider.OpenableColumns
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,7 +20,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
@@ -315,12 +310,11 @@ fun CarScreen(onBack: () -> Unit, vm: CarViewModel = hiltViewModel()) {
         DocumentDialog(
             existing = editingDoc,
             vehicleId = vehicleId,
-            onSave = { type, label, expiry, docNumber, provider, cost, notes, fileData, fileName, fileType ->
+            onSave = { type, label, expiry, docNumber, provider, cost, notes ->
                 vm.saveDocument(
                     id = editingDoc?.id ?: UUID.randomUUID().toString(),
                     vehicleId = vehicleId, type = type, label = label,
                     expiryDate = expiry, docNumber = docNumber, provider = provider, cost = cost, notes = notes,
-                    fileData = fileData, fileName = fileName, fileType = fileType,
                 )
             },
             onDelete = if (editingDoc != null) ({ vm.deleteDocument(editingDoc!!); showAddDoc = false; editingDoc = null }) else null,
@@ -841,7 +835,7 @@ private fun VehicleDialog(
 private fun DocumentDialog(
     existing: CarDocument?,
     vehicleId: String,
-    onSave: (type: String, label: String, expiry: String, docNumber: String, provider: String, cost: Double, notes: String, fileData: String?, fileName: String?, fileType: String?) -> Unit,
+    onSave: (type: String, label: String, expiry: String, docNumber: String, provider: String, cost: Double, notes: String) -> Unit,
     onDelete: (() -> Unit)?,
     onDismiss: () -> Unit,
 ) {
@@ -852,28 +846,6 @@ private fun DocumentDialog(
     var provider  by remember { mutableStateOf(existing?.provider ?: "") }
     var cost      by remember { mutableStateOf(existing?.cost?.takeIf { it > 0 }?.toString() ?: "") }
     var notes     by remember { mutableStateOf(existing?.notes ?: "") }
-
-    // File attachment
-    var attachedFileData by remember { mutableStateOf<String?>(null) }
-    var attachedFileName by remember { mutableStateOf<String?>(null) }
-    var attachedFileType by remember { mutableStateOf<String?>(null) }
-    val hasExistingFile  = existing?.fileName != null
-
-    val context = LocalContext.current
-    val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        runCatching {
-            val cr       = context.contentResolver
-            val mimeType = cr.getType(uri) ?: "application/octet-stream"
-            val name     = cr.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
-                if (c.moveToFirst()) c.getString(0) else "document"
-            } ?: "document"
-            val bytes    = cr.openInputStream(uri)?.readBytes() ?: return@rememberLauncherForActivityResult
-            attachedFileData = "data:$mimeType;base64," + android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-            attachedFileName = name
-            attachedFileType = mimeType
-        }
-    }
 
     val isPersonal = type in PERSONAL_DOC_TYPES
 
@@ -918,21 +890,6 @@ private fun DocumentDialog(
                 OutlinedTextField(value = provider, onValueChange = { provider = it }, label = { Text("Provider / Issuer") }, modifier = Modifier.fillMaxWidth(), colors = carFieldColors(), singleLine = true)
                 OutlinedTextField(value = cost, onValueChange = { cost = it }, label = { Text("Cost (lei)") }, modifier = Modifier.fillMaxWidth(), colors = carFieldColors(), singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
 
-                // File attachment button
-                val fileLabel = when {
-                    attachedFileName != null -> "📎 ${attachedFileName}"
-                    hasExistingFile          -> "📎 ${existing?.fileName} (tap to replace)"
-                    else                     -> "📎 Attach File (PDF / image)"
-                }
-                OutlinedButton(
-                    onClick  = { fileLauncher.launch("*/*") },
-                    modifier = Modifier.fillMaxWidth(),
-                    border   = BorderStroke(1.dp, NeonCyan.copy(0.4f)),
-                    shape    = RoundedCornerShape(10.dp),
-                ) {
-                    Text(fileLabel, fontSize = 12.sp, color = NeonCyan, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-
                 if (onDelete != null) {
                     Spacer(Modifier.height(4.dp))
                     TextButton(onClick = { onDelete(); onDismiss() }, modifier = Modifier.fillMaxWidth()) {
@@ -946,8 +903,7 @@ private fun DocumentDialog(
                 onClick = {
                     val canSave = isPersonal || expiry.isNotBlank()
                     if (canSave) {
-                        onSave(type, label.ifBlank { docTypeLabel(type) }, expiry, docNumber, provider, cost.toDoubleOrNull() ?: 0.0, notes,
-                            attachedFileData, attachedFileName, attachedFileType)
+                        onSave(type, label.ifBlank { docTypeLabel(type) }, expiry, docNumber, provider, cost.toDoubleOrNull() ?: 0.0, notes)
                         onDismiss()
                     }
                 },
