@@ -86,11 +86,14 @@
     var sess = window.__sbSession || null;
     return sess && sess.user ? sess.user.id : null;
   }
-  function isSyncUser() {
-    return typeof window.isSharedSyncUser === 'function' && window.isSharedSyncUser();
+  function isBogdan() {
+    var u = localStorage.getItem('homer-auth-user');
+    if (u && u.toLowerCase() === 'bogdan') return true;
+    var sess = window.__sbSession;
+    return !!(sess && sess.user && (sess.user.email || '').toLowerCase().includes('bogdan'));
   }
   function pushToSupabase(data) {
-    if (!isSyncUser()) return;
+    if (!isBogdan()) return;
     var client = getSbClient(), uid2 = getSbUid();
     if (!client || !uid2) return;
     var ts = Date.now();
@@ -102,7 +105,7 @@
     }, { onConflict: 'user_id,field_id' });
   }
   function pullFromSupabase(cb) {
-    if (!isSyncUser()) { cb(null); return; }
+    if (!isBogdan()) { cb(null); return; }
     var client = getSbClient(), uid2 = getSbUid();
     if (!client || !uid2) { cb(null); return; }
     client.from('field_state')
