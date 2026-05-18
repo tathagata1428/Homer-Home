@@ -1,26 +1,31 @@
 package ro.b4it.homer.ui.screens.car
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import ro.b4it.homer.data.local.dao.CarDao
 import ro.b4it.homer.data.local.entity.CarDocument
 import ro.b4it.homer.data.local.entity.CarFuelLog
 import ro.b4it.homer.data.local.entity.CarMaintenance
 import ro.b4it.homer.data.local.entity.CarVehicle
-import ro.b4it.homer.data.sync.SyncEngine
 import ro.b4it.homer.notification.ReminderManager
+import java.io.File
 import java.time.LocalDate
 import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
 class CarViewModel @Inject constructor(
+    @ApplicationContext private val ctx: Context,
     private val dao: CarDao,
     private val reminderManager: ReminderManager,
-    private val sync: SyncEngine,
 ) : ViewModel() {
 
     val vehicles: StateFlow<List<CarVehicle>> = dao.getVehicles()
@@ -79,12 +84,11 @@ class CarViewModel @Inject constructor(
                     notes = notes,
                 )
             )
-            sync.pushCarDebounced()
         }
     }
 
     fun deleteVehicle(vehicle: CarVehicle) {
-        viewModelScope.launch { dao.deleteVehicle(vehicle); sync.pushCarDebounced() }
+        viewModelScope.launch { dao.deleteVehicle(vehicle) }
     }
 
     fun saveDocument(
@@ -92,27 +96,48 @@ class CarViewModel @Inject constructor(
         vehicleId: String,
         type: String, label: String, expiryDate: String,
         docNumber: String = "", provider: String, cost: Double, notes: String,
+        fileUri: Uri? = null,
+        clearFile: Boolean = false,
     ) {
         viewModelScope.launch {
             val existing = dao.getDocumentById(id)
+            val (filePath, fileName, fileType) = when {
+                fileUri != null -> withContext(Dispatchers.IO) { copyFileToStorage(id, fileUri) }
+                clearFile -> Triple(null, null, null)
+                else -> Triple(existing?.fileData, existing?.fileName, existing?.fileType)
+            }
             val doc = CarDocument(
                 id = id, vehicleId = vehicleId, type = type, label = label,
-                expiryDate = expiryDate, docNumber = docNumber, provider = provider, cost = cost, notes = notes,
-                fileData = existing?.fileData,
-                fileName = existing?.fileName,
-                fileType = existing?.fileType,
+                expiryDate = expiryDate, docNumber = docNumber, provider = provider,
+                cost = cost, notes = notes,
+                fileData = filePath, fileName = fileName, fileType = fileType,
             )
             dao.upsertDocument(doc)
             reminderManager.scheduleCarDocument(doc)
-            sync.pushCarDebounced()
         }
+    }
+
+    /** Copy picked file into app-internal storage; returns (absolutePath, name, mimeType). */
+    private fun copyFileToStorage(docId: String, uri: Uri): Triple<String, String, String> {
+        val mimeType = ctx.contentResolver.getType(uri) ?: "application/octet-stream"
+        val ext = when {
+            mimeType.contains("pdf")  -> ".pdf"
+            mimeType.contains("png")  -> ".png"
+            mimeType.contains("jpeg") || mimeType.contains("jpg") -> ".jpg"
+            else -> ""
+        }
+        val dir = File(ctx.filesDir, "car_docs").also { it.mkdirs() }
+        val dest = File(dir, "$docId$ext")
+        ctx.contentResolver.openInputStream(uri)?.use { ins -> dest.outputStream().use { ins.copyTo(it) } }
+        return Triple(dest.absolutePath, dest.name, mimeType)
     }
 
     fun deleteDocument(doc: CarDocument) {
         viewModelScope.launch {
+            // Delete local file if present
+            doc.fileData?.let { path -> if (path.startsWith("/")) File(path).delete() }
             dao.deleteDocument(doc)
             reminderManager.cancelCarDocument(doc.id)
-            sync.pushCarDebounced()
         }
     }
 
@@ -130,12 +155,11 @@ class CarViewModel @Inject constructor(
                     nextOdoKm = nextOdoKm, cost = cost, workshop = workshop, notes = notes,
                 )
             )
-            sync.pushCarDebounced()
         }
     }
 
     fun deleteMaintenance(record: CarMaintenance) {
-        viewModelScope.launch { dao.deleteMaintenance(record); sync.pushCarDebounced() }
+        viewModelScope.launch { dao.deleteMaintenance(record) }
     }
 
     fun saveFuelLog(
@@ -152,12 +176,11 @@ class CarViewModel @Inject constructor(
                     station = station, fullTank = fullTank, notes = notes,
                 )
             )
-            sync.pushCarDebounced()
         }
     }
 
     fun deleteFuelLog(entry: CarFuelLog) {
-        viewModelScope.launch { dao.deleteFuelLog(entry); sync.pushCarDebounced() }
+        viewModelScope.launch { dao.deleteFuelLog(entry) }
     }
 
     /** Days remaining until expiry. Negative = already expired. */

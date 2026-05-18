@@ -38,11 +38,8 @@ class SyncEngine @Inject constructor(
 
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
-    /** Called on app launch after auth is determined. */
-    fun start() {
-        if (!supabase.isBogdan()) return
-        scope.launch { pullAll() }
-    }
+    /** Sync disabled — all data is local-only. */
+    fun start() {}
 
     /** Pull all synced fields from Supabase and merge into Room. Throws on auth failure. */
     suspend fun pullAll() {
@@ -64,15 +61,7 @@ class SyncEngine @Inject constructor(
 
     // ---- Debounced push ----
 
-    fun schedulePush(fieldKey: String, push: suspend () -> Unit) {
-        if (!supabase.isBogdan()) return
-        pendingJobs[fieldKey]?.cancel()
-        pendingJobs[fieldKey] = scope.launch {
-            delay(DEBOUNCE_MS)
-            runCatching { push() }
-            pendingJobs.remove(fieldKey)
-        }
-    }
+    fun schedulePush(fieldKey: String, push: suspend () -> Unit) {}
 
     fun pushExpensesDebounced()      = schedulePush("ls:homer-expenses")   { pushExpenses() }
     fun pushHabitsDebounced()        = schedulePush("ls:homer-habits")     { pushHabits() }

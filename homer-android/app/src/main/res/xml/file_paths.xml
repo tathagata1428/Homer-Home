@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <cache-path name="car_docs" path="car_docs/" />
+    <cache-path name="car_docs_cache" path="car_docs/" />
+    <files-path name="car_docs_files" path="car_docs/" />
 </paths>

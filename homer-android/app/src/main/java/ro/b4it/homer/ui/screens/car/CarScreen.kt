@@ -2,6 +2,9 @@ package ro.b4it.homer.ui.screens.car
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -37,17 +40,22 @@ import java.util.UUID
 private fun openDocFile(context: Context, doc: CarDocument) {
     val raw = doc.fileData ?: return
     val mimeType = doc.fileType ?: "application/octet-stream"
-    val fileName = doc.fileName ?: "document"
-    val base64 = if (raw.contains(",")) raw.substringAfter(",") else raw
-    val bytes = android.util.Base64.decode(base64, android.util.Base64.DEFAULT)
-    val dir = File(context.cacheDir, "car_docs").also { it.mkdirs() }
-    val file = File(dir, fileName).also { it.writeBytes(bytes) }
+    val file: File = if (raw.startsWith("/")) {
+        // Local file stored in app's filesDir
+        File(raw).also { if (!it.exists()) return }
+    } else {
+        // Legacy base64 data URL (from old website sync)
+        val base64 = if (raw.contains(",")) raw.substringAfter(",") else raw
+        val bytes = try { android.util.Base64.decode(base64, android.util.Base64.DEFAULT) } catch (_: Exception) { return }
+        val dir = File(context.cacheDir, "car_docs").also { it.mkdirs() }
+        File(dir, doc.fileName ?: "document").also { it.writeBytes(bytes) }
+    }
     val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
     val intent = Intent(Intent.ACTION_VIEW).apply {
         setDataAndType(uri, mimeType)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    context.startActivity(Intent.createChooser(intent, "Open with"))
+    try { context.startActivity(Intent.createChooser(intent, "Open with")) } catch (_: Exception) {}
 }
 
 // ─── Document type helpers ────────────────────────────────────────────────────
@@ -310,11 +318,12 @@ fun CarScreen(onBack: () -> Unit, vm: CarViewModel = hiltViewModel()) {
         DocumentDialog(
             existing = editingDoc,
             vehicleId = vehicleId,
-            onSave = { type, label, expiry, docNumber, provider, cost, notes ->
+            onSave = { type, label, expiry, docNumber, provider, cost, notes, fileUri, clearFile ->
                 vm.saveDocument(
                     id = editingDoc?.id ?: UUID.randomUUID().toString(),
                     vehicleId = vehicleId, type = type, label = label,
-                    expiryDate = expiry, docNumber = docNumber, provider = provider, cost = cost, notes = notes,
+                    expiryDate = expiry, docNumber = docNumber, provider = provider,
+                    cost = cost, notes = notes, fileUri = fileUri, clearFile = clearFile,
                 )
             },
             onDelete = if (editingDoc != null) ({ vm.deleteDocument(editingDoc!!); showAddDoc = false; editingDoc = null }) else null,
@@ -835,7 +844,7 @@ private fun VehicleDialog(
 private fun DocumentDialog(
     existing: CarDocument?,
     vehicleId: String,
-    onSave: (type: String, label: String, expiry: String, docNumber: String, provider: String, cost: Double, notes: String) -> Unit,
+    onSave: (type: String, label: String, expiry: String, docNumber: String, provider: String, cost: Double, notes: String, fileUri: Uri?, clearFile: Boolean) -> Unit,
     onDelete: (() -> Unit)?,
     onDismiss: () -> Unit,
 ) {
@@ -847,9 +856,18 @@ private fun DocumentDialog(
     var cost      by remember { mutableStateOf(existing?.cost?.takeIf { it > 0 }?.toString() ?: "") }
     var notes     by remember { mutableStateOf(existing?.notes ?: "") }
 
-    val isPersonal = type in PERSONAL_DOC_TYPES
+    // File state
+    var pickedUri   by remember { mutableStateOf<Uri?>(null) }
+    var pickedName  by remember { mutableStateOf<String?>(null) }
+    var fileCleared by remember { mutableStateOf(false) }
+    val hasExistingFile = existing?.fileData != null && !fileCleared
+    val fileLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) { pickedUri = uri; pickedName = uri.lastPathSegment?.substringAfterLast('/'); fileCleared = false }
+    }
 
-    // Auto-fill label from type when switching type and label matches previous type default
+    val isPersonal = type in PERSONAL_DOC_TYPES
     LaunchedEffect(type) { if (label.isBlank() || label == docTypeLabel(type)) label = docTypeLabel(type) }
 
     AlertDialog(
@@ -859,7 +877,7 @@ private fun DocumentDialog(
         title           = { Text(if (existing != null) "Edit Document" else "Add Document", color = TextPrimary, fontWeight = FontWeight.Bold) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                // Type selector (scrollable pills)
+                // Type selector
                 Text("TYPE", fontSize = 8.sp, letterSpacing = 2.sp, color = NeonPink.copy(0.7f), fontWeight = FontWeight.ExtraBold)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
                     DOC_TYPES.forEach { (t, tLabel) ->
@@ -875,20 +893,52 @@ private fun DocumentDialog(
 
                 OutlinedTextField(value = label, onValueChange = { label = it }, label = { Text("Label") }, modifier = Modifier.fillMaxWidth(), colors = carFieldColors(), singleLine = true)
 
-                // Expiry — optional for personal docs
                 OutlinedTextField(
-                    value = expiry,
-                    onValueChange = { expiry = it },
+                    value = expiry, onValueChange = { expiry = it },
                     label = { Text(if (isPersonal) "Expiry Date (optional)" else "Expiry Date (YYYY-MM-DD)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = carFieldColors(),
-                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(), colors = carFieldColors(), singleLine = true,
                     placeholder = { Text(LocalDate.now().plusYears(1).toString(), color = TextSubtle) },
                 )
 
                 OutlinedTextField(value = docNumber, onValueChange = { docNumber = it }, label = { Text("Document / Policy Number") }, modifier = Modifier.fillMaxWidth(), colors = carFieldColors(), singleLine = true)
                 OutlinedTextField(value = provider, onValueChange = { provider = it }, label = { Text("Provider / Issuer") }, modifier = Modifier.fillMaxWidth(), colors = carFieldColors(), singleLine = true)
                 OutlinedTextField(value = cost, onValueChange = { cost = it }, label = { Text("Cost (lei)") }, modifier = Modifier.fillMaxWidth(), colors = carFieldColors(), singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+
+                // ── File attachment ───────────────────────────────────────────
+                Text("ATTACHMENT", fontSize = 8.sp, letterSpacing = 2.sp, color = NeonCyan.copy(0.7f), fontWeight = FontWeight.ExtraBold)
+                val fileLabel = when {
+                    pickedUri != null  -> pickedName ?: "File selected"
+                    hasExistingFile    -> existing?.fileName ?: "File attached"
+                    else               -> null
+                }
+                if (fileLabel != null) {
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(NeonCyan.copy(0.07f))
+                            .border(1.dp, NeonCyan.copy(0.3f), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text("📎", fontSize = 14.sp)
+                        Text(fileLabel, fontSize = 11.sp, color = NeonCyan, modifier = Modifier.weight(1f), maxLines = 1)
+                        IconButton(onClick = { pickedUri = null; fileCleared = true }, modifier = Modifier.size(20.dp)) {
+                            Icon(Icons.Filled.Close, null, tint = TextMuted, modifier = Modifier.size(14.dp))
+                        }
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = { fileLauncher.launch(arrayOf("application/pdf", "image/*")) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, NeonCyan.copy(0.4f)),
+                    ) {
+                        Icon(Icons.Filled.AttachFile, null, tint = NeonCyan, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Attach PDF or Image", fontSize = 12.sp, color = NeonCyan)
+                    }
+                }
 
                 if (onDelete != null) {
                     Spacer(Modifier.height(4.dp))
@@ -903,7 +953,8 @@ private fun DocumentDialog(
                 onClick = {
                     val canSave = isPersonal || expiry.isNotBlank()
                     if (canSave) {
-                        onSave(type, label.ifBlank { docTypeLabel(type) }, expiry, docNumber, provider, cost.toDoubleOrNull() ?: 0.0, notes)
+                        onSave(type, label.ifBlank { docTypeLabel(type) }, expiry, docNumber, provider,
+                            cost.toDoubleOrNull() ?: 0.0, notes, pickedUri, fileCleared)
                         onDismiss()
                     }
                 },
