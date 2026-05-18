@@ -4,18 +4,8 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <defs>
-        <aapt:attr xmlns:aapt="http://schemas.android.com/aapt" name="android:fillColor">
-            <gradient
-                xmlns:android="http://schemas.android.com/apk/res/android"
-                android:startX="30" android:startY="20"
-                android:endX="78"   android:endY="88"
-                android:type="linear">
-                <item android:offset="0"   android:color="#FF0066" />
-                <item android:offset="1"   android:color="#CC00FF" />
-            </gradient>
-        </aapt:attr>
-    </defs>
-    <!-- Bold "H" centred in the 72dp safe zone -->
-    <path android:pathData="M30,20 L30,88 L42,88 L42,58 L66,58 L66,88 L78,88 L78,20 L66,20 L66,46 L42,46 L42,20 Z" />
+    <!-- Bold "H" centred in the 72dp safe zone, solid white -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,22 L30,86 L43,86 L43,58 L65,58 L65,86 L78,86 L78,22 L65,22 L65,50 L43,50 L43,22 Z" />
 </vector>
