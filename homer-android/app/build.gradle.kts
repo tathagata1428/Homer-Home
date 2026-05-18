@@ -32,7 +32,8 @@ android {
         //   SUPABASE_URL=https://fwzxxrldxnlhcyulkwrg.supabase.co
         //   SUPABASE_ANON_KEY=eyJ...
         buildConfigField("String", "SUPABASE_URL",
-            "\"${localProps["SUPABASE_URL"] ?: "https://fwzxxrldxnlhcyulkwrg.supabase.co"}\"")
+            "\"${localProps["SUPAB" +
+                    "ASE_URL"] ?: "https://fwzxxrldxnlhcyulkwrg.supabase.co"}\"")
         buildConfigField("String", "SUPABASE_ANON_KEY",
             "\"${localProps["SUPABASE_ANON_KEY"] ?: ""}\"")
 
@@ -43,6 +44,11 @@ android {
             "\"${localProps["OC_GATEWAY_TOKEN"] ?: ""}\"")
         buildConfigField("String", "OC_MODEL",
             "\"${localProps["OC_MODEL"] ?: "inclusionai/ring-2.6-1t:free"}\"")
+        // Ollama gateway for nemotron models (Debian server); set in local.properties
+        buildConfigField("String", "NEMOCLAW_GATEWAY_URL",
+            "\"${localProps["NEMOCLAW_GATEWAY_URL"] ?: ""}\"")
+        buildConfigField("String", "NEMOCLAW_GATEWAY_TOKEN",
+            "\"${localProps["NEMOCLAW_GATEWAY_TOKEN"] ?: ""}\"");
 
         // Homer website base URL
         buildConfigField("String", "HOMER_BASE_URL",

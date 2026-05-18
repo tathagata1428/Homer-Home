@@ -103,9 +103,13 @@ class JoeyViewModel @Inject constructor(
                         }
                     }
                 }.toString()
+                val isNemotron = "nemotron" in BuildConfig.OC_MODEL.lowercase()
+                val nemoUrl = BuildConfig.NEMOCLAW_GATEWAY_URL.takeIf { it.isNotBlank() }
+                val effectiveUrl   = if (isNemotron && nemoUrl != null) nemoUrl else BuildConfig.OC_GATEWAY_URL
+                val effectiveToken = if (isNemotron && nemoUrl != null) BuildConfig.NEMOCLAW_GATEWAY_TOKEN else BuildConfig.OC_GATEWAY_TOKEN
                 val req = Request.Builder()
-                    .url("${BuildConfig.OC_GATEWAY_URL}/chat/completions")
-                    .header("Authorization", "Bearer ${BuildConfig.OC_GATEWAY_TOKEN}")
+                    .url("$effectiveUrl/chat/completions")
+                    .header("Authorization", "Bearer $effectiveToken")
                     .header("Content-Type", "application/json")
                     .post(body.toRequestBody("application/json".toMediaType()))
                     .build()
