@@ -518,10 +518,10 @@
       return '<div class="vh-empty"><div style="font-size:3rem;margin-bottom:16px">&#128202;</div>' +
         '<p style="color:#64748b">Add habits first to see your stats.</p></div>';
     }
-    if (!_statsId || !active.find(function(h){ return h.id === _statsId; })) {
+    if (!_statsId || !active.find(function(h){ return String(h.id) === String(_statsId); })) {
       _statsId = active[0].id;
     }
-    var h = active.find(function(h) { return h.id === _statsId; });
+    var h = active.find(function(h) { return String(h.id) === String(_statsId); });
     var color = h.color || '#3b82f6';
     var target = getTarget(h);
 
@@ -831,13 +831,13 @@
 
     root.querySelectorAll('.vh-check').forEach(function(btn) {
       btn.addEventListener('click', function() {
-        toggleHabit(parseInt(this.dataset.id));
+        toggleHabit(this.dataset.id);
       });
     });
 
     root.querySelectorAll('.vh-cnt-btn[data-id]').forEach(function(btn) {
       btn.addEventListener('click', function() {
-        var id = parseInt(this.dataset.id);
+        var id = this.dataset.id;
         var action = this.dataset.action;
         if (!id) return;
         adjustCount(id, action === 'inc' ? 1 : -1);
@@ -847,7 +847,7 @@
 
   function toggleHabit(id) {
     var d = getData();
-    var h = d.habits.find(function(x) { return x.id === id; });
+    var h = d.habits.find(function(x) { return String(x.id) === String(id); });
     if (!h) return;
     var key = id + ':' + todayStr();
     var wasDone = !!d.completions[key];
@@ -865,7 +865,7 @@
 
   function adjustCount(id, delta) {
     var d = getData();
-    var h = d.habits.find(function(x) { return x.id === id; });
+    var h = d.habits.find(function(x) { return String(x.id) === String(id); });
     if (!h) return;
     var key = id + ':' + todayStr();
     var cur = getDone(d.completions, id, todayStr());
@@ -892,7 +892,7 @@
 
   function wireStats() {
     var sel = document.getElementById('vh-stats-sel');
-    if (sel) sel.addEventListener('change', function() { _statsId = parseInt(this.value); render(); });
+    if (sel) sel.addEventListener('change', function() { _statsId = this.value; render(); });
   }
 
   function wireManage(d) {
@@ -905,17 +905,17 @@
     document.getElementById('habits-app-root').querySelectorAll('.vh-mr-btn').forEach(function(btn) {
       btn.addEventListener('click', function() {
         var action = this.dataset.action;
-        var id = parseInt(this.dataset.id);
+        var id = this.dataset.id;
         var d2 = getData();
         if (action === 'delete') {
-          if (!confirm('Delete "' + (d2.habits.find(function(x){return x.id===id;})||{name:''}).name + '" and all its history?')) return;
-          d2.habits = d2.habits.filter(function(x) { return x.id !== id; });
+          if (!confirm('Delete "' + (d2.habits.find(function(x){return String(x.id)===String(id);})||{name:''}).name + '" and all its history?')) return;
+          d2.habits = d2.habits.filter(function(x) { return String(x.id) !== String(id); });
           Object.keys(d2.completions).forEach(function(k) {
             if (k.indexOf(id + ':') === 0) delete d2.completions[k];
           });
           saveData(d2); render();
         } else if (action === 'archive' || action === 'unarchive') {
-          var h = d2.habits.find(function(x) { return x.id === id; });
+          var h = d2.habits.find(function(x) { return String(x.id) === String(id); });
           if (h) h.archived = (action === 'archive');
           saveData(d2); render();
         } else if (action === 'edit') {
@@ -1011,7 +1011,7 @@
 
       var d2 = getData();
       if (_editId) {
-        var h = d2.habits.find(function(x) { return x.id === _editId; });
+        var h = d2.habits.find(function(x) { return String(x.id) === String(_editId); });
         if (h) { h.name = name; h.emoji = emoji; h.color = color; h.category = category; h.note = note; h.target = target2; h.freq = freq; }
       } else {
         d2.habits.push({ id: Date.now(), name: name, emoji: emoji, color: color, category: category, note: note, target: target2, freq: freq, archived: false, created: Date.now() });

@@ -10825,6 +10825,19 @@ let tvWidgetCreated = false;
 
   document.getElementById('fab-backup').addEventListener('click', function(){ backup(true); });
   document.getElementById('fab-restore').addEventListener('click', restore);
+  var fabSupabasePullBtn = document.getElementById('fab-supabase-pull');
+  if(fabSupabasePullBtn) fabSupabasePullBtn.addEventListener('click', function(){
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = 'Syncing…';
+    if(typeof window._heSyncPullAll === 'function'){
+      window._heSyncPullAll();
+      setTimeout(function(){ btn.disabled = false; btn.textContent = '\u21D3 Pull from Supabase (sync from phone)'; }, 3000);
+    } else {
+      btn.textContent = 'Not signed in';
+      setTimeout(function(){ btn.disabled = false; btn.textContent = '\u21D3 Pull from Supabase (sync from phone)'; }, 2000);
+    }
+  });
   var localExportBtn = document.getElementById('fab-local-export');
   var localImportBtn = document.getElementById('fab-local-import');
   var localImportInput = document.getElementById('fab-local-import-input');
