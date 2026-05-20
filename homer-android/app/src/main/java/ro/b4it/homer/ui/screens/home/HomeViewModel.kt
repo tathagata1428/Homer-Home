@@ -89,6 +89,10 @@ class HomeViewModel @Inject constructor(
     private val _cdEventMs = MutableStateFlow(0L)
     private val _cdName    = MutableStateFlow("")
 
+    private val _cdVisible = MutableStateFlow(true)
+    val cdVisible: StateFlow<Boolean> = _cdVisible.asStateFlow()
+    fun hideCountdownCard() { _cdVisible.value = false }
+
     val countdown: StateFlow<CountdownUi> = combine(_now, _cdEventMs, _cdName) { _, targetMs, name ->
         if (targetMs == 0L) return@combine CountdownUi()
         val diff = targetMs - System.currentTimeMillis()
@@ -117,7 +121,10 @@ class HomeViewModel @Inject constructor(
         loadCountdown()
     }
 
-    fun reloadCountdown() = loadCountdown()
+    fun reloadCountdown() {
+        loadCountdown()
+        _cdVisible.value = true   // re-show when user returns to Home
+    }
 
     private fun loadCountdown() {
         val sp = ctx.getSharedPreferences("homer_countdown", MODE_PRIVATE)

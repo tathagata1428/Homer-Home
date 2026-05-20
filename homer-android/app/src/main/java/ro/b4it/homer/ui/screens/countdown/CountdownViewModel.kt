@@ -105,80 +105,55 @@ class CountdownViewModel @Inject constructor(
             _loading.value    = true
             _commentary.value = ""
             try {
-                val prompt = buildPrompt()
-                val isNemotron = "nemotron" in BuildConfig.OC_MODEL.lowercase()
-                val nemoUrl    = BuildConfig.NEMOCLAW_GATEWAY_URL.takeIf { it.isNotBlank() }
-                val gatewayUrl = if (isNemotron && nemoUrl != null) nemoUrl else BuildConfig.OC_GATEWAY_URL
-                val gatewayTok = if (isNemotron && nemoUrl != null) BuildConfig.NEMOCLAW_GATEWAY_TOKEN else BuildConfig.OC_GATEWAY_TOKEN
-
+                val tick = _tick.value
                 val body = buildJsonObject {
-                    put("model", BuildConfig.OC_MODEL)
-                    putJsonArray("messages") {
-                        addJsonObject {
-                            put("role", "system")
-                            put("content",
-                                "You are a sharp, concise writer for a personal dashboard widget. " +
-                                "Follow the tone instruction exactly. No disclaimers, no meta-commentary, no preamble.")
-                        }
-                        addJsonObject {
-                            put("role", "user")
-                            put("content", prompt)
-                        }
-                    }
+                    put("name",  _eventName.value.ifBlank { "an upcoming event" })
+                    put("days",  tick.days)
+                    put("hours", tick.hours)
+                    put("mins",  tick.mins)
+                    put("past",  tick.isPast)
+                    put("mode",  _mode.value.id)
                 }.toString()
 
                 val req = Request.Builder()
-                    .url("$gatewayUrl/chat/completions")
-                    .header("Authorization", "Bearer $gatewayTok")
+                    .url("${BuildConfig.HOMER_BASE_URL}/api/countdown")
                     .header("Content-Type", "application/json")
                     .post(body.toRequestBody("application/json".toMediaType()))
                     .build()
 
-                val respBody = withContext(Dispatchers.IO) {
-                    http.newCall(req).execute().body?.string() ?: ""
+                withContext(Dispatchers.IO) {
+                    val response = http.newCall(req).execute()
+                    if (!response.isSuccessful) {
+                        _commentary.value = "Joey is unavailable (${response.code})"
+                        return@withContext
+                    }
+                    val source = response.body?.source()
+                        ?: run { _commentary.value = "Joey is unavailable right now."; return@withContext }
+                    val result = StringBuilder()
+                    while (!source.exhausted()) {
+                        val line = source.readUtf8Line() ?: break
+                        if (!line.startsWith("data:")) continue
+                        val data = line.removePrefix("data:").trim()
+                        if (data == "[DONE]") break
+                        try {
+                            val delta = json.parseToJsonElement(data)
+                                .jsonObject["choices"]?.jsonArray?.firstOrNull()
+                                ?.jsonObject?.get("delta")?.jsonObject?.get("content")
+                                ?.jsonPrimitive?.content ?: ""
+                            if (delta.isNotEmpty()) {
+                                result.append(delta)
+                                _commentary.value = result.toString()
+                            }
+                        } catch (_: Exception) {}
+                    }
+                    if (result.isEmpty()) _commentary.value = "Joey is unavailable right now."
                 }
-
-                val content = try {
-                    json.parseToJsonElement(respBody)
-                        .jsonObject["choices"]?.jsonArray?.firstOrNull()
-                        ?.jsonObject?.get("message")?.jsonObject?.get("content")
-                        ?.jsonPrimitive?.content
-                } catch (_: Exception) { null }
-
-                _commentary.value = content?.trim().takeIf { !it.isNullOrBlank() }
-                    ?: "Joey is unavailable right now."
             } catch (e: Exception) {
                 _commentary.value = "Couldn't reach Joey \u2014 ${e.message?.take(60)}"
             } finally {
                 _loading.value = false
             }
         }
-    }
-
-    private fun buildPrompt(): String {
-        val name = _eventName.value.ifBlank { "an upcoming event" }
-        val diff = _eventDateMs.value - System.currentTimeMillis()
-        val timeStr = if (diff <= 0) "it has already passed" else {
-            val d = diff / 86400000
-            val h = (diff % 86400000) / 3600000
-            val m = (diff % 3600000) / 60000
-            "$d days, $h hours, $m minutes"
-        }
-        val tone = when (_mode.value) {
-            CommentaryMode.SARCASTIC    ->
-                "dry, sarcastic, slightly nihilistic. Mock the absurdity of counting down days. Be witty but not cruel."
-            CommentaryMode.MOTIVATIONAL ->
-                "warm, healing, and genuinely motivational. Acknowledge the wait and reframe it as growth."
-            CommentaryMode.DRAMA        ->
-                "a full-blown drama queen — theatrical, over the top, soap-opera intense. Make it hilariously extra."
-            CommentaryMode.STOIC        ->
-                "a stoic philosopher. Brief, profound, detached. Marcus Aurelius energy. Quote-worthy."
-            CommentaryMode.CHAOTIC      ->
-                "chaotic and unhinged. Random tangents, weird energy, fourth-wall breaks. Funny and unpredictable."
-        }
-        return "Someone is counting down to \"$name\". Time remaining: $timeStr. " +
-               "Write one punchy comment (1–3 sentences, max 50 words) in the voice of $tone " +
-               "Output only the comment — no quotes around it, no preamble, no labels."
     }
 
     private fun updateTick() {

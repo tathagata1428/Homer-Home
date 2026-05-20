@@ -46,6 +46,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     val inProgressKanban by vm.inProgressKanban.collectAsStateWithLifecycle(emptyList())
     val savedQuotes      by vm.savedQuotes.collectAsStateWithLifecycle(emptyList())
     val countdown        by vm.countdown.collectAsStateWithLifecycle()
+    val cdVisible        by vm.cdVisible.collectAsStateWithLifecycle()
 
     val locationPerm = rememberPermissionState(Manifest.permission.ACCESS_COARSE_LOCATION)
     LaunchedEffect(Unit) {
@@ -76,13 +77,6 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                 seconds = now.second,
                 date = now.format(DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy")),
             )
-        }
-
-        // Countdown
-        if (countdown.hasEvent) {
-            item {
-                CountdownHomeCard(ui = countdown)
-            }
         }
 
         // Weather
@@ -120,6 +114,13 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                     onClearAll       = vm::clearAllFocusTasks,
                     onDoneKanbanTask = vm::moveKanbanTaskToDone,
                 )
+            }
+        }
+
+        // Countdown (last)
+        if (countdown.hasEvent && cdVisible) {
+            item {
+                CountdownHomeCard(ui = countdown, onHide = vm::hideCountdownCard)
             }
         }
     }
@@ -194,7 +195,7 @@ fun HeroBanner(greeting: String) {
 // ---- Countdown Home Card ----
 
 @Composable
-fun CountdownHomeCard(ui: HomeViewModel.CountdownUi) {
+fun CountdownHomeCard(ui: HomeViewModel.CountdownUi, onHide: () -> Unit = {}) {
     val dateFmt = remember { SimpleDateFormat("EEE, d MMM yyyy · HH:mm", Locale.getDefault()) }
     HomerCard {
         Column(
@@ -206,15 +207,23 @@ fun CountdownHomeCard(ui: HomeViewModel.CountdownUi) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    "COUNTDOWN",
-                    fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                    letterSpacing = 3.sp, color = TextMuted,
-                )
-                if (ui.dateMs > 0L) {
+                Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                     Text(
-                        dateFmt.format(Date(ui.dateMs)),
-                        fontSize = 11.sp, color = TextSubtle,
+                        "COUNTDOWN",
+                        fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                        letterSpacing = 3.sp, color = TextMuted,
+                    )
+                    if (ui.dateMs > 0L) {
+                        Text(
+                            dateFmt.format(Date(ui.dateMs)),
+                            fontSize = 11.sp, color = TextSubtle,
+                        )
+                    }
+                }
+                IconButton(onClick = onHide, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        Icons.Filled.Close, "Hide countdown",
+                        tint = TextMuted.copy(0.5f), modifier = Modifier.size(14.dp),
                     )
                 }
             }
