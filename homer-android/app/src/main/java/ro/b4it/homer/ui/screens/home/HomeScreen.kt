@@ -62,8 +62,8 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(BgPrimary),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         // Hero banner
         item {
@@ -619,17 +619,17 @@ fun HomerCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(22.dp))
             .background(BgCard)
             .background(
                 Brush.linearGradient(
-                    colors = listOf(NeonPink.copy(0.06f), Color.Transparent, NeonCyan.copy(0.04f)),
+                    colors = listOf(NeonPink.copy(0.10f), Color.Transparent, NeonCyan.copy(0.07f)),
                 )
             )
             .border(
                 1.dp,
-                Brush.linearGradient(listOf(NeonPink.copy(0.7f), NeonPurple.copy(0.4f), NeonCyan.copy(0.5f))),
-                RoundedCornerShape(18.dp),
+                Brush.linearGradient(listOf(NeonPink.copy(0.55f), NeonPurple.copy(0.35f), NeonCyan.copy(0.45f))),
+                RoundedCornerShape(22.dp),
             ),
     ) { content() }
 }

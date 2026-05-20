@@ -232,7 +232,7 @@ fun HomerApp() {
             Column {
                 HorizontalDivider(
                     thickness = 1.dp,
-                    color = NeonPink.copy(alpha = 0.25f),
+                    color = NeonGold.copy(alpha = 0.18f),
                 )
                 NavigationBar(
                     containerColor = BgCard,

@@ -16,7 +16,7 @@
     { id: 'chaotic',      label: '🦄 Chaotic'       },
   ];
 
-  var state = { name: '', date: '', mode: 'sarcastic' };
+  var state = { name: '', date: '', mode: 'sarcastic', collapsed: false };
   var tickTimer   = null;
   var abortCtrl   = null;
 
@@ -35,9 +35,10 @@
   function loadState() {
     var saved = safeJson(localStorage.getItem(LS_KEY), null);
     if (saved) {
-      state.name = saved.name || '';
-      state.date = saved.date || '';
-      state.mode = saved.mode || 'sarcastic';
+      state.name      = saved.name      || '';
+      state.date      = saved.date      || '';
+      state.mode      = saved.mode      || 'sarcastic';
+      state.collapsed = saved.collapsed === true;
     }
   }
   function saveState() {
@@ -118,6 +119,13 @@
     '.cd-gen-btn:hover{border-color:rgba(196,77,255,.35);color:rgba(196,77,255,.85)}',
     '.cd-gen-btn:disabled{opacity:.2;cursor:not-allowed}',
 
+    /* Collapsible body */
+    '.cd-body{overflow:hidden;transition:max-height .35s ease,opacity .25s ease}',
+    '.cd-body.cd-open{max-height:1000px;opacity:1}',
+    '.cd-body.cd-shut{max-height:0;opacity:0;pointer-events:none}',
+    '.cd-toggle{background:transparent;border:none;padding:0 4px;cursor:pointer;color:rgba(240,240,255,.3);font-size:.75rem;line-height:1;transition:color .15s;margin-left:8px;flex-shrink:0}',
+    '.cd-toggle:hover{color:rgba(240,240,255,.65)}',
+
     /* Responsive */
     '@media(max-width:520px){',
       '.cd-num{font-size:2rem}',
@@ -133,23 +141,28 @@
       try { savedDate = new Date(state.date).toISOString().slice(0, 16); } catch (_) {}
     }
     var hdrEvent = state.name ? esc(state.name) : (state.date ? 'Event set' : '');
+    var bodyClass = state.collapsed ? 'cd-shut' : 'cd-open';
+    var toggleIcon = state.collapsed ? '\u25be' : '\u25b4';
     return '<div id="cd-card" class="span-12 card">' +
       '<div class="cd-hdr">' +
         '<span class="cd-hdr-label">Countdown</span>' +
         '<span class="cd-hdr-event" id="cd-hdr-event">' + hdrEvent + '</span>' +
+        '<button class="cd-toggle" id="cd-toggle" title="Toggle">' + toggleIcon + '</button>' +
       '</div>' +
-      '<div class="cd-config">' +
-        '<input type="text" id="cd-name-in" placeholder="Event name\u2026" maxlength="80" value="' + esc(state.name) + '">' +
-        '<input type="datetime-local" id="cd-date-in" value="' + esc(savedDate) + '">' +
-        '<button class="cd-set-btn" id="cd-set-btn">Set</button>' +
-      '</div>' +
-      '<div id="cd-display-area"></div>' +
-      '<div id="cd-commentary-section" style="display:none">' +
-        '<div class="cd-divider"></div>' +
-        '<div class="cd-modes" id="cd-modes-row"></div>' +
-        '<div class="cd-commentary-row">' +
-          '<div class="cd-comment-text cd-empty" id="cd-comment-text">Select a tone and generate commentary.</div>' +
-          '<button class="cd-gen-btn" id="cd-gen-btn">\u21ba Generate</button>' +
+      '<div class="cd-body ' + bodyClass + '" id="cd-body">' +
+        '<div class="cd-config">' +
+          '<input type="text" id="cd-name-in" placeholder="Event name\u2026" maxlength="80" value="' + esc(state.name) + '">' +
+          '<input type="datetime-local" id="cd-date-in" value="' + esc(savedDate) + '">' +
+          '<button class="cd-set-btn" id="cd-set-btn">Set</button>' +
+        '</div>' +
+        '<div id="cd-display-area"></div>' +
+        '<div id="cd-commentary-section" style="display:none">' +
+          '<div class="cd-divider"></div>' +
+          '<div class="cd-modes" id="cd-modes-row"></div>' +
+          '<div class="cd-commentary-row">' +
+            '<div class="cd-comment-text cd-empty" id="cd-comment-text">Select a tone and generate commentary.</div>' +
+            '<button class="cd-gen-btn" id="cd-gen-btn">\u21ba Generate</button>' +
+          '</div>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -297,6 +310,19 @@
     });
   }
 
+  /* ── Collapse toggle ─────────────────────────────────────────── */
+  function toggleCollapse() {
+    state.collapsed = !state.collapsed;
+    saveState();
+    var body = document.getElementById('cd-body');
+    var btn  = document.getElementById('cd-toggle');
+    if (body) {
+      body.classList.toggle('cd-open',  !state.collapsed);
+      body.classList.toggle('cd-shut',   state.collapsed);
+    }
+    if (btn) btn.textContent = state.collapsed ? '\u25be' : '\u25b4';
+  }
+
   /* ── Sidebar button ───────────────────────────────────────────── */
   function injectSidebarButton() {
     if (document.getElementById('cd-sb-btn')) return;
@@ -340,6 +366,8 @@
     var tmp = document.createElement('div');
     tmp.innerHTML = buildCardHTML();
     grid.appendChild(tmp.firstElementChild);
+
+    document.getElementById('cd-toggle').addEventListener('click', toggleCollapse);
 
     document.getElementById('cd-set-btn').addEventListener('click', function () {
       var nameVal = (document.getElementById('cd-name-in').value || '').trim();

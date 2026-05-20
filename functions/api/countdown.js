@@ -71,7 +71,7 @@ export async function onRequest({ request, env }) {
     gatewayToken = envGet('OC_GATEWAY_TOKEN');
   }
 
-  if (!gatewayToken) {
+  if (!gatewayToken && !isNemotron) {
     return Response.json({ error: 'Gateway not configured' }, { status: 503, headers: CORS });
   }
 
@@ -81,7 +81,7 @@ export async function onRequest({ request, env }) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${gatewayToken}`,
+        'Authorization': `Bearer ${gatewayToken || 'ollama'}`,
       },
       body: JSON.stringify({
         model,
