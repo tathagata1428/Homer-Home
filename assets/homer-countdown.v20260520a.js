@@ -16,14 +16,6 @@
     { id: 'chaotic',      label: '🦄 Chaotic'       },
   ];
 
-  var TONE = {
-    sarcastic:    'dry, sarcastic, slightly nihilistic. Mock the absurdity of counting down days. Be witty but not cruel.',
-    motivational: 'warm, healing, and genuinely motivational. Acknowledge the wait and reframe it as growth.',
-    drama:        'a full-blown drama queen — theatrical, over the top, soap-opera intense. Make it hilariously extra.',
-    stoic:        'a stoic philosopher. Brief, profound, detached. Marcus Aurelius energy. Quote-worthy.',
-    chaotic:      'chaotic and unhinged. Random tangents, weird energy, fourth-wall breaks. Funny and unpredictable.',
-  };
-
   var state = { name: '', date: '', mode: 'sarcastic' };
   var tickTimer   = null;
   var abortCtrl   = null;
@@ -235,19 +227,7 @@
     });
   }
 
-  /* ── Joey commentary via /api/openclaw ────────────────────────── */
-  function buildPrompt() {
-    var cd   = computeCountdown();
-    var name = state.name || 'an upcoming event';
-    var time = (!cd || cd.past)
-      ? 'it has already passed'
-      : cd.days + ' days, ' + cd.hours + ' hours, ' + cd.mins + ' minutes, and ' + cd.secs + ' seconds';
-    return 'Someone is counting down to "' + name + '". ' +
-      'Time remaining: ' + time + '. ' +
-      'Write one punchy comment (1–3 sentences, max 50 words) in the voice of ' + (TONE[state.mode] || TONE.sarcastic) + ' ' +
-      'Output only the comment — no quotes around it, no preamble, no labels.';
-  }
-
+  /* ── Joey commentary via /api/countdown ──────────────────────── */
   function generateCommentary() {
     if (!state.date) return;
     if (abortCtrl) { try { abortCtrl.abort(); } catch (_) {} }
@@ -262,31 +242,20 @@
     textEl.classList.add('cd-streaming');
     if (genBtn) genBtn.disabled = true;
 
-    var session = window.__sbSession || null;
-    var token   = session && session.access_token;
-    if (!token) {
-      textEl.classList.remove('cd-streaming');
-      textEl.classList.add('cd-empty');
-      textEl.textContent = 'Sign in to generate Joey commentary.';
-      if (genBtn) genBtn.disabled = false;
-      return;
-    }
-    var headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
-
-    fetch('/api/openclaw', {
+    var cd = computeCountdown();
+    fetch('/api/countdown', {
       method:  'POST',
-      headers: headers,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        messages: [{ role: 'user', content: buildPrompt() }],
-        mode: 'personal',
-        systemPromptOverride:
-          'You are a sharp, concise writer for a personal dashboard widget. ' +
-          'Follow the tone instruction exactly. No disclaimers, no meta-commentary, no preamble.',
-        forceFullContext: false,
+        name:  state.name || '',
+        days:  cd ? cd.days  : 0,
+        hours: cd ? cd.hours : 0,
+        mins:  cd ? cd.mins  : 0,
+        past:  cd ? cd.past  : false,
+        mode:  state.mode,
       }),
       signal: abortCtrl.signal,
     }).then(function (resp) {
-      if (resp.status === 401) throw new Error('401');
       if (!resp.ok || !resp.body) throw new Error('HTTP ' + resp.status);
       var reader  = resp.body.getReader();
       var decoder = new TextDecoder();
@@ -323,9 +292,7 @@
       if (err && err.name === 'AbortError') return;
       textEl.classList.remove('cd-streaming');
       textEl.classList.add('cd-empty');
-      textEl.textContent = err && err.message === '401'
-        ? 'Session expired \u2014 please refresh the page.'
-        : 'Could not reach Joey \u2014 ' + (err && err.message ? err.message : 'check your connection.');
+      textEl.textContent = 'Could not reach Joey \u2014 ' + (err && err.message ? err.message : 'check your connection.');
       if (genBtn) genBtn.disabled = false;
     });
   }
