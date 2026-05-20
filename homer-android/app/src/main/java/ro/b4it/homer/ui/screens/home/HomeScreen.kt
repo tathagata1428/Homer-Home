@@ -27,9 +27,14 @@ import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.isGranted
 import ro.b4it.homer.data.local.entity.PomodoroTask
 import ro.b4it.homer.data.local.entity.SavedQuote
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.shape.CircleShape
 import ro.b4it.homer.ui.theme.*
+import java.text.SimpleDateFormat
 import java.time.format.DateTimeFormatter
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -40,10 +45,12 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     val openTasks        by vm.openTasks.collectAsStateWithLifecycle(emptyList())
     val inProgressKanban by vm.inProgressKanban.collectAsStateWithLifecycle(emptyList())
     val savedQuotes      by vm.savedQuotes.collectAsStateWithLifecycle(emptyList())
+    val countdown        by vm.countdown.collectAsStateWithLifecycle()
 
     val locationPerm = rememberPermissionState(Manifest.permission.ACCESS_COARSE_LOCATION)
     LaunchedEffect(Unit) {
         if (!locationPerm.status.isGranted) locationPerm.launchPermissionRequest()
+        vm.reloadCountdown()
     }
 
     val greeting = when {
@@ -69,6 +76,13 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                 seconds = now.second,
                 date = now.format(DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy")),
             )
+        }
+
+        // Countdown
+        if (countdown.hasEvent) {
+            item {
+                CountdownHomeCard(ui = countdown)
+            }
         }
 
         // Weather
@@ -175,6 +189,108 @@ fun HeroBanner(greeting: String) {
             )
         }
     }
+}
+
+// ---- Countdown Home Card ----
+
+@Composable
+fun CountdownHomeCard(ui: HomeViewModel.CountdownUi) {
+    val dateFmt = remember { SimpleDateFormat("EEE, d MMM yyyy · HH:mm", Locale.getDefault()) }
+    HomerCard {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "COUNTDOWN",
+                    fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                    letterSpacing = 3.sp, color = TextMuted,
+                )
+                if (ui.dateMs > 0L) {
+                    Text(
+                        dateFmt.format(Date(ui.dateMs)),
+                        fontSize = 11.sp, color = TextSubtle,
+                    )
+                }
+            }
+
+            Text(
+                ui.name.ifBlank { "Event" },
+                fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                color = TextPrimary,
+            )
+
+            if (ui.isPast) {
+                Text(
+                    "🎉 This event has already passed",
+                    fontSize = 14.sp, color = NeonPink,
+                    fontWeight = FontWeight.Medium,
+                )
+            } else {
+                Row(
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.spacedBy(0.dp),
+                ) {
+                    MiniCountUnit(ui.days,  "DAYS", NeonPink,   largeWhenBig = true)
+                    MiniSep()
+                    MiniCountUnit(ui.hours, "HRS",  NeonCyan)
+                    MiniSep()
+                    MiniCountUnit(ui.mins,  "MIN",  NeonPurple)
+                    MiniSep()
+                    MiniCountUnit(ui.secs,  "SEC",  NeonGold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniCountUnit(value: Long, label: String, color: Color, largeWhenBig: Boolean = false) {
+    val padded = if (largeWhenBig && value >= 100) value.toString().padStart(3, '0')
+                 else value.toString().padStart(2, '0')
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(horizontal = 5.dp),
+    ) {
+        AnimatedContent(
+            targetState = padded,
+            transitionSpec = {
+                (slideInVertically(tween(200, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(160)))
+                    .togetherWith(slideOutVertically(tween(160)) { -it } + fadeOut(tween(130)))
+            },
+            label = "mini_$label",
+        ) { str ->
+            Text(
+                text          = str,
+                fontFamily    = androidx.compose.ui.text.font.FontFamily.Monospace,
+                fontSize      = 28.sp,
+                fontWeight    = FontWeight.Black,
+                color         = color,
+                letterSpacing = (-1).sp,
+            )
+        }
+        Text(
+            label,
+            fontSize = 8.sp, fontWeight = FontWeight.Bold,
+            letterSpacing = 2.sp, color = Color.White.copy(0.2f),
+            modifier = Modifier.padding(top = 3.dp),
+        )
+    }
+}
+
+@Composable
+private fun MiniSep() {
+    Text(
+        ":",
+        fontSize = 20.sp, fontWeight = FontWeight.Light,
+        color = Color.White.copy(0.1f),
+        modifier = Modifier.offset(y = (-8).dp),
+    )
 }
 
 // ---- Clock Card ----

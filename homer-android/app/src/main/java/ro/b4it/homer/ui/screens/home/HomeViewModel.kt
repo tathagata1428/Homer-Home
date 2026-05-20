@@ -2,6 +2,7 @@ package ro.b4it.homer.ui.screens.home
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Context.MODE_PRIVATE
 import android.location.Location
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -74,6 +75,35 @@ class HomeViewModel @Inject constructor(
 
     val inProgressKanban = kanbanDao.getInProgressTasksFlow()
 
+    // ---- Countdown ----
+    data class CountdownUi(
+        val hasEvent: Boolean = false,
+        val isPast:   Boolean = false,
+        val name:     String  = "",
+        val days:     Long    = 0,
+        val hours:    Long    = 0,
+        val mins:     Long    = 0,
+        val secs:     Long    = 0,
+        val dateMs:   Long    = 0L,
+    )
+    private val _cdEventMs = MutableStateFlow(0L)
+    private val _cdName    = MutableStateFlow("")
+
+    val countdown: StateFlow<CountdownUi> = combine(_now, _cdEventMs, _cdName) { _, targetMs, name ->
+        if (targetMs == 0L) return@combine CountdownUi()
+        val diff = targetMs - System.currentTimeMillis()
+        if (diff <= 0) return@combine CountdownUi(hasEvent = true, isPast = true, name = name, dateMs = targetMs)
+        CountdownUi(
+            hasEvent = true,
+            name  = name,
+            dateMs = targetMs,
+            days  = diff / 86400000,
+            hours = (diff % 86400000) / 3600000,
+            mins  = (diff % 3600000)  / 60000,
+            secs  = (diff % 60000)    / 1000,
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CountdownUi())
+
     // Internal
     private var allQuotes: List<Quote> = emptyList()
     private var seenIndices = mutableSetOf<Int>()
@@ -84,6 +114,15 @@ class HomeViewModel @Inject constructor(
         loadWeather()
         loadQuotes()
         startQuoteRefreshCycle()
+        loadCountdown()
+    }
+
+    fun reloadCountdown() = loadCountdown()
+
+    private fun loadCountdown() {
+        val sp = ctx.getSharedPreferences("homer_countdown", MODE_PRIVATE)
+        _cdEventMs.value = sp.getLong("dateMs", 0L)
+        _cdName.value    = sp.getString("name", "") ?: ""
     }
 
     private fun startClock() {
