@@ -40,4 +40,5 @@ sealed class Screen(val route: String) {
         fun route(entryId: String) = "journal_entry/$entryId"
     }
     object Car            : Screen("car")
+    object Countdown      : Screen("countdown")
 }

@@ -36,6 +36,7 @@ import ro.b4it.homer.ui.screens.settings.SettingsScreen
 import ro.b4it.homer.ui.screens.sync.SyncScreen
 import ro.b4it.homer.ui.screens.tools.ToolsScreen
 import ro.b4it.homer.ui.screens.car.CarScreen
+import ro.b4it.homer.ui.screens.countdown.CountdownScreen
 import ro.b4it.homer.ui.screens.vault.VaultScreen
 
 @Composable
@@ -91,6 +92,7 @@ fun AppNavHost(
         composable(Screen.Calendar.route)    { CalendarScreen() }
         composable(Screen.Kanban.route)      { KanbanScreen(onTaskClick = { taskId -> navController.navigate(Screen.KanbanTask.route(taskId)) }) }
         composable(Screen.Car.route)         { CarScreen(onBack = { navController.popBackStack() }) }
+        composable(Screen.Countdown.route)   { CountdownScreen() }
 
         composable(
             route     = Screen.KanbanTask.route,

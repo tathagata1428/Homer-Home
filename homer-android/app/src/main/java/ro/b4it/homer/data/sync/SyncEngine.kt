@@ -38,8 +38,13 @@ class SyncEngine @Inject constructor(
 
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
-    /** Sync disabled — all data is local-only. */
-    fun start() {}
+    /** Auto-pull on sign-in so Room is immediately up to date with Supabase. */
+    fun start() {
+        scope.launch {
+            runCatching { pullAll() }
+                .onFailure { Log.e("HomerSync", "start: pullAll failed", it) }
+        }
+    }
 
     /** Pull all synced fields from Supabase and merge into Room. Throws on auth failure. */
     suspend fun pullAll() {
@@ -61,7 +66,19 @@ class SyncEngine @Inject constructor(
 
     // ---- Debounced push ----
 
-    fun schedulePush(fieldKey: String, push: suspend () -> Unit) {}
+    fun schedulePush(fieldKey: String, push: suspend () -> Unit) {
+        if (!supabase.isBogdan()) return
+        synchronized(pendingJobs) {
+            pendingJobs[fieldKey]?.cancel()
+            pendingJobs[fieldKey] = scope.launch {
+                delay(DEBOUNCE_MS)
+                runCatching {
+                    supabase.ensureSignedIn()
+                    push()
+                }.onFailure { Log.e("HomerSync", "schedulePush[$fieldKey] failed", it) }
+            }
+        }
+    }
 
     fun pushExpensesDebounced()      = schedulePush("ls:homer-expenses")   { pushExpenses() }
     fun pushHabitsDebounced()        = schedulePush("ls:homer-habits")     { pushHabits() }
@@ -112,13 +129,15 @@ class SyncEngine @Inject constructor(
     private suspend fun pullExpenses() {
         supabase.getFieldState("ls:homer-expenses")?.let { row ->
             if (row.value.isBlank()) return@let
-            val items = json.decodeFromString(ListSerializer(Expense.serializer()), row.value)
-            db.expenseDao().upsertAll(items)
+            val cloudItems = json.decodeFromString(ListSerializer(Expense.serializer()), row.value)
+            val toMerge = mergeByUpdatedAt(cloudItems, db.expenseDao().getAll().first(), { it.id }, { it.updatedAt })
+            if (toMerge.isNotEmpty()) db.expenseDao().upsertAll(toMerge)
         }
         supabase.getFieldState("ls:homer-expense-budgets")?.let { row ->
             if (row.value.isBlank()) return@let
-            val items = json.decodeFromString(ListSerializer(Budget.serializer()), row.value)
-            db.expenseDao().upsertBudgets(items)
+            val cloudBudgets = json.decodeFromString(ListSerializer(Budget.serializer()), row.value)
+            val toMerge = mergeByUpdatedAt(cloudBudgets, db.expenseDao().getAllBudgets().first(), { it.category }, { it.updatedAt })
+            if (toMerge.isNotEmpty()) db.expenseDao().upsertBudgets(toMerge)
         }
     }
 
@@ -214,7 +233,8 @@ class SyncEngine @Inject constructor(
                     createdAt = wh.created.takeIf { it > 0 } ?: System.currentTimeMillis(),
                 )
             }
-            db.habitDao().upsertAll(habits)
+            val toMerge = mergeByUpdatedAt(habits, db.habitDao().getAllHabits().first(), { it.clientId }, { it.updatedAt })
+            if (toMerge.isNotEmpty()) db.habitDao().upsertAll(toMerge)
 
             // Sync completions — only for habits we just upserted
             val knownIds = habits.map { it.clientId }.toSet()
@@ -331,9 +351,9 @@ class SyncEngine @Inject constructor(
                     updatedAt = wt.ts,
                 )
             }
-            // Full replace — server is source of truth; prevents zombie tasks after local deletion
-            db.pomodoroDao().clearAllTasks()
-            db.pomodoroDao().upsertAllTasks(tasks)
+            // Per-item merge — local edits win if newer; note: remote deletions won't propagate without soft-delete
+            val toMerge = mergeByUpdatedAt(tasks, db.pomodoroDao().getAllTasks().first(), { it.id }, { it.updatedAt })
+            if (toMerge.isNotEmpty()) db.pomodoroDao().upsertAllTasks(toMerge)
         }
     }
 
@@ -351,8 +371,9 @@ class SyncEngine @Inject constructor(
     private suspend fun pullNotes() {
         supabase.getFieldState("ls:homer-notes")?.let { row ->
             if (row.value.isBlank()) return@let
-            val notes = json.decodeFromString(ListSerializer(Note.serializer()), row.value)
-            if (notes.isNotEmpty()) db.noteDao().upsertAll(notes)
+            val cloudNotes = json.decodeFromString(ListSerializer(Note.serializer()), row.value)
+            val toMerge = mergeByUpdatedAt(cloudNotes, db.noteDao().getAll().first(), { it.id }, { it.updatedAt })
+            if (toMerge.isNotEmpty()) db.noteDao().upsertAll(toMerge)
         }
     }
 
@@ -369,8 +390,9 @@ class SyncEngine @Inject constructor(
     private suspend fun pullJournal() {
         supabase.getFieldState("ls:homer-journal")?.let { row ->
             if (row.value.isBlank()) return@let
-            val entries = json.decodeFromString(ListSerializer(JournalEntry.serializer()), row.value)
-            if (entries.isNotEmpty()) entries.forEach { db.journalDao().upsert(it) }
+            val cloudEntries = json.decodeFromString(ListSerializer(JournalEntry.serializer()), row.value)
+            val toMerge = mergeByUpdatedAt(cloudEntries, db.journalDao().getAll().first(), { it.id }, { it.updatedAt })
+            toMerge.forEach { db.journalDao().upsert(it) }
         }
     }
 
@@ -400,10 +422,14 @@ class SyncEngine @Inject constructor(
         supabase.getFieldState("ls:homer-car")?.let { row ->
             if (row.value.isBlank()) return@let
             val blob = json.decodeFromString(CarBlob.serializer(), row.value)
-            blob.vehicles.forEach    { db.carDao().upsertVehicle(it) }
-            blob.documents.forEach   { db.carDao().upsertDocument(it) }
-            blob.maintenance.forEach { db.carDao().upsertMaintenance(it) }
-            blob.fuel.forEach        { db.carDao().upsertFuelLog(it) }
+            mergeByUpdatedAt(blob.vehicles, db.carDao().getVehicles().first(), { it.id }, { it.updatedAt })
+                .forEach { db.carDao().upsertVehicle(it) }
+            mergeByUpdatedAt(blob.documents, db.carDao().getAllDocuments().first(), { it.id }, { it.updatedAt })
+                .forEach { db.carDao().upsertDocument(it) }
+            mergeByUpdatedAt(blob.maintenance, db.carDao().getAllMaintenance().first(), { it.id }, { it.updatedAt })
+                .forEach { db.carDao().upsertMaintenance(it) }
+            // CarFuelLog has no updatedAt — entries are immutable log records, always upsert
+            blob.fuel.forEach { db.carDao().upsertFuelLog(it) }
         }
     }
 
@@ -430,8 +456,10 @@ class SyncEngine @Inject constructor(
         supabase.getFieldState("android:kanban")?.let { row ->
             if (row.value.isBlank()) return@let
             val blob = json.decodeFromString(KanbanBlob.serializer(), row.value)
-            if (blob.projects.isNotEmpty()) db.kanbanDao().upsertProjects(blob.projects)
-            if (blob.tasks.isNotEmpty()) db.kanbanDao().upsertTasks(blob.tasks)
+            mergeByUpdatedAt(blob.projects, db.kanbanDao().getAllProjects().first(), { it.id }, { it.updatedAt })
+                .takeIf { it.isNotEmpty() }?.let { db.kanbanDao().upsertProjects(it) }
+            mergeByUpdatedAt(blob.tasks, db.kanbanDao().getAllTasks().first(), { it.id }, { it.updatedAt })
+                .takeIf { it.isNotEmpty() }?.let { db.kanbanDao().upsertTasks(it) }
         }
     }
 
@@ -450,7 +478,8 @@ class SyncEngine @Inject constructor(
         supabase.getFieldState("android:life-goals")?.let { row ->
             if (row.value.isBlank()) return@let
             val goals = json.decodeFromString(ListSerializer(LifeGoal.serializer()), row.value)
-            if (goals.isNotEmpty()) db.lifeGoalDao().upsertAll(goals)
+            val toMerge = mergeByUpdatedAt(goals, db.lifeGoalDao().getAll().first(), { it.id }, { it.updatedAt })
+            if (toMerge.isNotEmpty()) db.lifeGoalDao().upsertAll(toMerge)
         }
     }
 
@@ -659,4 +688,29 @@ class SyncEngine @Inject constructor(
         (url.trimEnd('/') + "|" + name).hashCode().toLong()
             .let { if (it < 0) it + Long.MAX_VALUE else it }
             .toString()
+
+    /**
+     * Per-item merge: from [cloudItems] keep only items that are strictly newer than their
+     * local counterpart (by [getUpdatedAt]), or absent locally entirely.
+     *
+     * Items where local.updatedAt >= cloud.updatedAt are skipped — the local version wins.
+     * This means concurrent edits on phone and website both survive: each device only
+     * overwrites items it has a more recent version of.
+     *
+     * Limitation: remote deletions don't propagate — without soft-delete tombstones, a delete
+     * on one side will be resurrected by the other side's next push.
+     */
+    private fun <T> mergeByUpdatedAt(
+        cloudItems: List<T>,
+        localItems: List<T>,
+        getId: (T) -> String,
+        getUpdatedAt: (T) -> Long,
+    ): List<T> {
+        if (cloudItems.isEmpty()) return emptyList()
+        val localMap = localItems.associateBy(getId)
+        return cloudItems.filter { cloud ->
+            val local = localMap[getId(cloud)]
+            local == null || getUpdatedAt(cloud) > getUpdatedAt(local)
+        }
+    }
 }

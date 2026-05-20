@@ -67,6 +67,7 @@ private val moreItems = listOf(
     MoreItem("📝", "Notes",       Screen.Notes),
     MoreItem("📥", "Inbox",       Screen.Inbox),
     MoreItem("⏰", "Reminders",   Screen.Reminders),
+    MoreItem("⏳", "Countdown",   Screen.Countdown),
     MoreItem("👤", "Account",     Screen.Account),
     MoreItem("🔄", "Sync",        Screen.Sync),
     MoreItem("⚙️", "Settings",    Screen.Settings),
