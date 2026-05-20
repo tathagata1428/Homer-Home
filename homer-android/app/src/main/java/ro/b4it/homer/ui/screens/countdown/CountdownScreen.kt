@@ -2,13 +2,17 @@ package ro.b4it.homer.ui.screens.countdown
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,10 +38,9 @@ import java.util.Locale
 @Composable
 fun CountdownScreen(vm: CountdownViewModel = hiltViewModel()) {
     val tick        by vm.tick.collectAsStateWithLifecycle()
-    val mode        by vm.mode.collectAsStateWithLifecycle()
     val eventName   by vm.eventName.collectAsStateWithLifecycle()
     val eventDateMs by vm.eventDateMs.collectAsStateWithLifecycle()
-    val commentary  by vm.commentary.collectAsStateWithLifecycle()
+    val quote       by vm.quote.collectAsStateWithLifecycle()
     val loading     by vm.loading.collectAsStateWithLifecycle()
 
     var showSetup by remember(eventDateMs == 0L) { mutableStateOf(eventDateMs == 0L) }
@@ -185,7 +188,7 @@ fun CountdownScreen(vm: CountdownViewModel = hiltViewModel()) {
             }
         }
 
-        // ── Commentary ────────────────────────────────────────────────
+        // ── Quote ─────────────────────────────────────────────────────
         AnimatedVisibility(
             visible  = tick.hasEvent,
             enter    = fadeIn(tween(500, delayMillis = 100)) +
@@ -198,41 +201,29 @@ fun CountdownScreen(vm: CountdownViewModel = hiltViewModel()) {
                     Modifier.fillMaxWidth().padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    Text(
-                        "COMMENTARY",
-                        fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                        letterSpacing = 3.sp, color = TextMuted,
-                    )
-
-                    // Mode chips
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        CommentaryMode.entries.forEach { m ->
-                            val selected   = m == mode
-                            val chipBg     by animateColorAsState(if (selected) NeonPink.copy(0.12f) else Color.White.copy(0.04f), tween(200), label = "bg_${m.id}")
-                            val chipBorder by animateColorAsState(if (selected) NeonPink.copy(0.42f) else Color.White.copy(0.08f), tween(200), label = "br_${m.id}")
-                            val chipColor  by animateColorAsState(if (selected) NeonPink else TextMuted, tween(200), label = "cl_${m.id}")
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(chipBg)
-                                    .border(1.dp, chipBorder, RoundedCornerShape(20.dp))
-                                    .clickable { vm.setMode(m) }
-                                    .padding(horizontal = 12.dp, vertical = 7.dp),
-                            ) {
-                                Text(
-                                    "${m.emoji} ${m.label}",
-                                    fontSize = 12.sp,
-                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = chipColor,
-                                )
-                            }
+                        Text(
+                            "QUOTE",
+                            fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                            letterSpacing = 3.sp, color = TextMuted,
+                        )
+                        IconButton(
+                            onClick = { vm.refreshQuote() },
+                            enabled = !loading,
+                            modifier = Modifier.size(28.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.Refresh, null,
+                                tint = if (loading) TextSubtle else NeonPurple.copy(0.7f),
+                                modifier = Modifier.size(16.dp),
+                            )
                         }
                     }
 
-                    // Commentary text
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -251,51 +242,31 @@ fun CountdownScreen(vm: CountdownViewModel = hiltViewModel()) {
                                         label = "p",
                                     )
                                 Text(
-                                    "Joey is thinking\u2026",
+                                    "Loading quote\u2026",
                                     fontSize = 14.sp,
                                     color = NeonPurple.copy(pulse),
                                     fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
                                 )
                             }
-                            commentary.isBlank() -> Text(
-                                "Tap \u201CGenerate\u201D to let Joey weigh in.",
+                            quote.isBlank() -> Text(
+                                "Tap \u21bb to load a quote.",
                                 fontSize = 13.sp,
                                 color = TextSubtle.copy(0.55f),
                                 fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
                             )
                             else -> AnimatedContent(
-                                targetState = commentary,
+                                targetState = quote,
                                 transitionSpec = { fadeIn(tween(350)) togetherWith fadeOut(tween(200)) },
-                                label = "commentary",
+                                label = "quote",
                             ) { text ->
                                 Text(
                                     text,
                                     fontSize = 14.sp, lineHeight = 22.sp,
-                                    color = Color(0xFFCCCCEE),
+                                    color = TextPrimary.copy(0.82f),
                                     fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
                                 )
                             }
                         }
-                    }
-
-                    // Generate button
-                    OutlinedButton(
-                        onClick  = { vm.generateCommentary() },
-                        enabled  = !loading,
-                        shape    = RoundedCornerShape(10.dp),
-                        border   = if (loading)
-                            BorderStroke(1.dp, NeonPurple.copy(0.12f))
-                        else
-                            BorderStroke(1.dp, Brush.horizontalGradient(listOf(NeonPurple.copy(0.45f), NeonPink.copy(0.35f)))),
-                        colors   = ButtonDefaults.outlinedButtonColors(
-                            contentColor         = NeonPurple,
-                            disabledContentColor = NeonPurple.copy(0.3f),
-                        ),
-                        modifier = Modifier.fillMaxWidth().height(44.dp),
-                    ) {
-                        Icon(Icons.Filled.AutoAwesome, null, modifier = Modifier.size(15.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Generate", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
                 }
             }

@@ -8,17 +8,23 @@
 
   var LS_KEY = 'homer-countdown';
 
-  var MODES = [
-    { id: 'sarcastic',    label: '😏 Sarcastic'    },
-    { id: 'motivational', label: '💪 Motivational'  },
-    { id: 'drama',        label: '👸 Drama Queen'   },
-    { id: 'stoic',        label: '🧘 Stoic Sage'    },
-    { id: 'chaotic',      label: '🦄 Chaotic'       },
+  var QUOTE_FALLBACK = [
+    { text: 'The secret of getting ahead is getting started.',                author: 'Mark Twain' },
+    { text: 'It always seems impossible until it\'s done.',                   author: 'Nelson Mandela' },
+    { text: 'The only way to do great work is to love what you do.',          author: 'Steve Jobs' },
+    { text: 'Do what you can, with what you have, where you are.',            author: 'Theodore Roosevelt' },
+    { text: 'It does not matter how slowly you go as long as you don\'t stop.', author: 'Confucius' },
+    { text: 'In the middle of every difficulty lies opportunity.',            author: 'Albert Einstein' },
+    { text: 'The future belongs to those who believe in the beauty of their dreams.', author: 'Eleanor Roosevelt' },
+    { text: 'You miss 100% of the shots you don\'t take.',                   author: 'Wayne Gretzky' },
+    { text: 'Whether you think you can or you think you can\'t, you\'re right.', author: 'Henry Ford' },
+    { text: 'Success is not final, failure is not fatal: it is the courage to continue.', author: 'Winston Churchill' },
   ];
 
-  var state = { name: '', date: '', mode: 'sarcastic', collapsed: false };
+  var state = { name: '', date: '', collapsed: false };
+  var allQuotes = [];
+  var seenQuoteIdx = new Set();
   var tickTimer   = null;
-  var abortCtrl   = null;
 
   /* ── Helpers ──────────────────────────────────────────────────── */
   function ready(fn) {
@@ -37,7 +43,6 @@
     if (saved) {
       state.name      = saved.name      || '';
       state.date      = saved.date      || '';
-      state.mode      = saved.mode      || 'sarcastic';
       state.collapsed = saved.collapsed === true;
     }
   }
@@ -103,11 +108,9 @@
     /* Divider */
     '.cd-divider{height:1px;background:rgba(255,255,255,.06);margin:4px 0 12px}',
 
-    /* Mode buttons */
-    '.cd-modes{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}',
-    '.cd-mode-btn{background:transparent;border:1px solid transparent;border-radius:20px;padding:4px 10px;font-size:.71rem;color:rgba(240,240,255,.35);cursor:pointer;transition:all .15s}',
-    '.cd-mode-btn:hover{color:rgba(240,240,255,.7);border-color:rgba(255,255,255,.1)}',
-    '.cd-mode-btn.cd-active{color:#FF0066;border-color:rgba(255,0,102,.28);background:rgba(255,0,102,.07)}',
+    /* Quote section header */
+    '.cd-quote-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}',
+    '.cd-quote-label{font-size:.6rem;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(240,240,255,.28)}',
 
     /* Commentary */
     '.cd-commentary-row{display:flex;align-items:flex-start;gap:10px}',
@@ -158,11 +161,11 @@
         '<div id="cd-display-area"></div>' +
         '<div id="cd-commentary-section" style="display:none">' +
           '<div class="cd-divider"></div>' +
-          '<div class="cd-modes" id="cd-modes-row"></div>' +
-          '<div class="cd-commentary-row">' +
-            '<div class="cd-comment-text cd-empty" id="cd-comment-text">Select a tone and generate commentary.</div>' +
-            '<button class="cd-gen-btn" id="cd-gen-btn">\u21ba Generate</button>' +
+          '<div class="cd-quote-hdr">' +
+            '<span class="cd-quote-label">Quote</span>' +
+            '<button class="cd-gen-btn" id="cd-gen-btn">\u21bb</button>' +
           '</div>' +
+          '<div class="cd-comment-text cd-empty" id="cd-comment-text">Tap \u21bb for a quote.</div>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -223,89 +226,41 @@
     if (s) s.textContent = pad(cd.secs);
   }
 
-  function renderModes() {
-    var row = document.getElementById('cd-modes-row');
-    if (!row) return;
-    row.innerHTML = MODES.map(function (m) {
-      return '<button class="cd-mode-btn' + (m.id === state.mode ? ' cd-active' : '') +
-        '" data-mode="' + m.id + '">' + esc(m.label) + '</button>';
-    }).join('');
-    row.querySelectorAll('.cd-mode-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        state.mode = btn.dataset.mode;
-        saveState();
-        renderModes();
-        generateCommentary();
-      });
-    });
+  /* ── Free quotes via type.fit ────────────────────────────────── */
+  function fetchQuotes(cb) {
+    if (allQuotes.length > 0) { cb(); return; }
+    fetch('https://type.fit/api/quotes')
+      .then(function (r) { return r.json(); })
+      .then(function (arr) {
+        allQuotes = arr.filter(function (q) {
+          var t = q.text || q.t || '';
+          return t.length > 10;
+        });
+        if (allQuotes.length < 10) allQuotes = QUOTE_FALLBACK;
+        cb();
+      })
+      .catch(function () { allQuotes = QUOTE_FALLBACK; cb(); });
   }
 
-  /* ── Joey commentary via /api/countdown ──────────────────────── */
-  function generateCommentary() {
+  function refreshQuote() {
     if (!state.date) return;
-    if (abortCtrl) { try { abortCtrl.abort(); } catch (_) {} }
-    abortCtrl = new AbortController();
-
     var textEl = document.getElementById('cd-comment-text');
     var genBtn  = document.getElementById('cd-gen-btn');
     if (!textEl) return;
-
-    textEl.textContent = '';
-    textEl.classList.remove('cd-empty');
-    textEl.classList.add('cd-streaming');
     if (genBtn) genBtn.disabled = true;
+    textEl.classList.remove('cd-empty');
+    textEl.textContent = '\u2026';
 
-    var cd = computeCountdown();
-    fetch('/api/countdown', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name:  state.name || '',
-        days:  cd ? cd.days  : 0,
-        hours: cd ? cd.hours : 0,
-        mins:  cd ? cd.mins  : 0,
-        past:  cd ? cd.past  : false,
-        mode:  state.mode,
-      }),
-      signal: abortCtrl.signal,
-    }).then(function (resp) {
-      if (!resp.ok || !resp.body) throw new Error('HTTP ' + resp.status);
-      var reader  = resp.body.getReader();
-      var decoder = new TextDecoder();
-      var buf     = '';
-      var result  = '';
-
-      function pump() {
-        return reader.read().then(function (chunk) {
-          if (chunk.done) {
-            textEl.classList.remove('cd-streaming');
-            if (genBtn) genBtn.disabled = false;
-            return;
-          }
-          buf += decoder.decode(chunk.value, { stream: true });
-          var lines = buf.split('\n');
-          buf = lines.pop();
-          lines.forEach(function (line) {
-            if (!line.startsWith('data:')) return;
-            var data = line.slice(5).trim();
-            if (data === '[DONE]') return;
-            try {
-              var json   = JSON.parse(data);
-              var delta  = (json.choices && json.choices[0] &&
-                            json.choices[0].delta &&
-                            json.choices[0].delta.content) || '';
-              if (delta) { result += delta; textEl.textContent = result; }
-            } catch (_) {}
-          });
-          return pump();
-        });
-      }
-      return pump();
-    }).catch(function (err) {
-      if (err && err.name === 'AbortError') return;
-      textEl.classList.remove('cd-streaming');
-      textEl.classList.add('cd-empty');
-      textEl.textContent = 'Could not reach Joey \u2014 ' + (err && err.message ? err.message : 'check your connection.');
+    fetchQuotes(function () {
+      var pool = allQuotes.length > 0 ? allQuotes : QUOTE_FALLBACK;
+      if (seenQuoteIdx.size >= pool.length) seenQuoteIdx.clear();
+      var idx;
+      do { idx = Math.floor(Math.random() * pool.length); } while (seenQuoteIdx.has(idx) && seenQuoteIdx.size < pool.length);
+      seenQuoteIdx.add(idx);
+      var q   = pool[idx];
+      var txt = q.text || q.t || '';
+      var auth = q.author || q.a || '';
+      textEl.textContent = '\u201c' + txt + '\u201d' + (auth ? '  \u2014 ' + auth : '');
       if (genBtn) genBtn.disabled = false;
     });
   }
@@ -369,6 +324,8 @@
 
     document.getElementById('cd-toggle').addEventListener('click', toggleCollapse);
 
+    document.getElementById('cd-gen-btn').addEventListener('click', refreshQuote);
+
     document.getElementById('cd-set-btn').addEventListener('click', function () {
       var nameVal = (document.getElementById('cd-name-in').value || '').trim();
       var dateVal = (document.getElementById('cd-date-in').value || '').trim();
@@ -379,12 +336,12 @@
       var hdrEl = document.getElementById('cd-hdr-event');
       if (hdrEl) hdrEl.textContent = state.name || 'Event set';
       renderDisplay();
-      renderModes();
-      generateCommentary();
+      refreshQuote();
     });
 
     renderDisplay();
-    renderModes();
+    // Auto-load a quote if event is already set
+    if (state.date) refreshQuote();
 
     if (tickTimer) clearInterval(tickTimer);
     tickTimer = setInterval(tickInPlace, 1000);
