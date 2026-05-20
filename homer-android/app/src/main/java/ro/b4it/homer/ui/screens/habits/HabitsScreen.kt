@@ -285,8 +285,8 @@ fun HabitRow(
                                 }
                             }
                         }
-                        IconButton(onClick = onDelete, Modifier.size(18.dp)) {
-                            Icon(Icons.Filled.Close, null, tint = TextSubtle.copy(0.3f), modifier = Modifier.size(11.dp))
+                        IconButton(onClick = onDelete, Modifier.size(36.dp)) {
+                            Icon(Icons.Filled.DeleteOutline, null, tint = AccentRed.copy(0.5f), modifier = Modifier.size(16.dp))
                         }
                     }
                 }

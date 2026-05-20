@@ -22,6 +22,10 @@ import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
 
+// ── Sync scope items ──────────────────────────────────────────────────────────
+
+data class SyncScopeItem(val key: String, val emoji: String, val label: String)
+
 // ── Phase sealed class ────────────────────────────────────────────────────────
 
 sealed class SyncPhase {
@@ -44,6 +48,7 @@ data class SyncState(
     val lastSyncAt: String? = null,
     val error: String? = null,
     val backups: List<LocalBackupManager.BackupSummary> = emptyList(),
+    val syncScope: Map<String, Boolean> = emptyMap(),
 )
 
 // ── ViewModel ─────────────────────────────────────────────────────────────────
@@ -58,8 +63,9 @@ class SyncViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(
         SyncState(
-            isBogdan = supabase.isBogdan(),
-            backups  = backupManager.listBackups(),
+            isBogdan  = supabase.isBogdan(),
+            backups   = backupManager.listBackups(),
+            syncScope = loadSyncScope(),
         )
     )
     val state: StateFlow<SyncState> = _state.asStateFlow()
@@ -161,8 +167,37 @@ class SyncViewModel @Inject constructor(
         }
     }.getOrNull()
 
+    // ── Selective sync scope ──────────────────────────────────────────────────
+
+    private fun loadSyncScope(): Map<String, Boolean> {
+        val prefs = ctx.getSharedPreferences(SYNC_PREFS, Context.MODE_PRIVATE)
+        return SYNC_SCOPE.associate { it.key to prefs.getBoolean(it.key, true) }
+    }
+
+    fun toggleSyncField(key: String) {
+        val prefs = ctx.getSharedPreferences(SYNC_PREFS, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(key, !prefs.getBoolean(key, true)).apply()
+        _state.update { it.copy(syncScope = loadSyncScope()) }
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private fun timestamp() =
         SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+
+    companion object {
+        const val SYNC_PREFS = "homer_sync_scope"
+        val SYNC_SCOPE = listOf(
+            SyncScopeItem("ls:homer-habits",    "✅", "Habits"),
+            SyncScopeItem("ls:homer-notes",     "📝", "Notes"),
+            SyncScopeItem("android:life-goals", "🎯", "Life Goals"),
+            SyncScopeItem("android:kanban",     "📋", "Kanban"),
+            SyncScopeItem("ls:homer-expenses",  "💰", "Expenses"),
+            SyncScopeItem("ls:homer-inbox",     "📥", "Inbox"),
+            SyncScopeItem("ls:homer-links",     "🔗", "Links"),
+            SyncScopeItem("ls:homer-journal",   "📔", "Journal"),
+            SyncScopeItem("ls:pom-tasks",       "⏱", "Focus Tasks"),
+            SyncScopeItem("ls:homer-car",       "🚗", "Car Data"),
+        )
+    }
 }

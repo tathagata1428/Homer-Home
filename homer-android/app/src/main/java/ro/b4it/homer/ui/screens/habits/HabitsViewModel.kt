@@ -41,7 +41,7 @@ class HabitsViewModel @Inject constructor(
 
     fun deleteHabit(habit: Habit) {
         viewModelScope.launch {
-            dao.upsert(habit.copy(archived = true))
+            dao.upsert(habit.copy(archived = true, updatedAt = System.currentTimeMillis()))
             sync.pushHabitsDebounced()
         }
     }

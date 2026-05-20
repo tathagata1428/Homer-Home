@@ -178,21 +178,38 @@ fun SyncScreen(vm: SyncViewModel = hiltViewModel()) {
         // ── Sync scope ───────────────────────────────────────────────────────
         item {
             HomerCard {
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Sync Scope", style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                    listOf(
-                        "💰 Expenses & Budgets", "✅ Habits & Completions", "📥 Inbox",
-                        "🔗 Links",              "📝 Notes",               "📔 Journal",
-                        "⏱ Pomodoro Tasks",     "📋 Kanban Projects",     "🎯 Life Goals",
-                        "🚗 Car Data + PDFs",
-                    ).chunked(2).forEach { row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            row.forEach { item ->
-                                Text(item, style = MaterialTheme.typography.labelSmall,
-                                    color = TextMuted, modifier = Modifier.weight(1f))
-                            }
-                            if (row.size == 1) Spacer(Modifier.weight(1f))
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        "SYNC SCOPE",
+                        style         = MaterialTheme.typography.labelSmall,
+                        fontWeight    = FontWeight.SemiBold,
+                        color         = TextMuted,
+                        letterSpacing = 2.sp,
+                        modifier      = Modifier.padding(bottom = 4.dp),
+                    )
+                    SyncViewModel.SYNC_SCOPE.forEach { item ->
+                        val enabled = state.syncScope[item.key] != false
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment     = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                "${item.emoji}  ${item.label}",
+                                style  = MaterialTheme.typography.bodySmall,
+                                color  = if (enabled) TextPrimary else TextMuted,
+                            )
+                            Switch(
+                                checked         = enabled,
+                                onCheckedChange = { vm.toggleSyncField(item.key) },
+                                modifier        = Modifier.height(24.dp),
+                                colors          = SwitchDefaults.colors(
+                                    checkedThumbColor       = NeonCyan,
+                                    checkedTrackColor       = NeonCyan.copy(0.3f),
+                                    uncheckedThumbColor     = TextMuted,
+                                    uncheckedTrackColor     = TextMuted.copy(0.2f),
+                                ),
+                            )
                         }
                     }
                 }

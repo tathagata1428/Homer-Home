@@ -51,23 +51,29 @@ class SyncEngine @Inject constructor(
         supabase.ensureSignedIn()
         Log.d("HomerSync", "pullAll: userId=${supabase.userId} isBogdan=${supabase.isBogdan()}")
         if (!supabase.isBogdan()) { Log.w("HomerSync", "pullAll: not Bogdan, aborting"); return }
-        runCatching { pullExpenses()     }.onFailure { Log.e("HomerSync", "pullExpenses failed", it) }
-        runCatching { pullHabits()       }.onFailure { Log.e("HomerSync", "pullHabits failed", it) }
-        runCatching { pullInbox()        }.onFailure { Log.e("HomerSync", "pullInbox failed", it) }
-        runCatching { pullLinks()        }.onFailure { Log.e("HomerSync", "pullLinks failed", it) }
-        runCatching { pullPomodoroTasks()}.onFailure { Log.e("HomerSync", "pullTasks failed", it) }
-        runCatching { pullNotes()        }.onFailure { Log.e("HomerSync", "pullNotes failed", it) }
-        runCatching { pullJournal()      }.onFailure { Log.e("HomerSync", "pullJournal failed", it) }
-        runCatching { pullCar()          }.onFailure { Log.e("HomerSync", "pullCar failed", it) }
-        runCatching { pullKanban()       }.onFailure { Log.e("HomerSync", "pullKanban failed", it) }
-        runCatching { pullLifeGoals()    }.onFailure { Log.e("HomerSync", "pullLifeGoals failed", it) }
+        if (isFieldEnabled("ls:homer-expenses"))  runCatching { pullExpenses()      }.onFailure { Log.e("HomerSync", "pullExpenses failed", it) }
+        if (isFieldEnabled("ls:homer-habits"))    runCatching { pullHabits()        }.onFailure { Log.e("HomerSync", "pullHabits failed", it) }
+        if (isFieldEnabled("ls:homer-inbox"))     runCatching { pullInbox()         }.onFailure { Log.e("HomerSync", "pullInbox failed", it) }
+        if (isFieldEnabled("ls:homer-links"))     runCatching { pullLinks()         }.onFailure { Log.e("HomerSync", "pullLinks failed", it) }
+        if (isFieldEnabled("ls:pom-tasks"))       runCatching { pullPomodoroTasks() }.onFailure { Log.e("HomerSync", "pullTasks failed", it) }
+        if (isFieldEnabled("ls:homer-notes"))     runCatching { pullNotes()         }.onFailure { Log.e("HomerSync", "pullNotes failed", it) }
+        if (isFieldEnabled("ls:homer-journal"))   runCatching { pullJournal()       }.onFailure { Log.e("HomerSync", "pullJournal failed", it) }
+        if (isFieldEnabled("ls:homer-car"))       runCatching { pullCar()           }.onFailure { Log.e("HomerSync", "pullCar failed", it) }
+        if (isFieldEnabled("android:kanban"))     runCatching { pullKanban()        }.onFailure { Log.e("HomerSync", "pullKanban failed", it) }
+        if (isFieldEnabled("android:life-goals")) runCatching { pullLifeGoals()     }.onFailure { Log.e("HomerSync", "pullLifeGoals failed", it) }
         Log.d("HomerSync", "pullAll: done")
     }
 
     // ---- Debounced push ----
 
+    /** Returns false if the user has disabled sync for this field. Default = enabled. */
+    fun isFieldEnabled(fieldKey: String): Boolean =
+        ctx.getSharedPreferences("homer_sync_scope", Context.MODE_PRIVATE)
+            .getBoolean(fieldKey, true)
+
     fun schedulePush(fieldKey: String, push: suspend () -> Unit) {
         if (!supabase.isBogdan()) return
+        if (!isFieldEnabled(fieldKey)) return
         synchronized(pendingJobs) {
             pendingJobs[fieldKey]?.cancel()
             pendingJobs[fieldKey] = scope.launch {
