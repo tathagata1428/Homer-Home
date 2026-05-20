@@ -1,11 +1,13 @@
 package ro.b4it.homer.ui.screens.countdown
 
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,8 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -40,7 +40,7 @@ fun CountdownScreen(vm: CountdownViewModel = hiltViewModel()) {
     val commentary  by vm.commentary.collectAsStateWithLifecycle()
     val loading     by vm.loading.collectAsStateWithLifecycle()
 
-    var showSetup   by remember { mutableStateOf(eventDateMs == 0L) }
+    var showSetup by remember(eventDateMs == 0L) { mutableStateOf(eventDateMs == 0L) }
 
     Column(
         modifier = Modifier
@@ -49,254 +49,311 @@ fun CountdownScreen(vm: CountdownViewModel = hiltViewModel()) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // ── Screen header ────────────────────────────────────────────
+        // ── Header ────────────────────────────────────────────────────
         Column(
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp),
+            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 20.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
                 "COUNTDOWN",
-                fontSize = 28.sp, fontWeight = FontWeight.ExtraBold,
+                fontSize = 26.sp, fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 4.sp, color = TextPrimary,
             )
             Box(
-                Modifier.width(64.dp).height(2.dp)
+                Modifier.width(48.dp).height(2.dp)
                     .background(Brush.horizontalGradient(listOf(NeonPink, NeonCyan)))
             )
         }
 
-        // ── Setup card (collapsed when event is set) ─────────────────
-        HomerCard {
+        // ── Event card ────────────────────────────────────────────────
+        HomerCard(modifier = Modifier.padding(horizontal = 16.dp)) {
             Column(
-                Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                Modifier.fillMaxWidth().padding(20.dp),
             ) {
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment     = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        if (eventDateMs > 0) eventName.ifBlank { "Event" } else "Set an Event",
-                        fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary,
-                    )
-                    IconButton(onClick = { showSetup = !showSetup }) {
-                        Icon(
-                            Icons.Filled.Edit, "Edit event",
-                            tint = if (showSetup) NeonPink else TextMuted,
-                            modifier = Modifier.size(18.dp),
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(
+                            "EVENT",
+                            fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                            letterSpacing = 3.sp, color = TextMuted,
                         )
+                        Text(
+                            if (eventDateMs > 0L) eventName.ifBlank { "Unnamed Event" }
+                            else "No event set",
+                            fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
+                            color = TextPrimary,
+                        )
+                    }
+                    FilledTonalIconButton(
+                        onClick = { showSetup = !showSetup },
+                        colors  = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = if (showSetup) NeonPink.copy(0.15f) else Color.White.copy(0.05f),
+                            contentColor   = if (showSetup) NeonPink else TextMuted,
+                        ),
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        Icon(Icons.Filled.Edit, null, modifier = Modifier.size(16.dp))
                     }
                 }
 
-                if (eventDateMs > 0 && !showSetup) {
-                    val fmt = remember { SimpleDateFormat("EEE, d MMM yyyy  HH:mm", Locale.getDefault()) }
-                    Text(
-                        fmt.format(Date(eventDateMs)),
-                        fontSize = 13.sp, color = TextMuted,
-                    )
+                // Date badge
+                AnimatedVisibility(
+                    visible = eventDateMs > 0L && !showSetup,
+                    enter   = fadeIn(tween(200)) + expandVertically(tween(220)),
+                    exit    = fadeOut(tween(150)) + shrinkVertically(tween(180)),
+                ) {
+                    val fmt = remember { SimpleDateFormat("EEE, d MMM yyyy  ·  HH:mm", Locale.getDefault()) }
+                    Row(
+                        modifier = Modifier.padding(top = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(
+                            Icons.Filled.DateRange, null,
+                            tint = NeonCyan.copy(0.5f), modifier = Modifier.size(13.dp),
+                        )
+                        Text(fmt.format(Date(eventDateMs)), fontSize = 12.sp, color = TextMuted)
+                    }
                 }
 
-                if (showSetup) {
-                    EventSetupForm(
-                        initialName   = eventName,
-                        initialDateMs = eventDateMs,
-                        onSet         = { name, dateMs ->
-                            vm.setEvent(name, dateMs)
-                            showSetup = false
-                        },
-                    )
+                // Setup form
+                AnimatedVisibility(
+                    visible = showSetup,
+                    enter   = fadeIn(tween(250)) + expandVertically(tween(300, easing = FastOutSlowInEasing)),
+                    exit    = fadeOut(tween(180)) + shrinkVertically(tween(220, easing = FastOutSlowInEasing)),
+                ) {
+                    Column(modifier = Modifier.padding(top = 18.dp)) {
+                        EventSetupForm(
+                            initialName   = eventName,
+                            initialDateMs = eventDateMs,
+                            onSet         = { name, dateMs ->
+                                vm.setEvent(name, dateMs)
+                                showSetup = false
+                            },
+                        )
+                    }
                 }
             }
         }
 
-        // ── Countdown display ────────────────────────────────────────
-        if (tick.hasEvent) {
+        // ── Countdown numbers ─────────────────────────────────────────
+        AnimatedVisibility(
+            visible  = tick.hasEvent,
+            enter    = fadeIn(tween(400)) +
+                       slideInVertically(tween(420, easing = FastOutSlowInEasing)) { it / 3 },
+            exit     = fadeOut(tween(200)),
+            modifier = Modifier.padding(horizontal = 16.dp),
+        ) {
             HomerCard {
                 Column(
-                    Modifier.fillMaxWidth().padding(vertical = 28.dp, horizontal = 16.dp),
+                    Modifier.fillMaxWidth().padding(vertical = 36.dp, horizontal = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     if (tick.isPast) {
+                        Text("🎉", fontSize = 42.sp, textAlign = TextAlign.Center)
                         Text(
-                            "\uD83C\uDF89 This event has already passed!",
-                            fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                            "This event has already passed",
+                            fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
                             color = NeonPink, textAlign = TextAlign.Center,
                         )
                     } else {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment     = Alignment.Bottom,
                         ) {
-                            CountUnit(tick.days,  "DAYS",  NeonPink,   largeWhenBig = true)
-                            Separator()
-                            CountUnit(tick.hours, "HRS",   NeonCyan)
-                            Separator()
-                            CountUnit(tick.mins,  "MIN",   NeonPurple)
-                            Separator()
-                            CountUnit(tick.secs,  "SEC",   NeonGold)
+                            CountUnit(tick.days,  "DAYS", NeonPink,   largeWhenBig = true)
+                            SepColon()
+                            CountUnit(tick.hours, "HRS",  NeonCyan)
+                            SepColon()
+                            CountUnit(tick.mins,  "MIN",  NeonPurple)
+                            SepColon()
+                            CountUnit(tick.secs,  "SEC",  NeonGold)
                         }
                         Text(
                             "until ${eventName.ifBlank { "the event" }}",
-                            fontSize = 13.sp, color = TextMuted,
-                            textAlign = TextAlign.Center,
+                            fontSize = 12.sp, color = TextSubtle,
+                            textAlign = TextAlign.Center, letterSpacing = 0.3.sp,
                         )
                     }
                 }
             }
         }
 
-        // ── Mode selector + commentary ────────────────────────────────
-        if (tick.hasEvent) {
+        // ── Commentary ────────────────────────────────────────────────
+        AnimatedVisibility(
+            visible  = tick.hasEvent,
+            enter    = fadeIn(tween(500, delayMillis = 100)) +
+                       slideInVertically(tween(500, delayMillis = 100, easing = FastOutSlowInEasing)) { it / 3 },
+            exit     = fadeOut(tween(200)),
+            modifier = Modifier.padding(horizontal = 16.dp),
+        ) {
             HomerCard {
                 Column(
-                    Modifier.fillMaxWidth().padding(16.dp),
+                    Modifier.fillMaxWidth().padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     Text(
                         "COMMENTARY",
-                        fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp, fontWeight = FontWeight.Bold,
                         letterSpacing = 3.sp, color = TextMuted,
                     )
 
                     // Mode chips
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier
-                            .horizontalScroll(rememberScrollState())
-                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
                     ) {
                         CommentaryMode.entries.forEach { m ->
-                            val selected = m == mode
+                            val selected   = m == mode
+                            val chipBg     by animateColorAsState(if (selected) NeonPink.copy(0.12f) else Color.White.copy(0.04f), tween(200), label = "bg_${m.id}")
+                            val chipBorder by animateColorAsState(if (selected) NeonPink.copy(0.42f) else Color.White.copy(0.08f), tween(200), label = "br_${m.id}")
+                            val chipColor  by animateColorAsState(if (selected) NeonPink else TextMuted, tween(200), label = "cl_${m.id}")
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(20.dp))
-                                    .background(if (selected) NeonPink.copy(0.14f) else Color.Transparent)
-                                    .border(
-                                        1.dp,
-                                        if (selected) NeonPink.copy(0.55f) else BorderDefault,
-                                        RoundedCornerShape(20.dp),
-                                    )
+                                    .background(chipBg)
+                                    .border(1.dp, chipBorder, RoundedCornerShape(20.dp))
                                     .clickable { vm.setMode(m) }
-                                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                                contentAlignment = Alignment.Center,
+                                    .padding(horizontal = 12.dp, vertical = 7.dp),
                             ) {
                                 Text(
                                     "${m.emoji} ${m.label}",
-                                    fontSize = 13.sp,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (selected) NeonPink else TextMuted,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = chipColor,
                                 )
                             }
                         }
                     }
 
-                    // Commentary box
+                    // Commentary text
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(BgCardAlt)
-                            .border(1.dp, BorderSubtle, RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(0.025f))
+                            .border(1.dp, Color.White.copy(0.055f), RoundedCornerShape(12.dp))
                             .padding(16.dp),
+                        contentAlignment = Alignment.TopStart,
                     ) {
-                        if (loading) {
-                            val alpha by rememberInfiniteTransition(label = "pulse")
-                                .animateFloat(
-                                    0.3f, 1f,
-                                    infiniteRepeatable(tween(800), RepeatMode.Reverse),
-                                    label = "a",
+                        when {
+                            loading -> {
+                                val pulse by rememberInfiniteTransition(label = "pulse")
+                                    .animateFloat(
+                                        0.25f, 0.88f,
+                                        infiniteRepeatable(tween(900), RepeatMode.Reverse),
+                                        label = "p",
+                                    )
+                                Text(
+                                    "Joey is thinking\u2026",
+                                    fontSize = 14.sp,
+                                    color = NeonPurple.copy(pulse),
+                                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
                                 )
-                            Text(
-                                "Joey is thinking\u2026",
-                                fontSize = 14.sp, color = NeonPurple.copy(alpha),
+                            }
+                            commentary.isBlank() -> Text(
+                                "Tap \u201CGenerate\u201D to let Joey weigh in.",
+                                fontSize = 13.sp,
+                                color = TextSubtle.copy(0.55f),
                                 fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
                             )
-                        } else if (commentary.isBlank()) {
-                            Text(
-                                "Tap \u201CNew Commentary\u201D to let Joey weigh in.",
-                                fontSize = 14.sp, color = TextSubtle,
-                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                            )
-                        } else {
-                            Text(
-                                commentary,
-                                fontSize = 15.sp,
-                                lineHeight = 24.sp,
-                                color = Color(0xFFD0D0F0),
-                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                            )
+                            else -> AnimatedContent(
+                                targetState = commentary,
+                                transitionSpec = { fadeIn(tween(350)) togetherWith fadeOut(tween(200)) },
+                                label = "commentary",
+                            ) { text ->
+                                Text(
+                                    text,
+                                    fontSize = 14.sp, lineHeight = 22.sp,
+                                    color = Color(0xFFCCCCEE),
+                                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                )
+                            }
                         }
                     }
 
-                    Button(
+                    // Generate button
+                    OutlinedButton(
                         onClick  = { vm.generateCommentary() },
                         enabled  = !loading,
                         shape    = RoundedCornerShape(10.dp),
-                        colors   = ButtonDefaults.buttonColors(
-                            containerColor = NeonPurple.copy(0.15f),
-                            contentColor   = NeonPurple,
-                            disabledContainerColor = NeonPurple.copy(0.05f),
-                            disabledContentColor   = NeonPurple.copy(0.3f),
+                        border   = BorderStroke(
+                            1.dp,
+                            if (loading) NeonPurple.copy(0.12f)
+                            else Brush.horizontalGradient(listOf(NeonPurple.copy(0.45f), NeonPink.copy(0.35f))),
                         ),
-                        border   = BorderStroke(1.dp, NeonPurple.copy(if (loading) 0.15f else 0.35f)),
+                        colors   = ButtonDefaults.outlinedButtonColors(
+                            contentColor         = NeonPurple,
+                            disabledContentColor = NeonPurple.copy(0.3f),
+                        ),
                         modifier = Modifier.fillMaxWidth().height(44.dp),
                     ) {
-                        Icon(Icons.Filled.AutoAwesome, null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Filled.AutoAwesome, null, modifier = Modifier.size(15.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("New Commentary", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("Generate", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
                 }
             }
         }
 
+        Spacer(Modifier.height(8.dp))
         Spacer(Modifier.navigationBarsPadding())
     }
 }
 
+// ── Count unit with flip animation ────────────────────────────────────────────
+
 @Composable
 private fun CountUnit(value: Long, label: String, color: Color, largeWhenBig: Boolean = false) {
-    val numStr = if (largeWhenBig && value >= 100) value.toString().padStart(3, '0')
+    val padded = if (largeWhenBig && value >= 100) value.toString().padStart(3, '0')
                  else value.toString().padStart(2, '0')
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(Color.White.copy(alpha = 0.03f))
-            .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(14.dp))
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+        modifier = Modifier.padding(horizontal = 5.dp),
     ) {
-        Text(
-            text = numStr,
-            style = TextStyle(
+        AnimatedContent(
+            targetState = padded,
+            transitionSpec = {
+                (slideInVertically(tween(220, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(180)))
+                    .togetherWith(slideOutVertically(tween(180)) { -it } + fadeOut(tween(150)))
+            },
+            label = "count_$label",
+        ) { str ->
+            Text(
+                text          = str,
                 fontFamily    = FontFamily.Monospace,
-                fontSize      = 44.sp,
+                fontSize      = 40.sp,
                 fontWeight    = FontWeight.Black,
                 color         = color,
-                letterSpacing = (-2).sp,
-                shadow        = Shadow(color = color.copy(alpha = 0.7f), blurRadius = 24f),
-            ),
-            lineHeight = 44.sp,
-        )
+                letterSpacing = (-1.5).sp,
+            )
+        }
         Text(
             label,
             fontSize = 9.sp, fontWeight = FontWeight.Bold,
-            letterSpacing = 3.sp, color = TextSubtle,
-            modifier = Modifier.padding(top = 6.dp),
+            letterSpacing = 2.5.sp, color = Color.White.copy(0.22f),
+            modifier = Modifier.padding(top = 4.dp),
         )
     }
 }
 
 @Composable
-private fun Separator() {
+private fun SepColon() {
     Text(
         ":",
-        fontSize = 36.sp, fontWeight = FontWeight.Black,
-        color = Color.White.copy(alpha = 0.18f),
-        modifier = Modifier.offset(y = (-8).dp),
+        fontSize = 24.sp, fontWeight = FontWeight.Light,
+        color = Color.White.copy(0.1f),
+        modifier = Modifier.offset(y = (-10).dp),
     )
 }
+
+// ── Event setup form ──────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -305,8 +362,8 @@ private fun EventSetupForm(
     initialDateMs: Long,
     onSet: (name: String, dateMs: Long) -> Unit,
 ) {
-    var name        by remember { mutableStateOf(initialName) }
-    var pickedDate  by remember {
+    var name       by remember { mutableStateOf(initialName) }
+    var pickedDate by remember {
         mutableStateOf(
             if (initialDateMs > 0L) Calendar.getInstance().also { it.timeInMillis = initialDateMs }
             else Calendar.getInstance().also {
@@ -319,67 +376,68 @@ private fun EventSetupForm(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
-    val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = pickedDate.timeInMillis
-    )
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = pickedDate.timeInMillis)
     val timePickerState = rememberTimePickerState(
         initialHour   = pickedDate.get(Calendar.HOUR_OF_DAY),
         initialMinute = pickedDate.get(Calendar.MINUTE),
     )
+    val dateFmt = remember { SimpleDateFormat("EEE, d MMM yyyy  ·  HH:mm", Locale.getDefault()) }
 
-    val dateFmt = remember { SimpleDateFormat("EEE, d MMM yyyy  HH:mm", Locale.getDefault()) }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        OutlinedTextField(
+            value         = name,
+            onValueChange = { name = it },
+            label         = { Text("Event name") },
+            modifier      = Modifier.fillMaxWidth(),
+            singleLine    = true,
+            colors        = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor   = NeonPink,
+                unfocusedBorderColor = Color.White.copy(0.1f),
+                focusedLabelColor    = NeonPink,
+                unfocusedLabelColor  = TextMuted,
+                focusedTextColor     = TextPrimary,
+                unfocusedTextColor   = TextPrimary,
+                cursorColor          = NeonPink,
+            ),
+        )
 
-    OutlinedTextField(
-        value         = name,
-        onValueChange = { name = it },
-        label         = { Text("Event name") },
-        modifier      = Modifier.fillMaxWidth(),
-        singleLine    = true,
-        colors        = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor   = NeonPink,
-            unfocusedBorderColor = BorderDefault,
-            focusedLabelColor    = NeonPink,
-            unfocusedLabelColor  = TextMuted,
-            focusedTextColor     = TextPrimary,
-            unfocusedTextColor   = TextPrimary,
-        ),
-    )
+        OutlinedTextField(
+            value         = dateFmt.format(pickedDate.time),
+            onValueChange = {},
+            readOnly      = true,
+            label         = { Text("Date & Time") },
+            trailingIcon  = {
+                IconButton(onClick = { showDatePicker = true }) {
+                    Icon(Icons.Filled.DateRange, null, tint = NeonCyan, modifier = Modifier.size(18.dp))
+                }
+            },
+            modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true },
+            colors   = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor   = NeonCyan,
+                unfocusedBorderColor = Color.White.copy(0.1f),
+                focusedLabelColor    = NeonCyan,
+                unfocusedLabelColor  = TextMuted,
+                focusedTextColor     = TextPrimary,
+                unfocusedTextColor   = TextPrimary,
+            ),
+        )
 
-    OutlinedTextField(
-        value         = dateFmt.format(pickedDate.time),
-        onValueChange = {},
-        readOnly      = true,
-        label         = { Text("Date & Time") },
-        trailingIcon  = {
-            IconButton(onClick = { showDatePicker = true }) {
-                Icon(Icons.Filled.Edit, "Pick date", tint = NeonCyan, modifier = Modifier.size(18.dp))
-            }
-        },
-        modifier      = Modifier.fillMaxWidth().clickable { showDatePicker = true },
-        colors        = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor   = NeonCyan,
-            unfocusedBorderColor = BorderDefault,
-            focusedLabelColor    = NeonCyan,
-            unfocusedLabelColor  = TextMuted,
-            focusedTextColor     = TextPrimary,
-            unfocusedTextColor   = TextPrimary,
-        ),
-    )
-
-    Button(
-        onClick = {
-            val ms = pickedDate.timeInMillis
-            if (ms > 0) onSet(name.trim(), ms)
-        },
-        shape  = RoundedCornerShape(10.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = NeonPink.copy(0.15f), contentColor = NeonPink),
-        border = BorderStroke(1.dp, NeonPink.copy(0.4f)),
-        modifier = Modifier.fillMaxWidth().height(44.dp),
-    ) {
-        Text("Save Event", fontWeight = FontWeight.Bold)
+        Button(
+            onClick  = { if (pickedDate.timeInMillis > 0) onSet(name.trim(), pickedDate.timeInMillis) },
+            shape    = RoundedCornerShape(10.dp),
+            colors   = ButtonDefaults.buttonColors(
+                containerColor = Color.Transparent,
+                contentColor   = NeonPink,
+            ),
+            border   = BorderStroke(
+                1.dp, Brush.horizontalGradient(listOf(NeonPink.copy(0.6f), NeonCyan.copy(0.4f))),
+            ),
+            modifier = Modifier.fillMaxWidth().height(46.dp),
+        ) {
+            Text("Save Event", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        }
     }
 
-    // Date picker dialog
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
@@ -399,12 +457,9 @@ private fun EventSetupForm(
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) { Text("Cancel", color = TextMuted) }
             },
-        ) {
-            DatePicker(state = datePickerState)
-        }
+        ) { DatePicker(state = datePickerState) }
     }
 
-    // Time picker dialog
     if (showTimePicker) {
         AlertDialog(
             onDismissRequest = { showTimePicker = false },
