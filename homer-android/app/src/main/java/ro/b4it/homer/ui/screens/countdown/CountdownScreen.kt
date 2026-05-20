@@ -283,11 +283,10 @@ fun CountdownScreen(vm: CountdownViewModel = hiltViewModel()) {
                         onClick  = { vm.generateCommentary() },
                         enabled  = !loading,
                         shape    = RoundedCornerShape(10.dp),
-                        border   = BorderStroke(
-                            1.dp,
-                            if (loading) NeonPurple.copy(0.12f)
-                            else Brush.horizontalGradient(listOf(NeonPurple.copy(0.45f), NeonPink.copy(0.35f))),
-                        ),
+                        border   = if (loading)
+                            BorderStroke(1.dp, NeonPurple.copy(0.12f))
+                        else
+                            BorderStroke(1.dp, Brush.horizontalGradient(listOf(NeonPurple.copy(0.45f), NeonPink.copy(0.35f)))),
                         colors   = ButtonDefaults.outlinedButtonColors(
                             contentColor         = NeonPurple,
                             disabledContentColor = NeonPurple.copy(0.3f),
