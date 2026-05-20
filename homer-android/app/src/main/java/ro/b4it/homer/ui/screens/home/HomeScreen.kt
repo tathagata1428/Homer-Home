@@ -134,20 +134,20 @@ fun HeroBanner(greeting: String) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF0D0020), Color(0xFF110025), Color(0xFF080015))))
+            .background(Brush.linearGradient(listOf(BgCard, BgCardAlt, BgCard)))
             .border(
                 1.dp,
-                Brush.linearGradient(listOf(NeonPink.copy(0.6f), NeonPurple.copy(0.3f), NeonCyan.copy(0.4f))),
+                Brush.linearGradient(listOf(NeonPink.copy(0.45f), NeonGold.copy(0.25f), NeonCyan.copy(0.35f))),
                 RoundedCornerShape(24.dp),
             ),
     ) {
-        // Background glow orbs
-        Box(Modifier.size(180.dp).background(Brush.radialGradient(listOf(NeonPink.copy(0.08f), Color.Transparent))))
+        // Subtle warm glow orbs
+        Box(Modifier.size(200.dp).background(Brush.radialGradient(listOf(NeonPink.copy(0.05f), Color.Transparent))))
         Box(
-            Modifier.size(140.dp).align(Alignment.TopEnd)
-                .background(Brush.radialGradient(listOf(NeonCyan.copy(0.06f), Color.Transparent)))
+            Modifier.size(160.dp).align(Alignment.TopEnd)
+                .background(Brush.radialGradient(listOf(NeonGold.copy(0.04f), Color.Transparent)))
         )
-        Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 26.dp)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 28.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -156,37 +156,37 @@ fun HeroBanner(greeting: String) {
                 Text(
                     "HOMER",
                     style = TextStyle(
-                        brush = Brush.linearGradient(listOf(Color.White, NeonCyan.copy(0.9f), NeonPink.copy(0.7f))),
-                        fontSize = 36.sp,
+                        brush = Brush.linearGradient(listOf(TextPrimary, NeonGold.copy(0.85f), NeonPink.copy(0.65f))),
+                        fontSize = 38.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 4.sp,
+                        letterSpacing = 5.sp,
                     ),
                 )
                 Box(
                     Modifier.clip(RoundedCornerShape(20.dp))
-                        .background(NeonCyan.copy(0.1f))
-                        .border(1.dp, NeonCyan.copy(0.5f), RoundedCornerShape(20.dp))
+                        .background(NeonGold.copy(0.08f))
+                        .border(1.dp, NeonGold.copy(0.35f), RoundedCornerShape(20.dp))
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                 ) {
-                    Text(greeting.uppercase(), fontSize = 10.sp, letterSpacing = 1.sp, fontWeight = FontWeight.Bold, color = NeonCyan)
+                    Text(greeting.uppercase(), fontSize = 9.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold, color = NeonGold.copy(0.9f))
                 }
             }
-            Spacer(Modifier.height(10.dp))
-            Box(Modifier.width(160.dp).height(1.dp).background(Brush.horizontalGradient(listOf(NeonPink.copy(0.5f), NeonCyan.copy(0.3f), Color.Transparent))))
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
+            Box(Modifier.width(180.dp).height(1.dp).background(Brush.horizontalGradient(listOf(NeonPink.copy(0.4f), NeonGold.copy(0.3f), Color.Transparent))))
+            Spacer(Modifier.height(12.dp))
             Text(
                 "\u201cTrying is the first step towards failure.\u201d",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextMuted,
-                lineHeight = 18.sp,
+                lineHeight = 19.sp,
             )
             Text(
                 "\u2014 Homer Simpson",
                 fontSize = 10.sp,
                 letterSpacing = 0.5.sp,
-                color = NeonPink.copy(0.5f),
+                color = NeonGold.copy(0.55f),
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 4.dp),
+                modifier = Modifier.padding(top = 5.dp),
             )
         }
     }
@@ -332,15 +332,19 @@ fun WeatherCard(ui: HomeViewModel.WeatherUi, onRefresh: () -> Unit) {
     var showForecast by remember { mutableStateOf(false) }
 
     HomerCard {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Weather", style = MaterialTheme.typography.titleSmall, color = TextMuted)
+                Text(
+                    "WEATHER",
+                    fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                    letterSpacing = 3.sp, color = TextMuted,
+                )
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = onRefresh, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Filled.Refresh, "Refresh", tint = TextMuted, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.Refresh, "Refresh", tint = TextSubtle, modifier = Modifier.size(16.dp))
                 }
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
             if (ui.loading) {
                 CircularProgressIndicator(modifier = Modifier.size(24.dp).align(Alignment.CenterHorizontally), color = AccentBlue)
             } else {
@@ -418,30 +422,35 @@ fun WeatherCard(ui: HomeViewModel.WeatherUi, onRefresh: () -> Unit) {
 @Composable
 fun QuoteCard(ui: HomeViewModel.QuoteUi, onNext: () -> Unit, onHumor: () -> Unit, onSave: () -> Unit) {
     HomerCard {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    if (ui.humorMode) "Humor" else "Daily Inspiration",
-                    style = MaterialTheme.typography.titleSmall, color = TextMuted,
+                    if (ui.humorMode) "HUMOR" else "DAILY QUOTE",
+                    fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                    letterSpacing = 3.sp, color = TextMuted,
                 )
                 Spacer(Modifier.weight(1f))
                 val minsLeft = ui.nextRefreshSecs / 60
-                Text("%02dm".format(minsLeft), style = MaterialTheme.typography.labelSmall, color = TextSubtle)
+                Text("%02dm".format(minsLeft), fontSize = 10.sp, color = TextSubtle, letterSpacing = 0.5.sp)
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
             if (ui.loading) {
                 CircularProgressIndicator(modifier = Modifier.size(24.dp).align(Alignment.CenterHorizontally), color = AccentBlue)
             } else {
                 Text(
                     "\u201C${ui.text}\u201D",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextPrimary,
-                    lineHeight = 22.sp,
+                    fontSize = 15.sp, lineHeight = 23.sp,
+                    color = TextPrimary.copy(0.9f),
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
                 )
-                Spacer(Modifier.height(8.dp))
-                Text("— ${ui.author}", style = MaterialTheme.typography.labelMedium, color = AccentBlue)
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    "\u2014 ${ui.author}",
+                    fontSize = 12.sp, color = NeonGold.copy(0.7f),
+                    fontWeight = FontWeight.Medium, letterSpacing = 0.3.sp,
+                )
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SmallChip("New Quote", onClick = onNext)
                 SmallChip(if (ui.humorMode) "Motivational" else "Humor", onClick = onHumor)
@@ -457,12 +466,16 @@ fun QuoteCard(ui: HomeViewModel.QuoteUi, onNext: () -> Unit, onHumor: () -> Unit
 fun SavedQuotesCard(quotes: List<SavedQuote>, onDelete: (SavedQuote) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     HomerCard {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.clickable { expanded = !expanded },
             ) {
-                Text("Saved Quotes (${quotes.size})", style = MaterialTheme.typography.titleSmall, color = TextMuted)
+                Text(
+                    "SAVED QUOTES  (${quotes.size})",
+                    fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                    letterSpacing = 3.sp, color = TextMuted,
+                )
                 Spacer(Modifier.weight(1f))
                 Icon(
                     if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
@@ -515,7 +528,7 @@ fun FocusTasksCard(
         Column(modifier = Modifier.fillMaxWidth()) {
             // Header
             Box(Modifier.fillMaxWidth().height(2.dp).background(
-                Brush.horizontalGradient(listOf(AccentBlue, AccentViolet.copy(0.4f), Color.Transparent))
+                Brush.horizontalGradient(listOf(NeonPink.copy(0.7f), NeonGold.copy(0.4f), Color.Transparent))
             ))
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -639,11 +652,11 @@ fun SmallChip(label: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
-            .background(BgCardAlt)
-            .border(1.dp, BorderDefault, RoundedCornerShape(20.dp))
+            .background(NeonPink.copy(0.05f))
+            .border(1.dp, NeonPink.copy(0.18f), RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 14.dp, vertical = 7.dp),
     ) {
-        Text(label, style = MaterialTheme.typography.labelSmall, color = TextMuted)
+        Text(label, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = TextMuted, letterSpacing = 0.3.sp)
     }
 }
