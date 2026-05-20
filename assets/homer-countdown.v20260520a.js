@@ -280,6 +280,7 @@
       }),
       signal: abortCtrl.signal,
     }).then(function (resp) {
+      if (resp.status === 401) throw new Error('401');
       if (!resp.ok || !resp.body) throw new Error('HTTP ' + resp.status);
       var reader  = resp.body.getReader();
       var decoder = new TextDecoder();
@@ -316,7 +317,9 @@
       if (err && err.name === 'AbortError') return;
       textEl.classList.remove('cd-streaming');
       textEl.classList.add('cd-empty');
-      textEl.textContent = 'Could not reach Joey \u2014 ' + (err && err.message ? err.message : 'check your connection.');
+      textEl.textContent = err && err.message === '401'
+        ? 'Session expired \u2014 please refresh the page.'
+        : 'Could not reach Joey \u2014 ' + (err && err.message ? err.message : 'check your connection.');
       if (genBtn) genBtn.disabled = false;
     });
   }
