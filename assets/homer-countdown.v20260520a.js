@@ -76,59 +76,61 @@
   var CSS = [
     /* Card shell */
     '#cd-card{position:relative;overflow:hidden}',
-    '#cd-card::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,0,102,.04) 0%,rgba(0,255,255,.02) 100%);pointer-events:none}',
 
     /* Header */
-    '.cd-title{font-size:1rem;font-weight:800;letter-spacing:4px;text-transform:uppercase;color:#F0F0FF;margin-bottom:18px}',
-    '.cd-title em{font-style:normal;color:#FF0066}',
+    '.cd-hdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}',
+    '.cd-hdr-label{font-size:.67rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(240,240,255,.28)}',
+    '.cd-hdr-event{font-size:.76rem;color:rgba(240,240,255,.45);max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-style:italic}',
 
     /* Config row */
-    '.cd-config{display:flex;gap:8px;margin-bottom:22px;flex-wrap:wrap;align-items:center}',
-    '.cd-config input[type=text],.cd-config input[type=datetime-local]{background:#1E0042;border:1px solid rgba(255,255,255,.10);border-radius:10px;padding:10px 14px;color:#F0F0FF;font-size:.88rem;outline:none;transition:border-color .2s}',
-    '.cd-config input[type=text]{flex:1;min-width:150px}',
-    '.cd-config input[type=datetime-local]{min-width:190px;color-scheme:dark}',
-    '.cd-config input:focus{border-color:#FF0066;box-shadow:0 0 0 2px rgba(255,0,102,.15)}',
-    '.cd-set-btn{background:linear-gradient(135deg,#FF0066,#CC00FF);border:none;border-radius:10px;padding:10px 22px;color:#fff;font-weight:700;font-size:.88rem;cursor:pointer;transition:opacity .2s,transform .1s;white-space:nowrap}',
-    '.cd-set-btn:hover{opacity:.85}',
-    '.cd-set-btn:active{transform:scale(.97)}',
+    '.cd-config{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;align-items:center}',
+    '.cd-config input{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:7px 11px;color:#F0F0FF;font-size:.79rem;outline:none;transition:border-color .15s}',
+    '.cd-config input[type=text]{flex:1;min-width:130px}',
+    '.cd-config input[type=datetime-local]{min-width:165px;color-scheme:dark}',
+    '.cd-config input:focus{border-color:rgba(255,0,102,.45)}',
+    '.cd-set-btn{background:rgba(255,0,102,.1);border:1px solid rgba(255,0,102,.22);border-radius:8px;padding:7px 16px;color:rgba(255,0,102,.9);font-weight:600;font-size:.78rem;cursor:pointer;transition:background .15s;white-space:nowrap}',
+    '.cd-set-btn:hover{background:rgba(255,0,102,.18)}',
 
     /* Countdown display */
-    '.cd-display{display:flex;align-items:center;justify-content:center;gap:6px;margin:28px 0 18px;flex-wrap:wrap}',
-    '.cd-unit{display:flex;flex-direction:column;align-items:center;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:18px 22px;min-width:82px}',
-    '.cd-num{font-family:"SF Mono","Fira Code","Courier New",monospace;font-size:3.2rem;font-weight:900;line-height:1;letter-spacing:-2px}',
-    '.cd-num.cd-days {color:#FF0066;text-shadow:0 0 18px rgba(255,0,102,.8),0 0 40px rgba(255,0,102,.4)}',
-    '.cd-num.cd-hours{color:#00FFFF;text-shadow:0 0 18px rgba(0,255,255,.8),0 0 40px rgba(0,255,255,.4)}',
-    '.cd-num.cd-mins {color:#CC00FF;text-shadow:0 0 18px rgba(204,0,255,.8),0 0 40px rgba(204,0,255,.4)}',
-    '.cd-num.cd-secs {color:#FFD700;text-shadow:0 0 18px rgba(255,215,0,.8),0 0 40px rgba(255,215,0,.4)}',
-    '.cd-unit-label{font-size:.58rem;font-weight:700;letter-spacing:3px;color:rgba(240,240,255,.4);margin-top:8px;text-transform:uppercase}',
-    '.cd-sep{font-size:2.8rem;font-weight:900;color:rgba(255,255,255,.2);align-self:flex-start;margin-top:18px;line-height:1}',
+    '.cd-display{display:flex;align-items:flex-end;justify-content:center;gap:0;margin:18px 0 6px;flex-wrap:wrap}',
+    '.cd-unit{display:flex;flex-direction:column;align-items:center;padding:8px 14px}',
+    '.cd-num{font-family:"SF Mono","Fira Code","Courier New",monospace;font-size:2.6rem;font-weight:900;line-height:1;letter-spacing:-1.5px}',
+    '.cd-num.cd-days {color:#FF0066}',
+    '.cd-num.cd-hours{color:#00E5FF}',
+    '.cd-num.cd-mins {color:#C44DFF}',
+    '.cd-num.cd-secs {color:rgba(255,215,0,.65)}',
+    '.cd-unit-label{font-size:.5rem;font-weight:600;letter-spacing:2px;color:rgba(240,240,255,.22);margin-top:5px;text-transform:uppercase}',
+    '.cd-sep{font-size:1.8rem;font-weight:300;color:rgba(255,255,255,.12);align-self:flex-end;margin-bottom:13px;line-height:1;padding:0 1px}',
 
-    '.cd-event-label{text-align:center;font-size:.82rem;color:rgba(240,240,255,.45);letter-spacing:.5px;margin-bottom:22px}',
-    '.cd-event-label strong{color:#F0F0FF}',
-    '.cd-past-msg{text-align:center;font-size:1.1rem;font-weight:700;color:#FF0066;margin:24px 0 10px;text-shadow:0 0 12px rgba(255,0,102,.5)}',
-    '.cd-no-event{text-align:center;color:rgba(240,240,255,.28);font-size:.9rem;padding:40px 0}',
+    '.cd-event-label{text-align:center;font-size:.74rem;color:rgba(240,240,255,.3);margin-bottom:14px}',
+    '.cd-event-label strong{color:rgba(240,240,255,.55);font-weight:500}',
+    '.cd-past-msg{text-align:center;font-size:.95rem;font-weight:600;color:#FF0066;margin:16px 0 6px}',
+    '.cd-no-event{text-align:center;color:rgba(240,240,255,.18);font-size:.8rem;padding:26px 0;line-height:1.7}',
+
+    /* Divider */
+    '.cd-divider{height:1px;background:rgba(255,255,255,.06);margin:4px 0 12px}',
 
     /* Mode buttons */
-    '.cd-modes{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}',
-    '.cd-mode-btn{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);border-radius:20px;padding:7px 15px;font-size:.8rem;font-weight:600;color:rgba(240,240,255,.55);cursor:pointer;transition:all .18s}',
-    '.cd-mode-btn:hover{background:rgba(255,0,102,.1);border-color:rgba(255,0,102,.3);color:#F0F0FF}',
-    '.cd-mode-btn.cd-active{background:rgba(255,0,102,.14);border-color:rgba(255,0,102,.55);color:#FF0066;text-shadow:0 0 8px rgba(255,0,102,.4)}',
+    '.cd-modes{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}',
+    '.cd-mode-btn{background:transparent;border:1px solid transparent;border-radius:20px;padding:4px 10px;font-size:.71rem;color:rgba(240,240,255,.35);cursor:pointer;transition:all .15s}',
+    '.cd-mode-btn:hover{color:rgba(240,240,255,.7);border-color:rgba(255,255,255,.1)}',
+    '.cd-mode-btn.cd-active{color:#FF0066;border-color:rgba(255,0,102,.28);background:rgba(255,0,102,.07)}',
 
     /* Commentary */
-    '.cd-comment-box{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:18px;margin-bottom:4px}',
-    '.cd-comment-text{color:#D0D0F0;font-size:.95rem;line-height:1.7;font-style:italic;min-height:48px;white-space:pre-wrap}',
-    '.cd-comment-text.cd-streaming::after{content:"▋";animation:cd-blink .75s step-end infinite;display:inline;color:#CC00FF}',
-    '.cd-comment-text.cd-empty{color:rgba(240,240,255,.25);font-style:normal}',
+    '.cd-commentary-row{display:flex;align-items:flex-start;gap:10px}',
+    '.cd-comment-text{flex:1;color:rgba(200,200,230,.78);font-size:.86rem;line-height:1.65;font-style:italic;min-height:34px;white-space:pre-wrap}',
+    '.cd-comment-text.cd-streaming::after{content:"\u25ae";animation:cd-blink .75s step-end infinite;display:inline;color:#C44DFF}',
+    '.cd-comment-text.cd-empty{color:rgba(240,240,255,.18);font-style:normal;font-size:.78rem}',
     '@keyframes cd-blink{0%,100%{opacity:1}50%{opacity:0}}',
-    '.cd-gen-btn{margin-top:12px;background:rgba(204,0,255,.1);border:1px solid rgba(204,0,255,.28);border-radius:10px;padding:8px 20px;color:#CC00FF;font-weight:700;font-size:.83rem;cursor:pointer;transition:all .18s}',
-    '.cd-gen-btn:hover{background:rgba(204,0,255,.2)}',
-    '.cd-gen-btn:disabled{opacity:.35;cursor:not-allowed}',
+    '.cd-gen-btn{flex-shrink:0;background:transparent;border:1px solid rgba(255,255,255,.09);border-radius:7px;padding:5px 11px;color:rgba(240,240,255,.35);font-size:.7rem;cursor:pointer;transition:all .15s;margin-top:1px}',
+    '.cd-gen-btn:hover{border-color:rgba(196,77,255,.35);color:rgba(196,77,255,.85)}',
+    '.cd-gen-btn:disabled{opacity:.2;cursor:not-allowed}',
 
     /* Responsive */
     '@media(max-width:520px){',
-      '.cd-num{font-size:2.2rem}',
-      '.cd-unit{padding:14px 16px;min-width:64px}',
-      '.cd-sep{font-size:2rem;margin-top:14px}',
+      '.cd-num{font-size:2rem}',
+      '.cd-unit{padding:6px 10px}',
+      '.cd-sep{font-size:1.5rem;margin-bottom:10px}',
     '}',
   ].join('');
 
@@ -136,22 +138,26 @@
   function buildCardHTML() {
     var savedDate = '';
     if (state.date) {
-      // Convert ISO → datetime-local format (YYYY-MM-DDTHH:MM)
       try { savedDate = new Date(state.date).toISOString().slice(0, 16); } catch (_) {}
     }
+    var hdrEvent = state.name ? esc(state.name) : (state.date ? 'Event set' : '');
     return '<div id="cd-card" class="span-12 card">' +
-      '<div class="cd-title">⏳ COUNT<em>DOWN</em></div>' +
+      '<div class="cd-hdr">' +
+        '<span class="cd-hdr-label">Countdown</span>' +
+        '<span class="cd-hdr-event" id="cd-hdr-event">' + hdrEvent + '</span>' +
+      '</div>' +
       '<div class="cd-config">' +
-        '<input type="text" id="cd-name-in" placeholder="What are you counting down to?" maxlength="80" value="' + esc(state.name) + '">' +
+        '<input type="text" id="cd-name-in" placeholder="Event name\u2026" maxlength="80" value="' + esc(state.name) + '">' +
         '<input type="datetime-local" id="cd-date-in" value="' + esc(savedDate) + '">' +
-        '<button class="cd-set-btn" id="cd-set-btn">Set Event</button>' +
+        '<button class="cd-set-btn" id="cd-set-btn">Set</button>' +
       '</div>' +
       '<div id="cd-display-area"></div>' +
       '<div id="cd-commentary-section" style="display:none">' +
+        '<div class="cd-divider"></div>' +
         '<div class="cd-modes" id="cd-modes-row"></div>' +
-        '<div class="cd-comment-box">' +
-          '<div class="cd-comment-text cd-empty" id="cd-comment-text">Pick a mode and tap "New Commentary" to generate.</div>' +
-          '<button class="cd-gen-btn" id="cd-gen-btn">&#10024; New Commentary</button>' +
+        '<div class="cd-commentary-row">' +
+          '<div class="cd-comment-text cd-empty" id="cd-comment-text">Select a tone and generate commentary.</div>' +
+          '<button class="cd-gen-btn" id="cd-gen-btn">\u21ba Generate</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -375,6 +381,8 @@
       state.name = nameVal;
       state.date = new Date(dateVal).toISOString();
       saveState();
+      var hdrEl = document.getElementById('cd-hdr-event');
+      if (hdrEl) hdrEl.textContent = state.name || 'Event set';
       renderDisplay();
       renderModes();
       generateCommentary();
