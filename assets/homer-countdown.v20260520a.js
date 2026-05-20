@@ -258,8 +258,14 @@
 
     var session = window.__sbSession || null;
     var token   = session && session.access_token;
-    var headers = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = 'Bearer ' + token;
+    if (!token) {
+      textEl.classList.remove('cd-streaming');
+      textEl.classList.add('cd-empty');
+      textEl.textContent = 'Sign in to generate Joey commentary.';
+      if (genBtn) genBtn.disabled = false;
+      return;
+    }
+    var headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
 
     fetch('/api/openclaw', {
       method:  'POST',
@@ -310,7 +316,7 @@
       if (err && err.name === 'AbortError') return;
       textEl.classList.remove('cd-streaming');
       textEl.classList.add('cd-empty');
-      textEl.textContent = 'Could not reach Joey \u2014 check your connection.';
+      textEl.textContent = 'Could not reach Joey \u2014 ' + (err && err.message ? err.message : 'check your connection.');
       if (genBtn) genBtn.disabled = false;
     });
   }
@@ -373,8 +379,6 @@
 
     renderDisplay();
     renderModes();
-
-    if (state.date) generateCommentary();
 
     if (tickTimer) clearInterval(tickTimer);
     tickTimer = setInterval(tickInPlace, 1000);
