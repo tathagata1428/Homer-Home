@@ -1420,34 +1420,18 @@
         var projects=   (vault.projects||[]).map(vaultNormalizeProject);
         var lifeGoals=  (vault.lifeGoals||[]).map(vaultNormalizeLg);
         var localKanban={projects:projects,tasks:tasks};
-        // Kanban merge
-        client.from('field_state').select('value').eq('field_id','ls:homer-kanban').eq('user_id',uid).maybeSingle()
-          .then(function(r){
-            var rem={projects:[],tasks:[]};
-            if(r.data&&r.data.value){
-              try{rem=JSON.parse(r.data.value);}catch(e){}
-              if(Array.isArray(rem.goals)){
-                rem.tasks=(rem.tasks||[]).concat(rem.goals.map(vaultNormalizeTask));
-                delete rem.goals;
-              }
-            }
-            var merged=mergeKanbanBlob(localKanban,rem);
-            var ts=Date.now();
-            return client.from('field_state').upsert(
-              {field_id:'ls:homer-kanban',value:JSON.stringify(merged),user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',updated_at:new Date(ts).toISOString()},
-              {onConflict:'user_id,field_id'});
-          }).catch(function(e){console.warn('[HomerSync] vaultSync kanban',e);});
-        // Life Goals merge
-        client.from('field_state').select('value').eq('field_id','ls:homer-life-goals').eq('user_id',uid).maybeSingle()
-          .then(function(r){
-            var rem=[];
-            if(r.data&&r.data.value){try{rem=JSON.parse(r.data.value);}catch(e){}if(!Array.isArray(rem))rem=[];}
-            var merged=mergeLifeGoalsArr(lifeGoals,rem);
-            var ts=Date.now();
-            return client.from('field_state').upsert(
-              {field_id:'ls:homer-life-goals',value:JSON.stringify(merged),user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',updated_at:new Date(ts).toISOString()},
-              {onConflict:'user_id,field_id'});
-          }).catch(function(e){console.warn('[HomerSync] vaultSync life-goals',e);});
+        // Kanban: vault is authoritative — write directly so deletions propagate
+        var tsK=Date.now();
+        client.from('field_state').upsert(
+          {field_id:'ls:homer-kanban',value:JSON.stringify(localKanban),user_id:uid,kind:'json',client_ts:tsK,client_seq:0,device_id:'web',updated_at:new Date(tsK).toISOString()},
+          {onConflict:'user_id,field_id'})
+          .catch(function(e){console.warn('[HomerSync] vaultSync kanban',e);});
+        // Life Goals: vault is authoritative — write directly so deletions propagate
+        var tsLG=Date.now();
+        client.from('field_state').upsert(
+          {field_id:'ls:homer-life-goals',value:JSON.stringify(lifeGoals),user_id:uid,kind:'json',client_ts:tsLG,client_seq:0,device_id:'web',updated_at:new Date(tsLG).toISOString()},
+          {onConflict:'user_id,field_id'})
+          .catch(function(e){console.warn('[HomerSync] vaultSync life-goals',e);});
       }).catch(function(e){console.warn('[HomerSync] vaultSync load',e);});
     }
     // Fire vault sync whenever vault data changes (task created/updated, life goal saved, etc.)
