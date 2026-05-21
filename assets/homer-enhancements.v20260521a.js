@@ -1226,17 +1226,29 @@
     function syncCats(){syncMergeKey('homer-expense-cats',mergeCats,[]);}
 
     // ── Notes: merge by id, newer updatedAt wins ─────────────────────────
+    // Normalise: ensures every note has numeric updatedAt/createdAt (Long ms)
+    // so Android can deserialise without falling back to System.currentTimeMillis().
+    function noteTs(n){
+      if(n.updatedAt&&typeof n.updatedAt==='number')return n.updatedAt;
+      if(n.updated)return new Date(n.updated).getTime()||0;
+      return 0;
+    }
+    function normalizeNote(n){
+      var ts=noteTs(n);
+      var tc=(n.createdAt&&typeof n.createdAt==='number')?n.createdAt:(n.created?new Date(n.created).getTime()||ts:ts);
+      return Object.assign({},n,{updatedAt:ts,createdAt:tc});
+    }
     function mergeNotes(local,remote){
       var byId={};
-      (Array.isArray(remote)?remote:[]).forEach(function(n){if(n&&n.id!=null)byId[String(n.id)]=Object.assign({},n);});
+      (Array.isArray(remote)?remote:[]).forEach(function(n){if(n&&n.id!=null){var nn=normalizeNote(n);byId[String(n.id)]=nn;}});
       (Array.isArray(local)?local:[]).forEach(function(n){
         if(!n||n.id==null)return;
-        var k=String(n.id);
-        if(byId[k])byId[k]=(((n.updatedAt||0)>=(byId[k].updatedAt||0))?Object.assign({},byId[k],n):byId[k]);
-        else byId[k]=Object.assign({},n);
+        var nn=normalizeNote(n);var k=String(n.id);
+        if(byId[k])byId[k]=(nn.updatedAt>=byId[k].updatedAt?Object.assign({},byId[k],nn):byId[k]);
+        else byId[k]=nn;
       });
       var merged=Object.keys(byId).map(function(k){return byId[k];});
-      merged.sort(function(a,b){return(b.updatedAt||0)-(a.updatedAt||0);});
+      merged.sort(function(a,b){return b.updatedAt-a.updatedAt;});
       return merged;
     }
     function syncNotes(){syncMergeKey('homer-notes',mergeNotes,[]);}
@@ -1388,6 +1400,18 @@
 
     setInterval(pushDirty,30000);
     window.addEventListener('beforeunload',pushDirty);
+
+    // Notion-like: re-sync when user returns to the tab after being away
+    var _lastVisibilitySync=0;
+    document.addEventListener('visibilitychange',function(){
+      if(document.visibilityState==='visible'&&canSync()){
+        var now=Date.now();
+        if(now-_lastVisibilitySync>60000){// at most once per minute
+          _lastVisibilitySync=now;
+          pullAll();
+        }
+      }
+    });
 
     ['homer-expense-panel','homer-habits-panel','homer-inbox-panel'].forEach(function(id){
       waitForEl(id,function(el){

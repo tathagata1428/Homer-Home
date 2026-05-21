@@ -12,6 +12,7 @@ import ro.b4it.homer.data.local.HomerDatabase
 import ro.b4it.homer.data.local.entity.*
 import ro.b4it.homer.data.preferences.AppPreferences
 import ro.b4it.homer.data.supabase.SupabaseManager
+import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -297,6 +298,7 @@ class SyncEngine @Inject constructor(
 
     private suspend fun pushLinks() {
         val links = db.linkDao().getAll().first()
+        if (links.isEmpty()) return
         val wsLinks = links.map { l ->
             WsLink(emoji = l.emoji, name = l.name, url = l.url,
                    cat = l.category, useFavicon = l.useFavicon)
@@ -365,11 +367,57 @@ class SyncEngine @Inject constructor(
 
     // ── Notes ─────────────────────────────────────────────────────────────────
     // Website key: "homer-notes"
-    // Format: [{id, title, content, emoji, parentId, pinned, createdAt, updatedAt}]
-    // Android Note entity fields match directly — straightforward sync.
+    // Android format:  [{id, title, content, emoji, parentId, pinned, createdAt (Long), updatedAt (Long)}]
+    // Old web format:  [{id, title, content, daily, date, created (ISO string), updated (ISO string)}]
+    // Bridge WsNote handles both — prefers Long fields, falls back to ISO string conversion.
+
+    @Serializable
+    private data class WsNote(
+        val id:        String  = "",
+        val title:     String  = "",
+        val content:   String  = "",
+        val emoji:     String  = "📝",
+        val parentId:  String? = null,
+        val pinned:    Boolean = false,
+        // Android-format timestamps (Long ms since epoch)
+        val createdAt: Long    = 0L,
+        val updatedAt: Long    = 0L,
+        // Old web-format timestamps (ISO-8601 string)
+        val created:   String  = "",
+        val updated:   String  = "",
+    )
+
+    /** Parse ISO-8601 string to epoch millis; returns System.currentTimeMillis() on failure. */
+    private fun parseIsoMs(iso: String): Long =
+        if (iso.isBlank()) System.currentTimeMillis()
+        else try { Instant.parse(iso).toEpochMilli() } catch (_: Exception) { System.currentTimeMillis() }
+
+    private fun WsNote.toNote(): Note {
+        val ts = when {
+            updatedAt > 0 -> updatedAt
+            updated.isNotBlank() -> parseIsoMs(updated)
+            else -> System.currentTimeMillis()
+        }
+        val tsCreated = when {
+            createdAt > 0 -> createdAt
+            created.isNotBlank() -> parseIsoMs(created)
+            else -> ts
+        }
+        return Note(
+            id        = id,
+            title     = title.ifBlank { "Untitled" },
+            content   = content,
+            emoji     = emoji,
+            parentId  = parentId,
+            pinned    = pinned,
+            createdAt = tsCreated,
+            updatedAt = ts,
+        )
+    }
 
     private suspend fun pushNotes() {
         val notes = db.noteDao().getAll().first()
+        if (notes.isEmpty()) return   // safety: never wipe cloud with empty local
         supabase.setFieldState("ls:homer-notes",
             json.encodeToString(ListSerializer(Note.serializer()), notes))
     }
@@ -377,7 +425,8 @@ class SyncEngine @Inject constructor(
     private suspend fun pullNotes() {
         supabase.getFieldState("ls:homer-notes")?.let { row ->
             if (row.value.isBlank()) return@let
-            val cloudNotes = json.decodeFromString(ListSerializer(Note.serializer()), row.value)
+            val wsNotes = json.decodeFromString(ListSerializer(WsNote.serializer()), row.value)
+            val cloudNotes = wsNotes.filter { it.id.isNotBlank() }.map { it.toNote() }
             val toMerge = mergeByUpdatedAt(cloudNotes, db.noteDao().getAll().first(), { it.id }, { it.updatedAt })
             if (toMerge.isNotEmpty()) db.noteDao().upsertAll(toMerge)
         }
@@ -389,6 +438,7 @@ class SyncEngine @Inject constructor(
 
     private suspend fun pushJournal() {
         val entries = db.journalDao().getAll().first()
+        if (entries.isEmpty()) return
         supabase.setFieldState("ls:homer-journal",
             json.encodeToString(ListSerializer(JournalEntry.serializer()), entries))
     }
