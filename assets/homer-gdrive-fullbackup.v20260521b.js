@@ -104,7 +104,7 @@
 
   /* ── Backup state keys ──────────────────────────────────────────── */
   var KEY_R2_TS      = 'homer-backup-ts';          // R2 cloud backup
-  var KEY_DB_TS      = 'homer-db-backup-ts';        // Supabase DB mirror
+  var KEY_DB_TS      = 'homer-vault-supa-ts';        // Supabase vault sync (written by daily-brief on successful supa push)
   var KEY_DRIVE_TS   = 'homer-drive-backup-ts';     // Joey context Drive
   var KEY_FULL_TS    = 'homer-drive-fullbackup-ts'; // Full Drive backup (this script)
   var KEY_FULL_STATS = 'homer-drive-fullbackup-stats';
@@ -134,13 +134,16 @@
     });
   }
 
-  /* ── Run DB Mirror ──────────────────────────────────────────────── */
+  /* ── Run Supabase Sync ──────────────────────────────────────────── */
   function runDbMirror(onStatus) {
-    if (typeof window._homerBackupEverythingToDb === 'function') {
-      onStatus('Mirroring to Supabase\u2026');
-      return window._homerBackupEverythingToDb().catch(function (e) { return { ok: false, error: e.message }; });
+    if (typeof window._heSyncPullAll === 'function') {
+      onStatus('Syncing with Supabase\u2026');
+      try { window._heSyncPullAll(); } catch (e) { return Promise.resolve({ ok: false, error: e.message }); }
+      // _heSyncPullAll is fire-and-forget; stamp optimistically
+      localStorage.setItem('homer-vault-supa-ts', String(Date.now()));
+      return Promise.resolve({ ok: true });
     }
-    return Promise.resolve({ ok: false, error: 'DB mirror not available' });
+    return Promise.resolve({ ok: false, error: 'Supabase sync not available' });
   }
 
   /* ── Run Joey Drive Backup ──────────────────────────────────────── */
@@ -274,7 +277,7 @@
       // Status rows
       + '<div style="margin-bottom:4px;">'
       + row('&#x2601;', 'R2 Cloud &mdash; auto-sync (browser data)', r2Ts, 1, 3)
-      + row('&#x1F5C4;', 'Supabase DB Mirror &mdash; full database', dbTs, 1, 3)
+      + row('&#x1F5C4;', 'Supabase sync &mdash; vault &amp; field state', dbTs, 1, 3)
       + row('&#x1F4E6;', 'Drive Full Backup &mdash; everything, all devices', fullTs, 3, 7)
       + row('&#x1F9E0;', 'Joey Context &mdash; AI memories &amp; history', joeyTs, 3, 7)
       + '</div>'
