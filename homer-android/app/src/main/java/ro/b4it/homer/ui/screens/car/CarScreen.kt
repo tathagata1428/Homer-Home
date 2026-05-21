@@ -143,7 +143,7 @@ fun CarScreen(onBack: () -> Unit, vm: CarViewModel = hiltViewModel()) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Filled.ArrowBack, null, tint = NeonPink)
+                Icon(Icons.Filled.ArrowBack, null, tint = TextMuted)
             }
             Text(
                 "Car Tracker",
@@ -158,10 +158,10 @@ fun CarScreen(onBack: () -> Unit, vm: CarViewModel = hiltViewModel()) {
                 }
             }
             IconButton(onClick = { showAddVehicle = true }) {
-                Icon(Icons.Filled.Add, null, tint = NeonPink)
+                Icon(Icons.Filled.Add, null, tint = AccentBlue)
             }
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Brush.horizontalGradient(listOf(NeonPink.copy(0.4f), NeonCyan.copy(0.2f), Color.Transparent))))
+        HorizontalDivider(color = BorderSubtle)
 
         if (selectedVehicle == null) {
             // ── Empty state ──────────────────────────────────────────────────
@@ -172,7 +172,7 @@ fun CarScreen(onBack: () -> Unit, vm: CarViewModel = hiltViewModel()) {
                     Text("Track insurance, maintenance & fuel", style = MaterialTheme.typography.bodySmall, color = TextMuted)
                     Button(
                         onClick = { showAddVehicle = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonPink),
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
                         shape = RoundedCornerShape(12.dp),
                     ) {
                         Text("Add Your Car", fontWeight = FontWeight.Bold)
@@ -193,7 +193,7 @@ fun CarScreen(onBack: () -> Unit, vm: CarViewModel = hiltViewModel()) {
                     TabRow(
                         selectedTabIndex = selectedTab,
                         containerColor   = BgCard,
-                        contentColor     = NeonPink,
+                        contentColor     = AccentBlue,
                     ) {
                         listOf("Documents", "Maintenance", "Fuel").forEachIndexed { i, title ->
                             Tab(
@@ -204,7 +204,7 @@ fun CarScreen(onBack: () -> Unit, vm: CarViewModel = hiltViewModel()) {
                                         title,
                                         fontSize   = 11.sp,
                                         fontWeight = if (selectedTab == i) FontWeight.Bold else FontWeight.Normal,
-                                        color      = if (selectedTab == i) NeonPink else TextMuted,
+                                        color      = if (selectedTab == i) AccentBlue else TextMuted,
                                     )
                                 },
                             )
@@ -218,11 +218,11 @@ fun CarScreen(onBack: () -> Unit, vm: CarViewModel = hiltViewModel()) {
                         // ── Documents tab ─────────────────────────────────────
                         item {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text("DOCUMENTS", fontSize = 9.sp, letterSpacing = 2.sp, color = TextSubtle, fontWeight = FontWeight.ExtraBold)
+                                Text("Documents", fontSize = 9.sp, letterSpacing = 0.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
                                 TextButton(onClick = { showAddDoc = true }) {
-                                    Icon(Icons.Filled.Add, null, modifier = Modifier.size(14.dp), tint = NeonPink)
+                                    Icon(Icons.Filled.Add, null, modifier = Modifier.size(14.dp), tint = AccentBlue)
                                     Spacer(Modifier.width(4.dp))
-                                    Text("Add", fontSize = 11.sp, color = NeonPink)
+                                    Text("Add", fontSize = 11.sp, color = AccentBlue)
                                 }
                             }
                         }
@@ -243,11 +243,11 @@ fun CarScreen(onBack: () -> Unit, vm: CarViewModel = hiltViewModel()) {
                         // ── Maintenance tab ───────────────────────────────────
                         item {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text("SERVICE HISTORY", fontSize = 9.sp, letterSpacing = 2.sp, color = TextSubtle, fontWeight = FontWeight.ExtraBold)
+                                Text("Service history", fontSize = 9.sp, letterSpacing = 0.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
                                 TextButton(onClick = { showAddMaint = true }) {
-                                    Icon(Icons.Filled.Add, null, modifier = Modifier.size(14.dp), tint = NeonCyan)
+                                    Icon(Icons.Filled.Add, null, modifier = Modifier.size(14.dp), tint = AccentBlue)
                                     Spacer(Modifier.width(4.dp))
-                                    Text("Add", fontSize = 11.sp, color = NeonCyan)
+                                    Text("Add", fontSize = 11.sp, color = AccentBlue)
                                 }
                             }
                         }

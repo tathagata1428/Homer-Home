@@ -59,16 +59,15 @@ fun HabitsScreen(vm: HabitsViewModel = hiltViewModel()) {
         item {
             Row(Modifier.padding(top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("HABITS", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp, color = TextPrimary)
-                    Box(Modifier.width(54.dp).height(2.dp).background(Brush.horizontalGradient(listOf(NeonPink, NeonCyan))))
+                    Text("Habits", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                 }
                 Box(
                     Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
-                        .background(NeonPink.copy(0.1f))
-                        .border(1.dp, NeonPink.copy(0.55f), RoundedCornerShape(12.dp))
+                        .background(AccentBlue.copy(0.08f))
+                        .border(1.dp, AccentBlue.copy(0.25f), RoundedCornerShape(12.dp))
                         .clickable { showAdd = true },
                     contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Filled.Add, null, tint = NeonPink, modifier = Modifier.size(20.dp)) }
+                ) { Icon(Icons.Filled.Add, null, tint = AccentBlue, modifier = Modifier.size(20.dp)) }
             }
         }
 
@@ -77,41 +76,34 @@ fun HabitsScreen(vm: HabitsViewModel = hiltViewModel()) {
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
                     .background(BgCard)
-                    .border(
-                        1.dp,
-                        Brush.linearGradient(
-                            if (allDone) listOf(NeonCyan, NeonGold.copy(0.8f))
-                            else listOf(NeonPink, NeonCyan.copy(0.6f))
-                        ),
-                        RoundedCornerShape(18.dp),
-                    )
+                    .border(1.dp, BorderDefault, RoundedCornerShape(18.dp))
                     .padding(18.dp),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("TODAY'S MISSION", fontSize = 9.sp, letterSpacing = 2.5.sp, color = NeonPink.copy(0.75f), fontWeight = FontWeight.Bold)
+                            Text("Today's mission", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
                             Spacer(Modifier.height(4.dp))
-                            Text("$doneToday / $total", fontSize = 38.sp, fontWeight = FontWeight.ExtraBold, color = if (allDone) NeonCyan else NeonPink)
+                            Text("$doneToday / $total", fontSize = 38.sp, fontWeight = FontWeight.ExtraBold, color = if (allDone) AccentGreen else AccentBlue)
                         }
                         if (allDone) {
                             Box(
                                 Modifier.clip(RoundedCornerShape(12.dp))
-                                    .background(NeonCyan.copy(0.08f))
-                                    .border(1.dp, NeonCyan.copy(0.6f), RoundedCornerShape(12.dp))
+                                    .background(AccentGreen.copy(0.08f))
+                                    .border(1.dp, AccentGreen.copy(0.6f), RoundedCornerShape(12.dp))
                                     .padding(horizontal = 14.dp, vertical = 10.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Text("PERFECT\nDAY  ✓", fontSize = 10.sp, letterSpacing = 1.2.sp, color = NeonCyan, fontWeight = FontWeight.ExtraBold, lineHeight = 15.sp)
+                                Text("Perfect\nday  ✓", fontSize = 10.sp, color = AccentGreen, fontWeight = FontWeight.Bold, lineHeight = 15.sp)
                             }
                         } else {
                             Box(
                                 Modifier.size(58.dp).clip(CircleShape)
-                                    .background(NeonPink.copy(0.07f))
-                                    .border(1.dp, NeonPink.copy(0.4f), CircleShape),
+                                    .background(AccentBlue.copy(0.07f))
+                                    .border(1.dp, AccentBlue.copy(0.4f), CircleShape),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Text("${(pct * 100).toInt()}%", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = NeonPink)
+                                Text("${(pct * 100).toInt()}%", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = AccentBlue)
                             }
                         }
                     }
@@ -119,7 +111,7 @@ fun HabitsScreen(vm: HabitsViewModel = hiltViewModel()) {
                         if (pct > 0f) {
                             Box(
                                 Modifier.fillMaxWidth(pct).height(6.dp).clip(RoundedCornerShape(3.dp))
-                                    .background(Brush.horizontalGradient(if (allDone) listOf(NeonCyan, NeonGold) else listOf(NeonPink, NeonCyan)))
+                                    .background(if (allDone) AccentGreen else AccentBlue)
                             )
                         }
                     }
@@ -128,7 +120,7 @@ fun HabitsScreen(vm: HabitsViewModel = hiltViewModel()) {
                         Text(
                             "${"▓".repeat(filled)}${"░".repeat(20 - filled)}  ${(pct * 100).toInt()}%",
                             fontSize = 11.sp,
-                            color = if (allDone) NeonCyan.copy(0.5f) else NeonPink.copy(0.4f),
+                            color = TextSubtle.copy(0.5f),
                             fontFamily = FontFamily.Monospace,
                         )
                     }
@@ -141,8 +133,8 @@ fun HabitsScreen(vm: HabitsViewModel = hiltViewModel()) {
                 Box(Modifier.fillMaxWidth().padding(vertical = 60.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("🌴", fontSize = 52.sp)
-                        Text("NO HABITS YET", fontSize = 10.sp, letterSpacing = 3.sp, color = NeonPink.copy(0.6f), fontWeight = FontWeight.Bold)
-                        Text("Start building your Vice City routine", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+                        Text("No habits yet", fontSize = 14.sp, color = TextMuted, fontWeight = FontWeight.Medium)
+                        Text("Start building your daily routine", color = TextMuted, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
@@ -189,22 +181,18 @@ fun HabitRow(
     onToggleDate: (date: String, done: Boolean) -> Unit,
     onDelete: () -> Unit,
 ) {
-    val rawColor = try { Color(android.graphics.Color.parseColor(habit.color)) } catch (_: Exception) { NeonPink }
-    val accent   = if (todayDone) NeonCyan else rawColor
+    val rawColor = try { Color(android.graphics.Color.parseColor(habit.color)) } catch (_: Exception) { AccentBlue }
+    val accent   = if (todayDone) AccentGreen else rawColor
 
     Box(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(BgCard)
-            .border(
-                1.dp,
-                Brush.linearGradient(listOf(accent.copy(if (todayDone) 0.65f else 0.3f), accent.copy(0.1f))),
-                RoundedCornerShape(16.dp),
-            ),
+            .border(1.dp, BorderDefault, RoundedCornerShape(16.dp)),
     ) {
         Row(Modifier.height(IntrinsicSize.Min)) {
             // Left accent stripe
-            Box(Modifier.width(3.dp).fillMaxHeight().background(Brush.verticalGradient(listOf(accent, accent.copy(0.3f)))))
+            Box(Modifier.width(3.dp).fillMaxHeight().background(accent))
 
             Column(
                 Modifier.weight(1f).padding(start = 12.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
@@ -243,11 +231,11 @@ fun HabitRow(
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 Modifier.clip(RoundedCornerShape(4.dp))
-                                    .background(NeonPink.copy(0.08f))
-                                    .border(1.dp, NeonPink.copy(0.28f), RoundedCornerShape(4.dp))
+                                    .background(AccentBlue.copy(0.08f))
+                                    .border(1.dp, AccentBlue.copy(0.25f), RoundedCornerShape(4.dp))
                                     .padding(horizontal = 5.dp, vertical = 2.dp),
                             ) {
-                                Text(habit.freq.uppercase(), fontSize = 7.sp, letterSpacing = 1.sp, color = NeonPink.copy(0.85f), fontWeight = FontWeight.Bold)
+                                Text(habit.freq.replaceFirstChar { it.uppercase() }, fontSize = 7.sp, color = AccentBlue.copy(0.85f), fontWeight = FontWeight.SemiBold)
                             }
                             if (streak > 0) {
                                 Text("🔥 $streak day streak", fontSize = 10.sp, color = NeonGold, fontWeight = FontWeight.SemiBold)
@@ -263,10 +251,10 @@ fun HabitRow(
                         Box(
                             Modifier.width(60.dp).height(44.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(if (todayDone) NeonCyan.copy(0.12f) else NeonPink.copy(0.07f))
+                                .background(if (todayDone) AccentGreen.copy(0.12f) else AccentBlue.copy(0.07f))
                                 .border(
                                     1.5.dp,
-                                    if (todayDone) NeonCyan.copy(0.8f) else NeonPink.copy(0.45f),
+                                    if (todayDone) AccentGreen.copy(0.8f) else AccentBlue.copy(0.45f),
                                     RoundedCornerShape(10.dp),
                                 )
                                 .clickable(onClick = onToggle),
@@ -277,11 +265,11 @@ fun HabitRow(
                                 verticalArrangement = Arrangement.spacedBy(2.dp),
                             ) {
                                 if (todayDone) {
-                                    Icon(Icons.Filled.CheckCircle, null, tint = NeonCyan, modifier = Modifier.size(18.dp))
-                                    Text("DONE", fontSize = 7.sp, letterSpacing = 1.sp, color = NeonCyan, fontWeight = FontWeight.ExtraBold)
+                                    Icon(Icons.Filled.CheckCircle, null, tint = AccentGreen, modifier = Modifier.size(18.dp))
+                                    Text("Done", fontSize = 7.sp, color = AccentGreen, fontWeight = FontWeight.SemiBold)
                                 } else {
-                                    Icon(Icons.Filled.RadioButtonUnchecked, null, tint = NeonPink.copy(0.7f), modifier = Modifier.size(18.dp))
-                                    Text("MARK", fontSize = 7.sp, letterSpacing = 1.sp, color = NeonPink.copy(0.7f), fontWeight = FontWeight.ExtraBold)
+                                    Icon(Icons.Filled.RadioButtonUnchecked, null, tint = AccentBlue.copy(0.7f), modifier = Modifier.size(18.dp))
+                                    Text("Mark", fontSize = 7.sp, color = AccentBlue.copy(0.7f), fontWeight = FontWeight.SemiBold)
                                 }
                             }
                         }
@@ -313,31 +301,31 @@ fun HabitRow(
                                 dayLabel,
                                 fontSize = 6.sp,
                                 letterSpacing = 0.3.sp,
-                                color = if (isToday) NeonPink.copy(0.8f) else TextSubtle.copy(0.55f),
+                                color = if (isToday) AccentBlue.copy(0.8f) else TextSubtle.copy(0.55f),
                                 fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Normal,
                             )
                             Box(
                                 Modifier.size(24.dp).clip(CircleShape)
                                     .background(when {
-                                        isDone && isToday -> NeonCyan.copy(0.22f)
-                                        isDone            -> NeonCyan.copy(0.12f)
-                                        isToday           -> NeonPink.copy(0.08f)
+                                        isDone && isToday -> AccentGreen.copy(0.22f)
+                                        isDone            -> AccentGreen.copy(0.12f)
+                                        isToday           -> AccentBlue.copy(0.08f)
                                         else              -> BgCardAlt
                                     })
                                     .border(
                                         1.dp,
                                         when {
-                                            isDone && isToday -> NeonCyan.copy(0.9f)
-                                            isDone            -> NeonCyan.copy(0.45f)
-                                            isToday           -> NeonPink.copy(0.5f)
-                                            else              -> Color(0x10FFFFFF)
+                                            isDone && isToday -> AccentGreen.copy(0.9f)
+                                            isDone            -> AccentGreen.copy(0.45f)
+                                            isToday           -> AccentBlue.copy(0.5f)
+                                            else              -> BorderDefault
                                         },
                                         CircleShape,
                                     ),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 if (isDone) {
-                                    Icon(Icons.Filled.Check, null, tint = NeonCyan, modifier = Modifier.size(12.dp))
+                                    Icon(Icons.Filled.Check, null, tint = AccentGreen, modifier = Modifier.size(12.dp))
                                 }
                             }
                         }
@@ -359,12 +347,12 @@ fun AddHabitDialog(onAdd: (String, String, String, String, String) -> Unit, onDi
     var freq  by remember { mutableStateOf("daily") }
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor   = NeonPink,
-        unfocusedBorderColor = NeonPink.copy(0.3f),
+        focusedBorderColor   = AccentBlue,
+        unfocusedBorderColor = AccentBlue.copy(0.3f),
         focusedTextColor     = TextPrimary,
         unfocusedTextColor   = TextPrimary,
-        focusedLabelColor    = NeonPink,
-        cursorColor          = NeonPink,
+        focusedLabelColor    = AccentBlue,
+        cursorColor          = AccentBlue,
     )
 
     AlertDialog(
@@ -373,8 +361,7 @@ fun AddHabitDialog(onAdd: (String, String, String, String, String) -> Unit, onDi
         shape            = RoundedCornerShape(20.dp),
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("NEW HABIT", fontSize = 13.sp, letterSpacing = 2.5.sp, color = NeonPink, fontWeight = FontWeight.ExtraBold)
-                Box(Modifier.width(40.dp).height(1.5.dp).background(Brush.horizontalGradient(listOf(NeonPink, NeonCyan))))
+                Text("New habit", fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Bold)
             }
         },
         text = {
@@ -388,18 +375,18 @@ fun AddHabitDialog(onAdd: (String, String, String, String, String) -> Unit, onDi
                     OutlinedTextField(value = value, onValueChange = setter, label = { Text(label, fontSize = 12.sp) },
                         singleLine = true, modifier = Modifier.fillMaxWidth(), colors = fieldColors)
                 }
-                Text("FREQUENCY", fontSize = 9.sp, letterSpacing = 2.sp, color = NeonPink.copy(0.65f), fontWeight = FontWeight.Bold)
+                Text("Frequency", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("daily", "weekdays", "weekly").forEach { f ->
                         val sel = freq == f
                         Box(
                             Modifier.clip(RoundedCornerShape(8.dp))
-                                .background(if (sel) NeonPink.copy(0.14f) else Color.Transparent)
-                                .border(1.dp, if (sel) NeonPink.copy(0.8f) else NeonPink.copy(0.22f), RoundedCornerShape(8.dp))
+                                .background(if (sel) AccentBlue.copy(0.14f) else Color.Transparent)
+                                .border(1.dp, if (sel) AccentBlue.copy(0.8f) else AccentBlue.copy(0.22f), RoundedCornerShape(8.dp))
                                 .clickable { freq = f }
                                 .padding(horizontal = 12.dp, vertical = 7.dp),
                         ) {
-                            Text(f.uppercase(), fontSize = 9.sp, letterSpacing = 1.sp, color = if (sel) NeonPink else TextMuted, fontWeight = FontWeight.Bold)
+                            Text(f.replaceFirstChar { it.uppercase() }, fontSize = 9.sp, color = if (sel) AccentBlue else TextMuted, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -408,13 +395,13 @@ fun AddHabitDialog(onAdd: (String, String, String, String, String) -> Unit, onDi
         confirmButton = {
             Box(
                 Modifier.clip(RoundedCornerShape(10.dp))
-                    .background(Brush.linearGradient(listOf(NeonPink, NeonCyan)))
+                    .background(AccentBlue)
                     .clickable { if (name.isNotBlank()) onAdd(name, emoji, color, cat, freq) }
                     .padding(horizontal = 22.dp, vertical = 10.dp),
-            ) { Text("ADD", fontSize = 11.sp, letterSpacing = 1.5.sp, color = Color.White, fontWeight = FontWeight.ExtraBold) }
+            ) { Text("Add", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("CANCEL", fontSize = 10.sp, letterSpacing = 1.sp, color = TextMuted) }
+            TextButton(onClick = onDismiss) { Text("Cancel", fontSize = 10.sp, color = TextMuted) }
         },
     )
 }

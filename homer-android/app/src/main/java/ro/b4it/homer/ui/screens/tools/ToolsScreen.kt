@@ -94,14 +94,11 @@ private fun KeepAwakeCard(keepAwake: Boolean, onToggle: () -> Unit) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(
-                if (keepAwake)
-                    Brush.verticalGradient(listOf(AccentAmber.copy(alpha = 0.15f), AccentAmber.copy(alpha = 0.08f)))
-                else
-                    Brush.verticalGradient(listOf(Color(0x10FFFFFF), Color(0x07FFFFFF)))
+                if (keepAwake) AccentAmber.copy(alpha = 0.15f) else BgCardAlt
             )
             .border(
                 1.dp,
-                if (keepAwake) AccentAmber.copy(alpha = 0.4f) else Color(0x1FFFFFFF),
+                if (keepAwake) AccentAmber.copy(alpha = 0.3f) else BorderDefault,
                 RoundedCornerShape(14.dp),
             )
             .clickable(onClick = onToggle)
@@ -130,9 +127,8 @@ private fun ToolCard(tool: Tool, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(BgCard)
-            .background(Brush.verticalGradient(listOf(Color(0x10FFFFFF), Color(0x07FFFFFF))))
-            .border(1.dp, Color(0x1FFFFFFF), RoundedCornerShape(14.dp))
+            .background(BgCardAlt)
+            .border(1.dp, BorderDefault, RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
             .padding(14.dp),
     ) {

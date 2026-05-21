@@ -41,20 +41,17 @@ fun LifeGoalsScreen(vm: LifeGoalsViewModel = hiltViewModel()) {
         // ── Header ──────────────────────────────────────────────────────────
         item {
             Row(Modifier.padding(top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("LIFE GOALS", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 3.sp, color = TextPrimary)
-                    Box(Modifier.width(70.dp).height(2.dp).background(Brush.horizontalGradient(listOf(NeonPurple, NeonPink, NeonCyan))))
-                }
+                Text("Life Goals", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = TextPrimary, modifier = Modifier.weight(1f))
                 Box(
-                    Modifier.clip(RoundedCornerShape(12.dp))
-                        .background(NeonPurple.copy(0.1f))
-                        .border(1.dp, NeonPurple.copy(0.55f), RoundedCornerShape(12.dp))
+                    Modifier.clip(RoundedCornerShape(10.dp))
+                        .background(AccentBlue.copy(0.08f))
+                        .border(1.dp, AccentBlue.copy(0.25f), RoundedCornerShape(10.dp))
                         .clickable { showAdd = true }
                         .padding(horizontal = 14.dp, vertical = 8.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Filled.Add, null, tint = NeonPurple, modifier = Modifier.size(16.dp))
-                        Text("NEW GOAL", fontSize = 9.sp, letterSpacing = 1.5.sp, color = NeonPurple, fontWeight = FontWeight.ExtraBold)
+                        Icon(Icons.Filled.Add, null, tint = AccentBlue, modifier = Modifier.size(16.dp))
+                        Text("New goal", fontSize = 12.sp, color = AccentBlue, fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -64,22 +61,22 @@ fun LifeGoalsScreen(vm: LifeGoalsViewModel = hiltViewModel()) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(
-                    Triple(total.toString(),      "TOTAL",  NeonCyan),
-                    Triple(inProgress.toString(), "ACTIVE", NeonPink),
-                    Triple(completed.toString(),  "DONE",   AccentGreen),
-                    Triple("$rate%",              "RATE",   NeonGold),
+                    Triple(total.toString(),      "Total",  AccentBlue),
+                    Triple(inProgress.toString(), "Active", AccentAmber),
+                    Triple(completed.toString(),  "Done",   AccentGreen),
+                    Triple("$rate%",              "Rate",   AccentViolet),
                 ).forEach { (value, label, color) ->
                     Column(
                         Modifier.weight(1f)
                             .clip(RoundedCornerShape(14.dp))
                             .background(color.copy(0.07f))
-                            .border(1.dp, Brush.verticalGradient(listOf(color.copy(0.6f), color.copy(0.2f))), RoundedCornerShape(14.dp))
+                            .border(1.dp, color.copy(0.18f), RoundedCornerShape(14.dp))
                             .padding(vertical = 14.dp, horizontal = 4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        Text(value, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = color)
-                        Text(label, fontSize = 8.sp, letterSpacing = 1.5.sp, color = color.copy(0.65f), fontWeight = FontWeight.Bold)
+                        Text(value, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = color)
+                        Text(label, fontSize = 10.sp, color = color.copy(0.7f), fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -90,7 +87,7 @@ fun LifeGoalsScreen(vm: LifeGoalsViewModel = hiltViewModel()) {
                 Box(Modifier.fillMaxWidth().padding(vertical = 60.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("🎯", fontSize = 52.sp)
-                        Text("NO GOALS YET", fontSize = 10.sp, letterSpacing = 3.sp, color = NeonPurple.copy(0.6f), fontWeight = FontWeight.Bold)
+                        Text("No goals yet", fontSize = 14.sp, color = TextMuted, fontWeight = FontWeight.Medium)
                         Text("Set your first life goal to get started", color = TextMuted, style = MaterialTheme.typography.bodySmall)
                     }
                 }
@@ -211,7 +208,7 @@ fun GoalCard(
 
             // Milestones
             if (milestones.isNotEmpty()) {
-                Box(Modifier.fillMaxWidth().height(1.dp).background(Brush.horizontalGradient(listOf(NeonPurple.copy(0.3f), Color.Transparent))))
+                HorizontalDivider(color = BorderSubtle)
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -345,8 +342,7 @@ fun AddGoalDialog(onAdd: (String, String, String, String, String) -> Unit, onDis
         shape            = RoundedCornerShape(20.dp),
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("NEW LIFE GOAL", fontSize = 13.sp, letterSpacing = 2.sp, color = NeonPurple, fontWeight = FontWeight.ExtraBold)
-                Box(Modifier.width(50.dp).height(1.5.dp).background(Brush.horizontalGradient(listOf(NeonPurple, NeonPink, NeonCyan))))
+                Text("New Life Goal", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
             }
         },
         text = {
@@ -366,7 +362,7 @@ fun AddGoalDialog(onAdd: (String, String, String, String, String) -> Unit, onDis
         confirmButton = {
             Box(
                 Modifier.clip(RoundedCornerShape(10.dp))
-                    .background(Brush.linearGradient(listOf(NeonPurple, NeonPink)))
+                    .background(AccentBlue)
                     .clickable { if (title.isNotBlank()) onAdd(title, desc, cat, icon, target) }
                     .padding(horizontal = 22.dp, vertical = 10.dp),
             ) { Text("ADD", fontSize = 11.sp, letterSpacing = 1.5.sp, color = Color.White, fontWeight = FontWeight.ExtraBold) }

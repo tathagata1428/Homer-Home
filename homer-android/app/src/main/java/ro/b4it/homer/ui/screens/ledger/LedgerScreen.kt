@@ -41,18 +41,14 @@ fun LedgerScreen(vm: LedgerViewModel = hiltViewModel()) {
         // Header
         Column(Modifier.fillMaxWidth().padding(start = 20.dp, top = 16.dp, end = 12.dp, bottom = 4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("EXPENSE", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp, color = TextPrimary, lineHeight = 28.sp)
-                    Text("LEDGER", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp, color = NeonPink, lineHeight = 28.sp)
-                    Box(Modifier.width(72.dp).height(2.dp).background(Brush.horizontalGradient(listOf(NeonPink, NeonCyan))))
-                }
+                Text("Ledger", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = TextPrimary, modifier = Modifier.weight(1f))
                 Box(
                     Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
-                        .background(NeonPink.copy(0.1f))
-                        .border(1.dp, NeonPink.copy(0.55f), RoundedCornerShape(12.dp))
+                        .background(AccentBlue.copy(0.1f))
+                        .border(1.dp, BorderDefault, RoundedCornerShape(12.dp))
                         .clickable { if (tab == 0) showAdd = true else showAddBudget = true },
                     contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Filled.Add, null, tint = NeonPink, modifier = Modifier.size(20.dp)) }
+                ) { Icon(Icons.Filled.Add, null, tint = AccentBlue, modifier = Modifier.size(20.dp)) }
             }
         }
 
@@ -61,17 +57,17 @@ fun LedgerScreen(vm: LedgerViewModel = hiltViewModel()) {
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            listOf("TRANSACTIONS", "BUDGETS").forEachIndexed { i, label ->
+            listOf("Transactions", "Budgets").forEachIndexed { i, label ->
                 val sel = tab == i
                 Box(
                     Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
-                        .background(if (sel) Brush.linearGradient(listOf(NeonPink.copy(0.2f), NeonCyan.copy(0.1f))) else Brush.linearGradient(listOf(Color.Transparent, Color.Transparent)))
-                        .border(1.dp, if (sel) NeonPink.copy(0.7f) else NeonPink.copy(0.2f), RoundedCornerShape(10.dp))
+                        .background(if (sel) AccentBlue.copy(0.12f) else Color.Transparent)
+                        .border(1.dp, if (sel) AccentBlue.copy(0.7f) else BorderDefault, RoundedCornerShape(10.dp))
                         .clickable { tab = i }
                         .padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(label, fontSize = 9.sp, letterSpacing = 1.5.sp, color = if (sel) NeonPink else TextSubtle, fontWeight = FontWeight.ExtraBold)
+                    Text(label, fontSize = 9.sp, letterSpacing = 0.sp, color = if (sel) AccentBlue else TextSubtle, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -116,7 +112,7 @@ fun TransactionsTab(expenses: List<Expense>, onDelete: (Expense) -> Unit) {
                 Box(Modifier.fillMaxWidth().padding(vertical = 60.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("💸", fontSize = 52.sp)
-                        Text("NO TRANSACTIONS", fontSize = 10.sp, letterSpacing = 3.sp, color = NeonPink.copy(0.5f), fontWeight = FontWeight.Bold)
+                        Text("No transactions", fontSize = 10.sp, letterSpacing = 0.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
                         Text("Tap + to log your first transaction", style = MaterialTheme.typography.bodySmall, color = TextMuted)
                     }
                 }
@@ -144,16 +140,12 @@ private fun BalanceHeroCard(income: Double, spent: Double, balance: Double) {
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
             .background(BgCard)
-            .border(
-                2.dp,
-                Brush.linearGradient(if (positive) listOf(NeonCyan, AccentGreen.copy(0.7f)) else listOf(NeonPink, AccentRed.copy(0.7f))),
-                RoundedCornerShape(22.dp),
-            )
+            .border(2.dp, BorderDefault, RoundedCornerShape(22.dp))
             .padding(22.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-            Text("NET BALANCE", fontSize = 9.sp, letterSpacing = 3.sp, color = heroColor.copy(0.7f), fontWeight = FontWeight.ExtraBold)
+            Text("Net balance", fontSize = 9.sp, letterSpacing = 0.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
             Text(
                 "${if (positive) "+" else ""}€ ${String.format("%,.2f", balance)}",
@@ -168,17 +160,17 @@ private fun BalanceHeroCard(income: Double, spent: Double, balance: Double) {
             Box(Modifier.fillMaxWidth(0.85f).height(4.dp).clip(RoundedCornerShape(2.dp)).background(BgCardAlt)) {
                 Box(
                     Modifier.fillMaxWidth(gaugeWidth).height(4.dp).clip(RoundedCornerShape(2.dp))
-                        .background(Brush.horizontalGradient(listOf(heroColor2, heroColor)))
+                        .background(AccentBlue)
                 )
             }
         }
 
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Brush.horizontalGradient(listOf(Color.Transparent, NeonPink.copy(0.3f), NeonCyan.copy(0.2f), Color.Transparent))))
+        HorizontalDivider(color = BorderDefault)
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-            NeoBalanceStat("INCOME",  income, AccentGreen, NeonCyan, Icons.Filled.ArrowUpward)
-            Box(Modifier.width(1.dp).height(40.dp).background(Brush.verticalGradient(listOf(NeonPink.copy(0.3f), NeonCyan.copy(0.2f)))))
-            NeoBalanceStat("SPENT",   spent,  AccentRed,   NeonPink, Icons.Filled.ArrowDownward)
+            NeoBalanceStat("Income",  income, AccentGreen, AccentGreen, Icons.Filled.ArrowUpward)
+            Box(Modifier.width(1.dp).height(40.dp).background(BorderDefault))
+            NeoBalanceStat("Spent",   spent,  AccentRed,   AccentRed, Icons.Filled.ArrowDownward)
         }
     }
 }
@@ -188,15 +180,15 @@ private fun NeoBalanceStat(label: String, amount: Double, color: Color, neon: Co
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Box(
             Modifier.size(36.dp).clip(CircleShape)
-                .background(neon.copy(0.08f))
-                .border(1.dp, neon.copy(0.45f), CircleShape),
+                .background(color.copy(0.08f))
+                .border(1.dp, BorderDefault, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, null, tint = neon, modifier = Modifier.size(16.dp))
+            Icon(icon, null, tint = color, modifier = Modifier.size(16.dp))
         }
         Column {
             Text("€ ${String.format("%,.0f", amount)}", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = color)
-            Text(label, fontSize = 8.sp, letterSpacing = 1.5.sp, color = color.copy(0.55f), fontWeight = FontWeight.Bold)
+            Text(label, fontSize = 8.sp, letterSpacing = 0.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -208,8 +200,8 @@ private fun NeonDateHeader(date: String) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(date, fontSize = 9.sp, letterSpacing = 1.5.sp, color = NeonCyan.copy(0.6f), fontWeight = FontWeight.ExtraBold)
-        Box(Modifier.weight(1f).height(1.dp).background(Brush.horizontalGradient(listOf(NeonCyan.copy(0.2f), Color.Transparent))))
+        Text(date, fontSize = 9.sp, letterSpacing = 0.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
+        HorizontalDivider(modifier = Modifier.weight(1f), color = BorderDefault)
     }
 }
 
@@ -224,15 +216,15 @@ fun ExpenseRow(exp: Expense, onDelete: () -> Unit) {
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(BgCard)
-            .border(1.dp, Brush.linearGradient(listOf(neonAmount.copy(0.3f), catColor.copy(0.15f))), RoundedCornerShape(14.dp))
+            .border(1.dp, BorderDefault, RoundedCornerShape(14.dp))
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(
             Modifier.size(46.dp).clip(CircleShape)
-                .background(neonAmount.copy(0.08f))
-                .border(1.5.dp, Brush.sweepGradient(listOf(neonAmount.copy(0.6f), catColor.copy(0.3f), neonAmount.copy(0.6f))), CircleShape),
+                .background(amountColor.copy(0.08f))
+                .border(1.5.dp, BorderDefault, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Text(
@@ -291,7 +283,7 @@ fun BudgetsTab(expenses: List<Expense>, budgets: List<Budget>, onDeleteBudget: (
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("💰", fontSize = 52.sp)
-                Text("NO BUDGETS SET", fontSize = 10.sp, letterSpacing = 3.sp, color = NeonGold.copy(0.6f), fontWeight = FontWeight.Bold)
+                Text("No budgets set", fontSize = 10.sp, letterSpacing = 0.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
                 Text("Tap + to add a budget", style = MaterialTheme.typography.bodySmall, color = TextMuted)
             }
         }
@@ -315,15 +307,15 @@ fun BudgetsTab(expenses: List<Expense>, budgets: List<Budget>, onDeleteBudget: (
                 Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(22.dp))
                     .background(BgCard)
-                    .border(2.dp, Brush.linearGradient(listOf(overallNeon, overallNeon.copy(0.4f), NeonPurple.copy(0.3f))), RoundedCornerShape(22.dp))
+                    .border(2.dp, BorderDefault, RoundedCornerShape(22.dp))
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            now.month.name.lowercase().replaceFirstChar { it.uppercase() }.uppercase() + " BUDGET",
-                            fontSize = 9.sp, letterSpacing = 2.5.sp, color = overallNeon.copy(0.7f), fontWeight = FontWeight.ExtraBold,
+                            now.month.name.lowercase().replaceFirstChar { it.uppercase() } + " budget",
+                            fontSize = 9.sp, letterSpacing = 0.sp, color = TextMuted, fontWeight = FontWeight.SemiBold,
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
@@ -338,22 +330,22 @@ fun BudgetsTab(expenses: List<Expense>, budgets: List<Budget>, onDeleteBudget: (
                     Box(
                         Modifier.size(66.dp).clip(CircleShape)
                             .background(overallNeon.copy(0.08f))
-                            .border(2.dp, Brush.sweepGradient(listOf(overallNeon, NeonPurple, overallNeon)), CircleShape),
+                            .border(2.dp, BorderDefault, CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("${(overallPct * 100).toInt()}%", fontSize = 16.sp, color = overallNeon, fontWeight = FontWeight.ExtraBold)
-                            Text("USED", fontSize = 7.sp, letterSpacing = 1.sp, color = overallNeon.copy(0.55f), fontWeight = FontWeight.Bold)
+                            Text("Used", fontSize = 7.sp, letterSpacing = 0.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
 
-                // Neon budget bar
+                // Budget bar
                 Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(BgCardAlt)) {
                     if (overallPct > 0f) {
                         Box(
                             Modifier.fillMaxWidth(overallPct).height(8.dp).clip(RoundedCornerShape(4.dp))
-                                .background(Brush.horizontalGradient(listOf(NeonPurple.copy(0.7f), overallNeon)))
+                                .background(AccentViolet)
                         )
                     }
                 }
@@ -362,9 +354,9 @@ fun BudgetsTab(expenses: List<Expense>, budgets: List<Budget>, onDeleteBudget: (
                     val remaining = totalLimit - totalSpent
                     Text(
                         if (remaining >= 0) "€${String.format("%.0f", remaining)} remaining  ·  ${budgets.size} budgets"
-                        else "OVER by €${String.format("%.0f", -remaining)}",
+                        else "Over by €${String.format("%.0f", -remaining)}",
                         fontSize = 11.sp,
-                        color = if (remaining >= 0) NeonCyan.copy(0.7f) else NeonPink,
+                        color = if (remaining >= 0) TextMuted else AccentRed,
                         fontWeight = FontWeight.SemiBold,
                         fontFamily = if (remaining < 0) FontFamily.Monospace else FontFamily.Default,
                     )
@@ -387,7 +379,7 @@ fun BudgetsTab(expenses: List<Expense>, budgets: List<Budget>, onDeleteBudget: (
                 Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
                     .background(BgCard)
-                    .border(1.dp, Brush.linearGradient(listOf(barNeon.copy(if (pct >= 0.8f) 0.7f else 0.35f), NeonPurple.copy(0.2f))), RoundedCornerShape(16.dp))
+                    .border(1.dp, BorderDefault, RoundedCornerShape(16.dp))
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -417,7 +409,7 @@ fun BudgetsTab(expenses: List<Expense>, budgets: List<Budget>, onDeleteBudget: (
                     if (pct > 0f) {
                         Box(
                             Modifier.fillMaxWidth(pct).height(8.dp).clip(RoundedCornerShape(4.dp))
-                                .background(Brush.horizontalGradient(listOf(NeonPurple.copy(0.6f), barNeon)))
+                                .background(AccentViolet)
                         )
                     }
                 }
@@ -432,10 +424,10 @@ fun BudgetsTab(expenses: List<Expense>, budgets: List<Budget>, onDeleteBudget: (
                         modifier = Modifier.weight(1f),
                     )
                     Text(
-                        if (remaining >= 0) "€${String.format("%.0f", remaining)} left" else "OVER €${String.format("%.0f", -remaining)}",
+                        if (remaining >= 0) "€${String.format("%.0f", remaining)} left" else "Over €${String.format("%.0f", -remaining)}",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = if (remaining >= 0) NeonCyan else NeonPink,
+                        color = if (remaining >= 0) TextMuted else AccentRed,
                         fontFamily = FontFamily.Monospace,
                     )
                 }
@@ -452,9 +444,9 @@ fun AddBudgetDialog(onAdd: (String, Double) -> Unit, onDismiss: () -> Unit) {
     var limit    by remember { mutableStateOf("") }
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = NeonGold, unfocusedBorderColor = NeonGold.copy(0.3f),
+        focusedBorderColor = AccentBlue, unfocusedBorderColor = BorderDefault,
         focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
-        focusedLabelColor = NeonGold, cursorColor = NeonGold,
+        focusedLabelColor = AccentBlue, cursorColor = AccentBlue,
     )
 
     AlertDialog(
@@ -462,10 +454,7 @@ fun AddBudgetDialog(onAdd: (String, Double) -> Unit, onDismiss: () -> Unit) {
         containerColor = BgCard,
         shape = RoundedCornerShape(20.dp),
         title = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("SET BUDGET", fontSize = 13.sp, letterSpacing = 2.5.sp, color = NeonGold, fontWeight = FontWeight.ExtraBold)
-                Box(Modifier.width(40.dp).height(1.5.dp).background(Brush.horizontalGradient(listOf(NeonGold, NeonPink))))
-            }
+            Text("Set budget", fontSize = 13.sp, letterSpacing = 0.sp, color = TextPrimary, fontWeight = FontWeight.SemiBold)
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -476,12 +465,12 @@ fun AddBudgetDialog(onAdd: (String, Double) -> Unit, onDismiss: () -> Unit) {
         confirmButton = {
             Box(
                 Modifier.clip(RoundedCornerShape(10.dp))
-                    .background(Brush.linearGradient(listOf(NeonGold, NeonPink)))
+                    .background(AccentBlue)
                     .clickable { val l = limit.toDoubleOrNull(); if (category.isNotBlank() && l != null && l > 0) onAdd(category, l) }
                     .padding(horizontal = 22.dp, vertical = 10.dp),
-            ) { Text("SAVE", fontSize = 11.sp, letterSpacing = 1.5.sp, color = Color.White, fontWeight = FontWeight.ExtraBold) }
+            ) { Text("Save", fontSize = 11.sp, letterSpacing = 0.sp, color = Color.White, fontWeight = FontWeight.SemiBold) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("CANCEL", fontSize = 10.sp, letterSpacing = 1.sp, color = TextMuted) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", fontSize = 10.sp, letterSpacing = 0.sp, color = TextMuted) } },
     )
 }
 
@@ -497,9 +486,9 @@ fun AddExpenseDialog(onAdd: (String, Double, String, String, String) -> Unit, on
     val neon = if (isIncome) NeonCyan else NeonPink
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = neon, unfocusedBorderColor = neon.copy(0.3f),
+        focusedBorderColor = AccentBlue, unfocusedBorderColor = BorderDefault,
         focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
-        focusedLabelColor = neon, cursorColor = neon,
+        focusedLabelColor = AccentBlue, cursorColor = AccentBlue,
     )
 
     AlertDialog(
@@ -507,26 +496,23 @@ fun AddExpenseDialog(onAdd: (String, Double, String, String, String) -> Unit, on
         containerColor = BgCard,
         shape = RoundedCornerShape(20.dp),
         title = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("ADD TRANSACTION", fontSize = 13.sp, letterSpacing = 2.sp, color = NeonPink, fontWeight = FontWeight.ExtraBold)
-                Box(Modifier.width(56.dp).height(1.5.dp).background(Brush.horizontalGradient(listOf(NeonPink, NeonCyan))))
-            }
+            Text("Add transaction", fontSize = 13.sp, letterSpacing = 0.sp, color = TextPrimary, fontWeight = FontWeight.SemiBold)
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 // Type toggle first
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("expense" to NeonPink, "income" to NeonCyan).forEach { (t, tNeon) ->
+                    listOf("expense" to AccentRed, "income" to AccentGreen).forEach { (t, tColor) ->
                         val sel = type == t
                         Box(
                             Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
-                                .background(if (sel) tNeon.copy(0.14f) else Color.Transparent)
-                                .border(1.dp, if (sel) tNeon.copy(0.8f) else tNeon.copy(0.2f), RoundedCornerShape(10.dp))
+                                .background(if (sel) tColor.copy(0.14f) else Color.Transparent)
+                                .border(1.dp, if (sel) tColor.copy(0.8f) else BorderDefault, RoundedCornerShape(10.dp))
                                 .clickable { type = t }
                                 .padding(vertical = 10.dp),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text(t.uppercase(), fontSize = 9.sp, letterSpacing = 1.5.sp, color = if (sel) tNeon else TextMuted, fontWeight = FontWeight.ExtraBold)
+                            Text(t.replaceFirstChar { it.uppercase() }, fontSize = 9.sp, letterSpacing = 0.sp, color = if (sel) tColor else TextMuted, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }

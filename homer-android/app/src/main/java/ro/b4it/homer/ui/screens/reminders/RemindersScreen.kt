@@ -14,7 +14,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,17 +38,14 @@ fun RemindersScreen(vm: RemindersViewModel = hiltViewModel()) {
             Modifier.fillMaxWidth().padding(start = 20.dp, top = 16.dp, end = 12.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("REMINDERS", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp, color = TextPrimary)
-                Box(Modifier.width(54.dp).height(2.dp).background(Brush.horizontalGradient(listOf(NeonGold, NeonCyan))))
-            }
+            Text("Reminders", fontSize = 26.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.sp, color = TextPrimary, modifier = Modifier.weight(1f))
             Box(
                 Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
-                    .background(NeonGold.copy(0.1f))
-                    .border(1.dp, NeonGold.copy(0.55f), RoundedCornerShape(12.dp))
+                    .background(AccentBlue.copy(0.1f))
+                    .border(1.dp, AccentBlue.copy(0.4f), RoundedCornerShape(12.dp))
                     .clickable { showAdd = true },
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Filled.Add, null, tint = NeonGold, modifier = Modifier.size(20.dp)) }
+            ) { Icon(Icons.Filled.Add, null, tint = AccentBlue, modifier = Modifier.size(20.dp)) }
         }
 
         if (reminders.isEmpty()) {

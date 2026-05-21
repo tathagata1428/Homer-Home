@@ -83,22 +83,19 @@ fun KanbanTaskDetailScreen(
             Modifier.fillMaxWidth().padding(start = 4.dp, top = 8.dp, end = 12.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, null, tint = NeonPink) }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("TASK DETAIL", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp, color = TextPrimary)
-                Box(Modifier.width(50.dp).height(1.5.dp).background(Brush.horizontalGradient(listOf(NeonPink, NeonCyan))))
-            }
+            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, null, tint = TextMuted) }
+            Text("Task detail", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary, modifier = Modifier.weight(1f))
             Box(
                 Modifier.clip(RoundedCornerShape(10.dp))
-                    .background(Brush.linearGradient(listOf(NeonPink, NeonCyan)))
+                    .background(AccentBlue)
                     .clickable { vm.save(summary, desc, priority, dueDate, assignee, column) }
                     .padding(horizontal = 18.dp, vertical = 9.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("SAVE", fontSize = 10.sp, letterSpacing = 2.sp, color = Color.White, fontWeight = FontWeight.ExtraBold)
+                Text("Save", fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
             }
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Brush.horizontalGradient(listOf(NeonPink.copy(0.35f), NeonCyan.copy(0.2f), Color.Transparent))))
+        HorizontalDivider(color = BorderDefault)
 
         // ── Scrollable body ──────────────────────────────────────────────────
         Column(
@@ -117,7 +114,7 @@ fun KanbanTaskDetailScreen(
 
             // ── Status ───────────────────────────────────────────────────────
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("STATUS", fontSize = 9.sp, letterSpacing = 2.sp, color = NeonPink.copy(0.65f), fontWeight = FontWeight.ExtraBold)
+                Text("Status", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     COLUMNS.forEach { (col, label) ->
                         val colColor = when (col) {
@@ -146,7 +143,7 @@ fun KanbanTaskDetailScreen(
 
             // ── Priority ─────────────────────────────────────────────────────
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("PRIORITY", fontSize = 9.sp, letterSpacing = 2.sp, color = NeonPink.copy(0.65f), fontWeight = FontWeight.ExtraBold)
+                Text("Priority", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     PRIORITIES.forEach { p ->
                         val pColor = when (p) {
@@ -202,29 +199,25 @@ fun KanbanTaskDetailScreen(
                 Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
                     .background(BgCard)
-                    .border(1.dp, Brush.linearGradient(listOf(NeonCyan.copy(0.4f), NeonPink.copy(0.2f))), RoundedCornerShape(14.dp))
+                    .border(1.dp, BorderDefault, RoundedCornerShape(14.dp))
                     .padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 // Header with progress badge
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "SUBTASKS", fontSize = 9.sp, letterSpacing = 2.sp,
-                        color = NeonCyan, fontWeight = FontWeight.ExtraBold,
-                        modifier = Modifier.weight(1f),
-                    )
+                    Text("Subtasks", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     if (subtasks.isNotEmpty()) {
                         Box(
                             Modifier.clip(RoundedCornerShape(12.dp))
-                                .background(NeonCyan.copy(0.1f))
-                                .border(1.dp, NeonCyan.copy(0.4f), RoundedCornerShape(12.dp))
+                                .background(AccentBlue.copy(0.08f))
+                                .border(1.dp, AccentBlue.copy(0.25f), RoundedCornerShape(12.dp))
                                 .padding(horizontal = 8.dp, vertical = 2.dp),
                         ) {
-                            Text("${subtasks.count { it.done }}/${subtasks.size}", fontSize = 9.sp, color = NeonCyan, fontWeight = FontWeight.ExtraBold)
+                            Text("${subtasks.count { it.done }}/${subtasks.size}", fontSize = 10.sp, color = AccentBlue, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
-                Box(Modifier.fillMaxWidth().height(1.dp).background(Brush.horizontalGradient(listOf(NeonCyan.copy(0.3f), Color.Transparent))))
+                HorizontalDivider(color = BorderSubtle)
 
                 if (subtasks.isEmpty()) {
                     Text(

@@ -91,15 +91,15 @@ fun JournalEditorScreen(
             // Save button
             Box(
                 Modifier.clip(RoundedCornerShape(10.dp))
-                    .background(Brush.linearGradient(listOf(NeonPurple, NeonPink)))
+                    .background(AccentViolet)
                     .clickable(onClick = vm::save)
                     .padding(horizontal = 18.dp, vertical = 9.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("SAVE", fontSize = 10.sp, letterSpacing = 2.sp, color = Color.White, fontWeight = FontWeight.ExtraBold)
+                Text("Save", fontSize = 10.sp, letterSpacing = 0.sp, color = Color.White, fontWeight = FontWeight.ExtraBold)
             }
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Brush.horizontalGradient(listOf(NeonPurple.copy(0.4f), NeonPink.copy(0.2f), Color.Transparent))))
+        HorizontalDivider(color = BorderSubtle)
 
         Column(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -108,7 +108,7 @@ fun JournalEditorScreen(
 
             // ── Mood picker ─────────────────────────────────────────────────
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("HOW ARE YOU FEELING?", fontSize = 8.sp, letterSpacing = 2.sp, color = NeonPurple.copy(0.65f), fontWeight = FontWeight.ExtraBold)
+                Text("How are you feeling?", fontSize = 11.sp, letterSpacing = 0.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -164,13 +164,8 @@ fun JournalEditorScreen(
             Box(
                 Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        if (reflectionLoading)
-                            Brush.linearGradient(listOf(NeonPurple.copy(0.06f), NeonPurple.copy(0.06f)))
-                        else
-                            Brush.linearGradient(listOf(NeonPurple.copy(0.12f), NeonPink.copy(0.06f)))
-                    )
-                    .border(1.dp, Brush.linearGradient(listOf(NeonPurple.copy(0.6f), NeonPink.copy(0.3f))), RoundedCornerShape(12.dp))
+                    .background(if (reflectionLoading) BgCard else BgCardAlt)
+                    .border(1.dp, BorderDefault, RoundedCornerShape(12.dp))
                     .clickable(enabled = !reflectionLoading && content.length >= 20) {
                         vm.getReflection()
                     }
@@ -208,14 +203,14 @@ fun JournalEditorScreen(
                         Modifier.fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
                             .background(BgCard)
-                            .border(1.dp, Brush.linearGradient(listOf(NeonPurple.copy(0.5f), NeonCyan.copy(0.3f))), RoundedCornerShape(16.dp))
+                            .border(1.dp, BorderDefault, RoundedCornerShape(14.dp))
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         // Header
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text("✨", fontSize = 14.sp)
-                            Text("AI REFLECTION", fontSize = 9.sp, letterSpacing = 2.sp, color = NeonPurple, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
+                            Text("AI reflection", fontSize = 11.sp, letterSpacing = 0.sp, color = TextMuted, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                             if (r.mood.isNotBlank()) {
                                 val moodEmoji = MOODS.firstOrNull { it.second == r.mood }?.first ?: ""
                                 Box(
@@ -228,7 +223,7 @@ fun JournalEditorScreen(
                                 }
                             }
                         }
-                        Box(Modifier.fillMaxWidth().height(1.dp).background(Brush.horizontalGradient(listOf(NeonPurple.copy(0.3f), Color.Transparent))))
+                        HorizontalDivider(color = BorderSubtle)
 
                         // Themes
                         if (r.themes.isNotBlank()) {

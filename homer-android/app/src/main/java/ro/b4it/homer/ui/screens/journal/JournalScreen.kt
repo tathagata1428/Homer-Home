@@ -67,14 +67,12 @@ fun JournalScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("JOURNAL", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp, color = TextPrimary)
-                    Text("AI-POWERED", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp, color = NeonPurple)
-                    Box(Modifier.width(64.dp).height(2.dp).background(Brush.horizontalGradient(listOf(NeonPurple, NeonPink))))
+                    Text("Journal", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                 }
                 // New entry button
                 Box(
                     Modifier.clip(RoundedCornerShape(14.dp))
-                        .background(Brush.linearGradient(listOf(NeonPurple, NeonPink)))
+                        .background(AccentViolet)
                         .clickable(onClick = onNewEntry)
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     contentAlignment = Alignment.Center,
@@ -96,28 +94,28 @@ fun JournalScreen(
                 Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(18.dp))
                     .background(BgCard)
-                    .border(1.dp, Brush.linearGradient(listOf(NeonPurple.copy(0.5f), NeonPink.copy(0.3f))), RoundedCornerShape(18.dp))
+                    .border(1.dp, BorderDefault, RoundedCornerShape(16.dp))
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("WRITING STREAK", fontSize = 8.sp, letterSpacing = 2.sp, color = NeonPurple.copy(0.7f), fontWeight = FontWeight.Bold)
+                        Text("Writing streak", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text("🔥", fontSize = 22.sp)
-                            Text("$streak", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = NeonPurple)
+                            Text("$streak", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = AccentViolet)
                             Text(if (streak == 1) "day" else "days", fontSize = 13.sp, color = TextMuted)
                         }
                     }
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("${entries.size}", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = NeonPink)
+                        Text("${entries.size}", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = AccentViolet)
                         Text("total entries", fontSize = 10.sp, color = TextMuted)
                     }
                 }
 
                 // 7-day mood calendar
                 if (weekMoods.isNotEmpty()) {
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(Brush.horizontalGradient(listOf(NeonPurple.copy(0.2f), Color.Transparent))))
+                    HorizontalDivider(color = BorderSubtle)
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -127,7 +125,7 @@ fun JournalScreen(
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     day, fontSize = 9.sp, letterSpacing = 0.5.sp,
-                                    color = if (isToday) NeonPurple else TextSubtle,
+                                    color = if (isToday) AccentViolet else TextSubtle,
                                     fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Normal,
                                 )
                                 Box(
@@ -135,16 +133,16 @@ fun JournalScreen(
                                         .clip(CircleShape)
                                         .background(
                                             when {
-                                                mood.isNotBlank() -> NeonPurple.copy(0.18f)
-                                                isToday           -> NeonPurple.copy(0.08f)
+                                                mood.isNotBlank() -> AccentViolet.copy(0.12f)
+                                                isToday           -> AccentViolet.copy(0.06f)
                                                 else              -> BgCardAlt
                                             }
                                         )
-                                        .then(if (isToday) Modifier.border(1.dp, NeonPurple.copy(0.6f), CircleShape) else Modifier),
+                                        .then(if (isToday) Modifier.border(1.dp, AccentViolet.copy(0.4f), CircleShape) else Modifier),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     if (mood.isNotBlank()) Text(mood, fontSize = 14.sp)
-                                    else if (isToday) Box(Modifier.size(6.dp).clip(CircleShape).background(NeonPurple.copy(0.5f)))
+                                    else if (isToday) Box(Modifier.size(6.dp).clip(CircleShape).background(AccentViolet.copy(0.4f)))
                                 }
                             }
                         }
@@ -159,24 +157,24 @@ fun JournalScreen(
                 Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(18.dp))
                     .background(BgCard)
-                    .border(1.dp, Brush.linearGradient(listOf(NeonCyan.copy(0.5f), NeonPurple.copy(0.3f))), RoundedCornerShape(18.dp))
+                    .border(1.dp, BorderDefault, RoundedCornerShape(16.dp))
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("✨", fontSize = 16.sp)
                     Spacer(Modifier.width(6.dp))
-                    Text("TODAY'S PROMPT", fontSize = 9.sp, letterSpacing = 2.sp, color = NeonCyan, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
+                    Text("Today's prompt", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     IconButton(
                         onClick = vm::loadPrompt,
                         modifier = Modifier.size(28.dp),
                         enabled = !loading,
                     ) {
-                        if (loading) CircularProgressIndicator(modifier = Modifier.size(14.dp), color = NeonCyan, strokeWidth = 1.5.dp)
-                        else Icon(Icons.Filled.Refresh, null, tint = NeonCyan.copy(0.7f), modifier = Modifier.size(16.dp))
+                        if (loading) CircularProgressIndicator(modifier = Modifier.size(14.dp), color = AccentCyan, strokeWidth = 1.5.dp)
+                        else Icon(Icons.Filled.Refresh, null, tint = AccentCyan, modifier = Modifier.size(16.dp))
                     }
                 }
-                Box(Modifier.fillMaxWidth().height(1.dp).background(Brush.horizontalGradient(listOf(NeonCyan.copy(0.3f), Color.Transparent))))
+                HorizontalDivider(color = BorderSubtle)
                 if (prompt.isNotBlank()) {
                     Text(
                         "\"$prompt\"",
@@ -186,11 +184,11 @@ fun JournalScreen(
                     )
                     Box(
                         Modifier.clip(RoundedCornerShape(10.dp))
-                            .background(Brush.linearGradient(listOf(NeonPurple, NeonPink)))
+                            .background(AccentBlue)
                             .clickable(onClick = onNewEntry)
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                     ) {
-                        Text("Write Now  →", fontSize = 10.sp, letterSpacing = 1.sp, color = Color.White, fontWeight = FontWeight.ExtraBold)
+                        Text("Write now →", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Medium)
                     }
                 } else if (loading) {
                     Text("Generating your prompt…", style = MaterialTheme.typography.bodySmall, color = TextSubtle)
@@ -207,7 +205,7 @@ fun JournalScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("📖", fontSize = 40.sp)
-                        Text("NO ENTRIES YET", fontSize = 10.sp, letterSpacing = 2.sp, color = NeonPurple.copy(0.5f), fontWeight = FontWeight.Bold)
+                        Text("No entries yet", fontSize = 14.sp, color = TextMuted, fontWeight = FontWeight.Medium)
                         Text("Start with today's prompt above", style = MaterialTheme.typography.bodySmall, color = TextSubtle)
                     }
                 }
@@ -216,9 +214,9 @@ fun JournalScreen(
             grouped.forEach { (month, monthEntries) ->
                 item {
                     Text(
-                        month.uppercase(),
-                        fontSize = 9.sp, letterSpacing = 2.sp,
-                        color = NeonPurple.copy(0.6f), fontWeight = FontWeight.Bold,
+                        month,
+                        fontSize = 11.sp,
+                        color = TextMuted, fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
                     )
                 }
@@ -248,18 +246,12 @@ private fun JournalEntryCard(entry: JournalEntry, onClick: () -> Unit, onDelete:
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(BgCard)
-            .border(
-                1.dp,
-                Brush.linearGradient(listOf(NeonPurple.copy(0.3f), NeonPink.copy(0.15f))),
-                RoundedCornerShape(14.dp),
-            )
+            .border(1.dp, BorderDefault, RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
             .height(IntrinsicSize.Min),
     ) {
-        // Left neon stripe
-        Box(Modifier.width(3.dp).fillMaxHeight().background(
-            Brush.verticalGradient(listOf(NeonPurple, NeonPink.copy(0.4f)))
-        ))
+        // Left accent stripe
+        Box(Modifier.width(3.dp).fillMaxHeight().background(AccentViolet.copy(0.5f)))
 
         Column(
             Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 12.dp),

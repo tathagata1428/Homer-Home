@@ -15,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -38,19 +37,17 @@ fun AmbientSoundsScreen() {
     ) {
         // ── Header ────────────────────────────────────────────────────────
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("AMBIENT", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp, color = TextPrimary)
-                Text("SOUNDS", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp, color = NeonCyan)
-                Box(Modifier.width(54.dp).height(2.dp).background(Brush.horizontalGradient(listOf(NeonCyan, NeonPurple))))
+            Column(Modifier.weight(1f)) {
+                Text("Ambient Sounds", fontSize = 26.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.sp, color = TextPrimary)
             }
             // Reload button — fixes YouTube API load failures
             Box(
                 Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
-                    .background(NeonGold.copy(0.1f))
-                    .border(1.dp, NeonGold.copy(0.55f), RoundedCornerShape(12.dp))
+                    .background(BorderDefault.copy(alpha = 0.2f))
+                    .border(1.dp, BorderDefault, RoundedCornerShape(12.dp))
                     .clickable { vm.reloadWebView() },
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Filled.Refresh, null, tint = NeonGold, modifier = Modifier.size(20.dp)) }
+            ) { Icon(Icons.Filled.Refresh, null, tint = TextMuted, modifier = Modifier.size(20.dp)) }
         }
 
         // ── Presets ───────────────────────────────────────────────────────
@@ -58,29 +55,25 @@ fun AmbientSoundsScreen() {
             Modifier.fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
                 .background(BgCard)
-                .border(
-                    1.dp,
-                    Brush.linearGradient(listOf(NeonPink.copy(0.7f), NeonPurple.copy(0.4f), NeonCyan.copy(0.5f))),
-                    RoundedCornerShape(16.dp),
-                )
+                .border(1.dp, BorderDefault, RoundedCornerShape(16.dp))
                 .padding(16.dp),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "PRESETS",
-                        fontSize = 9.sp, letterSpacing = 3.sp, color = NeonPink.copy(0.75f), fontWeight = FontWeight.Bold,
+                        "Presets",
+                        fontSize = 9.sp, letterSpacing = 0.sp, color = TextMuted, fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f),
                     )
                     if (anyPlaying) {
                         Box(
                             Modifier.clip(RoundedCornerShape(20.dp))
-                                .background(NeonPink.copy(0.1f))
-                                .border(1.dp, NeonPink.copy(0.5f), RoundedCornerShape(20.dp))
+                                .background(AccentBlue.copy(0.08f))
+                                .border(1.dp, AccentBlue.copy(0.3f), RoundedCornerShape(20.dp))
                                 .clickable { vm.stopAll() }
                                 .padding(horizontal = 12.dp, vertical = 6.dp),
                         ) {
-                            Text("⏹ STOP ALL", fontSize = 10.sp, color = NeonPink, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                            Text("⏹ Stop all", fontSize = 10.sp, color = AccentBlue, fontWeight = FontWeight.Bold, letterSpacing = 0.sp)
                         }
                     }
                 }
@@ -91,12 +84,12 @@ fun AmbientSoundsScreen() {
                     AmbientPreset.values().forEach { preset ->
                         Box(
                             Modifier.clip(RoundedCornerShape(10.dp))
-                                .background(NeonCyan.copy(0.07f))
-                                .border(1.dp, NeonCyan.copy(0.35f), RoundedCornerShape(10.dp))
+                                .background(AccentBlue.copy(0.06f))
+                                .border(1.dp, BorderDefault, RoundedCornerShape(10.dp))
                                 .clickable { vm.applyPreset(preset) }
                                 .padding(horizontal = 14.dp, vertical = 9.dp),
                         ) {
-                            Text(preset.label, fontSize = 12.sp, color = NeonCyan, fontWeight = FontWeight.SemiBold)
+                            Text(preset.label, fontSize = 12.sp, color = AccentBlue, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -125,16 +118,16 @@ fun AmbientSoundsScreen() {
         Row(
             Modifier.fillMaxWidth()
                 .clip(RoundedCornerShape(10.dp))
-                .background(NeonGold.copy(0.05f))
-                .border(1.dp, NeonGold.copy(0.2f), RoundedCornerShape(10.dp))
+                .background(BgCardAlt)
+                .border(1.dp, BorderDefault, RoundedCornerShape(10.dp))
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(Icons.Filled.Info, null, tint = NeonGold.copy(0.6f), modifier = Modifier.size(14.dp))
+            Icon(Icons.Filled.Info, null, tint = TextMuted, modifier = Modifier.size(14.dp))
             Text(
                 "If sounds don't play, tap ↻ to reload the audio engine",
-                fontSize = 11.sp, color = NeonGold.copy(0.65f), fontWeight = FontWeight.Medium,
+                fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.Medium,
             )
         }
     }
@@ -147,17 +140,12 @@ private fun SoundCard(
     onToggle: () -> Unit,
     onVolume: (Int) -> Unit,
 ) {
-    val borderBrush = if (state.playing)
-        Brush.linearGradient(listOf(NeonCyan.copy(0.85f), NeonPurple.copy(0.5f)))
-    else
-        Brush.linearGradient(listOf(NeonPink.copy(0.22f), NeonPurple.copy(0.12f)))
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(if (state.playing) NeonCyan.copy(alpha = 0.06f) else BgCard)
-            .border(1.dp, borderBrush, RoundedCornerShape(16.dp))
+            .background(if (state.playing) AccentBlue.copy(alpha = 0.06f) else BgCard)
+            .border(1.dp, if (state.playing) AccentBlue.copy(0.3f) else BorderDefault, RoundedCornerShape(16.dp))
             .clickable(onClick = onToggle)
             .padding(14.dp),
     ) {
@@ -170,10 +158,10 @@ private fun SoundCard(
                 Text(sound.emoji, fontSize = 28.sp)
                 Box(
                     Modifier.size(34.dp).clip(CircleShape)
-                        .background(if (state.playing) NeonCyan.copy(0.14f) else NeonPink.copy(0.06f))
+                        .background(if (state.playing) AccentBlue.copy(0.12f) else BgCardAlt)
                         .border(
                             1.5.dp,
-                            if (state.playing) NeonCyan.copy(0.7f) else NeonPink.copy(0.28f),
+                            if (state.playing) AccentBlue else BorderDefault,
                             CircleShape,
                         ),
                     contentAlignment = Alignment.Center,
@@ -181,7 +169,7 @@ private fun SoundCard(
                     Icon(
                         if (state.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                         contentDescription = null,
-                        tint = if (state.playing) NeonCyan else TextMuted,
+                        tint = if (state.playing) AccentBlue else TextMuted,
                         modifier = Modifier.size(18.dp),
                     )
                 }
@@ -190,8 +178,8 @@ private fun SoundCard(
                 sound.label,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (state.playing) NeonCyan else TextMuted,
-                letterSpacing = 0.5.sp,
+                color = if (state.playing) AccentBlue else TextMuted,
+                letterSpacing = 0.sp,
             )
             if (state.playing) {
                 Row(
@@ -199,8 +187,8 @@ private fun SoundCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("VOL", fontSize = 8.sp, letterSpacing = 1.sp, color = NeonCyan.copy(0.6f), fontWeight = FontWeight.Bold)
-                    Text("${state.volume}%", fontSize = 9.sp, color = NeonCyan, fontWeight = FontWeight.Bold)
+                    Text("Vol", fontSize = 8.sp, letterSpacing = 0.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
+                    Text("${state.volume}%", fontSize = 9.sp, color = AccentBlue, fontWeight = FontWeight.Bold)
                 }
                 Slider(
                     value = state.volume.toFloat(),
@@ -208,9 +196,9 @@ private fun SoundCard(
                     valueRange = 0f..100f,
                     modifier = Modifier.fillMaxWidth(),
                     colors = SliderDefaults.colors(
-                        thumbColor = NeonCyan,
-                        activeTrackColor = NeonCyan,
-                        inactiveTrackColor = NeonPurple.copy(0.2f),
+                        thumbColor = AccentBlue,
+                        activeTrackColor = AccentBlue,
+                        inactiveTrackColor = BorderDefault,
                     ),
                 )
             }

@@ -157,7 +157,7 @@ fun FocusScreen(vm: FocusViewModel = hiltViewModel()) {
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = AccentBlue,
-                            unfocusedBorderColor = Color(0x1FFFFFFF),
+                            unfocusedBorderColor = BorderDefault,
                             focusedTextColor = TextPrimary,
                             unfocusedTextColor = TextPrimary,
                         ),
@@ -414,7 +414,7 @@ fun PomodoroSettingsCard(settings: PomodoroSettings, vm: FocusViewModel) {
             DurationSetting("Focus",       settings.focusMin, 1..120) { vm.setFocusMin(it) }
             DurationSetting("Short Break", settings.shortMin, 1..30)  { vm.setShortMin(it) }
             DurationSetting("Long Break",  settings.longMin,  1..60)  { vm.setLongMin(it)  }
-            HorizontalDivider(color = Color(0x1AFFFFFF))
+            HorizontalDivider(color = BorderDefault)
             ToggleSetting("Auto-start phases",   settings.autoStart)     { vm.setAutoStart(it)     }
             ToggleSetting("Notifications",       settings.notifications) { vm.setNotifications(it) }
             ToggleSetting("Sound effects (SFX)", settings.sfx)          { vm.setSfx(it)           }

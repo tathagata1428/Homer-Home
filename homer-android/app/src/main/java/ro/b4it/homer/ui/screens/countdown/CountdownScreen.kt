@@ -59,9 +59,9 @@ fun CountdownScreen(vm: CountdownViewModel = hiltViewModel()) {
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
-                "COUNTDOWN",
+                "Countdown",
                 fontSize = 26.sp, fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 4.sp, color = TextPrimary,
+                letterSpacing = 0.sp, color = TextPrimary,
             )
             Box(
                 Modifier.width(48.dp).height(2.dp)
@@ -81,9 +81,9 @@ fun CountdownScreen(vm: CountdownViewModel = hiltViewModel()) {
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(
-                            "EVENT",
+                            "Event",
                             fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                            letterSpacing = 3.sp, color = TextMuted,
+                            letterSpacing = 0.sp, color = TextMuted,
                         )
                         Text(
                             if (eventDateMs > 0L) eventName.ifBlank { "Unnamed Event" }
@@ -95,7 +95,7 @@ fun CountdownScreen(vm: CountdownViewModel = hiltViewModel()) {
                     FilledTonalIconButton(
                         onClick = { showSetup = !showSetup },
                         colors  = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = if (showSetup) NeonPink.copy(0.15f) else Color.White.copy(0.05f),
+                            containerColor = if (showSetup) AccentBlue.copy(0.10f) else BgCardAlt,
                             contentColor   = if (showSetup) NeonPink else TextMuted,
                         ),
                         modifier = Modifier.size(36.dp),
@@ -171,13 +171,13 @@ fun CountdownScreen(vm: CountdownViewModel = hiltViewModel()) {
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment     = Alignment.Bottom,
                         ) {
-                            CountUnit(tick.days,  "DAYS", NeonPink,   largeWhenBig = true)
+                            CountUnit(tick.days,  "days", NeonPink,   largeWhenBig = true)
                             SepColon()
-                            CountUnit(tick.hours, "HRS",  NeonCyan)
+                            CountUnit(tick.hours, "hrs",  NeonCyan)
                             SepColon()
-                            CountUnit(tick.mins,  "MIN",  NeonPurple)
+                            CountUnit(tick.mins,  "min",  NeonPurple)
                             SepColon()
-                            CountUnit(tick.secs,  "SEC",  NeonGold)
+                            CountUnit(tick.secs,  "sec",  NeonGold)
                         }
                         Text(
                             "until ${eventName.ifBlank { "the event" }}",
@@ -208,9 +208,9 @@ fun CountdownScreen(vm: CountdownViewModel = hiltViewModel()) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            "QUOTE",
+                            "Quote",
                             fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                            letterSpacing = 3.sp, color = TextMuted,
+                            letterSpacing = 0.sp, color = TextMuted,
                         )
                         IconButton(
                             onClick = { vm.refreshQuote() },
@@ -229,8 +229,8 @@ fun CountdownScreen(vm: CountdownViewModel = hiltViewModel()) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(0.025f))
-                            .border(1.dp, Color.White.copy(0.055f), RoundedCornerShape(12.dp))
+                            .background(BgCardAlt)
+                            .border(1.dp, BorderDefault, RoundedCornerShape(12.dp))
                             .padding(16.dp),
                         contentAlignment = Alignment.TopStart,
                     ) {
@@ -308,7 +308,7 @@ private fun CountUnit(value: Long, label: String, color: Color, largeWhenBig: Bo
         Text(
             label,
             fontSize = 9.sp, fontWeight = FontWeight.Bold,
-            letterSpacing = 2.5.sp, color = Color.White.copy(0.22f),
+            letterSpacing = 0.sp, color = TextSubtle,
             modifier = Modifier.padding(top = 4.dp),
         )
     }
@@ -319,7 +319,7 @@ private fun SepColon() {
     Text(
         ":",
         fontSize = 24.sp, fontWeight = FontWeight.Light,
-        color = Color.White.copy(0.1f),
+        color = TextSubtle,
         modifier = Modifier.offset(y = (-10).dp),
     )
 }
@@ -362,13 +362,13 @@ private fun EventSetupForm(
             modifier      = Modifier.fillMaxWidth(),
             singleLine    = true,
             colors        = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor   = NeonPink,
-                unfocusedBorderColor = Color.White.copy(0.1f),
-                focusedLabelColor    = NeonPink,
+                focusedBorderColor   = AccentBlue,
+                unfocusedBorderColor = BorderDefault,
+                focusedLabelColor    = AccentBlue,
                 unfocusedLabelColor  = TextMuted,
                 focusedTextColor     = TextPrimary,
                 unfocusedTextColor   = TextPrimary,
-                cursorColor          = NeonPink,
+                cursorColor          = AccentBlue,
             ),
         )
 
@@ -384,9 +384,9 @@ private fun EventSetupForm(
             },
             modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true },
             colors   = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor   = NeonCyan,
-                unfocusedBorderColor = Color.White.copy(0.1f),
-                focusedLabelColor    = NeonCyan,
+                focusedBorderColor   = AccentBlue,
+                unfocusedBorderColor = BorderDefault,
+                focusedLabelColor    = AccentBlue,
                 unfocusedLabelColor  = TextMuted,
                 focusedTextColor     = TextPrimary,
                 unfocusedTextColor   = TextPrimary,
@@ -398,11 +398,9 @@ private fun EventSetupForm(
             shape    = RoundedCornerShape(10.dp),
             colors   = ButtonDefaults.buttonColors(
                 containerColor = Color.Transparent,
-                contentColor   = NeonPink,
+                contentColor   = AccentBlue,
             ),
-            border   = BorderStroke(
-                1.dp, Brush.horizontalGradient(listOf(NeonPink.copy(0.6f), NeonCyan.copy(0.4f))),
-            ),
+            border   = BorderStroke(1.dp, BorderDefault),
             modifier = Modifier.fillMaxWidth().height(46.dp),
         ) {
             Text("Save Event", fontWeight = FontWeight.Bold, fontSize = 14.sp)

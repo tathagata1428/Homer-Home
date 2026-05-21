@@ -60,27 +60,20 @@ fun KanbanScreen(
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(
-                    (selectedProject?.name ?: "PROJECT HUB").uppercase(),
-                    fontSize = if (selectedProject != null) 20.sp else 24.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = if (selectedProject != null) 1.sp else 3.sp,
+                    selectedProject?.name ?: "Project Hub",
+                    fontSize = if (selectedProject != null) 20.sp else 26.sp,
+                    fontWeight = FontWeight.Bold,
                     color = TextPrimary,
-                )
-                Box(
-                    Modifier
-                        .width(if (selectedProject != null) 40.dp else 80.dp)
-                        .height(2.dp)
-                        .background(Brush.horizontalGradient(listOf(NeonPink, NeonCyan)))
                 )
             }
             Box(
                 Modifier.size(38.dp).clip(RoundedCornerShape(11.dp))
-                    .background(NeonPink.copy(0.1f))
-                    .border(1.dp, NeonPink.copy(0.5f), RoundedCornerShape(11.dp))
+                    .background(AccentBlue.copy(0.08f))
+                    .border(1.dp, AccentBlue.copy(0.25f), RoundedCornerShape(11.dp))
                     .clickable { if (selectedProject != null) showAddTask = true else showAddProject = true },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Add, null, tint = NeonPink, modifier = Modifier.size(20.dp))
+                Icon(Icons.Filled.Add, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
             }
         }
 
@@ -90,19 +83,19 @@ fun KanbanScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Box(
                             Modifier.size(72.dp).clip(RoundedCornerShape(20.dp))
-                                .background(NeonPink.copy(0.08f))
-                                .border(1.dp, Brush.linearGradient(listOf(NeonPink.copy(0.5f), NeonCyan.copy(0.3f))), RoundedCornerShape(20.dp)),
+                                .background(AccentBlue.copy(0.08f))
+                                .border(1.dp, BorderDefault, RoundedCornerShape(20.dp)),
                             contentAlignment = Alignment.Center,
                         ) { Text("📋", fontSize = 32.sp) }
-                        Text("NO PROJECTS", fontSize = 12.sp, letterSpacing = 3.sp, color = NeonPink.copy(0.6f), fontWeight = FontWeight.ExtraBold)
+                        Text("No projects yet", fontSize = 14.sp, color = TextMuted, fontWeight = FontWeight.Medium)
                         Text("Create your first project to start tracking", style = MaterialTheme.typography.bodySmall, color = TextMuted)
                         Box(
                             Modifier.clip(RoundedCornerShape(20.dp))
-                                .background(Brush.linearGradient(listOf(NeonPink, NeonCyan)))
+                                .background(AccentBlue)
                                 .clickable { showAddProject = true }
                                 .padding(horizontal = 24.dp, vertical = 11.dp),
                         ) {
-                            Text("NEW PROJECT", fontSize = 10.sp, letterSpacing = 2.sp, color = Color.White, fontWeight = FontWeight.ExtraBold)
+                            Text("New project", fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -124,33 +117,33 @@ fun KanbanScreen(
                                 Modifier.fillMaxWidth()
                                     .clip(RoundedCornerShape(18.dp))
                                     .background(BgCard)
-                                    .border(1.dp, Brush.linearGradient(listOf(NeonPink.copy(0.5f), NeonCyan.copy(0.3f))), RoundedCornerShape(18.dp))
+                                    .border(1.dp, BorderDefault, RoundedCornerShape(18.dp))
                                     .padding(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(16.dp),
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
-                                        Text("PORTFOLIO INTEL", fontSize = 9.sp, letterSpacing = 2.5.sp, color = NeonPink.copy(0.7f), fontWeight = FontWeight.Bold)
+                                        Text("Portfolio overview", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
                                         Spacer(Modifier.height(2.dp))
                                         Text("${projects.size} Active Projects", fontSize = 14.sp, color = TextMuted)
                                     }
                                     Box(
                                         Modifier.clip(RoundedCornerShape(10.dp))
-                                            .background(NeonCyan.copy(0.08f))
-                                            .border(1.dp, NeonCyan.copy(0.4f), RoundedCornerShape(10.dp))
+                                            .background(AccentBlue.copy(0.08f))
+                                            .border(1.dp, AccentBlue.copy(0.3f), RoundedCornerShape(10.dp))
                                             .padding(horizontal = 10.dp, vertical = 5.dp),
                                     ) {
-                                        Text("$totalTasks TASKS", fontSize = 9.sp, letterSpacing = 1.sp, color = NeonCyan, fontWeight = FontWeight.ExtraBold)
+                                        Text("$totalTasks tasks", fontSize = 9.sp, color = AccentBlue, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
 
                                 // Stat chips
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     listOf(
-                                        Triple(inProgress.toString(), "ACTIVE",   NeonPink),
-                                        Triple(doneTasks.toString(),  "DONE",     AccentGreen),
-                                        Triple(blocked.toString(),    "BLOCKED",  AccentRed),
-                                        Triple(overdue.toString(),    "OVERDUE",  NeonGold),
+                                        Triple(inProgress.toString(), "Active",   AccentBlue),
+                                        Triple(doneTasks.toString(),  "Done",     AccentGreen),
+                                        Triple(blocked.toString(),    "Blocked",  AccentRed),
+                                        Triple(overdue.toString(),    "Overdue",  NeonGold),
                                     ).forEach { (value, label, color) ->
                                         Column(
                                             Modifier.weight(1f)
@@ -162,7 +155,7 @@ fun KanbanScreen(
                                             verticalArrangement = Arrangement.spacedBy(3.dp),
                                         ) {
                                             Text(value, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = color)
-                                            Text(label, fontSize = 7.sp, letterSpacing = 1.2.sp, color = color.copy(0.65f), fontWeight = FontWeight.Bold)
+                                            Text(label, fontSize = 7.sp, color = color.copy(0.65f), fontWeight = FontWeight.SemiBold)
                                         }
                                     }
                                 }
@@ -170,14 +163,14 @@ fun KanbanScreen(
                                 // Completion bar
                                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("COMPLETION", fontSize = 8.sp, letterSpacing = 2.sp, color = TextSubtle, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                        Text("Completion", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                                         Text("${(donePct * 100).toInt()}%", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = AccentGreen)
                                     }
                                     Box(Modifier.fillMaxWidth().height(7.dp).clip(RoundedCornerShape(4.dp)).background(BgCardAlt)) {
                                         if (donePct > 0f) {
                                             Box(
                                                 Modifier.fillMaxWidth(donePct).height(7.dp).clip(RoundedCornerShape(4.dp))
-                                                    .background(Brush.horizontalGradient(listOf(NeonCyan, AccentGreen)))
+                                                    .background(AccentGreen)
                                             )
                                         }
                                     }
@@ -186,19 +179,19 @@ fun KanbanScreen(
                                 // Health bar
                                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("DUE HEALTH", fontSize = 8.sp, letterSpacing = 2.sp, color = TextSubtle, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                        Text("Due health", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                                         Text(
-                                            if (overdue == 0) "ON TRACK" else "$overdue OVERDUE",
-                                            fontSize = 10.sp, letterSpacing = 1.sp, fontWeight = FontWeight.ExtraBold,
-                                            color = if (overdue == 0) NeonCyan else AccentRed,
+                                            if (overdue == 0) "On track" else "$overdue overdue",
+                                            fontSize = 10.sp, fontWeight = FontWeight.SemiBold,
+                                            color = if (overdue == 0) AccentGreen else AccentRed,
                                         )
                                     }
                                     Box(Modifier.fillMaxWidth().height(7.dp).clip(RoundedCornerShape(4.dp)).background(BgCardAlt)) {
                                         if (healthPct > 0f) {
-                                            val hColor = if (overdue == 0) NeonCyan else if (healthPct > 0.7f) NeonGold else AccentRed
+                                            val hColor = if (overdue == 0) AccentGreen else if (healthPct > 0.7f) NeonGold else AccentRed
                                             Box(
                                                 Modifier.fillMaxWidth(healthPct).height(7.dp).clip(RoundedCornerShape(4.dp))
-                                                    .background(Brush.horizontalGradient(listOf(hColor.copy(0.6f), hColor)))
+                                                    .background(hColor)
                                             )
                                         }
                                     }
