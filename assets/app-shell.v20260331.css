@@ -46,7 +46,7 @@
         radial-gradient(1400px 700px at 50% -200px, #1f2937 0%, var(--bg) 55%),
         linear-gradient(180deg, rgba(96,165,250,.05), rgba(34,197,94,.04));
       color:var(--text);
-      font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+      font:16px/1.6 'Inter',system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
       padding:28px 14px calc(var(--tb) + env(safe-area-inset-bottom, 0px));
       display:grid; place-items:start center;
       transition: background 0.5s ease;
