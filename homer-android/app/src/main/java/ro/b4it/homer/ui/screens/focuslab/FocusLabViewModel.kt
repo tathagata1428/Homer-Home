@@ -24,9 +24,12 @@ class FocusLabViewModel @Inject constructor(
     val zenGoal: StateFlow<String> = _zenGoal.asStateFlow()
 
     init {
+        // Collect from DB flows so pulled Supabase values appear immediately
         viewModelScope.launch {
-            _brainDump.value = settingDao.get(KEY_BRAIN_DUMP) ?: ""
-            _zenGoal.value   = settingDao.get(KEY_ZEN_GOAL) ?: ""
+            settingDao.getFlow(KEY_BRAIN_DUMP).collect { v -> _brainDump.value = v ?: "" }
+        }
+        viewModelScope.launch {
+            settingDao.getFlow(KEY_ZEN_GOAL).collect { v -> _zenGoal.value = v ?: "" }
         }
         observeBrainDumpSave()
     }
@@ -36,9 +39,7 @@ class FocusLabViewModel @Inject constructor(
         viewModelScope.launch {
             _brainDump.debounce(800).collect { text ->
                 settingDao.set(AppSetting(KEY_BRAIN_DUMP, text))
-                sync.schedulePush("homer-brain-dump") {
-                    // push via field_state
-                }
+                sync.pushBrainDumpDebounced()
             }
         }
     }
@@ -47,7 +48,10 @@ class FocusLabViewModel @Inject constructor(
 
     fun setZenGoal(text: String) {
         _zenGoal.value = text
-        viewModelScope.launch { settingDao.set(AppSetting(KEY_ZEN_GOAL, text)) }
+        viewModelScope.launch {
+            settingDao.set(AppSetting(KEY_ZEN_GOAL, text))
+            sync.pushZenGoalDebounced()
+        }
     }
 
     companion object {

@@ -60,8 +60,10 @@ class SyncEngine @Inject constructor(
         if (isFieldEnabled("ls:homer-notes"))     runCatching { pullNotes()         }.onFailure { Log.e("HomerSync", "pullNotes failed", it) }
         if (isFieldEnabled("ls:homer-journal"))   runCatching { pullJournal()       }.onFailure { Log.e("HomerSync", "pullJournal failed", it) }
         if (isFieldEnabled("ls:homer-car"))       runCatching { pullCar()           }.onFailure { Log.e("HomerSync", "pullCar failed", it) }
-        if (isFieldEnabled("android:kanban"))     runCatching { pullKanban()        }.onFailure { Log.e("HomerSync", "pullKanban failed", it) }
-        if (isFieldEnabled("android:life-goals")) runCatching { pullLifeGoals()     }.onFailure { Log.e("HomerSync", "pullLifeGoals failed", it) }
+        if (isFieldEnabled("android:kanban"))         runCatching { pullKanban()        }.onFailure { Log.e("HomerSync", "pullKanban failed", it) }
+        if (isFieldEnabled("android:life-goals"))     runCatching { pullLifeGoals()     }.onFailure { Log.e("HomerSync", "pullLifeGoals failed", it) }
+        if (isFieldEnabled("ls:homer-brain-dump"))    runCatching { pullBrainDump()     }.onFailure { Log.e("HomerSync", "pullBrainDump failed", it) }
+        if (isFieldEnabled("ls:homer-zen-goal"))      runCatching { pullZenGoal()       }.onFailure { Log.e("HomerSync", "pullZenGoal failed", it) }
         Log.d("HomerSync", "pullAll: done")
     }
 
@@ -95,8 +97,10 @@ class SyncEngine @Inject constructor(
     fun pushNotesDebounced()         = schedulePush("ls:homer-notes")      { pushNotes() }
     fun pushJournalDebounced()       = schedulePush("ls:homer-journal")    { pushJournal() }
     fun pushCarDebounced()           = schedulePush("ls:homer-car")        { pushCar() }
-    fun pushKanbanDebounced()        = schedulePush("android:kanban")      { pushKanban() }
-    fun pushLifeGoalsDebounced()     = schedulePush("android:life-goals")  { pushLifeGoals() }
+    fun pushKanbanDebounced()        = schedulePush("android:kanban")        { pushKanban() }
+    fun pushLifeGoalsDebounced()     = schedulePush("android:life-goals")    { pushLifeGoals() }
+    fun pushBrainDumpDebounced()     = schedulePush("ls:homer-brain-dump")   { pushBrainDump() }
+    fun pushZenGoalDebounced()       = schedulePush("ls:homer-zen-goal")     { pushZenGoal() }
 
     /** Push all data to Supabase immediately (no debounce). Throws on auth failure. */
     suspend fun pushAll() {
@@ -112,6 +116,8 @@ class SyncEngine @Inject constructor(
         runCatching { pushCar() }
         runCatching { pushKanban() }
         runCatching { pushLifeGoals() }
+        runCatching { pushBrainDump() }
+        runCatching { pushZenGoal() }
     }
 
     /** Push Pomodoro tasks immediately — called on delete so Supabase is updated before any pull. */
@@ -536,6 +542,34 @@ class SyncEngine @Inject constructor(
             val goals = json.decodeFromString(ListSerializer(LifeGoal.serializer()), row.value)
             val toMerge = mergeByUpdatedAt(goals, db.lifeGoalDao().getAll().first(), { it.id }, { it.updatedAt })
             if (toMerge.isNotEmpty()) db.lifeGoalDao().upsertAll(toMerge)
+        }
+    }
+
+    // ── Focus Lab — brain dump & zen goal ─────────────────────────────────────
+    // Stored as plain text strings in AppSetting table.
+    // Web keys: "homer-brain-dump" → "ls:homer-brain-dump", "homer-zen-goal" → "ls:homer-zen-goal"
+
+    private suspend fun pushBrainDump() {
+        val text = db.appSettingDao().get("homer-brain-dump") ?: return
+        supabase.setFieldState("ls:homer-brain-dump", text)
+    }
+
+    private suspend fun pullBrainDump() {
+        supabase.getFieldState("ls:homer-brain-dump")?.let { row ->
+            if (row.value.isBlank()) return@let
+            db.appSettingDao().set(AppSetting("homer-brain-dump", row.value))
+        }
+    }
+
+    private suspend fun pushZenGoal() {
+        val text = db.appSettingDao().get("homer-zen-goal") ?: return
+        supabase.setFieldState("ls:homer-zen-goal", text)
+    }
+
+    private suspend fun pullZenGoal() {
+        supabase.getFieldState("ls:homer-zen-goal")?.let { row ->
+            if (row.value.isBlank()) return@let
+            db.appSettingDao().set(AppSetting("homer-zen-goal", row.value))
         }
     }
 
