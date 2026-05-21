@@ -190,8 +190,8 @@ class SyncViewModel @Inject constructor(
         val SYNC_SCOPE = listOf(
             SyncScopeItem("ls:homer-habits",    "✅", "Habits"),
             SyncScopeItem("ls:homer-notes",     "📝", "Notes"),
-            SyncScopeItem("android:life-goals", "🎯", "Life Goals"),
-            SyncScopeItem("android:kanban",     "📋", "Kanban"),
+            SyncScopeItem("ls:homer-life-goals", "🎯", "Life Goals"),
+            SyncScopeItem("ls:homer-kanban",    "📋", "Kanban"),
             SyncScopeItem("ls:homer-expenses",  "💰", "Expenses"),
             SyncScopeItem("ls:homer-inbox",     "📥", "Inbox"),
             SyncScopeItem("ls:homer-links",     "🔗", "Links"),

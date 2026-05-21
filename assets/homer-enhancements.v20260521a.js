@@ -1331,6 +1331,126 @@
         .catch(function(){showBadge('Sync error','error');});
     }
 
+    // ── Vault Shadow Sync ──────────────────────────────────────────────────────
+    // Kanban tasks (goals) and Life Goals live in encrypted vault IDB — not LS.
+    // doVaultSync() normalises them to Android format and shadows to Supabase
+    // fields ls:homer-kanban and ls:homer-life-goals so Android can pull them.
+    // Triggered on vault-goals-changed (debounced 3s) and from pullAll().
+
+    function vaultNormalizeTask(t){
+      return {
+        id:            String(t.id||''),
+        column:        t.col||t.column||'todo',
+        summary:       t.summary||'',
+        description:   t.notes||t.description||'',
+        priority:      t.priority||'medium',
+        labelsJson:    Array.isArray(t.labels)?JSON.stringify(t.labels):(t.labelsJson||'[]'),
+        subtasksJson:  Array.isArray(t.subtasks)?JSON.stringify(t.subtasks):(t.subtasksJson||'[]'),
+        attachmentsJson: Array.isArray(t.attachments)?JSON.stringify(t.attachments):(t.attachmentsJson||'[]'),
+        dueDate:       t.due||t.dueDate||'',
+        archived:      !!t.archived,
+        backlog:       !!t.backlog,
+        order:         t.order||0,
+        projectId:     String(t.projectId||''),
+        updatedAt:     t.updatedAt||Date.now(),
+      };
+    }
+    function vaultNormalizeProject(p){
+      return {
+        id:              String(p.id||''),
+        name:            p.name||'Project',
+        key:             p.key||(p.name||'').slice(0,3).toUpperCase(),
+        description:     p.description||'',
+        icon:            p.icon||'',
+        color:           p.color||'#3B82F6',
+        customFieldsJson: Array.isArray(p.customFields)?JSON.stringify(p.customFields):(p.customFieldsJson||'[]'),
+        archived:        !!p.archived,
+        updatedAt:       p.updatedAt||Date.now(),
+      };
+    }
+    function vaultNormalizeLg(g){
+      return {
+        id:            String(g.id||''),
+        title:         g.title||'',
+        description:   g.description||'',
+        category:      g.category||'',
+        icon:          g.icon||'',
+        targetDate:    g.targetDate||'',
+        milestonesJson: Array.isArray(g.milestones)?JSON.stringify(g.milestones):(g.milestonesJson||'[]'),
+        status:        g.status||'active',
+        progress:      g.progress||0,
+        updatedAt:     g.updatedAt||Date.now(),
+      };
+    }
+    function mergeKanbanBlob(local,remote){
+      function mergeArr(loc,rem){
+        var byId={};
+        (loc||[]).forEach(function(x){byId[x.id]=x;});
+        (rem||[]).forEach(function(x){
+          var ex=byId[x.id];
+          if(!ex||(x.updatedAt||0)>(ex.updatedAt||0))byId[x.id]=x;
+        });
+        return Object.keys(byId).map(function(k){return byId[k];});
+      }
+      return{projects:mergeArr(local.projects,remote.projects),tasks:mergeArr(local.tasks,remote.tasks)};
+    }
+    function mergeLifeGoalsArr(local,remote){
+      var byId={};
+      (local||[]).forEach(function(g){byId[g.id]=g;});
+      (remote||[]).forEach(function(g){
+        var ex=byId[g.id];
+        if(!ex||(g.updatedAt||0)>(ex.updatedAt||0))byId[g.id]=g;
+      });
+      return Object.keys(byId).map(function(k){return byId[k];});
+    }
+    var _vaultSyncTimer=null;
+    function scheduleVaultSync(){clearTimeout(_vaultSyncTimer);_vaultSyncTimer=setTimeout(doVaultSync,3000);}
+    function doVaultSync(){
+      if(!canSync())return;
+      if(!window._homerVaultUnlocked)return; // vault must be unlocked to read IDB
+      if(typeof window._homerLoadVault!=='function')return;
+      var client=getClient(),uid=getUid();if(!client||!uid)return;
+      window._homerLoadVault().then(function(vault){
+        if(!vault)return;
+        var tasks=      (vault.goals||[]).map(vaultNormalizeTask);
+        var projects=   (vault.projects||[]).map(vaultNormalizeProject);
+        var lifeGoals=  (vault.lifeGoals||[]).map(vaultNormalizeLg);
+        var localKanban={projects:projects,tasks:tasks};
+        // Kanban merge
+        client.from('field_state').select('value').eq('field_id','ls:homer-kanban').eq('user_id',uid).maybeSingle()
+          .then(function(r){
+            var rem={projects:[],tasks:[]};
+            if(r.data&&r.data.value){
+              try{rem=JSON.parse(r.data.value);}catch(e){}
+              if(Array.isArray(rem.goals)){
+                rem.tasks=(rem.tasks||[]).concat(rem.goals.map(vaultNormalizeTask));
+                delete rem.goals;
+              }
+            }
+            var merged=mergeKanbanBlob(localKanban,rem);
+            var ts=Date.now();
+            return client.from('field_state').upsert(
+              {field_id:'ls:homer-kanban',value:JSON.stringify(merged),user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',updated_at:new Date(ts).toISOString()},
+              {onConflict:'user_id,field_id'});
+          }).catch(function(e){console.warn('[HomerSync] vaultSync kanban',e);});
+        // Life Goals merge
+        client.from('field_state').select('value').eq('field_id','ls:homer-life-goals').eq('user_id',uid).maybeSingle()
+          .then(function(r){
+            var rem=[];
+            if(r.data&&r.data.value){try{rem=JSON.parse(r.data.value);}catch(e){}if(!Array.isArray(rem))rem=[];}
+            var merged=mergeLifeGoalsArr(lifeGoals,rem);
+            var ts=Date.now();
+            return client.from('field_state').upsert(
+              {field_id:'ls:homer-life-goals',value:JSON.stringify(merged),user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',updated_at:new Date(ts).toISOString()},
+              {onConflict:'user_id,field_id'});
+          }).catch(function(e){console.warn('[HomerSync] vaultSync life-goals',e);});
+      }).catch(function(e){console.warn('[HomerSync] vaultSync load',e);});
+    }
+    // Fire vault sync whenever vault data changes (task created/updated, life goal saved, etc.)
+    window.addEventListener('vault-goals-changed',function(){if(canSync())scheduleVaultSync();});
+    // Also fire when vault unlocks — first unlock on page load is the most important
+    window.addEventListener('homer-vault-state',function(){if(canSync()&&window._homerVaultUnlocked)scheduleVaultSync();});
+
     var _pullDone=false;
     function pullAll(){
       if(!canSync())return;
@@ -1350,6 +1470,7 @@
       syncJournal();
       syncCar();
       syncPomTasks();
+      doVaultSync();
       if(firstPull){
         // After first pull, signal vault components to re-read IDB.
         // This catches the case where the vault was loaded before a restore
@@ -1434,6 +1555,9 @@
     window._heSyncJournal=syncJournal;
     window._heSyncCar=syncCar;
     window._heSyncPomTasks=syncPomTasks;
+    window._heVaultSync=doVaultSync;
+    window._heSyncKanban=doVaultSync;
+    window._heSyncLifeGoals=doVaultSync;
   }
 
   /* ── Mobile FAB positioning ─────────────────────────────────────────── */

@@ -13,6 +13,7 @@ import ro.b4it.homer.data.local.entity.*
 import ro.b4it.homer.data.preferences.AppPreferences
 import ro.b4it.homer.data.supabase.SupabaseManager
 import java.time.Instant
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -60,8 +61,8 @@ class SyncEngine @Inject constructor(
         if (isFieldEnabled("ls:homer-notes"))     runCatching { pullNotes()         }.onFailure { Log.e("HomerSync", "pullNotes failed", it) }
         if (isFieldEnabled("ls:homer-journal"))   runCatching { pullJournal()       }.onFailure { Log.e("HomerSync", "pullJournal failed", it) }
         if (isFieldEnabled("ls:homer-car"))       runCatching { pullCar()           }.onFailure { Log.e("HomerSync", "pullCar failed", it) }
-        if (isFieldEnabled("android:kanban"))         runCatching { pullKanban()        }.onFailure { Log.e("HomerSync", "pullKanban failed", it) }
-        if (isFieldEnabled("android:life-goals"))     runCatching { pullLifeGoals()     }.onFailure { Log.e("HomerSync", "pullLifeGoals failed", it) }
+        if (isFieldEnabled("ls:homer-kanban"))         runCatching { pullKanban()        }.onFailure { Log.e("HomerSync", "pullKanban failed", it) }
+        if (isFieldEnabled("ls:homer-life-goals"))     runCatching { pullLifeGoals()     }.onFailure { Log.e("HomerSync", "pullLifeGoals failed", it) }
         if (isFieldEnabled("ls:homer-brain-dump"))    runCatching { pullBrainDump()     }.onFailure { Log.e("HomerSync", "pullBrainDump failed", it) }
         if (isFieldEnabled("ls:homer-zen-goal"))      runCatching { pullZenGoal()       }.onFailure { Log.e("HomerSync", "pullZenGoal failed", it) }
         Log.d("HomerSync", "pullAll: done")
@@ -97,8 +98,8 @@ class SyncEngine @Inject constructor(
     fun pushNotesDebounced()         = schedulePush("ls:homer-notes")      { pushNotes() }
     fun pushJournalDebounced()       = schedulePush("ls:homer-journal")    { pushJournal() }
     fun pushCarDebounced()           = schedulePush("ls:homer-car")        { pushCar() }
-    fun pushKanbanDebounced()        = schedulePush("android:kanban")        { pushKanban() }
-    fun pushLifeGoalsDebounced()     = schedulePush("android:life-goals")    { pushLifeGoals() }
+    fun pushKanbanDebounced()        = schedulePush("ls:homer-kanban")        { pushKanban() }
+    fun pushLifeGoalsDebounced()     = schedulePush("ls:homer-life-goals")    { pushLifeGoals() }
     fun pushBrainDumpDebounced()     = schedulePush("ls:homer-brain-dump")   { pushBrainDump() }
     fun pushZenGoalDebounced()       = schedulePush("ls:homer-zen-goal")     { pushZenGoal() }
 
@@ -496,50 +497,183 @@ class SyncEngine @Inject constructor(
     }
 
     // ── Kanban ────────────────────────────────────────────────────────────────
-    // Field IDs: "android:kanban-projects" and "android:kanban-tasks"
-    // Format: plain JSON arrays of KanbanProject / KanbanTask
+    // Field ID: "ls:homer-kanban" (matches web convention)
+    // Android push format: {projects:[KanbanProject...], tasks:[KanbanTask...]}
+    // Web vault format:    {projects:[...], goals:[{id(int), col, summary, notes, due, ...}]}
+    // Bridge classes handle both — col/column, due/dueDate, goals/tasks, int/UUID ids.
 
+    // Push: Android-native format
     @Serializable
     private data class KanbanBlob(
         val projects: List<KanbanProject> = emptyList(),
         val tasks: List<KanbanTask> = emptyList(),
     )
 
+    // Pull: tolerates both Android format (tasks) and web vault format (goals, col, due, int ids)
+    @Serializable
+    private data class WsKanbanTask(
+        val id: JsonElement = JsonPrimitive(""),
+        val col: String = "",           // web format
+        val column: String = "",        // android format
+        val summary: String = "",
+        val notes: String = "",         // web "description"
+        val description: String = "",   // android format
+        val due: String = "",           // web format
+        val dueDate: String = "",       // android format
+        val priority: String = "medium",
+        val projectId: JsonElement = JsonPrimitive(""),
+        val labels: JsonElement = JsonArray(emptyList()),
+        val labelsJson: String = "[]",
+        val subtasks: JsonElement = JsonArray(emptyList()),
+        val subtasksJson: String = "[]",
+        val attachments: JsonElement = JsonArray(emptyList()),
+        val attachmentsJson: String = "[]",
+        val archived: Boolean = false,
+        val backlog: Boolean = false,
+        val order: Int = 0,
+        val updatedAt: Long = 0L,
+    )
+
+    @Serializable
+    private data class WsKanbanProject(
+        val id: JsonElement = JsonPrimitive(""),
+        val name: String = "",
+        val key: String = "",
+        val description: String = "",
+        val icon: String = "",
+        val color: String = "#3B82F6",
+        val customFieldsJson: String = "[]",
+        val archived: Boolean = false,
+        val updatedAt: Long = 0L,
+    )
+
+    @Serializable
+    private data class KanbanBlobWs(
+        val projects: List<WsKanbanProject> = emptyList(),
+        val tasks: List<WsKanbanTask> = emptyList(),  // android push uses "tasks"
+        val goals: List<WsKanbanTask> = emptyList(),  // web vault push uses "goals"
+    )
+
+    private fun jsonElemStr(e: JsonElement): String =
+        when (e) {
+            is JsonPrimitive -> e.contentOrNull ?: e.content
+            else -> e.toString()
+        }
+
+    private fun WsKanbanTask.toTask(): KanbanTask {
+        val taskId     = jsonElemStr(id).ifBlank { UUID.randomUUID().toString() }
+        val colVal     = column.ifBlank { col }.ifBlank { "todo" }
+        val dueVal     = dueDate.ifBlank { due }
+        val desc       = description.ifBlank { notes }
+        val projId     = jsonElemStr(projectId)
+        val labelsStr  = if (labelsJson != "[]") labelsJson else (labels as? JsonArray)?.toString() ?: "[]"
+        val subStr     = if (subtasksJson != "[]") subtasksJson else (subtasks as? JsonArray)?.toString() ?: "[]"
+        val attachStr  = if (attachmentsJson != "[]") attachmentsJson else (attachments as? JsonArray)?.toString() ?: "[]"
+        return KanbanTask(
+            id              = taskId,
+            projectId       = projId,
+            summary         = summary,
+            description     = desc,
+            column          = colVal,
+            priority        = priority,
+            labelsJson      = labelsStr,
+            dueDate         = dueVal,
+            subtasksJson    = subStr,
+            attachmentsJson = attachStr,
+            order           = order,
+            archived        = archived,
+            backlog         = backlog,
+            updatedAt       = updatedAt.takeIf { it > 0 } ?: System.currentTimeMillis(),
+        )
+    }
+
+    private fun WsKanbanProject.toProject(): KanbanProject {
+        val projId = jsonElemStr(id).ifBlank { UUID.randomUUID().toString() }
+        return KanbanProject(
+            id               = projId,
+            name             = name.ifBlank { "Project" },
+            key              = key.ifBlank { name.take(3).uppercase() },
+            description      = description,
+            icon             = icon,
+            color            = color,
+            customFieldsJson = customFieldsJson,
+            archived         = archived,
+            updatedAt        = updatedAt.takeIf { it > 0 } ?: System.currentTimeMillis(),
+        )
+    }
+
     private suspend fun pushKanban() {
         val projects = db.kanbanDao().getAllProjects().first()
         val tasks    = db.kanbanDao().getAllTasks().first()
-        // Safety guard: never overwrite Supabase with empty local data (prevents wipe on fresh install)
-        if (projects.isEmpty() && tasks.isEmpty()) return
+        if (projects.isEmpty() && tasks.isEmpty()) return   // never wipe cloud with empty local
         val blob = KanbanBlob(projects = projects, tasks = tasks)
-        supabase.setFieldState("android:kanban", json.encodeToString(KanbanBlob.serializer(), blob))
+        supabase.setFieldState("ls:homer-kanban", json.encodeToString(KanbanBlob.serializer(), blob))
     }
 
     private suspend fun pullKanban() {
-        supabase.getFieldState("android:kanban")?.let { row ->
+        supabase.getFieldState("ls:homer-kanban")?.let { row ->
             if (row.value.isBlank()) return@let
-            val blob = json.decodeFromString(KanbanBlob.serializer(), row.value)
-            mergeByUpdatedAt(blob.projects, db.kanbanDao().getAllProjects().first(), { it.id }, { it.updatedAt })
+            val blob     = json.decodeFromString(KanbanBlobWs.serializer(), row.value)
+            val allTasks = blob.tasks + blob.goals  // union: android-push tasks + web-vault goals
+            val projects = blob.projects.map { it.toProject() }
+            val tasks    = allTasks.map { it.toTask() }
+            mergeByUpdatedAt(projects, db.kanbanDao().getAllProjects().first(), { it.id }, { it.updatedAt })
                 .takeIf { it.isNotEmpty() }?.let { db.kanbanDao().upsertProjects(it) }
-            mergeByUpdatedAt(blob.tasks, db.kanbanDao().getAllTasks().first(), { it.id }, { it.updatedAt })
+            mergeByUpdatedAt(tasks, db.kanbanDao().getAllTasks().first(), { it.id }, { it.updatedAt })
                 .takeIf { it.isNotEmpty() }?.let { db.kanbanDao().upsertTasks(it) }
         }
     }
 
     // ── Life Goals ────────────────────────────────────────────────────────────
-    // Field ID: "android:life-goals"
-    // Format: plain JSON array of LifeGoal
+    // Field ID: "ls:homer-life-goals" (matches web convention)
+    // Android format: {id(UUID), title, description, category, icon, targetDate, milestonesJson, status, progress, updatedAt}
+    // Web vault format: {id(int), title, description, category, icon, targetDate, milestones:[{text,done}], progress, updatedAt}
+    // WsLifeGoal bridge handles both.
+
+    @Serializable
+    private data class WsLifeGoal(
+        val id: JsonElement = JsonPrimitive(""),
+        val title: String = "",
+        val description: String = "",
+        val category: String = "",
+        val icon: String = "",
+        val targetDate: String = "",
+        val milestones: JsonElement = JsonArray(emptyList()),  // web format: array
+        val milestonesJson: String = "[]",                     // android format: JSON string
+        val status: String = "active",
+        val progress: Int = 0,
+        val updatedAt: Long = 0L,
+    )
+
+    private fun WsLifeGoal.toLifeGoal(): LifeGoal {
+        val lgId  = jsonElemStr(id).ifBlank { UUID.randomUUID().toString() }
+        val msJson = milestonesJson.takeIf { it != "[]" } ?: (milestones as? JsonArray)?.toString() ?: "[]"
+        return LifeGoal(
+            id            = lgId,
+            title         = title,
+            description   = description,
+            category      = category,
+            icon          = icon,
+            targetDate    = targetDate,
+            milestonesJson = msJson,
+            status        = status,
+            progress      = progress,
+            updatedAt     = updatedAt.takeIf { it > 0 } ?: System.currentTimeMillis(),
+        )
+    }
 
     private suspend fun pushLifeGoals() {
         val goals = db.lifeGoalDao().getAll().first()
-        if (goals.isEmpty()) return // don't overwrite Supabase with empty local data
-        supabase.setFieldState("android:life-goals",
+        if (goals.isEmpty()) return   // never wipe cloud with empty local
+        supabase.setFieldState("ls:homer-life-goals",
             json.encodeToString(ListSerializer(LifeGoal.serializer()), goals))
     }
 
     private suspend fun pullLifeGoals() {
-        supabase.getFieldState("android:life-goals")?.let { row ->
+        supabase.getFieldState("ls:homer-life-goals")?.let { row ->
             if (row.value.isBlank()) return@let
-            val goals = json.decodeFromString(ListSerializer(LifeGoal.serializer()), row.value)
+            val wsGoals = json.decodeFromString(ListSerializer(WsLifeGoal.serializer()), row.value)
+            val goals   = wsGoals.map { it.toLifeGoal() }
             val toMerge = mergeByUpdatedAt(goals, db.lifeGoalDao().getAll().first(), { it.id }, { it.updatedAt })
             if (toMerge.isNotEmpty()) db.lifeGoalDao().upsertAll(toMerge)
         }
@@ -645,20 +779,20 @@ class SyncEngine @Inject constructor(
 
         runCatching {
             val local = db.kanbanDao().getAllProjects().first().size
-            val cloud = supabase.getFieldState("android:kanban")?.let { row ->
+            val cloud = supabase.getFieldState("ls:homer-kanban")?.let { row ->
                 if (row.value.isBlank()) return@let 0
-                json.decodeFromString(KanbanBlob.serializer(), row.value).projects.size
+                json.decodeFromString(KanbanBlobWs.serializer(), row.value).projects.size
             } ?: 0
-            add("android:kanban", "Projects & Tasks", "📋", local, cloud)
+            add("ls:homer-kanban", "Projects & Tasks", "📋", local, cloud)
         }
 
         runCatching {
             val local = db.lifeGoalDao().getAll().first().size
-            val cloud = supabase.getFieldState("android:life-goals")?.let { row ->
+            val cloud = supabase.getFieldState("ls:homer-life-goals")?.let { row ->
                 if (row.value.isBlank()) return@let 0
-                json.decodeFromString(ListSerializer(LifeGoal.serializer()), row.value).size
+                json.decodeFromString(ListSerializer(WsLifeGoal.serializer()), row.value).size
             } ?: 0
-            add("android:life-goals", "Life Goals", "🎯", local, cloud)
+            add("ls:homer-life-goals", "Life Goals", "🎯", local, cloud)
         }
 
         runCatching {
@@ -757,14 +891,14 @@ class SyncEngine @Inject constructor(
         }.onFailure { Log.e("HomerSync", "car resolution failed", it) }
 
         runCatching {
-            apply("android:kanban",
+            apply("ls:homer-kanban",
                 clearFn = { db.kanbanDao().clearAllProjects(); db.kanbanDao().clearAllTasks() },
                 pullFn  = ::pullKanban,
                 pushFn  = ::pushKanban)
         }.onFailure { Log.e("HomerSync", "kanban resolution failed", it) }
 
         runCatching {
-            apply("android:life-goals",
+            apply("ls:homer-life-goals",
                 clearFn = { db.lifeGoalDao().clearAll() },
                 pullFn  = ::pullLifeGoals,
                 pushFn  = ::pushLifeGoals)
