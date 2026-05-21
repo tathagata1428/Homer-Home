@@ -535,7 +535,9 @@
     var now = new Date();
     var h = now.getHours();
     var greet = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
-    el.textContent = greet + ', Bogdan \u2014 ' + now.toLocaleDateString(undefined, { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    var authUser = localStorage.getItem('homer-auth-user');
+    var displayName = authUser ? (authUser.charAt(0).toUpperCase() + authUser.slice(1)) : '';
+    el.textContent = greet + (displayName ? ', ' + displayName : '') + ' \u2014 ' + now.toLocaleDateString(undefined, { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   }
 
   /* ── Main refresh ─────────────────────────────────────────────────── */

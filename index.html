@@ -832,7 +832,15 @@
         <div class="vd-icon">&#x1F697;</div>
         <div class="vd-info"><h3>Car Tracker</h3><p>Insurance, maintenance &amp; fuel log</p></div>
       </div>
+      <!-- Backup tile — Bogdan-only, populated by homer-gdrive-fullbackup.js -->
+      <div class="vd-card" id="vd-backup-tile" style="display:none;cursor:pointer;">
+        <div class="vd-icon">&#x1F6E1;&#xFE0F;</div>
+        <div class="vd-info"><h3>Backup Status</h3><p id="vd-backup-desc">Never backed up</p></div>
+        <span class="vd-badge" id="vd-backup-badge" style="background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.4);border-radius:20px;padding:2px 8px;font-size:.72rem;font-weight:700;">!</span>
+      </div>
     </div>
+    <!-- Backup Control Panel (Bogdan only — populated by homer-gdrive-fullbackup.js) -->
+    <div id="vault-backup-panel" style="display:none;margin-top:18px;"></div>
     <!-- Calendar stays inline -->
     <div class="card" id="homer-cal" style="margin-top:18px;margin-bottom:0;padding:18px;">
       <h3 style="margin:0 0 14px;display:flex;align-items:center;flex-wrap:wrap;">Calendar <button id="cal-ics-toggle" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;vertical-align:middle;" title="Sync external calendar">&#9881;</button>
@@ -1676,6 +1684,7 @@
     <script src="/assets/homer-journal.v20260515a.js?v=20260516b"></script>
     <script src="/assets/homer-car.v20260515a.js?v=20260518b"></script>
     <script src="/assets/homer-countdown.v20260520a.js?v=20260520b"></script>
+    <script src="/assets/homer-gdrive-fullbackup.v20260521a.js?v=20260521a"></script>
 
 <!-- ── Supabase client (loaded after app bundle so window globals are ready) ── -->
 <script src="/api/config?format=js"></script>

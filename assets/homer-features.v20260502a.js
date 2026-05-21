@@ -1105,7 +1105,9 @@
       var ds = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
       var today = now.toISOString().slice(0, 10);
       var mo = now.toISOString().slice(0, 7);
-      var html = '<p style="font-size:1.05rem;font-weight:700;color:#e5e7eb;margin-bottom:16px">' + greeting + ', Bogdan!<br><span style="font-size:.83rem;color:#94a3b8;font-weight:400">' + dow + ', ' + ds + '</span></p>';
+      var authUser = localStorage.getItem('homer-auth-user');
+      var displayName = authUser ? (authUser.charAt(0).toUpperCase() + authUser.slice(1)) : '';
+      var html = '<p style="font-size:1.05rem;font-weight:700;color:#e5e7eb;margin-bottom:16px">' + greeting + (displayName ? ', ' + displayName : '') + '!<br><span style="font-size:.83rem;color:#94a3b8;font-weight:400">' + dow + ', ' + ds + '</span></p>';
       var WD = {0:'Clear',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',51:'Drizzle',61:'Light rain',63:'Rain',71:'Snow',80:'Showers',95:'Thunderstorm'};
       var wc = safeJson(localStorage.getItem('homer-weather-cache'), null);
       if (wc && wc.data) {

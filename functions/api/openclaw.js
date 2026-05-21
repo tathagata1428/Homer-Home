@@ -6,6 +6,13 @@ import {
   handleJoeyGatewayRequest
 } from '../../lib/joey-chat-handler.js';
 import { createVercelAdapter } from '../../lib/cf-vercel-adapter.js';
+import {
+  isSupabaseConfigured,
+  isSupabaseClientConfigured,
+  createAdminClient,
+  resolveSupabaseOwnerId,
+  verifySupabaseJwt
+} from '../../lib/supabase-server.js';
 
 function cleanTranscript(value) {
   let text = String(value || '').trim();
@@ -94,11 +101,133 @@ async function handleTranscribe(request, env) {
   }
 }
 
+// Fetch live personal data from Supabase for every Joey request.
+// Returns a concise markdown string injected into the system prompt.
+// Never throws — returns '' on any error.
+async function fetchLivePersonalContext(jwtToken) {
+  try {
+    if (!isSupabaseConfigured()) return '';
+
+    let userId = null;
+    if (jwtToken && isSupabaseClientConfigured()) {
+      const user = await verifySupabaseJwt(jwtToken).catch(() => null);
+      if (user) userId = user.id;
+    }
+    if (!userId) userId = await resolveSupabaseOwnerId().catch(() => null);
+    if (!userId) return '';
+
+    const supabase = createAdminClient();
+    const today = new Date().toISOString().slice(0, 10);
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString();
+
+    const [habitsRes, completionsRes, tasksRes, journalRes, focusRes, fieldsRes] = await Promise.all([
+      supabase.from('habits').select('id,name,emoji,freq,archived').eq('user_id', userId).eq('archived', false).order('display_order', { ascending: true }).limit(30),
+      supabase.from('habit_completions').select('habit_id,date').eq('user_id', userId).gte('date', sevenDaysAgo).limit(300),
+      supabase.from('tasks').select('title,status,priority,due_at').eq('user_id', userId).not('status', 'in', '("done","cancelled")').order('created_at', { ascending: false }).limit(20),
+      supabase.from('journal').select('ts,text').eq('user_id', userId).eq('type', 'entry').neq('text', '').order('ts', { ascending: false }).limit(5),
+      supabase.from('focus_sessions').select('task_label,duration_secs,created_at').eq('user_id', userId).gte('created_at', twoDaysAgo).order('created_at', { ascending: false }).limit(10),
+      supabase.from('field_state').select('field_id,value').eq('user_id', userId).in('field_id', ['homer-notes', 'homer-inbox', 'ls:homer-expenses']),
+    ]);
+
+    const parts = [];
+    parts.push('=== LIVE PERSONAL DATA — ' + new Date().toISOString().slice(0, 16) + 'Z ===');
+    parts.push('(Fetched live from your database on every message. Use this for personalized, context-aware responses.)');
+
+    // Habits — today's completion status + streak
+    const habits = habitsRes.data || [];
+    const completions = completionsRes.data || [];
+    if (habits.length) {
+      const todayDone = new Set(completions.filter(c => c.date === today).map(c => c.habit_id));
+      parts.push('\n[HABITS — ' + today + ']');
+      for (const h of habits) {
+        const done = todayDone.has(h.id);
+        const habitDates = [...new Set(completions.filter(c => c.habit_id === h.id).map(c => c.date))].sort().reverse();
+        let streak = 0, checkDate = today;
+        while (habitDates.includes(checkDate)) {
+          streak++;
+          checkDate = new Date(new Date(checkDate).getTime() - 86400000).toISOString().slice(0, 10);
+        }
+        const freq = typeof h.freq === 'string' ? h.freq : (Array.isArray(h.freq) ? 'custom' : 'daily');
+        parts.push('• ' + (h.emoji || '') + ' ' + h.name + ' (' + freq + ') — ' + (done ? '✓ done' : '✗ not done') + (streak > 1 ? ' [' + streak + 'd streak]' : ''));
+      }
+    }
+
+    // Active tasks
+    const tasks = tasksRes.data || [];
+    if (tasks.length) {
+      parts.push('\n[ACTIVE TASKS — ' + tasks.length + ' open]');
+      for (const t of tasks.slice(0, 15)) {
+        const due = t.due_at ? ' [due ' + t.due_at.slice(0, 10) + ']' : '';
+        const prio = t.priority && t.priority !== 'medium' ? ' [' + t.priority + ']' : '';
+        parts.push('• [' + (t.status || 'pending') + ']' + prio + ' ' + (t.title || '') + due);
+      }
+    }
+
+    // Journal — recent entries
+    const journal = journalRes.data || [];
+    if (journal.length) {
+      parts.push('\n[RECENT JOURNAL ENTRIES]');
+      for (const e of journal) {
+        const date = e.ts ? new Date(Number(e.ts)).toISOString().slice(0, 10) : '?';
+        const excerpt = String(e.text || '').replace(/\n/g, ' ').slice(0, 160);
+        parts.push('• ' + date + ': ' + excerpt + (e.text && e.text.length > 160 ? '…' : ''));
+      }
+    }
+
+    // Focus sessions — last 48h
+    const focus = focusRes.data || [];
+    if (focus.length) {
+      const totalMin = Math.round(focus.reduce((a, s) => a + (s.duration_secs || 0), 0) / 60);
+      parts.push('\n[FOCUS — last 48h: ' + focus.length + ' sessions, ' + totalMin + 'min total]');
+      for (const s of focus.slice(0, 5)) {
+        const min = Math.round((s.duration_secs || 0) / 60);
+        parts.push('• ' + (s.task_label || 'Focus') + ' — ' + min + 'min on ' + (s.created_at || '').slice(0, 10));
+      }
+    }
+
+    // Notes & inbox from field_state
+    const fields = fieldsRes.data || [];
+    const notesField = fields.find(f => f.field_id === 'homer-notes');
+    const inboxField = fields.find(f => f.field_id === 'homer-inbox');
+    if (notesField && notesField.value) {
+      try {
+        const notes = JSON.parse(notesField.value);
+        const list = Array.isArray(notes) ? notes : [];
+        if (list.length) {
+          parts.push('\n[NOTES — ' + list.length + ' total, last 3]');
+          for (const n of list.slice(-3).reverse()) {
+            parts.push('• ' + String(n.title || n.text || '').slice(0, 100));
+          }
+        }
+      } catch (_) {}
+    }
+    if (inboxField && inboxField.value) {
+      try {
+        const inbox = JSON.parse(inboxField.value);
+        const pending = (Array.isArray(inbox) ? inbox : []).filter(i => !i.done && !i.deleted);
+        if (pending.length) {
+          parts.push('\n[INBOX — ' + pending.length + ' pending]');
+          for (const i of pending.slice(0, 5)) {
+            parts.push('• ' + String(i.text || i.title || '').slice(0, 100));
+          }
+        }
+      } catch (_) {}
+    }
+
+    return parts.join('\n');
+  } catch (e) {
+    console.warn('[openclaw] fetchLivePersonalContext error:', e.message);
+    return '';
+  }
+}
+
 function buildOpenClawSystemParts(context) {
   const {
     mode, largeContext, forceFullContext, forceWebSearch, needsSearch,
     systemPromptOverride, profileText, memoriesText, filesText,
-    searchContext, searchState, searchProvider, clampText
+    searchContext, searchState, searchProvider, clampText,
+    liveDataText
   } = context;
   const systemParts = [];
   const joeyContext = getJoeyContextEnv(mode, process.env);
@@ -108,6 +237,7 @@ function buildOpenClawSystemParts(context) {
   if (profileText) systemParts.push(clampText(profileText, filesText ? (largeContext ? 2600 : 1800) : (largeContext ? 4200 : 2200)));
   if (memoriesText) systemParts.push(clampText(memoriesText, filesText ? (forceFullContext ? (largeContext ? 9000 : 4200) : (largeContext ? 4200 : 2200)) : (forceFullContext ? (largeContext ? 16000 : 6400) : (largeContext ? 9000 : 3200))));
   if (filesText) systemParts.push(clampText(filesText, forceFullContext ? (largeContext ? 68000 : 26000) : (largeContext ? 36000 : 12000)));
+  if (liveDataText) systemParts.push(clampText(liveDataText, largeContext ? 4000 : 2500));
   if (searchContext) systemParts.push(clampText(searchContext, largeContext ? 6000 : 2800));
 
   systemParts.push(`
@@ -210,7 +340,16 @@ export async function onRequest(context) {
     });
   }
 
-  const { req, res, getResponse } = await createVercelAdapter(request);
+  // Extract JWT from Authorization header (doesn't consume the body)
+  const authHeader = String(request.headers.get('authorization') || '');
+  const jwtToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+
+  // Fetch live Supabase context and create Vercel adapter in parallel
+  const [{ req, res, getResponse }, liveDataText] = await Promise.all([
+    createVercelAdapter(request),
+    fetchLivePersonalContext(jwtToken)
+  ]);
+
   await handleJoeyGatewayRequest(req, res, {
     getProviderConfig({ env: e }) {
       // Trim all env key lookups — OC_GATEWAY_URL has a trailing space in CF dashboard
@@ -255,7 +394,9 @@ export async function onRequest(context) {
         primaryModel: localModel
       };
     },
-    buildSystemParts: buildOpenClawSystemParts,
+    buildSystemParts(systemContext) {
+      return buildOpenClawSystemParts({ ...systemContext, liveDataText });
+    },
     getBackfillLimit({ forceFullContext, largeContext }) {
       return forceFullContext ? (largeContext ? 72 : 24) : (largeContext ? 48 : 12);
     },
