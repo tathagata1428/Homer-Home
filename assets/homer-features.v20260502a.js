@@ -1114,9 +1114,10 @@
         html += '<h3>🌤 Weather</h3><div class="homer-brief-item"><div class="homer-brief-dot"></div><span>Bucharest — ' + wc.data.temp + '°C, ' + (WD[wc.data.code] || 'Unknown') + '</span></div>';
       }
       var habits = safeJson(localStorage.getItem('homer-habits'), { habits: [], completions: {} });
-      if (habits.habits.length) {
-        var pending = habits.habits.filter(function(h2) { return !habits.completions[h2.id + ':' + today]; });
-        html += '<h3>✅ Habits (' + (habits.habits.length - pending.length) + '/' + habits.habits.length + ' done)</h3>';
+      var activeHabits = habits.habits.filter(function(h2) { return !h2.archived && !h2.deleted; });
+      if (activeHabits.length) {
+        var pending = activeHabits.filter(function(h2) { return !habits.completions[h2.id + ':' + today]; });
+        html += '<h3>✅ Habits (' + (activeHabits.length - pending.length) + '/' + activeHabits.length + ' done)</h3>';
         pending.slice(0, 5).forEach(function(h2) { html += '<div class="homer-brief-item"><div class="homer-brief-dot" style="background:#fbbf24"></div><span>' + esc(h2.name) + '</span></div>'; });
         if (!pending.length) html += '<div class="homer-brief-item"><div class="homer-brief-dot" style="background:#34d399"></div><span>All habits complete! 🎉</span></div>';
       }

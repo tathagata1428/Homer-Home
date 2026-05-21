@@ -140,6 +140,12 @@
     @keyframes jn-spin { to { transform:rotate(360deg); } }
     .jn-spinner { width:14px; height:14px; border:2px solid rgba(204,0,255,.3); border-top-color:#CC00FF; border-radius:50%; animation:jn-spin .7s linear infinite; flex-shrink:0; }
 
+    /* List delete button */
+    .jn-entry-card { position:relative; }
+    .jn-list-del { position:absolute; top:8px; right:8px; background:none; border:none; color:rgba(239,68,68,.3); cursor:pointer; font-size:.95rem; padding:3px 7px; border-radius:6px; opacity:0; transition:opacity .15s,color .15s,background .15s; line-height:1; }
+    .jn-entry-card:hover .jn-list-del { opacity:1; }
+    .jn-list-del:hover { color:#ef4444; background:rgba(239,68,68,.1); }
+
     /* Delete confirm */
     .jn-confirm-overlay { position:fixed; inset:0; z-index:12000; background:rgba(0,0,0,.7); display:flex; align-items:center; justify-content:center; padding:20px; }
     .jn-confirm-box { background:#110025; border:1px solid rgba(204,0,255,.3); border-radius:18px; padding:24px; width:100%; max-width:340px; }
@@ -159,6 +165,7 @@
   var syncTimer = null;
 
   function getEntries() { return safeJson(localStorage.getItem(JKEY), []); }
+  function getActiveEntries() { return getEntries().filter(function (e) { return !e.deleted; }); }
   function saveEntries(arr) {
     try { localStorage.setItem(JKEY, JSON.stringify(arr)); } catch (_) {}
     scheduleSync(arr);
@@ -302,7 +309,7 @@
   function renderTab() {
     var tab = document.getElementById('tab-journal');
     if (!tab) return;
-    var entries = getEntries();
+    var entries = getActiveEntries();
     var streak  = calcStreak(entries);
     var weekMoods = getWeekMoods(entries);
     var today   = todayStr();
@@ -349,7 +356,9 @@
             + '</div>'
             + (e.content ? '<div class="jn-entry-preview">' + esc((e.content || '').slice(0, 140)) + '</div>' : '')
             + (reflObj ? '<div class="jn-entry-ai-badge">✨ AI reflection saved</div>' : '')
-            + '</div></div>';
+            + '</div>'
+            + '<button class="jn-list-del" data-id="' + esc(e.id) + '" title="Delete entry">&#x2715;</button>'
+            + '</div>';
         });
       });
     }
@@ -387,10 +396,36 @@
 
     document.getElementById('jn-new-btn').addEventListener('click', function () { openEditor(null); });
     document.getElementById('jn-prompt-refresh').addEventListener('click', loadPrompt);
+    tab.querySelectorAll('.jn-list-del').forEach(function (btn) {
+      btn.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        var id = btn.dataset.id;
+        var entry = getEntries().find(function (e) { return e.id === id; });
+        if (!entry) return;
+        var conf = document.createElement('div');
+        conf.className = 'jn-confirm-overlay';
+        conf.innerHTML = '<div class="jn-confirm-box">'
+          + '<div class="jn-confirm-msg">Delete this entry?<br><small style="opacity:.6">' + esc(fmtDayLabel(entry.date)) + '</small></div>'
+          + '<div class="jn-confirm-btns">'
+          + '<button class="jn-confirm-cancel">Cancel</button>'
+          + '<button class="jn-confirm-delete">Delete</button>'
+          + '</div></div>';
+        document.body.appendChild(conf);
+        conf.querySelector('.jn-confirm-cancel').addEventListener('click', function () { conf.remove(); });
+        conf.querySelector('.jn-confirm-delete').addEventListener('click', function () {
+          conf.remove();
+          var all = getEntries();
+          var idx = all.findIndex(function (e) { return e.id === id; });
+          if (idx >= 0) all[idx] = Object.assign({}, all[idx], { deleted: true, updatedAt: Date.now() });
+          saveEntries(all);
+          renderTab();
+        });
+      });
+    });
     tab.querySelectorAll('.jn-entry-card').forEach(function (card) {
       card.addEventListener('click', function () {
         var id = card.dataset.id;
-        var entry = getEntries().find(function (e) { return e.id === id; });
+        var entry = getActiveEntries().find(function (e) { return e.id === id; });
         if (entry) openEditor(entry);
       });
     });
@@ -589,8 +624,10 @@
     conf.querySelector('.jn-confirm-delete').addEventListener('click', function () {
       conf.remove();
       if (!editorEntry) return;
-      var entries = getEntries().filter(function (e) { return e.id !== editorEntry.id; });
-      saveEntries(entries);
+      var all = getEntries();
+      var idx = all.findIndex(function (e) { return e.id === editorEntry.id; });
+      if (idx >= 0) all[idx] = Object.assign({}, all[idx], { deleted: true, updatedAt: Date.now() });
+      saveEntries(all);
       closeEditor();
     });
   }
