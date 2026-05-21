@@ -1229,13 +1229,17 @@
     // Normalise: ensures every note has numeric updatedAt/createdAt (Long ms)
     // so Android can deserialise without falling back to System.currentTimeMillis().
     function noteTs(n){
-      if(n.updatedAt&&typeof n.updatedAt==='number')return n.updatedAt;
-      if(n.updated)return new Date(n.updated).getTime()||0;
-      return 0;
+      // Take the MAXIMUM of both timestamp formats so a web edit (updates n.updated)
+      // is not silently ignored when n.updatedAt was set by an older Android push.
+      var ts1=(n.updatedAt&&typeof n.updatedAt==='number')?n.updatedAt:0;
+      var ts2=n.updated?(new Date(n.updated).getTime()||0):0;
+      return Math.max(ts1,ts2)||0;
     }
     function normalizeNote(n){
       var ts=noteTs(n);
-      var tc=(n.createdAt&&typeof n.createdAt==='number')?n.createdAt:(n.created?new Date(n.created).getTime()||ts:ts);
+      var tc1=(n.createdAt&&typeof n.createdAt==='number')?n.createdAt:0;
+      var tc2=n.created?(new Date(n.created).getTime()||0):0;
+      var tc=Math.max(tc1,tc2)||ts;
       return Object.assign({},n,{updatedAt:ts,createdAt:tc});
     }
     function mergeNotes(local,remote){

@@ -400,16 +400,14 @@ class SyncEngine @Inject constructor(
         else try { Instant.parse(iso).toEpochMilli() } catch (_: Exception) { System.currentTimeMillis() }
 
     private fun WsNote.toNote(): Note {
-        val ts = when {
-            updatedAt > 0 -> updatedAt
-            updated.isNotBlank() -> parseIsoMs(updated)
-            else -> System.currentTimeMillis()
-        }
-        val tsCreated = when {
-            createdAt > 0 -> createdAt
-            created.isNotBlank() -> parseIsoMs(created)
-            else -> ts
-        }
+        // Take the MAX of both timestamp formats so web edits (which update the ISO `updated`
+        // field) are not silently discarded when an older Android `updatedAt` Long is present.
+        val tsLong    = updatedAt.takeIf { it > 0 } ?: 0L
+        val tsIso     = if (updated.isNotBlank()) parseIsoMs(updated) else 0L
+        val ts        = maxOf(tsLong, tsIso).takeIf { it > 0 } ?: System.currentTimeMillis()
+        val cLong     = createdAt.takeIf { it > 0 } ?: 0L
+        val cIso      = if (created.isNotBlank()) parseIsoMs(created) else 0L
+        val tsCreated = maxOf(cLong, cIso).takeIf { it > 0 } ?: ts
         return Note(
             id        = id,
             title     = title.ifBlank { "Untitled" },
