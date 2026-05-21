@@ -189,24 +189,29 @@
       badgeEl.style.border = '1px solid ' + col + '66';
     }
 
-    // Wire click once — toggle sync detail + (Bogdan) full control panel
+    // Wire click once — expand tile in-place to show sync + control panel
     if (!tileEl.dataset.tileWired) {
       tileEl.dataset.tileWired = '1';
-      tileEl.addEventListener('click', function () {
-        var syncEl = document.getElementById('vault-sync-detail');
-        var open = panelEl
-          ? panelEl.style.display === 'block'
-          : !!(syncEl && syncEl.style.display === 'block');
-        // Toggle sync detail panel (all users)
-        if (syncEl) syncEl.style.display = open ? 'none' : 'block';
-        // Toggle full control panel (Bogdan only)
-        if (panelEl) {
-          panelEl.style.display = open ? 'none' : 'block';
-          if (!open) renderPanel();
-        }
-        if (!open) {
-          var target = syncEl || panelEl;
-          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      tileEl.addEventListener('click', function (e) {
+        // Don't collapse when clicking buttons inside the expanded panel
+        if (e.target !== tileEl && e.target.closest && e.target.closest('button,a,input,label')) return;
+        var syncEl  = document.getElementById('vault-sync-detail');
+        var open    = syncEl ? syncEl.style.display === 'block' : false;
+        if (open) {
+          // Collapse
+          if (syncEl)  syncEl.style.display  = 'none';
+          if (panelEl) panelEl.style.display = 'none';
+          tileEl.style.gridColumn  = '';
+          tileEl.style.cursor      = 'pointer';
+        } else {
+          // Expand — span full grid width, stack content vertically
+          tileEl.style.gridColumn  = '1 / -1';
+          if (syncEl)  syncEl.style.display  = 'block';
+          if (panelEl) {
+            panelEl.style.display = 'block';
+            renderPanel();
+          }
+          tileEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
       });
     }
@@ -260,7 +265,7 @@
     }
 
     panelEl.innerHTML =
-      '<div class="card" style="padding:20px;background:linear-gradient(135deg,rgba(15,23,42,.97),rgba(2,6,23,.95));border:1px solid rgba(99,102,241,.18);">'
+      '<div style="padding:14px 0 0;border-top:1px solid rgba(255,255,255,.08);">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;">'
       + '<div><h3 style="margin:0 0 3px;font-size:1rem;font-weight:800;color:#e5e7eb;">&#x1F6E1;&#xFE0F; Backup Control Panel</h3>'
       + '<p style="margin:0;font-size:.74rem;color:#64748b;">localStorage &bull; vault IDB &bull; habits, expenses, inbox, notes, car, tasks (Android+web) &bull; focus sessions &bull; Joey memories &amp; history</p></div>'

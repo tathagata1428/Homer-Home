@@ -832,33 +832,34 @@
         <div class="vd-icon">&#x1F697;</div>
         <div class="vd-info"><h3>Car Tracker</h3><p>Insurance, maintenance &amp; fuel log</p></div>
       </div>
-      <!-- Backup tile — Bogdan-only, populated by homer-gdrive-fullbackup.js -->
-      <div class="vd-card" id="vd-backup-tile" style="display:none;cursor:pointer;">
-        <div class="vd-icon">&#x1F6E1;&#xFE0F;</div>
-        <div class="vd-info"><h3>Backup Status</h3><p id="vd-backup-desc">Never backed up</p></div>
-        <span class="vd-badge" id="vd-backup-badge" style="background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.4);border-radius:20px;padding:2px 8px;font-size:.72rem;font-weight:700;">!</span>
-      </div>
-    </div>
-    <!-- Backup Control Panel (Bogdan only — populated by homer-gdrive-fullbackup.js) -->
-    <div id="vault-backup-panel" style="display:none;margin-top:18px;"></div>
-    <!-- Sync detail (all users — shown when backup tile is clicked) -->
-    <div id="vault-sync-detail" style="display:none;margin-top:10px;">
-      <div class="card" style="padding:16px 20px;">
-        <div style="font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Backup &amp; Sync Status</div>
-        <div style="display:flex;flex-direction:column;gap:10px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:.82rem;color:var(--muted);">Supabase vault backup</span>
-            <span style="font-size:.82rem;font-weight:700;color:#64748b;" id="db-sync-supa">Checking&hellip;</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:.82rem;color:var(--muted);">Local save</span>
-            <span style="font-size:.82rem;font-weight:700;color:#64748b;" id="db-sync-local">Checking&hellip;</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:.82rem;color:var(--muted);">Field sync version</span>
-            <span style="font-size:.82rem;font-weight:700;color:#64748b;" id="db-sync-fields">--</span>
+      <!-- Backup tile — populated by homer-gdrive-fullbackup.js, expands in-place on click -->
+      <div class="vd-card" id="vd-backup-tile" style="display:none;cursor:pointer;flex-direction:column;align-items:stretch;gap:0;">
+        <!-- Summary row (always visible) -->
+        <div style="display:flex;align-items:center;gap:16px;">
+          <div class="vd-icon">&#x1F6E1;&#xFE0F;</div>
+          <div class="vd-info"><h3>Backup Status</h3><p id="vd-backup-desc">Never backed up</p></div>
+          <span class="vd-badge" id="vd-backup-badge" style="background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.4);border-radius:20px;padding:2px 8px;font-size:.72rem;font-weight:700;">!</span>
+        </div>
+        <!-- Sync detail rows (shown on click, all users) -->
+        <div id="vault-sync-detail" style="display:none;margin-top:14px;border-top:1px solid rgba(255,255,255,.08);padding-top:14px;">
+          <div style="font-size:.7rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Sync Status</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:.82rem;color:var(--muted);">Supabase vault backup</span>
+              <span style="font-size:.82rem;font-weight:700;color:#64748b;" id="db-sync-supa">Checking&hellip;</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:.82rem;color:var(--muted);">Local save</span>
+              <span style="font-size:.82rem;font-weight:700;color:#64748b;" id="db-sync-local">Checking&hellip;</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:.82rem;color:var(--muted);">Field sync version</span>
+              <span style="font-size:.82rem;font-weight:700;color:#64748b;" id="db-sync-fields">--</span>
+            </div>
           </div>
         </div>
+        <!-- Full backup control panel (Bogdan only — populated by homer-gdrive-fullbackup.js) -->
+        <div id="vault-backup-panel" style="display:none;margin-top:0;"></div>
       </div>
     </div>
     <!-- Calendar stays inline -->
