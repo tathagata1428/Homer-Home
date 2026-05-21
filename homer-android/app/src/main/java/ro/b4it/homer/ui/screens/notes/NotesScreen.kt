@@ -47,31 +47,28 @@ fun NotesScreen(vm: NotesViewModel = hiltViewModel()) {
             Modifier.fillMaxWidth().padding(start = 20.dp, top = 16.dp, end = 12.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("NOTES", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp, color = TextPrimary)
-                Box(Modifier.width(52.dp).height(2.dp).background(Brush.horizontalGradient(listOf(NeonCyan, NeonPurple))))
-            }
+            Text("Notes", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = TextPrimary, modifier = Modifier.weight(1f))
             Box(
-                Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
-                    .background(NeonCyan.copy(0.1f))
-                    .border(1.dp, NeonCyan.copy(0.55f), RoundedCornerShape(12.dp))
+                Modifier.size(38.dp).clip(RoundedCornerShape(10.dp))
+                    .background(AccentBlue.copy(0.10f))
+                    .border(1.dp, AccentBlue.copy(0.25f), RoundedCornerShape(10.dp))
                     .clickable { vm.newPage() },
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Filled.Add, null, tint = NeonCyan, modifier = Modifier.size(20.dp)) }
+            ) { Icon(Icons.Filled.Add, null, tint = AccentBlue, modifier = Modifier.size(20.dp)) }
         }
 
         // ── Search bar ──────────────────────────────────────────────────────
         Row(
             Modifier.fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp)
-                .clip(RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .background(BgCard)
-                .border(1.dp, Brush.linearGradient(listOf(NeonCyan.copy(0.3f), NeonPurple.copy(0.2f))), RoundedCornerShape(14.dp))
+                .border(1.dp, BorderDefault, RoundedCornerShape(12.dp))
                 .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Icon(Icons.Filled.Search, null, tint = NeonCyan.copy(0.6f), modifier = Modifier.size(18.dp))
+            Icon(Icons.Filled.Search, null, tint = TextSubtle, modifier = Modifier.size(18.dp))
             androidx.compose.foundation.text.BasicTextField(
                 value = search,
                 onValueChange = vm::setSearch,
@@ -85,7 +82,7 @@ fun NotesScreen(vm: NotesViewModel = hiltViewModel()) {
             )
             if (search.isNotEmpty()) {
                 Icon(
-                    Icons.Filled.Close, null, tint = NeonPink.copy(0.6f), modifier = Modifier.size(16.dp).clickable { vm.setSearch("") }
+                    Icons.Filled.Close, null, tint = TextSubtle, modifier = Modifier.size(16.dp).clickable { vm.setSearch("") }
                 )
             }
         }
@@ -97,19 +94,19 @@ fun NotesScreen(vm: NotesViewModel = hiltViewModel()) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Box(
                         Modifier.size(80.dp).clip(RoundedCornerShape(22.dp))
-                            .background(NeonCyan.copy(0.07f))
-                            .border(1.dp, Brush.linearGradient(listOf(NeonCyan.copy(0.5f), NeonPurple.copy(0.3f))), RoundedCornerShape(22.dp)),
+                            .background(BgCardAlt)
+                            .border(1.dp, BorderDefault, RoundedCornerShape(22.dp)),
                         contentAlignment = Alignment.Center,
                     ) { Text("📝", fontSize = 36.sp) }
-                    Text("NO PAGES YET", fontSize = 10.sp, letterSpacing = 3.sp, color = NeonCyan.copy(0.6f), fontWeight = FontWeight.Bold)
+                    Text("No pages yet", fontSize = 15.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
                     Text("Create your first note to get started", color = TextMuted, style = MaterialTheme.typography.bodySmall)
                     Box(
-                        Modifier.clip(RoundedCornerShape(20.dp))
-                            .background(Brush.linearGradient(listOf(NeonCyan, NeonPurple)))
+                        Modifier.clip(RoundedCornerShape(10.dp))
+                            .background(AccentBlue)
                             .clickable { vm.newPage() }
                             .padding(horizontal = 22.dp, vertical = 10.dp),
                     ) {
-                        Text("NEW PAGE", fontSize = 10.sp, letterSpacing = 2.sp, color = Color.White, fontWeight = FontWeight.ExtraBold)
+                        Text("New page", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -125,8 +122,8 @@ fun NotesScreen(vm: NotesViewModel = hiltViewModel()) {
                 if (pinned.isNotEmpty()) {
                     item {
                         Text(
-                            "PINNED", fontSize = 8.sp, letterSpacing = 2.5.sp,
-                            color = NeonGold.copy(0.65f), fontWeight = FontWeight.ExtraBold,
+                            "Pinned", fontSize = 11.sp, letterSpacing = 0.sp,
+                            color = TextMuted, fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(vertical = 6.dp),
                         )
                     }
@@ -136,8 +133,8 @@ fun NotesScreen(vm: NotesViewModel = hiltViewModel()) {
                     if (rest.isNotEmpty()) {
                         item {
                             Text(
-                                "ALL PAGES", fontSize = 8.sp, letterSpacing = 2.5.sp,
-                                color = NeonCyan.copy(0.55f), fontWeight = FontWeight.ExtraBold,
+                                "All pages", fontSize = 11.sp, letterSpacing = 0.sp,
+                                color = TextMuted, fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
                             )
                         }
@@ -160,21 +157,20 @@ fun NotesScreen(vm: NotesViewModel = hiltViewModel()) {
 fun NotePageCard(note: Note, onClick: () -> Unit, onDelete: () -> Unit, onPin: () -> Unit) {
     val fmt      = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault())
     val isPinned = note.pinned
-    val accent1  = if (isPinned) NeonGold.copy(0.55f) else NeonCyan.copy(0.35f)
-    val accent2  = if (isPinned) NeonPink.copy(0.25f) else NeonPurple.copy(0.2f)
+    val accentColor = if (isPinned) AccentAmber else AccentBlue
 
     var showMenu by remember { mutableStateOf(false) }
 
     Row(
         Modifier.fillMaxWidth()
             .height(IntrinsicSize.Min)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(14.dp))
             .background(BgCard)
-            .border(1.dp, Brush.linearGradient(listOf(accent1, accent2)), RoundedCornerShape(16.dp))
+            .border(1.dp, BorderDefault, RoundedCornerShape(14.dp))
             .clickable(onClick = onClick),
     ) {
-        // Left neon stripe
-        Box(Modifier.width(3.dp).fillMaxHeight().background(Brush.verticalGradient(listOf(accent1, accent2))))
+        // Left accent stripe
+        Box(Modifier.width(3.dp).fillMaxHeight().background(accentColor.copy(0.5f)))
 
         Row(
             Modifier.weight(1f).padding(horizontal = 14.dp, vertical = 14.dp),
@@ -183,9 +179,9 @@ fun NotePageCard(note: Note, onClick: () -> Unit, onDelete: () -> Unit, onPin: (
         ) {
             // Emoji badge
             Box(
-                Modifier.size(46.dp).clip(RoundedCornerShape(12.dp))
-                    .background(accent1.copy(0.08f))
-                    .border(1.dp, accent1.copy(0.4f), RoundedCornerShape(12.dp)),
+                Modifier.size(44.dp).clip(RoundedCornerShape(12.dp))
+                    .background(accentColor.copy(0.07f))
+                    .border(1.dp, accentColor.copy(0.18f), RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(note.emoji.ifBlank { "📝" }, fontSize = 22.sp)
@@ -222,11 +218,11 @@ fun NotePageCard(note: Note, onClick: () -> Unit, onDelete: () -> Unit, onPin: (
                     if (isPinned) {
                         Box(
                             Modifier.clip(RoundedCornerShape(4.dp))
-                                .background(NeonGold.copy(0.1f))
-                                .border(1.dp, NeonGold.copy(0.4f), RoundedCornerShape(4.dp))
+                                .background(AccentAmber.copy(0.10f))
+                                .border(1.dp, AccentAmber.copy(0.25f), RoundedCornerShape(4.dp))
                                 .padding(horizontal = 5.dp, vertical = 1.dp),
                         ) {
-                            Text("PINNED", fontSize = 7.sp, letterSpacing = 1.sp, color = NeonGold, fontWeight = FontWeight.ExtraBold)
+                            Text("Pinned", fontSize = 9.sp, color = AccentAmber, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -234,14 +230,14 @@ fun NotePageCard(note: Note, onClick: () -> Unit, onDelete: () -> Unit, onPin: (
 
             Box {
                 IconButton(onClick = { showMenu = true }, Modifier.size(32.dp)) {
-                    Icon(Icons.Filled.MoreVert, null, tint = NeonCyan.copy(0.45f), modifier = Modifier.size(16.dp))
+                    Icon(Icons.Filled.MoreVert, null, tint = TextSubtle, modifier = Modifier.size(16.dp))
                 }
                 DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }, containerColor = BgCard) {
                     DropdownMenuItem(
                         text = {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(if (isPinned) Icons.Filled.PushPin else Icons.Filled.PushPin, null, tint = NeonGold, modifier = Modifier.size(14.dp))
-                                Text(if (isPinned) "Unpin" else "Pin", style = MaterialTheme.typography.bodySmall, color = NeonGold)
+                                Icon(Icons.Filled.PushPin, null, tint = AccentAmber, modifier = Modifier.size(14.dp))
+                                Text(if (isPinned) "Unpin" else "Pin", style = MaterialTheme.typography.bodySmall, color = AccentAmber)
                             }
                         },
                         onClick = { onPin(); showMenu = false },
@@ -249,8 +245,8 @@ fun NotePageCard(note: Note, onClick: () -> Unit, onDelete: () -> Unit, onPin: (
                     DropdownMenuItem(
                         text = {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.Delete, null, tint = NeonPink, modifier = Modifier.size(14.dp))
-                                Text("Delete", style = MaterialTheme.typography.bodySmall, color = NeonPink)
+                                Icon(Icons.Filled.Delete, null, tint = AccentRed, modifier = Modifier.size(14.dp))
+                                Text("Delete", style = MaterialTheme.typography.bodySmall, color = AccentRed)
                             }
                         },
                         onClick = { onDelete(); showMenu = false },
@@ -278,14 +274,14 @@ fun NoteEditorScreen(note: Note, content: String, vm: NotesViewModel) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             IconButton(onClick = vm::closeNote, Modifier.size(36.dp)) {
-                Icon(Icons.Filled.ArrowBack, null, tint = NeonCyan)
+                Icon(Icons.Filled.ArrowBack, null, tint = TextMuted)
             }
 
             // Emoji picker button
             Box(
                 Modifier.size(38.dp).clip(RoundedCornerShape(10.dp))
-                    .background(NeonCyan.copy(0.08f))
-                    .border(1.dp, NeonCyan.copy(0.35f), RoundedCornerShape(10.dp))
+                    .background(BgCardAlt)
+                    .border(1.dp, BorderDefault, RoundedCornerShape(10.dp))
                     .clickable { showEmojiInput = !showEmojiInput },
                 contentAlignment = Alignment.Center,
             ) { Text(note.emoji.ifBlank { "📝" }, fontSize = 20.sp) }
@@ -309,7 +305,7 @@ fun NoteEditorScreen(note: Note, content: String, vm: NotesViewModel) {
 
             // Word count
             val wordCount = content.trim().split(Regex("\\s+")).count { it.isNotBlank() }
-            Text("$wordCount w", fontSize = 10.sp, color = NeonCyan.copy(0.4f), fontFamily = FontFamily.Monospace)
+            Text("$wordCount w", fontSize = 10.sp, color = TextSubtle, fontFamily = FontFamily.Monospace)
         }
 
         // Emoji input row
@@ -346,8 +342,7 @@ fun NoteEditorScreen(note: Note, content: String, vm: NotesViewModel) {
             vm.setEditContent(newContent)
         })
 
-        // Neon separator
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Brush.horizontalGradient(listOf(NeonCyan.copy(0.3f), NeonPurple.copy(0.2f), Color.Transparent))))
+        HorizontalDivider(color = BorderDefault)
 
         // ── Editor area ──────────────────────────────────────────────────────
         androidx.compose.foundation.text.BasicTextField(
@@ -399,14 +394,14 @@ fun FormattingToolbar(onFormat: (String, String) -> Unit) {
     ) {
         items.forEach { (label, pre, suf) ->
             Box(
-                Modifier.clip(RoundedCornerShape(7.dp))
+                Modifier.clip(RoundedCornerShape(6.dp))
                     .background(BgCardAlt)
-                    .border(1.dp, NeonCyan.copy(0.2f), RoundedCornerShape(7.dp))
+                    .border(1.dp, BorderDefault, RoundedCornerShape(6.dp))
                     .clickable { onFormat(pre, suf) }
-                    .padding(horizontal = 11.dp, vertical = 6.dp),
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(label, style = MaterialTheme.typography.labelSmall, color = NeonCyan.copy(0.8f), fontWeight = FontWeight.ExtraBold)
+                Text(label, style = MaterialTheme.typography.labelSmall, color = TextMuted, fontWeight = FontWeight.SemiBold)
             }
         }
     }

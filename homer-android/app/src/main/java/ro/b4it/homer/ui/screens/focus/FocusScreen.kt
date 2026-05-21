@@ -42,10 +42,7 @@ fun FocusScreen(vm: FocusViewModel = hiltViewModel()) {
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 4.dp)) {
-                Text("FOCUS", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp, color = TextPrimary)
-                Box(Modifier.width(54.dp).height(2.dp).background(Brush.horizontalGradient(listOf(NeonPink, NeonCyan))))
-            }
+            Text("Focus", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = TextPrimary, modifier = Modifier.padding(top = 4.dp))
         }
 
         // ── Timer card ───────────────────────────────────────────────────────
@@ -82,7 +79,7 @@ fun FocusScreen(vm: FocusViewModel = hiltViewModel()) {
                             onClick = vm::reset,
                             modifier = Modifier.size(48.dp),
                             colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = Color(0xFF1E293B),
+                                containerColor = BgCardAlt,
                             ),
                         ) {
                             Icon(Icons.Filled.Replay, "Reset", tint = TextMuted, modifier = Modifier.size(20.dp))
@@ -182,9 +179,9 @@ fun FocusScreen(vm: FocusViewModel = hiltViewModel()) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text("FOCUS TASKS", fontSize = 9.sp, letterSpacing = 2.sp, color = NeonPink.copy(0.75f), fontWeight = FontWeight.Bold)
-                    Box(Modifier.weight(1f).height(1.dp).background(Brush.horizontalGradient(listOf(NeonPink.copy(0.3f), Color.Transparent))))
-                    Text("${openList.size}", fontSize = 10.sp, color = NeonPink, fontWeight = FontWeight.ExtraBold)
+                    Text("Focus tasks", fontSize = 12.sp, letterSpacing = 0.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
+                    Box(Modifier.weight(1f).height(1.dp).background(BorderSubtle))
+                    Text("${openList.size}", fontSize = 11.sp, color = AccentBlue, fontWeight = FontWeight.SemiBold)
                     Box(
                         Modifier.clip(RoundedCornerShape(6.dp))
                             .background(AccentRed.copy(0.08f))
@@ -267,9 +264,9 @@ fun TimerRing(secsLeft: Int, totalSecs: Int, running: Boolean, phase: PomodoroPh
             val strokePx = 18.dp.toPx()
             val sweepAngle = -360f * (1f - animProg)
 
-            // Track (dark purple with subtle glow)
+            // Track (soft warm arc)
             drawArc(
-                color     = Color(0xFF1A0040),
+                color     = Color(0x22000000),
                 startAngle = -90f, sweepAngle = 360f,
                 useCenter = false, style = Stroke(strokePx, cap = StrokeCap.Round),
             )
@@ -305,9 +302,9 @@ fun TimerRing(secsLeft: Int, totalSecs: Int, running: Boolean, phase: PomodoroPh
                         center = dotCenter,
                     )
                 }
-                // Crisp white dot — radius exactly half stroke so it fills the arc width
+                // Bright dot at arc tip
                 drawCircle(
-                    color  = Color.White.copy(alpha = 0.92f * glowAlpha),
+                    color  = Color(0xFFFEFCF8).copy(alpha = 0.95f * glowAlpha),
                     radius = strokePx / 2f,
                     center = dotCenter,
                 )
@@ -380,24 +377,20 @@ fun TaskRow(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(BgCard)
-            .border(
-                1.dp,
-                Brush.linearGradient(listOf(NeonCyan.copy(0.25f), NeonPurple.copy(0.12f))),
-                RoundedCornerShape(12.dp),
-            )
+            .border(1.dp, BorderDefault, RoundedCornerShape(12.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         // Tap-to-complete circle
         Box(
-            Modifier.size(28.dp).clip(CircleShape)
-                .background(NeonCyan.copy(0.06f))
-                .border(1.5.dp, NeonCyan.copy(0.5f), CircleShape)
+            Modifier.size(26.dp).clip(CircleShape)
+                .background(AccentGreen.copy(0.08f))
+                .border(1.5.dp, AccentGreen.copy(0.35f), CircleShape)
                 .clickable(onClick = onToggle),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Filled.Check, null, tint = NeonCyan.copy(0.3f), modifier = Modifier.size(14.dp))
+            Icon(Icons.Filled.Check, null, tint = AccentGreen.copy(0.6f), modifier = Modifier.size(14.dp))
         }
         Text(
             task.text,

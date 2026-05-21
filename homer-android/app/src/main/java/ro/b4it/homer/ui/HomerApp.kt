@@ -173,12 +173,12 @@ fun HomerApp() {
             ) {
                 Column(
                     modifier = Modifier.padding(bottom = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text("MORE", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 3.sp, color = TextPrimary)
+                    Text("More", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                     Box(
-                        Modifier.width(36.dp).height(2.dp)
-                            .background(Brush.horizontalGradient(listOf(NeonPink, NeonCyan)))
+                        Modifier.width(32.dp).height(2.dp)
+                            .background(Brush.horizontalGradient(listOf(AccentBlue, AccentViolet)))
                     )
                 }
                 LazyVerticalGrid(
@@ -192,12 +192,12 @@ fun HomerApp() {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(if (isSelected) NeonPink.copy(alpha = 0.1f) else BgCardAlt)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSelected) AccentBlue.copy(alpha = 0.08f) else BgCardAlt)
                                 .border(
                                     1.dp,
-                                    if (isSelected) NeonPink.copy(0.55f) else androidx.compose.ui.graphics.Color(0x12FFFFFF),
-                                    RoundedCornerShape(14.dp),
+                                    if (isSelected) AccentBlue.copy(0.35f) else BorderDefault,
+                                    RoundedCornerShape(12.dp),
                                 )
                                 .clickable {
                                     showMore = false
@@ -210,12 +210,12 @@ fun HomerApp() {
                                 .padding(vertical = 14.dp, horizontal = 8.dp),
                         ) {
                             Text(item.emoji, fontSize = 26.sp)
-                            Spacer(Modifier.height(7.dp))
+                            Spacer(Modifier.height(6.dp))
                             Text(
                                 item.label,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (isSelected) NeonPink else TextMuted,
-                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                                color = if (isSelected) AccentBlue else TextMuted,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                             )
                         }
                     }
@@ -232,7 +232,7 @@ fun HomerApp() {
             Column {
                 HorizontalDivider(
                     thickness = 1.dp,
-                    color = NeonGold.copy(alpha = 0.18f),
+                    color = BorderDefault,
                 )
                 NavigationBar(
                     containerColor = BgCard,
@@ -249,13 +249,13 @@ fun HomerApp() {
                                 }
                             },
                             icon = { Icon(item.icon, contentDescription = item.label) },
-                            label = { Text(item.label, fontSize = 10.sp, letterSpacing = 0.5.sp) },
+                            label = { Text(item.label, fontSize = 10.sp, letterSpacing = 0.sp) },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor   = NeonPink,
-                                selectedTextColor   = NeonPink,
+                                selectedIconColor   = AccentBlue,
+                                selectedTextColor   = AccentBlue,
                                 unselectedIconColor = TextMuted,
                                 unselectedTextColor = TextSubtle,
-                                indicatorColor      = NeonPink.copy(alpha = 0.12f),
+                                indicatorColor      = AccentBlue.copy(alpha = 0.10f),
                             ),
                         )
                     }
@@ -263,13 +263,13 @@ fun HomerApp() {
                         selected = currentRoute in moreRoutes,
                         onClick = { showMore = true },
                         icon = { Icon(Icons.Filled.GridView, contentDescription = "More") },
-                        label = { Text("More", fontSize = 10.sp, letterSpacing = 0.5.sp) },
+                        label = { Text("More", fontSize = 10.sp, letterSpacing = 0.sp) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor   = NeonCyan,
-                            selectedTextColor   = NeonCyan,
+                            selectedIconColor   = AccentViolet,
+                            selectedTextColor   = AccentViolet,
                             unselectedIconColor = TextMuted,
                             unselectedTextColor = TextSubtle,
-                            indicatorColor      = NeonCyan.copy(alpha = 0.12f),
+                            indicatorColor      = AccentViolet.copy(alpha = 0.10f),
                         ),
                     )
                 }

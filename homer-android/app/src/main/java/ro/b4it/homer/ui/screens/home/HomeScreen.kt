@@ -133,60 +133,58 @@ fun HeroBanner(greeting: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(Brush.linearGradient(listOf(BgCard, BgCardAlt, BgCard)))
-            .border(
-                1.dp,
-                Brush.linearGradient(listOf(NeonPink.copy(0.45f), NeonGold.copy(0.25f), NeonCyan.copy(0.35f))),
-                RoundedCornerShape(24.dp),
-            ),
+            .clip(RoundedCornerShape(20.dp))
+            .background(BgCard)
+            .border(1.dp, BorderDefault, RoundedCornerShape(20.dp)),
     ) {
-        // Subtle warm glow orbs
-        Box(Modifier.size(200.dp).background(Brush.radialGradient(listOf(NeonPink.copy(0.05f), Color.Transparent))))
+        // Subtle warm amber wash at top
         Box(
-            Modifier.size(160.dp).align(Alignment.TopEnd)
-                .background(Brush.radialGradient(listOf(NeonGold.copy(0.04f), Color.Transparent)))
+            Modifier
+                .fillMaxWidth()
+                .height(90.dp)
+                .background(Brush.verticalGradient(listOf(AccentAmber.copy(0.08f), Color.Transparent)))
         )
-        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 28.dp)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 26.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
-                    "HOMER",
+                    "Homer",
                     style = TextStyle(
-                        brush = Brush.linearGradient(listOf(TextPrimary, NeonGold.copy(0.85f), NeonPink.copy(0.65f))),
-                        fontSize = 38.sp,
+                        color = TextPrimary,
+                        fontSize = 34.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 5.sp,
+                        letterSpacing = (-0.5).sp,
                     ),
                 )
                 Box(
-                    Modifier.clip(RoundedCornerShape(20.dp))
-                        .background(NeonGold.copy(0.08f))
-                        .border(1.dp, NeonGold.copy(0.35f), RoundedCornerShape(20.dp))
+                    Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(AccentBlue.copy(0.08f))
+                        .border(1.dp, AccentBlue.copy(0.20f), RoundedCornerShape(20.dp))
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                 ) {
-                    Text(greeting.uppercase(), fontSize = 9.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold, color = NeonGold.copy(0.9f))
+                    Text(greeting, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = AccentBlue)
                 }
             }
             Spacer(Modifier.height(12.dp))
-            Box(Modifier.width(180.dp).height(1.dp).background(Brush.horizontalGradient(listOf(NeonPink.copy(0.4f), NeonGold.copy(0.3f), Color.Transparent))))
+            HorizontalDivider(color = BorderSubtle)
             Spacer(Modifier.height(12.dp))
             Text(
                 "\u201cTrying is the first step towards failure.\u201d",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextMuted,
-                lineHeight = 19.sp,
+                lineHeight = 20.sp,
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
             )
             Text(
                 "\u2014 Homer Simpson",
                 fontSize = 10.sp,
-                letterSpacing = 0.5.sp,
-                color = NeonGold.copy(0.55f),
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 5.dp),
+                color = TextSubtle,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(top = 4.dp),
             )
         }
     }
@@ -286,7 +284,7 @@ private fun MiniCountUnit(value: Long, label: String, color: Color, largeWhenBig
         Text(
             label,
             fontSize = 8.sp, fontWeight = FontWeight.Bold,
-            letterSpacing = 2.sp, color = Color.White.copy(0.2f),
+            letterSpacing = 2.sp, color = TextSubtle,
             modifier = Modifier.padding(top = 3.dp),
         )
     }
@@ -297,7 +295,7 @@ private fun MiniSep() {
     Text(
         ":",
         fontSize = 20.sp, fontWeight = FontWeight.Light,
-        color = Color.White.copy(0.1f),
+        color = TextSubtle.copy(0.4f),
         modifier = Modifier.offset(y = (-8).dp),
     )
 }
@@ -363,7 +361,7 @@ fun WeatherCard(ui: HomeViewModel.WeatherUi, onRefresh: () -> Unit) {
                         Modifier.fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
                             .background(BgCardAlt)
-                            .border(1.dp, Color(0x12FFFFFF), RoundedCornerShape(8.dp))
+                            .border(1.dp, BorderDefault, RoundedCornerShape(8.dp))
                             .clickable { showForecast = !showForecast }
                             .padding(horizontal = 12.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -387,7 +385,7 @@ fun WeatherCard(ui: HomeViewModel.WeatherUi, onRefresh: () -> Unit) {
                                     Modifier.fillMaxWidth()
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(BgCardAlt)
-                                        .border(1.dp, Color(0x0CFFFFFF), RoundedCornerShape(8.dp))
+                                        .border(1.dp, BorderSubtle, RoundedCornerShape(8.dp))
                                         .padding(horizontal = 12.dp, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
@@ -526,9 +524,9 @@ fun FocusTasksCard(
 ) {
     HomerCard {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Header
+            // Header accent bar
             Box(Modifier.fillMaxWidth().height(2.dp).background(
-                Brush.horizontalGradient(listOf(NeonPink.copy(0.7f), NeonGold.copy(0.4f), Color.Transparent))
+                Brush.horizontalGradient(listOf(AccentBlue.copy(0.5f), AccentViolet.copy(0.3f), Color.Transparent))
             ))
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -597,12 +595,12 @@ fun FocusTasksCard(
                         Modifier.fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
                             .background(BgCardAlt)
-                            .border(1.dp, NeonCyan.copy(0.15f), RoundedCornerShape(8.dp))
+                            .border(1.dp, BorderDefault, RoundedCornerShape(8.dp))
                             .padding(horizontal = 10.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Box(Modifier.size(6.dp).clip(CircleShape).background(NeonCyan.copy(0.7f)))
+                        Box(Modifier.size(6.dp).clip(CircleShape).background(AccentBlue.copy(0.6f)))
                         Text(
                             task.text,
                             style = MaterialTheme.typography.bodySmall,
@@ -632,18 +630,9 @@ fun HomerCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(BgCard)
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(NeonPink.copy(0.10f), Color.Transparent, NeonCyan.copy(0.07f)),
-                )
-            )
-            .border(
-                1.dp,
-                Brush.linearGradient(listOf(NeonPink.copy(0.55f), NeonPurple.copy(0.35f), NeonCyan.copy(0.45f))),
-                RoundedCornerShape(22.dp),
-            ),
+            .border(1.dp, BorderDefault, RoundedCornerShape(16.dp)),
     ) { content() }
 }
 
@@ -651,9 +640,9 @@ fun HomerCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
 fun SmallChip(label: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(NeonPink.copy(0.05f))
-            .border(1.dp, NeonPink.copy(0.18f), RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(8.dp))
+            .background(BgCardAlt)
+            .border(1.dp, BorderDefault, RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 7.dp),
     ) {
