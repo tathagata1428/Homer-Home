@@ -68,6 +68,14 @@ class CountdownViewModel @Inject constructor(
         refreshQuote()
     }
 
+    fun clearEvent() {
+        _eventName.value   = ""
+        _eventDateMs.value = 0L
+        _quote.value       = ""
+        _tick.value        = CountdownTick()
+        saveConfig()
+    }
+
     fun refreshQuote() {
         if (_eventDateMs.value == 0L) return
         quoteJob?.cancel()

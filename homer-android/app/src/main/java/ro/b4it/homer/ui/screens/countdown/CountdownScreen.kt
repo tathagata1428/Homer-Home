@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
@@ -92,15 +93,29 @@ fun CountdownScreen(vm: CountdownViewModel = hiltViewModel()) {
                             color = TextPrimary,
                         )
                     }
-                    FilledTonalIconButton(
-                        onClick = { showSetup = !showSetup },
-                        colors  = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = if (showSetup) AccentBlue.copy(0.10f) else BgCardAlt,
-                            contentColor   = if (showSetup) NeonPink else TextMuted,
-                        ),
-                        modifier = Modifier.size(36.dp),
-                    ) {
-                        Icon(Icons.Filled.Edit, null, modifier = Modifier.size(16.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (eventDateMs > 0L) {
+                            FilledTonalIconButton(
+                                onClick = { vm.clearEvent(); showSetup = false },
+                                colors  = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = NeonPink.copy(0.10f),
+                                    contentColor   = NeonPink,
+                                ),
+                                modifier = Modifier.size(36.dp),
+                            ) {
+                                Icon(Icons.Filled.Close, null, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                        FilledTonalIconButton(
+                            onClick = { showSetup = !showSetup },
+                            colors  = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = if (showSetup) AccentBlue.copy(0.10f) else BgCardAlt,
+                                contentColor   = if (showSetup) NeonPink else TextMuted,
+                            ),
+                            modifier = Modifier.size(36.dp),
+                        ) {
+                            Icon(Icons.Filled.Edit, null, modifier = Modifier.size(16.dp))
+                        }
                     }
                 }
 
