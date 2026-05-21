@@ -26,6 +26,9 @@ interface PomodoroDao {
     @Delete
     suspend fun deleteTask(task: PomodoroTask)
 
+    @Query("DELETE FROM pomodoro_tasks WHERE id = :id")
+    suspend fun deleteTaskById(id: String)
+
     @Query("DELETE FROM pomodoro_tasks WHERE done = 1")
     suspend fun clearDoneTasks()
 

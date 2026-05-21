@@ -24,6 +24,9 @@ interface JournalDao {
     @Delete
     suspend fun delete(entry: JournalEntry)
 
+    @Query("DELETE FROM journal_entries WHERE id = :id")
+    suspend fun deleteById(id: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(entries: List<JournalEntry>)
 
