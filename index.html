@@ -841,6 +841,26 @@
     </div>
     <!-- Backup Control Panel (Bogdan only — populated by homer-gdrive-fullbackup.js) -->
     <div id="vault-backup-panel" style="display:none;margin-top:18px;"></div>
+    <!-- Sync detail (all users — shown when backup tile is clicked) -->
+    <div id="vault-sync-detail" style="display:none;margin-top:10px;">
+      <div class="card" style="padding:16px 20px;">
+        <div style="font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Backup &amp; Sync Status</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:.82rem;color:var(--muted);">Supabase vault backup</span>
+            <span style="font-size:.82rem;font-weight:700;color:#64748b;" id="db-sync-supa">Checking&hellip;</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:.82rem;color:var(--muted);">Local save</span>
+            <span style="font-size:.82rem;font-weight:700;color:#64748b;" id="db-sync-local">Checking&hellip;</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:.82rem;color:var(--muted);">Field sync version</span>
+            <span style="font-size:.82rem;font-weight:700;color:#64748b;" id="db-sync-fields">--</span>
+          </div>
+        </div>
+      </div>
+    </div>
     <!-- Calendar stays inline -->
     <div class="card" id="homer-cal" style="margin-top:18px;margin-bottom:0;padding:18px;">
       <h3 style="margin:0 0 14px;display:flex;align-items:center;flex-wrap:wrap;">Calendar <button id="cal-ics-toggle" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;vertical-align:middle;" title="Sync external calendar">&#9881;</button>
@@ -911,23 +931,6 @@
       </div>
     </div>
 
-    <div class="db-card">
-      <div class="db-card-title">&#x2601; Backup &amp; Sync Status</div>
-      <div class="db-sync-rows">
-        <div class="db-sync-row">
-          <span class="db-sync-label">Supabase vault backup</span>
-          <span class="db-sync-val db-sync-muted" id="db-sync-supa">Checking&hellip;</span>
-        </div>
-        <div class="db-sync-row">
-          <span class="db-sync-label">Local save</span>
-          <span class="db-sync-val db-sync-muted" id="db-sync-local">Checking&hellip;</span>
-        </div>
-        <div class="db-sync-row">
-          <span class="db-sync-label">Field sync version</span>
-          <span class="db-sync-val db-sync-muted" id="db-sync-fields">--</span>
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- In Progress tasks (full width) -->
@@ -1684,7 +1687,7 @@
     <script src="/assets/homer-journal.v20260515a.js?v=20260516b"></script>
     <script src="/assets/homer-car.v20260515a.js?v=20260518b"></script>
     <script src="/assets/homer-countdown.v20260520a.js?v=20260520b"></script>
-    <script src="/assets/homer-gdrive-fullbackup.v20260521a.js?v=20260521a"></script>
+    <script src="/assets/homer-gdrive-fullbackup.v20260521b.js?v=20260521b"></script>
 
 <!-- ── Supabase client (loaded after app bundle so window globals are ready) ── -->
 <script src="/api/config?format=js"></script>
