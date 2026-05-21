@@ -189,14 +189,16 @@
       badgeEl.style.border = '1px solid ' + col + '66';
     }
 
-    // Wire click once — scroll to the full control panel
+    // Wire click once — toggle the full control panel
     if (!tileEl.dataset.tileWired) {
       tileEl.dataset.tileWired = '1';
       tileEl.addEventListener('click', function () {
-        if (panelEl) {
-          panelEl.scrollIntoView({ behavior: 'smooth' });
-          panelEl.style.outline = '2px solid rgba(99,102,241,.5)';
-          setTimeout(function () { panelEl.style.outline = ''; }, 1500);
+        if (!panelEl) return;
+        var open = panelEl.style.display === 'block';
+        panelEl.style.display = open ? 'none' : 'block';
+        if (!open) {
+          renderPanel();
+          panelEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
       });
     }
@@ -362,11 +364,11 @@
   function show() {
     // Always render the tile (it's just status info; vault is already auth-gated)
     renderTile();
-    // Full control panel only for Bogdan
+    // Populate panel content (keeps it hidden until tile is clicked)
     if (!isBogdan()) return;
     panelEl = document.getElementById('vault-backup-panel');
     if (!panelEl) return;
-    panelEl.style.display = 'block';
+    // Don't auto-show — panel only expands when tile is clicked
     renderPanel();
   }
 
