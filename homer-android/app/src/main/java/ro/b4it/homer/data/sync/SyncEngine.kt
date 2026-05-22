@@ -76,7 +76,6 @@ class SyncEngine @Inject constructor(
             .getBoolean(fieldKey, true)
 
     fun schedulePush(fieldKey: String, push: suspend () -> Unit) {
-        if (!supabase.isBogdan()) return
         if (!isFieldEnabled(fieldKey)) return
         synchronized(pendingJobs) {
             pendingJobs[fieldKey]?.cancel()
@@ -84,6 +83,7 @@ class SyncEngine @Inject constructor(
                 delay(DEBOUNCE_MS)
                 runCatching {
                     supabase.ensureSignedIn()
+                    if (!supabase.isBogdan()) return@runCatching
                     push()
                 }.onFailure { Log.e("HomerSync", "schedulePush[$fieldKey] failed", it) }
             }
