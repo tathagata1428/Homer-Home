@@ -88,6 +88,8 @@
     '.cd-config input:focus{border-color:rgba(255,0,102,.45)}',
     '.cd-set-btn{background:rgba(255,0,102,.1);border:1px solid rgba(255,0,102,.22);border-radius:8px;padding:7px 16px;color:rgba(255,0,102,.9);font-weight:600;font-size:.78rem;cursor:pointer;transition:background .15s;white-space:nowrap}',
     '.cd-set-btn:hover{background:rgba(255,0,102,.18)}',
+    '.cd-clear-btn{background:transparent;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:7px 12px;color:rgba(240,240,255,.3);font-size:.78rem;cursor:pointer;transition:all .15s;white-space:nowrap}',
+    '.cd-clear-btn:hover{border-color:rgba(255,255,255,.25);color:rgba(240,240,255,.6)}',
 
     /* Countdown display */
     '.cd-display{display:flex;align-items:flex-end;justify-content:center;gap:0;margin:18px 0 6px;flex-wrap:wrap}',
@@ -157,6 +159,7 @@
           '<input type="text" id="cd-name-in" placeholder="Event name\u2026" maxlength="80" value="' + esc(state.name) + '">' +
           '<input type="datetime-local" id="cd-date-in" value="' + esc(savedDate) + '">' +
           '<button class="cd-set-btn" id="cd-set-btn">Set</button>' +
+          '<button class="cd-clear-btn" id="cd-clear-btn">Clear</button>' +
         '</div>' +
         '<div id="cd-display-area"></div>' +
         '<div id="cd-commentary-section" style="display:none">' +
@@ -325,6 +328,21 @@
     document.getElementById('cd-toggle').addEventListener('click', toggleCollapse);
 
     document.getElementById('cd-gen-btn').addEventListener('click', refreshQuote);
+
+    document.getElementById('cd-clear-btn').addEventListener('click', function () {
+      state.name = '';
+      state.date = '';
+      saveState();
+      var nameIn = document.getElementById('cd-name-in');
+      var dateIn = document.getElementById('cd-date-in');
+      if (nameIn) nameIn.value = '';
+      if (dateIn) dateIn.value = '';
+      var hdrEl = document.getElementById('cd-hdr-event');
+      if (hdrEl) hdrEl.textContent = '';
+      var section = document.getElementById('cd-commentary-section');
+      if (section) section.style.display = 'none';
+      renderDisplay();
+    });
 
     document.getElementById('cd-set-btn').addEventListener('click', function () {
       var nameVal = (document.getElementById('cd-name-in').value || '').trim();
