@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.RingtoneManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -38,14 +39,21 @@ class ReminderReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
+        val alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+
         val notification = NotificationCompat.Builder(ctx, HomerApplication.CHANNEL_REMINDERS)
             .setSmallIcon(R.drawable.ic_homer_splash)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setContentIntent(tapIntent)
+            .setFullScreenIntent(tapIntent, true)          // show over lock screen
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setPriority(NotificationCompat.PRIORITY_MAX)  // heads-up on API < 26
+            .setSound(alarmSound)
+            .setVibrate(longArrayOf(0, 400, 200, 400, 200, 800))
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
 
         NotificationManagerCompat.from(ctx).notify(notifId, notification)

@@ -910,8 +910,14 @@
         if (action === 'delete') {
           var hDel = d2.habits.find(function(x) { return String(x.id) === String(id); });
           if (!confirm('Delete "' + (hDel || {name: ''}).name + '"?')) return;
-          // Soft-delete: mark archived with timestamp so sync can propagate the deletion
-          if (hDel) { hDel.archived = true; hDel.archivedAt = Date.now(); }
+          if (hDel && hDel.archived) {
+            // Already archived → hard delete permanently
+            d2.habits = d2.habits.filter(function(x) { return String(x.id) !== String(id); });
+            Object.keys(d2.completions).forEach(function(k) { if (k.indexOf(id + ':') === 0) delete d2.completions[k]; });
+          } else if (hDel) {
+            // Active → soft-delete so deletion propagates to other devices via sync
+            hDel.archived = true; hDel.archivedAt = Date.now();
+          }
           saveData(d2); render();
         } else if (action === 'archive' || action === 'unarchive') {
           var h = d2.habits.find(function(x) { return String(x.id) === String(id); });

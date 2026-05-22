@@ -10598,7 +10598,8 @@ let tvWidgetCreated = false;
     // Stamp enhancements sync timestamps for all restored merge keys so the
     // restored data is treated as "newest" and wins on the next Supabase sync.
     var HE_MERGE_KEYS = ['homer-habits','homer-inbox','homer-expenses','homer-income',
-      'homer-expense-goals','homer-expense-templates','homer-expense-budgets'];
+      'homer-expense-goals','homer-expense-templates','homer-expense-budgets',
+      'homer-notes','homer-links','homer-journal','homer-car','pom.tasks.v1'];
     var restoreTs = String(Date.now());
     HE_MERGE_KEYS.forEach(function(k){
       if(snapshot[k] != null) origSetItem('_he_ts_'+k, restoreTs);

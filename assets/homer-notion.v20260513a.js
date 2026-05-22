@@ -399,6 +399,8 @@
     if (ec) ec.style.display = show ? 'none' : 'flex';
   }
   function openNote(id) {
+    // Save the current note before switching so no content is lost
+    if (curNoteId && curNoteId !== id) { clearTimeout(saveTimer); saveNote(); }
     curNoteId = id; var note = getNotes().find(function (n) { return n.id === id; }); if (!note) return;
     var t = document.getElementById('notes-title'), b = document.getElementById('notes-body'), em = document.getElementById('note-emoji');
     if (em) em.textContent = noteEmoji(note);
@@ -411,7 +413,9 @@
     if (!curNoteId) return;
     var t = document.getElementById('notes-title'), b = document.getElementById('notes-body'); if (!t || !b) return;
     var notes = getNotes(), note = notes.find(function (n) { return n.id === curNoteId; }); if (!note) return;
-    note.title = t.value || 'Untitled'; note.content = b.value; note.updated = new Date().toISOString();
+    var now = Date.now();
+    note.title = t.value || 'Untitled'; note.content = b.value;
+    note.updated = new Date(now).toISOString(); note.updatedAt = now;
     setNotes(notes); renderNoteList();
     var st = document.getElementById('notes-status'); if (st) st.textContent = 'Saved';
     syncCtx(); pushNotesToDrive();
