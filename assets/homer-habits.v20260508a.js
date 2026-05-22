@@ -908,15 +908,18 @@
         var id = this.dataset.id;
         var d2 = getData();
         if (action === 'delete') {
-          if (!confirm('Delete "' + (d2.habits.find(function(x){return String(x.id)===String(id);})||{name:''}).name + '" and all its history?')) return;
-          d2.habits = d2.habits.filter(function(x) { return String(x.id) !== String(id); });
-          Object.keys(d2.completions).forEach(function(k) {
-            if (k.indexOf(id + ':') === 0) delete d2.completions[k];
-          });
+          var hDel = d2.habits.find(function(x) { return String(x.id) === String(id); });
+          if (!confirm('Delete "' + (hDel || {name: ''}).name + '"?')) return;
+          // Soft-delete: mark archived with timestamp so sync can propagate the deletion
+          if (hDel) { hDel.archived = true; hDel.archivedAt = Date.now(); }
           saveData(d2); render();
         } else if (action === 'archive' || action === 'unarchive') {
           var h = d2.habits.find(function(x) { return String(x.id) === String(id); });
-          if (h) h.archived = (action === 'archive');
+          if (h) {
+            h.archived = (action === 'archive');
+            if (action === 'archive') h.archivedAt = Date.now();
+            else delete h.archivedAt;
+          }
           saveData(d2); render();
         } else if (action === 'edit') {
           _editId = id; _showAdd = false; render();

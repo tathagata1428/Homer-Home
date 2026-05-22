@@ -1086,24 +1086,24 @@
         .catch(function(){showBadge('Sync error','error');});
     }
 
-    // ── Habits merge sync (safe cross-device sync, never data-loss) ───────
-    // Uses union-merge instead of last-write-wins so a fresh/stale device
-    // can NEVER overwrite another device's habits with an older empty state.
+    // ── Habits merge sync ────────────────────────────────────────────────
+    // Newer modification always wins (max of archivedAt, updatedAt, created).
+    // archivedAt is set by soft-delete so deletions propagate across devices.
+    function habitTs(h){return Math.max(h.archivedAt||0,h.updatedAt||0,h.created||0);}
     function mergeHabitsData(local,remote){
       var lH=local&&Array.isArray(local.habits)?local.habits:[];
       var rH=remote&&Array.isArray(remote.habits)?remote.habits:[];
       var lC=(local&&typeof local.completions==='object'&&local.completions)||{};
       var rC=(remote&&typeof remote.completions==='object'&&remote.completions)||{};
-      // Union of habits by id; active (non-archived) beats archived for the same id
       var byId={};
       rH.concat(lH).forEach(function(h){
         if(!h||h.id==null)return;
         var ex=byId[h.id];
-        if(!ex||(!h.archived&&ex.archived))byId[h.id]=h;
-        else if(!ex)byId[h.id]=h;
+        if(!ex){byId[h.id]=h;return;}
+        // Newer modification wins; ties keep the existing entry (remote processed first)
+        if(habitTs(h)>habitTs(ex))byId[h.id]=h;
       });
       var mergedH=Object.keys(byId).map(function(k){return byId[k];});
-      // Sort by creation order (id is Date.now() at creation)
       mergedH.sort(function(a,b){return(a.id||0)-(b.id||0);});
       // Union completions — keep any entry present on either device
       var mergedC=Object.assign({},rC,lC);
