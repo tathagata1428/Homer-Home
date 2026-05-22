@@ -1694,7 +1694,7 @@ const tracks = {
   rain:  { id:"mPZkdNFkNps", btn:"btn-rain",  vol:"vol-rain",  labelPlay:"▶️ Play Rain", labelPause:"⏸️ Pause Rain", holder:"yt-rain", isPlaying: false },
   rainywindow: { id:"Dx5qFachd3A", btn:"btn-rainywindow", vol:"vol-rainywindow", labelPlay:"▶️ Play Jazz", labelPause:"⏸️ Pause Jazz", holder:"yt-rainywindow", isPlaying: false },
   cafe:  { id:"uiMXGIG_DQo", btn:"btn-cafe",  vol:"vol-cafe",  labelPlay:"▶️ Play Café", labelPause:"⏸️ Pause Café", holder:"yt-cafe", isPlaying: false },
-  lofi:  { id:"Na0w3Mz46GA", btn:"btn-lofi",  vol:"vol-lofi",  labelPlay:"▶️ Play Lo-Fi", labelPause:"⏸️ Pause Lo-Fi", holder:"yt-lofi", isPlaying: false },
+  lofi:  { id:"EWrX250Zhko", btn:"btn-lofi",  vol:"vol-lofi",  labelPlay:"▶️ Play Lo-Fi", labelPause:"⏸️ Pause Lo-Fi", holder:"yt-lofi", isPlaying: false },
   wind: { id:"sGkh1W5cbH4", btn:"btn-wind", vol:"vol-wind", labelPlay:"▶️ Play Wind", labelPause:"⏸️ Pause Wind", holder:"yt-wind", isPlaying: false },
   synthwave: { id:"4xDzrJKXOOY", btn:"btn-synthwave", vol:"vol-synthwave", labelPlay:"▶️ Play Synthwave", labelPause:"⏸️ Pause Synthwave", holder:"yt-synthwave", isPlaying: false },
   weightless: { id:"vYIYIVmOo3Q", btn:null, vol:null, holder:"yt-weightless", isPlaying: false }
