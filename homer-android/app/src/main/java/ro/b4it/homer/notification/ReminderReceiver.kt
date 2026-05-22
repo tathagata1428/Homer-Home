@@ -21,6 +21,13 @@ class ReminderReceiver : BroadcastReceiver() {
     @Inject lateinit var reminderManager: ReminderManager
 
     override fun onReceive(ctx: Context, intent: Intent) {
+        // Dismiss action — just cancel the ongoing notification
+        if (intent.action == ACTION_DISMISS) {
+            val notifId = intent.getIntExtra(EXTRA_NOTIF_ID, 0)
+            NotificationManagerCompat.from(ctx).cancel(notifId)
+            return
+        }
+
         val title      = intent.getStringExtra(EXTRA_TITLE) ?: return
         val body       = intent.getStringExtra(EXTRA_BODY) ?: ""
         val notifId    = intent.getIntExtra(EXTRA_NOTIF_ID, 0)
@@ -33,9 +40,30 @@ class ReminderReceiver : BroadcastReceiver() {
             if (ctx.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         }
 
+        val openIntent = Intent(ctx, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP
+            // Turn screen on and show over lock screen
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O_MR1) {
+                @Suppress("DEPRECATION")
+                addFlags(
+                    android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                    android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                )
+            }
+        }
         val tapIntent = PendingIntent.getActivity(
-            ctx, notifId,
-            Intent(ctx, MainActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_SINGLE_TOP },
+            ctx, notifId, openIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val dismissIntent = PendingIntent.getBroadcast(
+            ctx, notifId + 1,
+            Intent(ctx, ReminderReceiver::class.java).apply {
+                action = ACTION_DISMISS
+                putExtra(EXTRA_NOTIF_ID, notifId)
+            },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
@@ -48,12 +76,14 @@ class ReminderReceiver : BroadcastReceiver() {
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setContentIntent(tapIntent)
-            .setFullScreenIntent(tapIntent, true)          // show over lock screen
+            .setFullScreenIntent(tapIntent, true)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setPriority(NotificationCompat.PRIORITY_MAX)  // heads-up on API < 26
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setSound(alarmSound)
-            .setVibrate(longArrayOf(0, 400, 200, 400, 200, 800))
-            .setAutoCancel(true)
+            .setVibrate(longArrayOf(0, 500, 200, 500, 200, 1000))
+            .setOngoing(true)           // can't be swiped away — must tap Dismiss
+            .addAction(0, "Dismiss", dismissIntent)
+            .setAutoCancel(false)
             .build()
 
         NotificationManagerCompat.from(ctx).notify(notifId, notification)
@@ -65,6 +95,7 @@ class ReminderReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        const val ACTION_DISMISS    = "ro.b4it.homer.ALARM_DISMISS"
         const val EXTRA_TITLE       = "rem_title"
         const val EXTRA_BODY        = "rem_body"
         const val EXTRA_NOTIF_ID    = "rem_notif_id"

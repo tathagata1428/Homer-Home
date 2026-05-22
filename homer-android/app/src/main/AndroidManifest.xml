@@ -42,7 +42,11 @@
         <!-- Receives AlarmManager broadcasts for reminders / calendar / tasks -->
         <receiver
             android:name=".notification.ReminderReceiver"
-            android:exported="false" />
+            android:exported="false">
+            <intent-filter>
+                <action android:name="ro.b4it.homer.ALARM_DISMISS" />
+            </intent-filter>
+        </receiver>
 
         <activity
             android:name=".MainActivity"

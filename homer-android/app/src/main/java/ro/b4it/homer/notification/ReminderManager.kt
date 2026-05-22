@@ -236,13 +236,18 @@ class ReminderManager @Inject constructor(
             ctx, id, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        // showIntent — tapped alarm clock icon in status bar opens the app
+        val showPi = PendingIntent.getActivity(
+            ctx, id,
+            Intent(ctx, Class.forName("ro.b4it.homer.MainActivity")).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-                // Fall back to approximate alarm (within ~10 min window)
-                alarmManager.setWindow(AlarmManager.RTC_WAKEUP, fireAt, 10 * 60_000L, pi)
-            } else {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, fireAt, pi)
-            }
+            // setAlarmClock: bypasses Doze/battery saver, shows clock icon in status bar,
+            // wakes the screen — behaves like the built-in Clock alarm
+            alarmManager.setAlarmClock(AlarmManager.AlarmClockInfo(fireAt, showPi), pi)
         } catch (_: SecurityException) {
             alarmManager.set(AlarmManager.RTC_WAKEUP, fireAt, pi)
         }

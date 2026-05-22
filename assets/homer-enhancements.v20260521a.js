@@ -1411,28 +1411,66 @@
     function scheduleVaultSync(){clearTimeout(_vaultSyncTimer);_vaultSyncTimer=setTimeout(doVaultSync,3000);}
     function doVaultSync(){
       if(!canSync())return;
-      if(!window._homerVaultUnlocked)return; // vault must be unlocked to read IDB
+      if(!window._homerVaultUnlocked)return;
       if(typeof window._homerLoadVault!=='function')return;
+      if(typeof window._homerSaveVault!=='function')return;
       var client=getClient(),uid=getUid();if(!client||!uid)return;
       window._homerLoadVault().then(function(vault){
         if(!vault)return;
-        var tasks=      (vault.goals||[]).map(vaultNormalizeTask);
-        var projects=   (vault.projects||[]).map(vaultNormalizeProject);
-        var lifeGoals=  (vault.lifeGoals||[]).map(vaultNormalizeLg);
-        var localKanban={projects:projects,tasks:tasks};
-        // Kanban: vault is authoritative — write directly so deletions propagate
-        var tsK=Date.now();
-        client.from('field_state').upsert(
-          {field_id:'ls:homer-kanban',value:JSON.stringify(localKanban),user_id:uid,kind:'json',client_ts:tsK,client_seq:0,device_id:'web',updated_at:new Date(tsK).toISOString()},
-          {onConflict:'user_id,field_id'})
-          .catch(function(e){console.warn('[HomerSync] vaultSync kanban',e);});
-        // Life Goals: vault is authoritative — write directly so deletions propagate
-        var tsLG=Date.now();
-        client.from('field_state').upsert(
-          {field_id:'ls:homer-life-goals',value:JSON.stringify(lifeGoals),user_id:uid,kind:'json',client_ts:tsLG,client_seq:0,device_id:'web',updated_at:new Date(tsLG).toISOString()},
-          {onConflict:'user_id,field_id'})
-          .catch(function(e){console.warn('[HomerSync] vaultSync life-goals',e);});
-      }).catch(function(e){console.warn('[HomerSync] vaultSync load',e);});
+        var localTasks=   (vault.goals||[]).map(vaultNormalizeTask);
+        var localProjects=(vault.projects||[]).map(vaultNormalizeProject);
+        var localLg=      (vault.lifeGoals||[]).map(vaultNormalizeLg);
+        // Pull remote first so Android changes are not overwritten
+        return Promise.all([
+          client.from('field_state').select('value').eq('field_id','ls:homer-kanban').eq('user_id',uid).maybeSingle(),
+          client.from('field_state').select('value').eq('field_id','ls:homer-life-goals').eq('user_id',uid).maybeSingle()
+        ]).then(function(res){
+          // Parse remote kanban — Android uses {projects,tasks}; web uses {projects,tasks}
+          var remoteKanban={projects:[],tasks:[]};
+          try{
+            var rk=safeJson((res[0].data||{}).value||'{}',{});
+            remoteKanban={projects:rk.projects||[],tasks:(rk.tasks||[]).concat(rk.goals||[])};
+          }catch(_e){}
+          // Parse remote life-goals — flat array
+          var remoteLg=safeJson((res[1].data||{}).value||'[]',[]);
+          if(!Array.isArray(remoteLg))remoteLg=[];
+          // Merge by updatedAt — newer side wins per item
+          var mergedKanban=mergeKanbanBlob({projects:localProjects,tasks:localTasks},remoteKanban);
+          var mergedLg=mergeLifeGoalsArr(localLg,remoteLg);
+          // Save merged data back to vault IDB in vault-native format
+          vault.goals=mergedKanban.tasks.map(function(t){
+            return{id:t.id,col:t.column||t.col||'todo',summary:t.summary,notes:t.description||t.notes||'',
+              priority:t.priority||'medium',labels:safeJson(t.labelsJson,[]),
+              subtasks:safeJson(t.subtasksJson,[]),attachments:safeJson(t.attachmentsJson,[]),
+              due:t.dueDate||t.due||'',archived:!!t.archived,backlog:!!t.backlog,
+              order:t.order||0,projectId:t.projectId||'',updatedAt:t.updatedAt||Date.now()};
+          });
+          vault.projects=mergedKanban.projects.map(function(p){
+            return{id:p.id,name:p.name,key:p.key,description:p.description||'',icon:p.icon||'',
+              color:p.color||'#3B82F6',customFields:safeJson(p.customFieldsJson,[]),
+              archived:!!p.archived,updatedAt:p.updatedAt||Date.now()};
+          });
+          vault.lifeGoals=mergedLg.map(function(g){
+            return{id:g.id,title:g.title,description:g.description||'',category:g.category||'',
+              icon:g.icon||'',targetDate:g.targetDate||'',milestones:safeJson(g.milestonesJson,[]),
+              status:g.status||'active',progress:g.progress||0,updatedAt:g.updatedAt||Date.now()};
+          });
+          window._homerSaveVault(vault)
+            .then(function(){window.dispatchEvent(new Event('vault-goals-changed'));})
+            .catch(function(e){console.warn('[HomerSync] vaultSync save',e);});
+          // Push merged to Supabase so all devices are in sync
+          var tsK=Date.now();
+          client.from('field_state').upsert(
+            {field_id:'ls:homer-kanban',value:JSON.stringify(mergedKanban),user_id:uid,kind:'json',client_ts:tsK,client_seq:0,device_id:'web',updated_at:new Date(tsK).toISOString()},
+            {onConflict:'user_id,field_id'})
+            .catch(function(e){console.warn('[HomerSync] vaultSync kanban push',e);});
+          var tsLG=Date.now();
+          client.from('field_state').upsert(
+            {field_id:'ls:homer-life-goals',value:JSON.stringify(mergedLg),user_id:uid,kind:'json',client_ts:tsLG,client_seq:0,device_id:'web',updated_at:new Date(tsLG).toISOString()},
+            {onConflict:'user_id,field_id'})
+            .catch(function(e){console.warn('[HomerSync] vaultSync life-goals push',e);});
+        });
+      }).catch(function(e){console.warn('[HomerSync] vaultSync',e);});
     }
     // Fire vault sync whenever vault data changes (task created/updated, life goal saved, etc.)
     window.addEventListener('vault-goals-changed',function(){if(canSync())scheduleVaultSync();});
