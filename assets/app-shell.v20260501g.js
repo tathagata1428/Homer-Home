@@ -1274,7 +1274,7 @@ document.addEventListener('DOMContentLoaded', function(){
       function ensureAC(){
         if(!audioUnlocked) return null;
         if(!ac){ ac = new (window.AudioContext||window.webkitAudioContext)(); }
-        if(ac.state==='suspended'){ ac.resume(); }
+        if(ac.state==='suspended'){ ac.resume().catch(function(){}); }
         return ac;
       }
       function speak(text){ if(!elVoice?.checked) return; if(!('speechSynthesis' in window)) return; const u=new SpeechSynthesisUtterance(text); u.rate=1.05; u.pitch=text.includes('Woo')?1.3:0.8; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }
