@@ -3496,9 +3496,13 @@ let tvWidgetCreated = false;
       : '';
     var uiInventory = collectAgentUiInventory();
     return '\n\n=== WEBSITE MAP ===\n' +
-      '- Tabs: home, pomodoro, focuslab, investing, tools, links, news, vault.\n' +
-      '- Focus Lab includes box breathing, zen mode, and brain dump.\n' +
-      '- Pomodoro stores quick focus tasks.\n' +
+      '- Tabs: home, pomodoro, focuslab, habits, ledger, investing, tools, links, news, vault, calendar, inbox, journal.\n' +
+      '- Focus Lab (focuslab tab) includes box breathing, zen mode, and brain dump.\n' +
+      '- Pomodoro (pomodoro tab) stores quick focus tasks and runs a timer.\n' +
+      '- Habits (habits tab) tracks daily/weekly habits with streaks.\n' +
+      '- Ledger (ledger tab) tracks income, expenses, and budgets.\n' +
+      '- Calendar (calendar tab) shows events and reminders.\n' +
+      '- Inbox (inbox tab) quick-capture notes and tasks.\n' +
       pomodoroLine +
       soundLine +
       focusLine +
@@ -3508,11 +3512,15 @@ let tvWidgetCreated = false;
       '- Current Joey mode: ' + mode + '. Current vault mode: ' + vaultMode + '.\n' +
       '- Create and update tasks, projects, secrets, notes, and backups only inside the current mode. Personal writes go only to the Personal vault/profile and Personal Drive backup. Work writes go only to the Work vault/profile and Work Drive backup.\n' +
       '\n=== EXECUTABLE ACTIONS ===\n' +
-      '- Supported action tags are TASK, GOAL, FOCUS, EVENT, REMEMBER, FORGET, PROJECT, NOTE, LINK, SECRET, and COMMAND.\n' +
+      '- Supported action tags are TASK, GOAL, HABIT, FOCUS, EVENT, REMEMBER, FORGET, PROJECT, NOTE, LINK, SECRET, and COMMAND.\n' +
       '- Only output these exact action tags. Never invent unsupported tags.\n' +
       '- If the user asks for something informational or conversational, answer normally without action tags.\n' +
-      '- If the user provides an existing issue key like APP-13, update that issue with TASK JSON using "key":"APP-13" instead of creating a new task.\n' +
-      '- Issue update format: [ACTION:TASK]{"op":"update","key":"APP-13","summary":"Updated title","notes":"Updated notes","status":"progress","priority":"high"}[/ACTION]\n' +
+      '\nHABIT (Habits tracker — only when user explicitly asks to add/track a habit):\n' +
+      '- Format: [ACTION:HABIT]{"name":"Drink water","emoji":"💧","category":"health","freq":"daily","note":"8 glasses"}[/ACTION]\n' +
+      '\nTASK (Kanban board — for actionable work items, to-dos, issues):\n' +
+      '- NEW task create format (NO "op" or "key"): [ACTION:TASK]{"summary":"Get a second job","project":"Life","notes":"Reach out to contacts and apply","priority":"medium","subtasks":[{"text":"Update resume"},{"text":"Research job boards"},{"text":"Contact 3 recruiters"}]}[/ACTION]\n' +
+      '- If the user provides an existing issue key like APP-13, UPDATE that issue instead of creating: [ACTION:TASK]{"op":"update","key":"APP-13","summary":"Updated title","notes":"Updated notes","status":"progress","priority":"high"}[/ACTION]\n' +
+      '- NEVER include "op":"update" or "key" for NEW task creation. NEVER use the update format when creating a brand new task.\n' +
       '\nNOTE:\n' +
       '- Vault note format: [ACTION:NOTE]{"target":"vault","text":"Encrypted note text"}[/ACTION]\n' +
       '- Brain dump format: [ACTION:NOTE]{"target":"brain-dump","text":"Raw thoughts"}[/ACTION]\n' +
@@ -16260,7 +16268,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   }
   function executeActions(text, userText){
     var actions = [];
-    var regex = /\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET|PROJECT|NOTE|LINK|SECRET|COMMAND)\]([\s\S]*?)(?:\[\/ACTION\]|$)/g;
+    var regex = /\[ACTION:(TASK|GOAL|HABIT|FOCUS|EVENT|REMEMBER|FORGET|PROJECT|NOTE|LINK|SECRET|COMMAND)\]([\s\S]*?)(?:\[\/ACTION\]|$)/g;
     var match;
     while((match = regex.exec(text)) !== null){
       actions.push({type: match[1], data: match[2].trim()});
@@ -16284,96 +16292,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
             ? 'Issue update queued: ' + taskData.key
             : ((a.inferred ? 'Kanban task inferred: ' : 'Kanban task queued: ') + (taskData.summary || taskData.title || a.data) + ((taskData.subtasks && taskData.subtasks.length) ? ' (' + taskData.subtasks.length + ' subtasks)' : '') + ((taskData.project || taskData.projectId) ? ' -> ' + (taskData.project || taskData.projectId) : '')));
           return;
-          if(shouldSkipRecentTask(taskData)) return;
-          if(typeof window._homerLoadVaultForMode === 'function' && window._homerVaultUnlocked){
-            window._homerLoadVaultForMode(actionMode).then(function(data){
-              if(!data) return;
-              if(!Array.isArray(data.goals)) data.goals = [];
-              if(!data._nextId) data._nextId = 1;
-              if(!data._nextSubId) data._nextSubId = 1;
-              var goalFilterProjectEl = (typeof goalFilterProject !== 'undefined' && goalFilterProject) || document.getElementById('goal-filter-project');
-              var projectHelpers = getActionProjectHelpers();
-              var projects = projectHelpers.ensureProjects(data.projects || []);
-              var requestedProject = String(taskData.projectId || taskData.project || taskData.projectName || taskData.projectKey || '').trim();
-              var fallbackProjectId = (goalFilterProjectEl && goalFilterProjectEl.value) || projectHelpers.getDefaultProjectId(projects);
-              var matchedProject = projectHelpers.matchProject(projects, requestedProject, fallbackProjectId, !!requestedProject);
-              if(requestedProject && !matchedProject){
-                showJoeyStatusToast('Project not found for task: ' + requestedProject, 'warn');
-                return;
-              }
-              if(!matchedProject){
-                showJoeyStatusToast('No active project available for task creation.', 'warn');
-                return;
-              }
-              var displayProject = projectHelpers.projectDisplay(matchedProject) || matchedProject;
-              var customFields = mapGoalCustomFieldsForProject(matchedProject, taskData.customFields || {});
-              if(matchedProject && matchedProject.archived){
-                showJoeyStatusToast('Project "' + displayProject.name + '" is archived. Restore it before adding tasks there.', 'warn');
-                return;
-              }
-              var subtasks = [];
-              if(taskData.subtasks && Array.isArray(taskData.subtasks)){
-                taskData.subtasks.forEach(function(st){
-                  var stObj = typeof st === 'string' ? { text: st } : (st || {});
-                  subtasks.push({
-                    id: data._nextSubId++,
-                    text: stObj.text || stObj.summary || stObj.title || 'Subtask',
-                    done: false,
-                    effort: stObj.effort || '',
-                    due: stObj.due || '',
-                    notes: stObj.notes || stObj.description || stObj.desc || '',
-                    attachments: []
-                  });
-                });
-              }
-              var taskNotes = taskData.notes || taskData.description || taskData.desc || '';
-              var task = {
-                id: data._nextId++,
-                projectId: matchedProject.id,
-                summary: taskData.summary || taskData.title || 'New Task',
-                desc: taskNotes,
-                notes: taskNotes,
-                due: taskData.due || '',
-                priority: taskData.priority || '',
-                reporter: '',
-                assignee: '',
-                labels: taskData.labels || [],
-                col: 'todo',
-                subtasks: subtasks,
-                attachments: [],
-                comments: [],
-                customFields: customFields,
-                log: [{action:'Task created by Joey in ' + displayProject.name, ts:Date.now()}]
-              };
-              data.goals.push(task);
-              window._homerSaveVault(data).then(function(){
-                rememberRecentTask({ projectId: matchedProject.id, summary: task.summary });
-                if(typeof scheduleCriticalDbBackup === 'function') scheduleCriticalDbBackup('joey-task', 900);
-                try{ window.dispatchEvent(new Event('vault-goals-changed')); }catch(e){}
-                showJoeyStatusToast('Task added to ' + displayProject.name + ': ' + task.summary, 'success');
-                if(typeof populateProjectControls === 'function'){
-                  populateProjectControls(data.projects || [], data.goals || [], {
-                    selectedFilter: matchedProject.id,
-                    preferredTaskProject: matchedProject.id
-                  });
-                }
-                renderGoals(data.goals || [], data.projects || []);
-                if(typeof renderProjectDashboard === 'function') renderProjectDashboard(data);
-                if(typeof renderVault === 'function') renderVault();
-                refreshCanonicalFiles().catch(function(){});
-              }).catch(function(err){
-                showJoeyStatusToast('Task save failed: ' + (err && err.message ? err.message : err), 'warn');
-              });
-            });
-          } else {
-            notifications.push('Vault is locked — unlock it first to add tasks to the Kanban board');
-            return;
-          }
-          notifications.push((a.inferred ? 'Kanban task inferred: ' : 'Kanban task queued: ') + (taskData.summary || taskData.title || a.data) + ((taskData.subtasks && taskData.subtasks.length) ? ' (' + taskData.subtasks.length + ' subtasks)' : '') + ((taskData.project || taskData.projectId) ? ' -> ' + (taskData.project || taskData.projectId) : ''));
         }
         else if(a.type === 'GOAL'){
           // Life goal (vault) — aspirations with milestones
-          var lgData = JSON.parse(a.data);
+          var lgData;
+          try{ lgData = JSON.parse(a.data); }catch(e){ lgData = {title: a.data}; }
           if(typeof window._homerLoadVault === 'function' && window._homerVaultUnlocked){
             window._homerLoadVault().then(function(data){
               if(!data) return;
@@ -16403,6 +16326,39 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
           }
           notifications.push('Life goal created: ' + (lgData.title || 'New Goal'));
         }
+        else if(a.type === 'HABIT'){
+          // Habit tracker — add a new habit to homer-habits
+          var habitData;
+          try{ habitData = JSON.parse(a.data); }catch(e){ habitData = {name: a.data}; }
+          var habitName = String(habitData.name || habitData.title || habitData.habit || a.data || '').trim();
+          if(habitName){
+            var HKEY = 'homer-habits';
+            var hd;
+            try{ hd = JSON.parse(localStorage.getItem(HKEY) || '{"habits":[],"completions":{}}'); }catch(e){ hd = {habits:[],completions:{}}; }
+            if(!Array.isArray(hd.habits)) hd.habits = [];
+            if(!hd.completions) hd.completions = {};
+            var HABIT_COLORS = ['#34d399','#60a5fa','#f87171','#fbbf24','#a78bfa','#fb7185','#38bdf8','#4ade80'];
+            var habitFreq = habitData.freq || 'daily';
+            var newHabit = {
+              id: Date.now(),
+              name: habitName,
+              emoji: String(habitData.emoji || habitData.icon || '⭐').slice(0,4),
+              color: String(habitData.color || HABIT_COLORS[hd.habits.length % HABIT_COLORS.length]),
+              category: String(habitData.category || 'other').toLowerCase(),
+              note: String(habitData.note || habitData.description || '').slice(0,200),
+              target: Math.max(1, parseInt(habitData.target || 1, 10) || 1),
+              freq: habitFreq,
+              archived: false,
+              created: Date.now()
+            };
+            hd.habits.push(newHabit);
+            localStorage.setItem(HKEY, JSON.stringify(hd));
+            try{ window.dispatchEvent(new CustomEvent('homer-habits-restored')); }catch(e){}
+            notifications.push('Habit added: ' + habitName);
+          } else {
+            notifications.push('Habit name is required');
+          }
+        }
         else if(a.type === 'FOCUS'){
           // Pomodoro focus task — quick task for the timer
           var TKEY = 'pom.tasks.v1';
@@ -16414,7 +16370,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
           notifications.push('Focus task added: ' + a.data);
         }
         else if(a.type === 'EVENT'){
-          var evtData = JSON.parse(a.data);
+          var evtData;
+          try{ evtData = JSON.parse(a.data); }catch(e){ evtData = {title: a.data, date: new Date().toISOString().slice(0,10)}; }
           var evt = {
             title: evtData.title || 'New Event',
             date: evtData.date || new Date().toISOString().slice(0,10),
@@ -16782,7 +16739,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
 
     // Strip action tags from displayed text
-    return text.replace(/\[ACTION:(TASK|GOAL|FOCUS|EVENT|REMEMBER|FORGET|PROJECT|NOTE|LINK|SECRET|COMMAND)\][\s\S]*?(?:\[\/ACTION\]|$)/g, '').trim();
+    return text.replace(/\[ACTION:(TASK|GOAL|HABIT|FOCUS|EVENT|REMEMBER|FORGET|PROJECT|NOTE|LINK|SECRET|COMMAND)\][\s\S]*?(?:\[\/ACTION\]|$)/g, '').trim();
   }
 
   function showError(msg){
@@ -17100,7 +17057,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(streaming || sendLock) return;
     sendLock = true;
     var savedPromptOverride = getSavedSystemPrompt(currentContextMode);
-    var JOEY_PROMPT = 'You are Joey — a personal AI assistant with personality. You speak like Joey Tribbiani from Friends (confident, charming, fun), but you\'re genuinely smart and deeply helpful. You know this person. You have their profile, memories, and conversation history injected into your context by the server. USE THEM.\n\nTODAY: ' + new Date().toISOString().slice(0,10) + ' | TIME: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '\n\n=== PERSONALITY ===\n- Be direct, no fluff. Match the user\'s energy.\n- Use Joey catchphrases SPARINGLY and naturally — don\'t force them every message.\n- Have real opinions. Disagree when warranted. Be a friend, not a yes-man.\n- When you know something about them (from profile/memories), use it naturally — don\'t announce "I remember...".\n- Ask follow-up questions about things you know they care about (their goals, their people, recent events).\n- If they seem stressed or down, be supportive. If they\'re excited, share that energy.\n\n=== ACTIONS (append at END of your response) ===\n\nTASK (Kanban board — DEFAULT for any work item, to-do, action):\n- Create a TASK only when the user explicitly asks you to add, create, save, track, put on the board, or turn something into a task.\n- Do NOT create tasks proactively, by implication, or just because a deadline/problem/action item was mentioned.\n- If the user is only discussing plans or problems, respond normally without action tags.\n- For explicit task requests, include: summary, notes, priority when implied, due when mentioned, and 2-5 concrete subtasks.\n- If the user names a project, include \"project\" or \"projectId\" in the TASK JSON. Never leave it out.\n- Use notes for the task description. Do not use GOAL for normal actionable work items.\n- Simple fallback: [ACTION:TASK]Buy groceries[/ACTION]\n- Preferred detailed format: [ACTION:TASK]{\"project\":\"Apps\",\"summary\":\"Fix login bug\",\"notes\":\"Users cannot sign in after password reset. Investigate the reset flow, patch the regression, and verify the happy path.\",\"priority\":\"high\",\"due\":\"2026-03-25\",\"subtasks\":[{\"text\":\"Reproduce the bug locally\",\"notes\":\"Test the password reset flow with an affected account.\"},{\"text\":\"Identify the failing auth step\"},{\"text\":\"Implement and verify the fix\"}]}[/ACTION]\n\nGOAL (Life Goals — aspirations, dreams, long-term objectives):\n[ACTION:GOAL]{"title":"Buy a house","description":"Why this matters","category":"finance","milestones":["Step 1","Step 2"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\nCategories: health, finance, career, personal, education, travel, creative, relationship\n\nFOCUS (Pomodoro — ONLY when user explicitly says "focus", "pomodoro", "focus task"):\n[ACTION:FOCUS]Task name[/ACTION]\nIMPORTANT: NEVER create FOCUS unless explicitly asked. Default is always TASK.\n\nEVENT (Calendar — use category to differentiate event types):\n[ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details","category":"meeting"}[/ACTION]\nEvent categories: meeting, deadline, reminder, personal, work\n\nREMEMBER (save important facts — your auto-memory also captures things, but use this for explicit asks):\n[ACTION:REMEMBER]{"memory":"fact about the user","category":"preference"}[/ACTION]\nCategories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work, quote\n- If the user asks to save a quote, mantra, stoic line, or wisdom for later, use category "quote". Those entries are appended to Quotes.md and should stay referenceable.\n\nFORGET:\n[ACTION:FORGET]text to forget[/ACTION]\n\n=== WEB SEARCH ===\n- You may receive LIVE WEB SEARCH RESULTS in your system prompt when the user asks about current events, facts, or anything that needs up-to-date info.\n- When you have search results, use them to give accurate answers. Cite sources naturally (e.g. "According to...", link titles).\n- If search results are present, prioritize them over your training data for current facts.\n- You can suggest the user search for something specific if you don\'t have results: just say "let me look that up" — the system will search automatically on their next related question.\n\n=== RULES ===\n- Dates: YYYY-MM-DD, Times: HH:MM (24h), Priority: high/medium/low\n- Always include action tags only when the user explicitly asked to create something.\n- When the user explicitly asks to add or create a task, append a TASK action unless they explicitly refuse.\n- For TASK actions, prefer JSON over plain text so the Kanban card is fully populated.\n- When the user names a project, the TASK must target that project explicitly instead of guessing.\n- Natural-language confirmation alone is not enough for task creation; you must append the TASK action tag.\n- Do not offer or create a task just because a deadline, plan, or obligation was mentioned.\n- Conversation memory is saved automatically from chat when sync is unlocked; use REMEMBER only when the user explicitly wants something pinned or deliberately saved.';
+    var JOEY_PROMPT = 'You are Joey — a personal AI assistant with personality. You speak like Joey Tribbiani from Friends (confident, charming, fun), but you\'re genuinely smart and deeply helpful. You know this person. You have their profile, memories, and conversation history injected into your context by the server. USE THEM.\n\nTODAY: ' + new Date().toISOString().slice(0,10) + ' | TIME: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '\n\n=== PERSONALITY ===\n- Be direct, no fluff. Match the user\'s energy.\n- Use Joey catchphrases SPARINGLY and naturally — don\'t force them every message.\n- Have real opinions. Disagree when warranted. Be a friend, not a yes-man.\n- When you know something about them (from profile/memories), use it naturally — don\'t announce "I remember...".\n- Ask follow-up questions about things you know they care about (their goals, their people, recent events).\n- If they seem stressed or down, be supportive. If they\'re excited, share that energy.\n\n=== ACTIONS (append at END of your response) ===\n\nTASK (Kanban board — DEFAULT for any work item, to-do, action):\n- Create a TASK only when the user explicitly asks you to add, create, save, track, put on the board, or turn something into a task.\n- Do NOT create tasks proactively, by implication, or just because a deadline/problem/action item was mentioned.\n- If the user is only discussing plans or problems, respond normally without action tags.\n- For explicit task requests, include: summary, notes, priority when implied, due when mentioned, and 2-5 concrete subtasks.\n- If the user names a project, include \"project\" in the TASK JSON. If no project is named, omit it and the system uses the default active project.\n- Use notes for the task description. Do not use GOAL for normal actionable work items.\n- NEW task (creation) — NEVER include \"op\" or \"key\" fields. Simple: [ACTION:TASK]Buy groceries[/ACTION]\n- NEW task detailed: [ACTION:TASK]{\"project\":\"Apps\",\"summary\":\"Fix login bug\",\"notes\":\"Users cannot sign in after password reset.\",\"priority\":\"high\",\"due\":\"2026-03-25\",\"subtasks\":[{\"text\":\"Reproduce the bug locally\"},{\"text\":\"Identify the failing auth step\"},{\"text\":\"Implement and verify the fix\"}]}[/ACTION]\n- UPDATE existing issue (only when user gives a specific existing key like APP-13): [ACTION:TASK]{\"op\":\"update\",\"key\":\"APP-13\",\"summary\":\"New title\",\"status\":\"progress\"}[/ACTION]\n- CRITICAL: for NEW task creation, NEVER use \"op\":\"update\" or any \"key\" field — those are for existing issues only.\n\nGOAL (Life Goals — aspirations, dreams, long-term objectives):\n[ACTION:GOAL]{"title":"Buy a house","description":"Why this matters","category":"finance","milestones":["Step 1","Step 2"],"targetDate":"2027-12-31","icon":"\\ud83c\\udfe0"}[/ACTION]\nCategories: health, finance, career, personal, education, travel, creative, relationship\n\nHABIT (Habits tracker — ONLY when user explicitly asks to add/create/track a habit):\n[ACTION:HABIT]{"name":"Drink water","emoji":"💧","category":"health","freq":"daily","note":"8 glasses per day"}[/ACTION]\nCategories: health, fitness, learning, mindfulness, work, social, creative, other. Freq: "daily" or "weekdays". NEVER create HABIT unless explicitly asked.\n\nFOCUS (Pomodoro — ONLY when user explicitly says "focus", "pomodoro", "focus task"):\n[ACTION:FOCUS]Task name[/ACTION]\nIMPORTANT: NEVER create FOCUS unless explicitly asked. Default is always TASK.\n\nEVENT (Calendar — use category to differentiate event types):\n[ACTION:EVENT]{"title":"Event","date":"2026-03-25","time":"14:30","location":"Place","description":"Details","category":"meeting"}[/ACTION]\nEvent categories: meeting, deadline, reminder, personal, work\n\nREMEMBER (save important facts — your auto-memory also captures things, but use this for explicit asks):\n[ACTION:REMEMBER]{"memory":"fact about the user","category":"preference"}[/ACTION]\nCategories: preference, fact, person, event, lesson, win, goal, habit, opinion, routine, health, work, quote\n- If the user asks to save a quote, mantra, stoic line, or wisdom for later, use category "quote". Those entries are appended to Quotes.md and should stay referenceable.\n\nFORGET:\n[ACTION:FORGET]text to forget[/ACTION]\n\n=== WEB SEARCH ===\n- You may receive LIVE WEB SEARCH RESULTS in your system prompt when the user asks about current events, facts, or anything that needs up-to-date info.\n- When you have search results, use them to give accurate answers. Cite sources naturally (e.g. "According to...", link titles).\n- If search results are present, prioritize them over your training data for current facts.\n- You can suggest the user search for something specific if you don\'t have results: just say "let me look that up" — the system will search automatically on their next related question.\n\n=== RULES ===\n- Dates: YYYY-MM-DD, Times: HH:MM (24h), Priority: high/medium/low\n- Always include action tags only when the user explicitly asked to create something.\n- When the user explicitly asks to add or create a task, you MUST append the TASK action tag — natural-language description alone is not enough. The tag is what actually creates the task.\n- For TASK actions, always use JSON (not plain text) so the Kanban card is fully populated with summary, notes, and subtasks.\n- For NEW task creation: NEVER include \"op\":\"update\" or \"key\" in the JSON. Only use those for explicit issue updates.\n- When the user names a project, the TASK must target that project with \"project\":\"ProjectName\".\n- When the user asks for relevant subtasks, generate 2-6 concrete actionable subtasks.\n- Do not offer or create a task just because a deadline, plan, or obligation was mentioned.\n- Conversation memory is saved automatically from chat when sync is unlocked; use REMEMBER only when the user explicitly wants something pinned or deliberately saved.';
     var systemPrompt = savedPromptOverride || JOEY_PROMPT;
     systemPrompt += '\n\n=== PERSONAL OPERATOR MODE ===\n- Your job is to become distinctive to this user, not generic.\n- Learn their standards, tastes, projects, recurring frustrations, and preferred way of working.\n- Use remembered context to make your suggestions feel specifically tuned to them.\n- When context is thin, ask a short sharp follow-up that improves future personalization.';
     if(typeof window._homerBuildJoeyProjectInstruction === 'function'){
