@@ -35,10 +35,14 @@ class LedgerViewModel @Inject constructor(
     fun addBudget(category: String, limit: Double) {
         viewModelScope.launch {
             dao.upsertBudget(Budget(category = category.trim(), limit = limit))
+            sync.pushExpensesDebounced()
         }
     }
 
     fun deleteBudget(budget: Budget) {
-        viewModelScope.launch { dao.deleteBudget(budget) }
+        viewModelScope.launch {
+            dao.deleteBudget(budget)
+            sync.pushExpensesDebounced()
+        }
     }
 }

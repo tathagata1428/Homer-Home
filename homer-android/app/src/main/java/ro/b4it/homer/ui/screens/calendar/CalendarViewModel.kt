@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import ro.b4it.homer.data.local.dao.CalendarDao
 import ro.b4it.homer.data.local.entity.CalendarEvent
+import ro.b4it.homer.data.sync.SyncEngine
 import ro.b4it.homer.notification.ReminderManager
 import java.util.Calendar
 import java.util.UUID
@@ -17,6 +18,7 @@ import javax.inject.Inject
 class CalendarViewModel @Inject constructor(
     private val dao: CalendarDao,
     private val reminderManager: ReminderManager,
+    private val sync: SyncEngine,
 ) : ViewModel() {
 
     private val _selectedMonth = MutableStateFlow(
@@ -47,6 +49,7 @@ class CalendarViewModel @Inject constructor(
         viewModelScope.launch {
             dao.upsert(event)
             reminderManager.scheduleCalendarEvent(event)
+            sync.pushCalendarEventsDebounced()
         }
     }
 
@@ -54,6 +57,7 @@ class CalendarViewModel @Inject constructor(
         viewModelScope.launch {
             dao.delete(event)
             reminderManager.cancelCalendarEvent(event.id)
+            sync.pushCalendarEventsDebounced()
         }
     }
 }

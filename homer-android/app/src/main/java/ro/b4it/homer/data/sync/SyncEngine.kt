@@ -65,6 +65,8 @@ class SyncEngine @Inject constructor(
         if (isFieldEnabled("ls:homer-life-goals"))     runCatching { pullLifeGoals()     }.onFailure { Log.e("HomerSync", "pullLifeGoals failed", it) }
         if (isFieldEnabled("ls:homer-brain-dump"))    runCatching { pullBrainDump()     }.onFailure { Log.e("HomerSync", "pullBrainDump failed", it) }
         if (isFieldEnabled("ls:homer-zen-goal"))      runCatching { pullZenGoal()       }.onFailure { Log.e("HomerSync", "pullZenGoal failed", it) }
+        if (isFieldEnabled("ls:homer-expense-goals")) runCatching { pullExpenseGoals()  }.onFailure { Log.e("HomerSync", "pullExpenseGoals failed", it) }
+        if (isFieldEnabled("ls:homer-cal-events"))    runCatching { pullCalendarEvents()}.onFailure { Log.e("HomerSync", "pullCalendarEvents failed", it) }
         Log.d("HomerSync", "pullAll: done")
     }
 
@@ -98,10 +100,12 @@ class SyncEngine @Inject constructor(
     fun pushNotesDebounced()         = schedulePush("ls:homer-notes")      { pushNotes() }
     fun pushJournalDebounced()       = schedulePush("ls:homer-journal")    { pushJournal() }
     fun pushCarDebounced()           = schedulePush("ls:homer-car")        { pushCar() }
-    fun pushKanbanDebounced()        = schedulePush("ls:homer-kanban")        { pushKanban() }
-    fun pushLifeGoalsDebounced()     = schedulePush("ls:homer-life-goals")    { pushLifeGoals() }
-    fun pushBrainDumpDebounced()     = schedulePush("ls:homer-brain-dump")   { pushBrainDump() }
-    fun pushZenGoalDebounced()       = schedulePush("ls:homer-zen-goal")     { pushZenGoal() }
+    fun pushKanbanDebounced()        = schedulePush("ls:homer-kanban")          { pushKanban() }
+    fun pushLifeGoalsDebounced()     = schedulePush("ls:homer-life-goals")      { pushLifeGoals() }
+    fun pushBrainDumpDebounced()     = schedulePush("ls:homer-brain-dump")      { pushBrainDump() }
+    fun pushZenGoalDebounced()       = schedulePush("ls:homer-zen-goal")        { pushZenGoal() }
+    fun pushExpenseGoalsDebounced()  = schedulePush("ls:homer-expense-goals")   { pushExpenseGoals() }
+    fun pushCalendarEventsDebounced()= schedulePush("ls:homer-cal-events")      { pushCalendarEvents() }
 
     /** Push all data to Supabase immediately (no debounce). Throws on auth failure. */
     suspend fun pushAll() {
@@ -119,6 +123,8 @@ class SyncEngine @Inject constructor(
         runCatching { pushLifeGoals() }
         runCatching { pushBrainDump() }
         runCatching { pushZenGoal() }
+        runCatching { pushExpenseGoals() }
+        runCatching { pushCalendarEvents() }
     }
 
     /** Push Pomodoro tasks immediately — called on delete so Supabase is updated before any pull. */
@@ -128,29 +134,102 @@ class SyncEngine @Inject constructor(
     }
 
     // ── Expenses ─────────────────────────────────────────────────────────────
-    // Website format: [{id, description, amount, category, date, note, type}]
-    // Android Expense entity fields match — sync is straightforward.
+    // Website expense key: "homer-expenses" → [{id, desc, amount, cat, date, note}]
+    // Website income key:  "homer-income"   → [{id, desc, amount, date, note}]
+    // Website budgets key: "homer-expense-budgets" → {category: limit} (plain object)
+    // Android: Expense entity with type="expense"|"income"; Budget entity {category, limit}
+    // Bridge: website uses "desc"/"cat", Android uses "description"/"category".
+
+    @Serializable
+    private data class WsExpense(
+        val id: JsonElement = JsonPrimitive(""),
+        val desc: String = "",           // website field name
+        val description: String = "",    // android push format (fallback on pull)
+        val amount: Double = 0.0,
+        val cat: String = "",            // website field name
+        val category: String = "",       // android push format (fallback on pull)
+        val date: String = "",
+        val note: String = "",
+        val type: String = "expense",
+        val updatedAt: Long = 0L,
+    )
+
+    private fun WsExpense.toExpense(defaultType: String = "expense") = Expense(
+        id          = jsonElemStr(id).ifBlank { System.currentTimeMillis().toString() },
+        description = desc.ifBlank { description },
+        amount      = amount,
+        category    = cat.ifBlank { category }.ifBlank { "other" },
+        date        = date,
+        note        = note,
+        type        = type.ifBlank { defaultType },
+        updatedAt   = updatedAt.takeIf { it > 0 } ?: 0L,
+    )
+
+    private fun Expense.toWsExpense() = WsExpense(
+        id        = JsonPrimitive(id),
+        desc      = description,
+        amount    = amount,
+        cat       = category,
+        date      = date,
+        note      = note,
+        type      = type,
+        updatedAt = updatedAt,
+    )
 
     private suspend fun pushExpenses() {
-        val expenses = db.expenseDao().getAll().first()
+        val all = db.expenseDao().getAll().first()
+        // Expenses (type="expense") → ls:homer-expenses
+        val wsExp = all.filter { it.type != "income" }.map { it.toWsExpense() }
         supabase.setFieldState("ls:homer-expenses",
-            json.encodeToString(ListSerializer(Expense.serializer()), expenses))
+            json.encodeToString(ListSerializer(WsExpense.serializer()), wsExp))
+        // Income (type="income") → ls:homer-income
+        val wsInc = all.filter { it.type == "income" }.map { it.toWsExpense() }
+        if (wsInc.isNotEmpty())
+            supabase.setFieldState("ls:homer-income",
+                json.encodeToString(ListSerializer(WsExpense.serializer()), wsInc))
+        // Budgets → {category: limit} object (website format)
         val budgets = db.expenseDao().getAllBudgets().first()
-        supabase.setFieldState("ls:homer-expense-budgets",
-            json.encodeToString(ListSerializer(Budget.serializer()), budgets))
+        if (budgets.isNotEmpty()) {
+            val budgetObj = buildJsonObject { budgets.forEach { b -> put(b.category, b.limit) } }
+            supabase.setFieldState("ls:homer-expense-budgets", budgetObj.toString())
+        }
     }
 
     private suspend fun pullExpenses() {
+        // Pull expenses (type="expense")
         supabase.getFieldState("ls:homer-expenses")?.let { row ->
             if (row.value.isBlank()) return@let
-            val cloudItems = json.decodeFromString(ListSerializer(Expense.serializer()), row.value)
-            val toMerge = mergeByUpdatedAt(cloudItems, db.expenseDao().getAll().first(), { it.id }, { it.updatedAt })
+            val cloudItems = json.decodeFromString(ListSerializer(WsExpense.serializer()), row.value)
+                .map { it.toExpense("expense") }
+            val local = db.expenseDao().getAll().first().filter { it.type != "income" }
+            val toMerge = mergeByUpdatedAt(cloudItems, local, { it.id }, { it.updatedAt })
             if (toMerge.isNotEmpty()) db.expenseDao().upsertAll(toMerge)
         }
+        // Pull income (type="income")
+        supabase.getFieldState("ls:homer-income")?.let { row ->
+            if (row.value.isBlank()) return@let
+            val cloudIncome = json.decodeFromString(ListSerializer(WsExpense.serializer()), row.value)
+                .map { it.toExpense("income") }
+            val local = db.expenseDao().getAll().first().filter { it.type == "income" }
+            val toMerge = mergeByUpdatedAt(cloudIncome, local, { it.id }, { it.updatedAt })
+            if (toMerge.isNotEmpty()) db.expenseDao().upsertAll(toMerge)
+        }
+        // Pull budgets — website stores as {category: limit} object
         supabase.getFieldState("ls:homer-expense-budgets")?.let { row ->
             if (row.value.isBlank()) return@let
-            val cloudBudgets = json.decodeFromString(ListSerializer(Budget.serializer()), row.value)
-            val toMerge = mergeByUpdatedAt(cloudBudgets, db.expenseDao().getAllBudgets().first(), { it.category }, { it.updatedAt })
+            val elem = try { json.parseToJsonElement(row.value) } catch (_: Exception) { return@let }
+            val budgets: List<Budget> = when (elem) {
+                is JsonObject -> elem.entries.mapNotNull { (cat, v) ->
+                    val limit = (v as? JsonPrimitive)?.doubleOrNull ?: return@mapNotNull null
+                    Budget(category = cat, limit = limit)
+                }
+                is JsonArray  -> runCatching {
+                    json.decodeFromString(ListSerializer(Budget.serializer()), row.value)
+                }.getOrElse { emptyList() }
+                else -> emptyList()
+            }
+            val toMerge = mergeByUpdatedAt(budgets, db.expenseDao().getAllBudgets().first(),
+                { it.category }, { it.updatedAt })
             if (toMerge.isNotEmpty()) db.expenseDao().upsertBudgets(toMerge)
         }
     }
@@ -500,14 +579,7 @@ class SyncEngine @Inject constructor(
     // Web vault format:    {projects:[...], goals:[{id(int), col, summary, notes, due, ...}]}
     // Bridge classes handle both — col/column, due/dueDate, goals/tasks, int/UUID ids.
 
-    // Push: Android-native format
-    @Serializable
-    private data class KanbanBlob(
-        val projects: List<KanbanProject> = emptyList(),
-        val tasks: List<KanbanTask> = emptyList(),
-    )
-
-    // Pull: tolerates both Android format (tasks) and web vault format (goals, col, due, int ids)
+    // Tolerates both Android format (tasks) and web vault format (goals, col, due, int ids)
     @Serializable
     private data class WsKanbanTask(
         val id: JsonElement = JsonPrimitive(""),
@@ -558,6 +630,9 @@ class SyncEngine @Inject constructor(
             else -> e.toString()
         }
 
+    private fun strToJsonArray(s: String): JsonArray =
+        runCatching { json.parseToJsonElement(s) as? JsonArray }.getOrNull() ?: JsonArray(emptyList())
+
     private fun WsKanbanTask.toTask(): KanbanTask {
         val taskId     = jsonElemStr(id).ifBlank { UUID.randomUUID().toString() }
         val colVal     = column.ifBlank { col }.ifBlank { "todo" }
@@ -604,8 +679,40 @@ class SyncEngine @Inject constructor(
         val projects = db.kanbanDao().getAllProjects().first()
         val tasks    = db.kanbanDao().getAllTasks().first()
         if (projects.isEmpty() && tasks.isEmpty()) return   // never wipe cloud with empty local
-        val blob = KanbanBlob(projects = projects, tasks = tasks)
-        supabase.setFieldState("ls:homer-kanban", json.encodeToString(KanbanBlob.serializer(), blob))
+        // Push in website-compatible format so both sides can merge correctly
+        val wsProjects = projects.map { p ->
+            WsKanbanProject(
+                id               = JsonPrimitive(p.id),
+                name             = p.name,
+                key              = p.key,
+                description      = p.description,
+                icon             = p.icon,
+                color            = p.color,
+                customFieldsJson = p.customFieldsJson,
+                archived         = p.archived,
+                updatedAt        = p.updatedAt,
+            )
+        }
+        val wsTasks = tasks.map { t ->
+            WsKanbanTask(
+                id          = JsonPrimitive(t.id),
+                col         = t.column,
+                summary     = t.summary,
+                notes       = t.description,
+                due         = t.dueDate,
+                priority    = t.priority,
+                projectId   = JsonPrimitive(t.projectId),
+                labels      = strToJsonArray(t.labelsJson),
+                subtasks    = strToJsonArray(t.subtasksJson),
+                attachments = strToJsonArray(t.attachmentsJson),
+                order       = t.order,
+                archived    = t.archived,
+                backlog     = t.backlog,
+                updatedAt   = t.updatedAt,
+            )
+        }
+        val blob = KanbanBlobWs(projects = wsProjects, goals = wsTasks)
+        supabase.setFieldState("ls:homer-kanban", json.encodeToString(KanbanBlobWs.serializer(), blob))
     }
 
     private suspend fun pullKanban() {
@@ -663,8 +770,23 @@ class SyncEngine @Inject constructor(
     private suspend fun pushLifeGoals() {
         val goals = db.lifeGoalDao().getAll().first()
         if (goals.isEmpty()) return   // never wipe cloud with empty local
+        // Push in website-compatible format: milestones as array, not milestonesJson string
+        val wsGoals = goals.map { g ->
+            WsLifeGoal(
+                id          = JsonPrimitive(g.id),
+                title       = g.title,
+                description = g.description,
+                category    = g.category,
+                icon        = g.icon,
+                targetDate  = g.targetDate,
+                milestones  = strToJsonArray(g.milestonesJson),
+                status      = g.status,
+                progress    = g.progress,
+                updatedAt   = g.updatedAt,
+            )
+        }
         supabase.setFieldState("ls:homer-life-goals",
-            json.encodeToString(ListSerializer(LifeGoal.serializer()), goals))
+            json.encodeToString(ListSerializer(WsLifeGoal.serializer()), wsGoals))
     }
 
     private suspend fun pullLifeGoals() {
@@ -705,6 +827,106 @@ class SyncEngine @Inject constructor(
         }
     }
 
+    // ── Expense Goals ─────────────────────────────────────────────────────────
+    // Website key: "homer-expense-goals" → [{id: number, name, target, saved, color}]
+    // Android: stored as AppSetting JSON blob (no dedicated entity needed)
+
+    private suspend fun pushExpenseGoals() {
+        val text = db.appSettingDao().get("homer-expense-goals") ?: return
+        if (text.isBlank()) return
+        supabase.setFieldState("ls:homer-expense-goals", text)
+    }
+
+    private suspend fun pullExpenseGoals() {
+        supabase.getFieldState("ls:homer-expense-goals")?.let { row ->
+            if (row.value.isBlank()) return@let
+            db.appSettingDao().set(AppSetting("homer-expense-goals", row.value))
+        }
+    }
+
+    // ── Calendar Events ───────────────────────────────────────────────────────
+    // Website key: "homer-cal-events" → [{id, title, date, time, location, description, category}]
+    // Android: CalendarEvent(id, title, start(Long), end(Long), location, description, icsSource, allDay)
+    // Only manual events (icsSource == "") are synced; ICS-feed events are ignored.
+
+    @Serializable
+    private data class WsCalEvent(
+        val id: String = "",
+        val title: String = "",
+        val date: String = "",        // "YYYY-MM-DD"
+        val time: String = "",        // "HH:mm" or "" for all-day
+        val location: String = "",
+        val description: String = "",
+        val category: String = "",
+    )
+
+    private fun calDateTimeToMs(date: String, time: String): Long = try {
+        if (time.isBlank()) {
+            java.time.LocalDate.parse(date)
+                .atStartOfDay(java.time.ZoneId.systemDefault())
+                .toInstant().toEpochMilli()
+        } else {
+            val t = if (time.length == 5) "$time:00" else time
+            java.time.LocalDateTime.parse("${date}T$t")
+                .atZone(java.time.ZoneId.systemDefault())
+                .toInstant().toEpochMilli()
+        }
+    } catch (_: Exception) { System.currentTimeMillis() }
+
+    private fun msToCalDate(ms: Long): String =
+        java.time.Instant.ofEpochMilli(ms)
+            .atZone(java.time.ZoneId.systemDefault())
+            .toLocalDate().toString()
+
+    private fun msToCalTime(ms: Long, allDay: Boolean): String {
+        if (allDay) return ""
+        val lt = java.time.Instant.ofEpochMilli(ms)
+            .atZone(java.time.ZoneId.systemDefault()).toLocalTime()
+        return "%02d:%02d".format(lt.hour, lt.minute)
+    }
+
+    private fun WsCalEvent.toCalendarEvent(): CalendarEvent {
+        val startMs = calDateTimeToMs(date, time)
+        return CalendarEvent(
+            id          = id.ifBlank { startMs.toString() },
+            title       = title,
+            start       = startMs,
+            end         = startMs + 3_600_000L,
+            location    = location,
+            description = description,
+            icsSource   = "",
+            allDay      = time.isBlank(),
+        )
+    }
+
+    private suspend fun pushCalendarEvents() {
+        val events = db.calendarDao().getManualEvents().first()
+        if (events.isEmpty()) return
+        val wsEvents = events.map { e ->
+            WsCalEvent(
+                id          = e.id,
+                title       = e.title,
+                date        = msToCalDate(e.start),
+                time        = msToCalTime(e.start, e.allDay),
+                location    = e.location,
+                description = e.description,
+                category    = "",
+            )
+        }
+        supabase.setFieldState("ls:homer-cal-events",
+            json.encodeToString(ListSerializer(WsCalEvent.serializer()), wsEvents))
+    }
+
+    private suspend fun pullCalendarEvents() {
+        supabase.getFieldState("ls:homer-cal-events")?.let { row ->
+            if (row.value.isBlank()) return@let
+            val wsEvents = json.decodeFromString(ListSerializer(WsCalEvent.serializer()), row.value)
+            val cloudEvents = wsEvents.filter { it.id.isNotBlank() && it.date.isNotBlank() }
+                .map { it.toCalendarEvent() }
+            if (cloudEvents.isNotEmpty()) db.calendarDao().upsertAll(cloudEvents)
+        }
+    }
+
     // ── Conflict detection ────────────────────────────────────────────────────
 
     /**
@@ -722,10 +944,10 @@ class SyncEngine @Inject constructor(
         }
 
         runCatching {
-            val local = db.expenseDao().getAll().first().size
+            val local = db.expenseDao().getAll().first().count { it.type != "income" }
             val cloud = supabase.getFieldState("ls:homer-expenses")?.let { row ->
                 if (row.value.isBlank()) return@let 0
-                json.decodeFromString(ListSerializer(Expense.serializer()), row.value).size
+                json.decodeFromString(ListSerializer(WsExpense.serializer()), row.value).size
             } ?: 0
             add("ls:homer-expenses", "Expenses", "💰", local, cloud)
         }
@@ -800,6 +1022,15 @@ class SyncEngine @Inject constructor(
                 json.decodeFromString(CarBlob.serializer(), row.value).vehicles.size
             } ?: 0
             add("ls:homer-car", "Car Data", "🚗", local, cloud)
+        }
+
+        runCatching {
+            val local = db.calendarDao().getManualEvents().first().size
+            val cloud = supabase.getFieldState("ls:homer-cal-events")?.let { row ->
+                if (row.value.isBlank()) return@let 0
+                json.decodeFromString(ListSerializer(WsCalEvent.serializer()), row.value).size
+            } ?: 0
+            add("ls:homer-cal-events", "Calendar Events", "📅", local, cloud)
         }
 
         return result
@@ -901,6 +1132,20 @@ class SyncEngine @Inject constructor(
                 pullFn  = ::pullLifeGoals,
                 pushFn  = ::pushLifeGoals)
         }.onFailure { Log.e("HomerSync", "life-goals resolution failed", it) }
+
+        runCatching {
+            apply("ls:homer-expense-goals",
+                clearFn = { db.appSettingDao().set(AppSetting("homer-expense-goals", "[]")) },
+                pullFn  = ::pullExpenseGoals,
+                pushFn  = ::pushExpenseGoals)
+        }.onFailure { Log.e("HomerSync", "expense-goals resolution failed", it) }
+
+        runCatching {
+            apply("ls:homer-cal-events",
+                clearFn = { db.calendarDao().clearManualEvents() },
+                pullFn  = ::pullCalendarEvents,
+                pushFn  = ::pushCalendarEvents)
+        }.onFailure { Log.e("HomerSync", "cal-events resolution failed", it) }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
