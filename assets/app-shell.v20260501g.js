@@ -3800,6 +3800,16 @@ let tvWidgetCreated = false;
   }
   function persistProjectMutation(data, reason, mode){
     return saveVaultForMode(mode || currentVaultMode, data).then(function(){
+      // Mirror plaintext Kanban + life-goals to Supabase field_state for Android sync.
+      // Vault stays encrypted (primary); this is a read-only shadow for mobile clients.
+      try {
+        var kanbanBlob = JSON.stringify({ projects: data.projects || [], goals: data.goals || [] });
+        queueLsFieldOp('homer-kanban', kanbanBlob);
+      } catch(e) {}
+      try {
+        if(Array.isArray(data.lifeGoals) && data.lifeGoals.length > 0)
+          queueLsFieldOp('homer-life-goals', JSON.stringify(data.lifeGoals));
+      } catch(e) {}
       var backupTask = typeof window._homerBackupEverythingToDb === 'function'
         ? window._homerBackupEverythingToDb()
         : flushDbBackupNow(reason || 'project-mutation');
@@ -9124,7 +9134,9 @@ let tvWidgetCreated = false;
     'homer-sessions':           'ls:homer-sessions',
     'homer-weekly-reviews':     'ls:homer-weekly-reviews',
     'homer-car':                'ls:homer-car',
-    'homer-journal':            'ls:homer-journal'
+    'homer-journal':            'ls:homer-journal',
+    'homer-kanban':             'ls:homer-kanban',
+    'homer-life-goals':         'ls:homer-life-goals'
   };
   var LS_FIELD_MAP_REVERSE = {};
   Object.keys(LS_FIELD_MAP).forEach(function(k){ LS_FIELD_MAP_REVERSE[LS_FIELD_MAP[k]] = k; });
