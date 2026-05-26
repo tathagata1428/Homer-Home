@@ -43,6 +43,7 @@ sealed class SyncPhase {
 
 data class SyncState(
     val isBogdan: Boolean = false,
+    val userId: String? = null,
     val phase: SyncPhase = SyncPhase.Idle,
     val pendingResolutions: Map<String, SyncResolution> = emptyMap(),
     val lastSyncAt: String? = null,
@@ -64,6 +65,7 @@ class SyncViewModel @Inject constructor(
     private val _state = MutableStateFlow(
         SyncState(
             isBogdan  = supabase.isBogdan(),
+            userId    = supabase.userId,
             backups   = backupManager.listBackups(),
             syncScope = loadSyncScope(),
         )
@@ -73,7 +75,10 @@ class SyncViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             supabase.sessionStatus.collect { status ->
-                _state.update { it.copy(isBogdan = status is SessionStatus.Authenticated && supabase.isBogdan()) }
+                _state.update { it.copy(
+                    isBogdan = status is SessionStatus.Authenticated && supabase.isBogdan(),
+                    userId   = supabase.userId,
+                ) }
             }
         }
     }

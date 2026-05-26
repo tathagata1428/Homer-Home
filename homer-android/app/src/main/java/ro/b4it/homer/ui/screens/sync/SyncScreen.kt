@@ -88,6 +88,11 @@ fun SyncScreen(vm: SyncViewModel = hiltViewModel()) {
                             color      = TextPrimary,
                         )
                         Text(
+                            state.userId?.let { "uid: ${it.take(8)}…" } ?: "uid: null — not signed in!",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (state.userId != null) TextMuted else NeonPink,
+                        )
+                        Text(
                             state.lastSyncAt?.let { "Last sync: $it" } ?: "Not synced yet",
                             style = MaterialTheme.typography.labelSmall,
                             color = TextMuted,

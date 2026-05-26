@@ -971,6 +971,9 @@ class SyncEngine @Inject constructor(
      */
     suspend fun detectConflicts(): List<ConflictInfo> {
         supabase.ensureSignedIn()
+        val uid = supabase.userId
+            ?: throw Exception("Not authenticated with Supabase — sign-in failed or credentials missing")
+        Log.d("HomerSync", "detectConflicts: uid=$uid isBogdan=${supabase.isBogdan()}")
         if (!supabase.isBogdan()) return emptyList()
         val result = mutableListOf<ConflictInfo>()
 
@@ -1100,7 +1103,9 @@ class SyncEngine @Inject constructor(
      */
     suspend fun pullWithResolutions(resolutions: Map<String, SyncResolution>) {
         supabase.ensureSignedIn()
-        if (!supabase.isBogdan()) return
+        val uid = supabase.userId
+            ?: throw Exception("Not authenticated with Supabase — sign-in failed or credentials missing")
+        if (!supabase.isBogdan()) throw Exception("Signed in as non-Bogdan user (id=$uid)")
 
         suspend fun apply(
             key: String,
