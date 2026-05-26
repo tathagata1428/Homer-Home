@@ -51,8 +51,11 @@ class AccountViewModel @Inject constructor(
             if (username.equals("bogdan", ignoreCase = true) && pw == "qaz123pl.") {
                 prefs.setAuthUser("bogdan")
                 supabase.setCachedAuthUser("bogdan")
+                // Also establish the real Supabase session (uses BuildConfig credentials).
+                // This triggers SessionStatus.Authenticated so SyncViewModel updates.
+                runCatching { supabase.ensureSignedIn() }
                 sync.start()
-                _state.update { it.copy(loading = false, isBogdan = true) }
+                _state.update { it.copy(loading = false, isBogdan = supabase.isBogdan()) }
             } else {
                 _state.update { it.copy(loading = false, error = "Invalid username or password") }
             }

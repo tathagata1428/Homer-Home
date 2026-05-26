@@ -7,10 +7,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import ro.b4it.homer.data.supabase.SupabaseManager
@@ -74,12 +74,13 @@ class SyncViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            supabase.sessionStatus.collect { status ->
-                _state.update { it.copy(
-                    isBogdan = status is SessionStatus.Authenticated && supabase.isBogdan(),
-                    userId   = supabase.userId,
-                ) }
-            }
+            combine(supabase.sessionStatus, supabase.cachedAuthUserFlow) { _, _ -> Unit }
+                .collect {
+                    _state.update { it.copy(
+                        isBogdan = supabase.isBogdan(),
+                        userId   = supabase.userId,
+                    ) }
+                }
         }
     }
 

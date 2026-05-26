@@ -5,6 +5,9 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ro.b4it.homer.data.preferences.AppPreferences
@@ -30,7 +33,12 @@ class SupabaseManager @Inject constructor(
                cachedAuthUser?.equals("bogdan", ignoreCase = true) == true
     }
 
-    private var cachedAuthUser: String? = null
+    private val _cachedAuthUser = MutableStateFlow<String?>(null)
+    val cachedAuthUserFlow: StateFlow<String?> = _cachedAuthUser.asStateFlow()
+
+    private var cachedAuthUser: String?
+        get() = _cachedAuthUser.value
+        set(value) { _cachedAuthUser.value = value }
 
     fun setCachedAuthUser(user: String?) { cachedAuthUser = user }
 
