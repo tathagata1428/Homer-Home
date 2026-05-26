@@ -185,3 +185,9 @@ dependencies {
     // Chrome Custom Tabs
     implementation(libs.browser)
 }
+
+// AGP 8.x removed the unitTestClasses task that Android Studio still requests.
+// Provide a shim so the IDE doesn't error out on project sync / test runs.
+tasks.register("unitTestClasses") {
+    dependsOn("compileDebugUnitTestKotlin")
+}
