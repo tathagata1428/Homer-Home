@@ -5,7 +5,7 @@
  * GET  /api/auth?action=user
  */
 import { createUserClient, createAdminClient, isSupabaseClientConfigured, verifySupabaseJwt, isSupabaseConfigured, resolveSupabaseOwnerId } from '../../lib/supabase-server.js';
-import { isReservedSyncHash, createRedisFetch, safeJsonParse } from '../../lib/joey-server.js';
+import { isReservedSyncHash } from '../../lib/joey-server.js';
 import crypto from 'crypto';
 
 const CORS = {
@@ -130,19 +130,12 @@ export async function onRequest(context) {
         return Response.json({ error: 'Supabase not configured' }, { status: 503, headers: CORS });
       }
 
-      // Validate Homer credentials (same hash logic as admin.js verify)
-      const redisFetch = createRedisFetch(env);
-      if (!redisFetch) {
-        return Response.json({ error: 'Storage unavailable' }, { status: 503, headers: CORS });
-      }
-      const usersRaw = await redisFetch(['GET', 'homer:users']);
-      const users = safeJsonParse(usersRaw && usersRaw.result, []);
+      // Validate Homer credentials via HOMER_ADMIN_HASH (no Redis dependency)
+      const adminHash = String(env.HOMER_ADMIN_HASH || '').trim();
       const passHash = crypto.createHash('sha256')
         .update(username.toLowerCase().trim() + ':' + password)
         .digest('hex');
-      const homerUser = users.find(u => u && u.username &&
-        u.username.toLowerCase() === username.toLowerCase());
-      if (!homerUser || homerUser.passwordHash !== passHash) {
+      if (!adminHash || (passHash !== adminHash && !isReservedSyncHash(passHash))) {
         return Response.json({ error: 'Invalid credentials' }, { status: 401, headers: CORS });
       }
 
