@@ -4,8 +4,9 @@
  * POST /api/auth
  * GET  /api/auth?action=user
  */
-import { createUserClient, isSupabaseClientConfigured, verifySupabaseJwt } from '../../lib/supabase-server.js';
-import { isReservedSyncHash } from '../../lib/joey-server.js';
+import { createUserClient, isSupabaseClientConfigured, verifySupabaseJwt, isSupabaseConfigured } from '../../lib/supabase-server.js';
+import { isReservedSyncHash, createRedisFetch, safeJsonParse } from '../../lib/joey-server.js';
+import crypto from 'node:crypto';
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -117,6 +118,51 @@ export async function onRequest(context) {
         return Response.json({ ok: true }, { status: 200, headers: CORS });
       }
       return Response.json({ error: 'Invalid credentials' }, { status: 401, headers: CORS });
+    }
+
+    // ── exchangeToken — Homer credentials → Supabase JWT (for Android) ──────
+    if (action === 'exchangeToken') {
+      const { username, password } = body;
+      if (!username || !password) {
+        return Response.json({ error: 'Missing credentials' }, { status: 400, headers: CORS });
+      }
+      if (!isSupabaseConfigured()) {
+        return Response.json({ error: 'Supabase not configured' }, { status: 503, headers: CORS });
+      }
+
+      // Validate Homer credentials (same hash logic as admin.js verify)
+      const redisFetch = createRedisFetch(env);
+      if (!redisFetch) {
+        return Response.json({ error: 'Storage unavailable' }, { status: 503, headers: CORS });
+      }
+      const usersRaw = await redisFetch(['GET', 'homer:users']);
+      const users = safeJsonParse(usersRaw && usersRaw.result, []);
+      const passHash = crypto.createHash('sha256')
+        .update(username.toLowerCase().trim() + ':' + password)
+        .digest('hex');
+      const homerUser = users.find(u => u && u.username &&
+        u.username.toLowerCase() === username.toLowerCase());
+      if (!homerUser || homerUser.passwordHash !== passHash) {
+        return Response.json({ error: 'Invalid credentials' }, { status: 401, headers: CORS });
+      }
+
+      // Exchange for a Supabase session using the server-side sync password
+      const syncEmail = String(env.SUPABASE_SYNC_EMAIL || 'bogdan.radu@b4it.ro').trim();
+      const syncPass  = String(env.SUPABASE_SYNC_PASSWORD || '').trim();
+      if (!syncPass) {
+        return Response.json({ error: 'SUPABASE_SYNC_PASSWORD not configured' }, { status: 503, headers: CORS });
+      }
+      const client = createUserClient();
+      const { data, error } = await client.auth.signInWithPassword({ email: syncEmail, password: syncPass });
+      if (error) return Response.json({ error: error.message }, { status: 401, headers: CORS });
+
+      return Response.json({
+        ok: true,
+        access_token:  data.session.access_token,
+        refresh_token: data.session.refresh_token,
+        expires_in:    data.session.expires_in,
+        user_id:       data.user.id,
+      }, { status: 200, headers: CORS });
     }
 
     return Response.json({ error: 'Unknown action' }, { status: 400, headers: CORS });

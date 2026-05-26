@@ -3,8 +3,15 @@ package ro.b4it.homer.ui.screens.account
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 import ro.b4it.homer.data.preferences.AppPreferences
 import ro.b4it.homer.data.supabase.SupabaseManager
 import ro.b4it.homer.data.sync.SyncEngine
@@ -25,7 +32,8 @@ class AccountViewModel @Inject constructor(
     private val prefs: AppPreferences,
     private val supabase: SupabaseManager,
     private val sync: SyncEngine,
-    @javax.inject.Named("syncEmail") private val syncEmail: String,
+    private val http: OkHttpClient,
+    @javax.inject.Named("homerBaseUrl") private val homerBaseUrl: String,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AccountState())
@@ -48,22 +56,39 @@ class AccountViewModel @Inject constructor(
         if (username.isBlank() || pw.isBlank()) return
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
-            if (username.equals("bogdan", ignoreCase = true) && syncEmail.isNotBlank()) {
-                try {
-                    // Authenticate directly with Supabase — same credentials as the website.
-                    supabase.signIn(syncEmail, pw)
-                    prefs.setAuthUser("bogdan")
-                    supabase.setCachedAuthUser("bogdan")
-                    sync.start()
-                    _state.update { it.copy(loading = false, isBogdan = supabase.isBogdan()) }
-                } catch (e: Exception) {
-                    _state.update { it.copy(loading = false, error = e.message ?: "Sign-in failed") }
-                }
-            } else {
-                _state.update { it.copy(loading = false, error = "Invalid username or password") }
+            try {
+                val session = exchangeToken(username, pw)
+                supabase.importSession(session.accessToken, session.refreshToken, session.expiresIn)
+                prefs.setAuthUser("bogdan")
+                supabase.setCachedAuthUser("bogdan")
+                sync.start()
+                _state.update { it.copy(loading = false, isBogdan = supabase.isBogdan()) }
+            } catch (e: Exception) {
+                _state.update { it.copy(loading = false, error = e.message ?: "Sign-in failed") }
             }
         }
     }
+
+    private data class TokenResponse(val accessToken: String, val refreshToken: String, val expiresIn: Long)
+
+    private suspend fun exchangeToken(username: String, password: String): TokenResponse =
+        withContext(Dispatchers.IO) {
+            val body = """{"action":"exchangeToken","username":"$username","password":"${password.replace("\"", "\\\"")}"}"""
+            val request = Request.Builder()
+                .url("$homerBaseUrl/api/auth")
+                .post(body.toRequestBody("application/json".toMediaType()))
+                .build()
+            val response = http.newCall(request).execute()
+            val json = JSONObject(response.body?.string() ?: throw Exception("Empty response"))
+            if (!response.isSuccessful || json.optBoolean("ok") == false) {
+                throw Exception(json.optString("error", "Authentication failed"))
+            }
+            TokenResponse(
+                accessToken  = json.getString("access_token"),
+                refreshToken = json.getString("refresh_token"),
+                expiresIn    = json.getLong("expires_in"),
+            )
+        }
 
     fun signOut() {
         viewModelScope.launch {

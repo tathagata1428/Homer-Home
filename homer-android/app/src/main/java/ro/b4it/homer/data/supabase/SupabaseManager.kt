@@ -68,6 +68,19 @@ class SupabaseManager @Inject constructor(
         }
     }
 
+    /** Import an externally-obtained session (access + refresh tokens) into the Supabase client. */
+    suspend fun importSession(accessToken: String, refreshToken: String, expiresIn: Long) {
+        client.auth.importSession(
+            io.github.jan.supabase.auth.user.UserSession(
+                accessToken  = accessToken,
+                tokenType    = "bearer",
+                expiresIn    = expiresIn,
+                refreshToken = refreshToken,
+                user         = null,
+            )
+        )
+    }
+
     /** Sign out from Supabase. */
     suspend fun signOut() {
         try { client.auth.signOut() } catch (_: Exception) { }

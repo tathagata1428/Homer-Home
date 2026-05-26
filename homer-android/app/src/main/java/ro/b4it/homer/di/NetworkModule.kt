@@ -20,8 +20,9 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    @Provides @Named("syncEmail") fun provideSyncEmail(): String = BuildConfig.SUPABASE_SYNC_EMAIL
-    @Provides @Named("syncPass")  fun provideSyncPass():  String = BuildConfig.SUPABASE_SYNC_PASSWORD
+    @Provides @Named("syncEmail")    fun provideSyncEmail():    String = BuildConfig.SUPABASE_SYNC_EMAIL
+    @Provides @Named("syncPass")     fun provideSyncPass():     String = BuildConfig.SUPABASE_SYNC_PASSWORD
+    @Provides @Named("homerBaseUrl") fun provideHomerBaseUrl(): String = BuildConfig.HOMER_BASE_URL
 
     @Provides @Singleton
     fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
