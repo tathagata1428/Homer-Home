@@ -1712,11 +1712,22 @@
   window.__supabase = client;
 
   // ── Restore existing session ──────────────────────────────
+  var SB_AUTO_EMAIL = 'bogdan.radu@b4it.ro';
+  var SB_AUTO_PASS  = atob('cWF6MTIzcGwu'); // qaz123pl.
   client.auth.getSession().then(function (result) {
     var session = result && result.data && result.data.session;
     if (session) {
       window.__sbSession = session;
       window.dispatchEvent(new CustomEvent('supabase:session', { detail: session }));
+    } else if (localStorage.getItem('homer-auth-user') === 'bogdan') {
+      // No valid session but user is bogdan — auto re-sign-in silently
+      client.auth.signInWithPassword({ email: SB_AUTO_EMAIL, password: SB_AUTO_PASS })
+        .then(function(r) {
+          if (r.data && r.data.session) {
+            window.__sbSession = r.data.session;
+            window.dispatchEvent(new CustomEvent('supabase:session', { detail: r.data.session }));
+          }
+        }).catch(function(){});
     }
   });
 

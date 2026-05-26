@@ -11058,7 +11058,23 @@ let tvWidgetCreated = false;
   if(restoreDbBtn){
     restoreDbBtn.addEventListener('click', function(){
       var p = getActiveSyncPass();
-      if(!p && !getSyncJwt()){ st('Shared restore is available only for Bogdan after unlocking the vault.'); return; }
+      var jwt = getSyncJwt();
+      if(!p && !jwt){ st('Shared restore is available only for Bogdan after unlocking the vault.'); return; }
+      // Supabase mode: pull all field_state records directly (no Redis needed)
+      if(jwt){
+        st('Pulling all data from Supabase...');
+        hydrateFieldSyncState(true).then(function(result){
+          if(result && result.ok === false){
+            st('Supabase pull failed: ' + (result.error || 'unknown error'));
+          } else {
+            st('Data restored from Supabase. Reloading...');
+            setTimeout(function(){ location.reload(); }, 1000);
+          }
+        }).catch(function(err){
+          st('Supabase restore failed: ' + (err && err.message ? err.message : String(err)));
+        });
+        return;
+      }
       st('Recovering full vault from server mirror...');
       restoreDbMirror(p).then(function(result){
         st('Recovered full vault from server mirror (' + (result.applied + result.cleared) + ' changes). Reloading...');

@@ -15,6 +15,7 @@ import ro.b4it.homer.data.local.entity.CarDocument
 import ro.b4it.homer.data.local.entity.CarFuelLog
 import ro.b4it.homer.data.local.entity.CarMaintenance
 import ro.b4it.homer.data.local.entity.CarVehicle
+import ro.b4it.homer.data.sync.SyncEngine
 import ro.b4it.homer.notification.ReminderManager
 import java.io.File
 import java.time.LocalDate
@@ -26,6 +27,7 @@ class CarViewModel @Inject constructor(
     @ApplicationContext private val ctx: Context,
     private val dao: CarDao,
     private val reminderManager: ReminderManager,
+    private val sync: SyncEngine,
 ) : ViewModel() {
 
     val vehicles: StateFlow<List<CarVehicle>> = dao.getVehicles()
@@ -84,11 +86,12 @@ class CarViewModel @Inject constructor(
                     notes = notes,
                 )
             )
+            sync.pushCarDebounced()
         }
     }
 
     fun deleteVehicle(vehicle: CarVehicle) {
-        viewModelScope.launch { dao.deleteVehicle(vehicle) }
+        viewModelScope.launch { dao.deleteVehicle(vehicle); sync.pushCarDebounced() }
     }
 
     fun saveDocument(
@@ -114,6 +117,7 @@ class CarViewModel @Inject constructor(
             )
             dao.upsertDocument(doc)
             reminderManager.scheduleCarDocument(doc)
+            sync.pushCarDebounced()
         }
     }
 
@@ -138,6 +142,7 @@ class CarViewModel @Inject constructor(
             doc.fileData?.let { path -> if (path.startsWith("/")) File(path).delete() }
             dao.deleteDocument(doc)
             reminderManager.cancelCarDocument(doc.id)
+            sync.pushCarDebounced()
         }
     }
 
@@ -155,11 +160,12 @@ class CarViewModel @Inject constructor(
                     nextOdoKm = nextOdoKm, cost = cost, workshop = workshop, notes = notes,
                 )
             )
+            sync.pushCarDebounced()
         }
     }
 
     fun deleteMaintenance(record: CarMaintenance) {
-        viewModelScope.launch { dao.deleteMaintenance(record) }
+        viewModelScope.launch { dao.deleteMaintenance(record); sync.pushCarDebounced() }
     }
 
     fun saveFuelLog(
@@ -176,11 +182,12 @@ class CarViewModel @Inject constructor(
                     station = station, fullTank = fullTank, notes = notes,
                 )
             )
+            sync.pushCarDebounced()
         }
     }
 
     fun deleteFuelLog(entry: CarFuelLog) {
-        viewModelScope.launch { dao.deleteFuelLog(entry) }
+        viewModelScope.launch { dao.deleteFuelLog(entry); sync.pushCarDebounced() }
     }
 
     /** Days remaining until expiry. Negative = already expired. */
