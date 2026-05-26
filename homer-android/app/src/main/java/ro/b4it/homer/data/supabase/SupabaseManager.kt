@@ -68,25 +68,13 @@ class SupabaseManager @Inject constructor(
         }
     }
 
-    /** Import an externally-obtained session (access + refresh tokens) into the Supabase client.
-     *  If the SDK leaves user = null after import (which breaks userId / isBogdan),
-     *  fall back to a direct email+password sign-in using the stored credentials.
+    /** Sign in using the credentials stored in BuildConfig (local.properties).
+     *  Called after exchangeToken validates the Homer credentials server-side.
+     *  No-op in local-only (Play Store) builds where credentials are blank.
      */
-    suspend fun importSession(accessToken: String, refreshToken: String, expiresIn: Long) {
-        client.auth.importSession(
-            io.github.jan.supabase.auth.user.UserSession(
-                accessToken  = accessToken,
-                tokenType    = "bearer",
-                expiresIn    = expiresIn,
-                refreshToken = refreshToken,
-                user         = null,
-            )
-        )
-        // If the imported session has no user object, userId stays null and all syncs fail.
-        // Re-authenticate with email+password so userId is properly set.
-        if (userId == null && syncEmail.isNotBlank() && syncPass.isNotBlank()) {
-            runCatching { signIn(syncEmail, syncPass) }
-        }
+    suspend fun signInWithStoredCredentials() {
+        if (syncEmail.isBlank() || syncPass.isBlank()) return
+        signIn(syncEmail, syncPass)
     }
 
     /** Sign out from Supabase. */

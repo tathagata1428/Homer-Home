@@ -57,8 +57,8 @@ class AccountViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
             try {
-                val session = exchangeToken(username, pw)
-                supabase.importSession(session.accessToken, session.refreshToken, session.expiresIn)
+                exchangeToken(username, pw)              // validates Homer creds + sets Supabase password
+                supabase.signInWithStoredCredentials()   // direct sign-in so userId is always set
                 prefs.setAuthUser("bogdan")
                 supabase.setCachedAuthUser("bogdan")
                 sync.start()
