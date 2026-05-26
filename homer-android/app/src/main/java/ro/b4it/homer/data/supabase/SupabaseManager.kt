@@ -68,7 +68,10 @@ class SupabaseManager @Inject constructor(
         }
     }
 
-    /** Import an externally-obtained session (access + refresh tokens) into the Supabase client. */
+    /** Import an externally-obtained session (access + refresh tokens) into the Supabase client.
+     *  If the SDK leaves user = null after import (which breaks userId / isBogdan),
+     *  fall back to a direct email+password sign-in using the stored credentials.
+     */
     suspend fun importSession(accessToken: String, refreshToken: String, expiresIn: Long) {
         client.auth.importSession(
             io.github.jan.supabase.auth.user.UserSession(
@@ -79,6 +82,11 @@ class SupabaseManager @Inject constructor(
                 user         = null,
             )
         )
+        // If the imported session has no user object, userId stays null and all syncs fail.
+        // Re-authenticate with email+password so userId is properly set.
+        if (userId == null && syncEmail.isNotBlank() && syncPass.isNotBlank()) {
+            runCatching { signIn(syncEmail, syncPass) }
+        }
     }
 
     /** Sign out from Supabase. */
