@@ -73,8 +73,10 @@ class HomerApplication : Application(), Configuration.Provider {
             supabase.sessionStatus.collect { status ->
                 when (status) {
                     is SessionStatus.Authenticated -> {
-                        val email = status.session.user?.email
-                        val username = email?.substringBefore("@")
+                        // Preserve the username set by AccountViewModel (e.g. "bogdan").
+                        // Deriving from email would give "bogdan.radu" which breaks vault unlock.
+                        val existingUser = prefs.authUser.first()
+                        val username = existingUser ?: "bogdan"
                         supabase.setCachedAuthUser(username)
                         prefs.setAuthUser(username)
                         syncEngine.start()

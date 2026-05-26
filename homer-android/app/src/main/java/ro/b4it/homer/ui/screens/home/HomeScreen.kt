@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,7 +37,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     val now              by vm.now.collectAsStateWithLifecycle()
@@ -47,6 +48,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     val savedQuotes      by vm.savedQuotes.collectAsStateWithLifecycle(emptyList())
     val countdown        by vm.countdown.collectAsStateWithLifecycle()
     val cdVisible        by vm.cdVisible.collectAsStateWithLifecycle()
+    val isRefreshing     by vm.isRefreshing.collectAsStateWithLifecycle()
 
     val locationPerm = rememberPermissionState(Manifest.permission.ACCESS_COARSE_LOCATION)
     LaunchedEffect(Unit) {
@@ -60,6 +62,11 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
         else          -> "Good Evening"
     }
 
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh    = vm::pullAll,
+        modifier     = Modifier.fillMaxSize(),
+    ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(BgPrimary),
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
@@ -124,6 +131,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
             }
         }
     }
+    } // PullToRefreshBox
 }
 
 // ---- Hero Banner ----

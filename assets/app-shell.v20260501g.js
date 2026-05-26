@@ -8436,7 +8436,7 @@ let tvWidgetCreated = false;
     if(typeof window.supabaseSignIn === 'function'){
       return tryHashFallback().then(function(localPayload){
         // Local password OK — now establish Supabase session with Supabase credentials (separate from local password)
-        return window.supabaseSignIn(email, atob('X2RlYzBkM0QuZG9j')).then(function(result){
+        return window.supabaseSignIn(email, atob('cWF6MTIzcGwu')).then(function(result){
           var payload = Object.assign({}, localPayload, {
             session: result && result.session ? result.session : null,
             userData: result && result.user ? result.user : null
