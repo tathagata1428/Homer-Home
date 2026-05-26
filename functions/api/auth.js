@@ -6,7 +6,7 @@
  */
 import { createUserClient, isSupabaseClientConfigured, verifySupabaseJwt, isSupabaseConfigured } from '../../lib/supabase-server.js';
 import { isReservedSyncHash, createRedisFetch, safeJsonParse } from '../../lib/joey-server.js';
-import crypto from 'node:crypto';
+import crypto from 'crypto';
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
