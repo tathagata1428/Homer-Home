@@ -19,6 +19,8 @@ class SupabaseManager @Inject constructor(
     @Named("syncEmail") private val syncEmail: String,
     @Named("syncPass")  private val syncPass:  String,
 ) {
+    /** Monotonic client-seq counter — ensures stale-reject logic works correctly. */
+    private val clientSeq = java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis())
 
     /** True when the signed-in user is "bogdan" — only then do we enable Supabase sync. */
     fun isBogdan(): Boolean {
@@ -110,7 +112,7 @@ class SupabaseManager @Inject constructor(
                         kind      = "json",
                         value     = data,
                         clientTs  = ts,
-                        clientSeq = 0L,
+                        clientSeq = clientSeq.getAndIncrement(),
                         deleted   = false,
                         deviceId  = "android",
                         updatedAt = java.time.Instant.ofEpochMilli(ts)

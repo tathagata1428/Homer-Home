@@ -9,6 +9,10 @@ interface QuoteDao {
     @Query("SELECT * FROM saved_quotes ORDER BY savedAt DESC")
     fun getAll(): Flow<List<SavedQuote>>
 
+    /** All savedAt timestamps — used for dedup when pulling from cloud. */
+    @Query("SELECT savedAt FROM saved_quotes")
+    suspend fun getAllSavedAt(): List<Long>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(quote: SavedQuote)
 

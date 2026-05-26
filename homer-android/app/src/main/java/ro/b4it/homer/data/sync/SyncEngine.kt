@@ -67,6 +67,15 @@ class SyncEngine @Inject constructor(
         if (isFieldEnabled("ls:homer-zen-goal"))      runCatching { pullZenGoal()       }.onFailure { Log.e("HomerSync", "pullZenGoal failed", it) }
         if (isFieldEnabled("ls:homer-expense-goals")) runCatching { pullExpenseGoals()  }.onFailure { Log.e("HomerSync", "pullExpenseGoals failed", it) }
         if (isFieldEnabled("ls:homer-cal-events"))    runCatching { pullCalendarEvents()}.onFailure { Log.e("HomerSync", "pullCalendarEvents failed", it) }
+        if (isFieldEnabled("ls:savedQuotes"))              runCatching { pullSavedQuotes()     }.onFailure { Log.e("HomerSync", "pullSavedQuotes failed", it) }
+        if (isFieldEnabled("ls:homer-sessions"))           runCatching { pullSessions()        }.onFailure { Log.e("HomerSync", "pullSessions failed", it) }
+        if (isFieldEnabled("ls:pom-settings"))             runCatching { pullPomSettings()     }.onFailure { Log.e("HomerSync", "pullPomSettings failed", it) }
+        if (isFieldEnabled("ls:homer-expense-templates"))  runCatching { pullExpenseTemplates()}.onFailure { Log.e("HomerSync", "pullExpenseTemplates failed", it) }
+        if (isFieldEnabled("ls:homer-expense-cats"))       runCatching { pullExpenseCats()     }.onFailure { Log.e("HomerSync", "pullExpenseCats failed", it) }
+        if (isFieldEnabled("ls:homer-payday-day"))         runCatching { pullPaydayDay()       }.onFailure { Log.e("HomerSync", "pullPaydayDay failed", it) }
+        if (isFieldEnabled("ls:homer-recurring"))          runCatching { pullRecurring()       }.onFailure { Log.e("HomerSync", "pullRecurring failed", it) }
+        if (isFieldEnabled("ls:homer-weekly-reviews"))     runCatching { pullWeeklyReviews()   }.onFailure { Log.e("HomerSync", "pullWeeklyReviews failed", it) }
+        if (isFieldEnabled("ls:homer-countdown"))           runCatching { pullCountdown()        }.onFailure { Log.e("HomerSync", "pullCountdown failed", it) }
         Log.d("HomerSync", "pullAll: done")
     }
 
@@ -100,12 +109,21 @@ class SyncEngine @Inject constructor(
     fun pushNotesDebounced()         = schedulePush("ls:homer-notes")      { pushNotes() }
     fun pushJournalDebounced()       = schedulePush("ls:homer-journal")    { pushJournal() }
     fun pushCarDebounced()           = schedulePush("ls:homer-car")        { pushCar() }
-    fun pushKanbanDebounced()        = schedulePush("ls:homer-kanban")          { pushKanban() }
-    fun pushLifeGoalsDebounced()     = schedulePush("ls:homer-life-goals")      { pushLifeGoals() }
-    fun pushBrainDumpDebounced()     = schedulePush("ls:homer-brain-dump")      { pushBrainDump() }
-    fun pushZenGoalDebounced()       = schedulePush("ls:homer-zen-goal")        { pushZenGoal() }
-    fun pushExpenseGoalsDebounced()  = schedulePush("ls:homer-expense-goals")   { pushExpenseGoals() }
-    fun pushCalendarEventsDebounced()= schedulePush("ls:homer-cal-events")      { pushCalendarEvents() }
+    fun pushKanbanDebounced()            = schedulePush("ls:homer-kanban")              { pushKanban() }
+    fun pushLifeGoalsDebounced()         = schedulePush("ls:homer-life-goals")          { pushLifeGoals() }
+    fun pushBrainDumpDebounced()         = schedulePush("ls:homer-brain-dump")          { pushBrainDump() }
+    fun pushZenGoalDebounced()           = schedulePush("ls:homer-zen-goal")            { pushZenGoal() }
+    fun pushExpenseGoalsDebounced()      = schedulePush("ls:homer-expense-goals")       { pushExpenseGoals() }
+    fun pushCalendarEventsDebounced()    = schedulePush("ls:homer-cal-events")          { pushCalendarEvents() }
+    fun pushSavedQuotesDebounced()       = schedulePush("ls:savedQuotes")               { pushSavedQuotes() }
+    fun pushSessionsDebounced()          = schedulePush("ls:homer-sessions")            { pushSessions() }
+    fun pushPomSettingsDebounced()       = schedulePush("ls:pom-settings")              { pushPomSettings() }
+    fun pushExpenseTemplatesDebounced()  = schedulePush("ls:homer-expense-templates")   { pushExpenseTemplates() }
+    fun pushExpenseCatsDebounced()       = schedulePush("ls:homer-expense-cats")        { pushExpenseCats() }
+    fun pushPaydayDayDebounced()         = schedulePush("ls:homer-payday-day")          { pushPaydayDay() }
+    fun pushRecurringDebounced()         = schedulePush("ls:homer-recurring")           { pushRecurring() }
+    fun pushWeeklyReviewsDebounced()     = schedulePush("ls:homer-weekly-reviews")      { pushWeeklyReviews() }
+    fun pushCountdownDebounced()         = schedulePush("ls:homer-countdown")            { pushCountdown() }
 
     /** Push all data to Supabase immediately (no debounce). Throws on auth failure. */
     suspend fun pushAll() {
@@ -125,6 +143,15 @@ class SyncEngine @Inject constructor(
         runCatching { pushZenGoal() }
         runCatching { pushExpenseGoals() }
         runCatching { pushCalendarEvents() }
+        runCatching { pushSavedQuotes() }
+        runCatching { pushSessions() }
+        runCatching { pushPomSettings() }
+        runCatching { pushExpenseTemplates() }
+        runCatching { pushExpenseCats() }
+        runCatching { pushPaydayDay() }
+        runCatching { pushRecurring() }
+        runCatching { pushWeeklyReviews() }
+        runCatching { pushCountdown() }
     }
 
     /** Push Pomodoro tasks immediately — called on delete so Supabase is updated before any pull. */
@@ -939,8 +966,10 @@ class SyncEngine @Inject constructor(
         if (!supabase.isBogdan()) return emptyList()
         val result = mutableListOf<ConflictInfo>()
 
+        // Only flag a conflict when BOTH sides have data and counts differ.
+        // If local == 0 (fresh install / empty db), just pull automatically — no dialog needed.
         fun add(key: String, label: String, emoji: String, local: Int, cloud: Int) {
-            if (cloud > 0 && local != cloud) result += ConflictInfo(key, label, emoji, local, cloud)
+            if (cloud > 0 && local > 0 && local != cloud) result += ConflictInfo(key, label, emoji, local, cloud)
         }
 
         runCatching {
@@ -1031,6 +1060,24 @@ class SyncEngine @Inject constructor(
                 json.decodeFromString(ListSerializer(WsCalEvent.serializer()), row.value).size
             } ?: 0
             add("ls:homer-cal-events", "Calendar Events", "📅", local, cloud)
+        }
+
+        runCatching {
+            val local = db.quoteDao().getAllSavedAt().size
+            val cloud = supabase.getFieldState("ls:savedQuotes")?.let { row ->
+                if (row.value.isBlank()) return@let 0
+                json.decodeFromString(ListSerializer(WsQuote.serializer()), row.value).size
+            } ?: 0
+            add("ls:savedQuotes", "Saved Quotes", "💬", local, cloud)
+        }
+
+        runCatching {
+            val local = db.pomodoroDao().getAllSessionTs().size
+            val cloud = supabase.getFieldState("ls:homer-sessions")?.let { row ->
+                if (row.value.isBlank()) return@let 0
+                json.decodeFromString(ListSerializer(WsSession.serializer()), row.value).size
+            } ?: 0
+            add("ls:homer-sessions", "Focus Sessions", "🍅", local, cloud)
         }
 
         return result
@@ -1146,6 +1193,308 @@ class SyncEngine @Inject constructor(
                 pullFn  = ::pullCalendarEvents,
                 pushFn  = ::pushCalendarEvents)
         }.onFailure { Log.e("HomerSync", "cal-events resolution failed", it) }
+
+        runCatching {
+            apply("ls:savedQuotes",
+                clearFn = { db.quoteDao().deleteAll() },
+                pullFn  = ::pullSavedQuotes,
+                pushFn  = ::pushSavedQuotes)
+        }.onFailure { Log.e("HomerSync", "savedQuotes resolution failed", it) }
+
+        // Blob fields — clearFn resets the AppSetting to empty
+        runCatching {
+            apply("ls:pom-settings",
+                clearFn = { db.appSettingDao().set(AppSetting("pom.settings.v1", "")) },
+                pullFn  = ::pullPomSettings,
+                pushFn  = ::pushPomSettings)
+        }.onFailure { Log.e("HomerSync", "pom-settings resolution failed", it) }
+
+        runCatching {
+            apply("ls:homer-expense-templates",
+                clearFn = { db.appSettingDao().set(AppSetting("homer-expense-templates", "[]")) },
+                pullFn  = ::pullExpenseTemplates,
+                pushFn  = ::pushExpenseTemplates)
+        }.onFailure { Log.e("HomerSync", "expense-templates resolution failed", it) }
+
+        runCatching {
+            apply("ls:homer-expense-cats",
+                clearFn = { db.appSettingDao().set(AppSetting("homer-expense-cats", "[]")) },
+                pullFn  = ::pullExpenseCats,
+                pushFn  = ::pushExpenseCats)
+        }.onFailure { Log.e("HomerSync", "expense-cats resolution failed", it) }
+
+        runCatching {
+            apply("ls:homer-recurring",
+                clearFn = { db.appSettingDao().set(AppSetting("homer-recurring", "[]")) },
+                pullFn  = ::pullRecurring,
+                pushFn  = ::pushRecurring)
+        }.onFailure { Log.e("HomerSync", "recurring resolution failed", it) }
+
+        runCatching {
+            apply("ls:homer-weekly-reviews",
+                clearFn = { db.appSettingDao().set(AppSetting("homer-weekly-reviews", "[]")) },
+                pullFn  = ::pullWeeklyReviews,
+                pushFn  = ::pushWeeklyReviews)
+        }.onFailure { Log.e("HomerSync", "weekly-reviews resolution failed", it) }
+
+        runCatching {
+            apply("ls:homer-countdown",
+                clearFn = {
+                    ctx.getSharedPreferences("homer_countdown", Context.MODE_PRIVATE)
+                        .edit().remove("name").remove("dateMs").apply()
+                },
+                pullFn  = ::pullCountdown,
+                pushFn  = ::pushCountdown)
+        }.onFailure { Log.e("HomerSync", "countdown resolution failed", it) }
+    }
+
+    // ── Saved Quotes ──────────────────────────────────────────────────────────
+    // Website key: "motivator.savedQuotes.v1" → Supabase field_id: "ls:savedQuotes"
+    // Format: [{text, author, savedAt}]
+
+    @Serializable
+    private data class WsQuote(
+        val text: String = "",
+        val author: String = "",
+        val savedAt: Long = 0L,
+    )
+
+    private suspend fun pushSavedQuotes() {
+        val quotes = db.quoteDao().getAll().first()
+        if (quotes.isEmpty()) return
+        val ws = quotes.map { q -> WsQuote(text = q.text, author = q.author, savedAt = q.savedAt) }
+        supabase.setFieldState("ls:savedQuotes",
+            json.encodeToString(ListSerializer(WsQuote.serializer()), ws))
+    }
+
+    private suspend fun pullSavedQuotes() {
+        supabase.getFieldState("ls:savedQuotes")?.let { row ->
+            if (row.value.isBlank()) return@let
+            val wsQuotes = json.decodeFromString(ListSerializer(WsQuote.serializer()), row.value)
+            val existingTs = db.quoteDao().getAllSavedAt().toSet()
+            val toInsert = wsQuotes
+                .filter { it.text.isNotBlank() && it.savedAt !in existingTs }
+                .map { SavedQuote(text = it.text, author = it.author, savedAt = it.savedAt) }
+            toInsert.forEach { db.quoteDao().insert(it) }
+        }
+    }
+
+    // ── Focus Sessions ────────────────────────────────────────────────────────
+    // Website key: "homer-sessions" → Supabase field_id: "ls:homer-sessions"
+    // Format: [{ts, durationSecs, taskLabel}]
+
+    @Serializable
+    private data class WsSession(
+        val ts: Long = 0L,
+        val durationSecs: Int = 0,
+        val taskLabel: String = "",
+    )
+
+    private suspend fun pushSessions() {
+        val sessions = db.pomodoroDao().getRecentSessions().first()
+        if (sessions.isEmpty()) return
+        val ws = sessions.map { s -> WsSession(ts = s.ts, durationSecs = s.durationSecs, taskLabel = s.taskLabel) }
+        supabase.setFieldState("ls:homer-sessions",
+            json.encodeToString(ListSerializer(WsSession.serializer()), ws))
+    }
+
+    private suspend fun pullSessions() {
+        supabase.getFieldState("ls:homer-sessions")?.let { row ->
+            if (row.value.isBlank()) return@let
+            val wsSessions = json.decodeFromString(ListSerializer(WsSession.serializer()), row.value)
+            val existingTs = db.pomodoroDao().getAllSessionTs().toSet()
+            val toInsert = wsSessions
+                .filter { it.ts > 0 && it.ts !in existingTs && it.durationSecs > 0 }
+                .map { PomodoroSession(ts = it.ts, durationSecs = it.durationSecs, taskLabel = it.taskLabel) }
+            if (toInsert.isNotEmpty()) db.pomodoroDao().insertAllSessions(toInsert)
+        }
+    }
+
+    // ── Pomodoro Settings ─────────────────────────────────────────────────────
+    // Website key: "pom.settings.v1" → Supabase: "ls:pom-settings"
+    // Stored as raw JSON blob in AppSetting table (key: "pom.settings.v1")
+
+    private suspend fun pushPomSettings() {
+        val v = db.appSettingDao().get("pom.settings.v1") ?: return
+        if (v.isBlank()) return
+        supabase.setFieldState("ls:pom-settings", v)
+    }
+
+    private suspend fun pullPomSettings() {
+        supabase.getFieldState("ls:pom-settings")?.let { row ->
+            if (row.value.isBlank()) return@let
+            db.appSettingDao().set(AppSetting("pom.settings.v1", row.value))
+        }
+    }
+
+    // ── Expense Templates ─────────────────────────────────────────────────────
+    // Website key: "homer-expense-templates" → Supabase: "ls:homer-expense-templates"
+
+    private suspend fun pushExpenseTemplates() {
+        val v = db.appSettingDao().get("homer-expense-templates") ?: return
+        if (v.isBlank()) return
+        supabase.setFieldState("ls:homer-expense-templates", v)
+    }
+
+    private suspend fun pullExpenseTemplates() {
+        supabase.getFieldState("ls:homer-expense-templates")?.let { row ->
+            if (row.value.isBlank()) return@let
+            db.appSettingDao().set(AppSetting("homer-expense-templates", row.value))
+        }
+    }
+
+    // ── Expense Categories ────────────────────────────────────────────────────
+    // Website key: "homer-expense-cats" → Supabase: "ls:homer-expense-cats"
+
+    private suspend fun pushExpenseCats() {
+        val v = db.appSettingDao().get("homer-expense-cats") ?: return
+        if (v.isBlank()) return
+        supabase.setFieldState("ls:homer-expense-cats", v)
+    }
+
+    private suspend fun pullExpenseCats() {
+        supabase.getFieldState("ls:homer-expense-cats")?.let { row ->
+            if (row.value.isBlank()) return@let
+            db.appSettingDao().set(AppSetting("homer-expense-cats", row.value))
+        }
+    }
+
+    // ── Payday Day ────────────────────────────────────────────────────────────
+    // Website key: "homer-payday-day" → Supabase: "ls:homer-payday-day"
+
+    private suspend fun pushPaydayDay() {
+        val v = db.appSettingDao().get("homer-payday-day") ?: return
+        if (v.isBlank()) return
+        supabase.setFieldState("ls:homer-payday-day", v)
+    }
+
+    private suspend fun pullPaydayDay() {
+        supabase.getFieldState("ls:homer-payday-day")?.let { row ->
+            if (row.value.isBlank()) return@let
+            db.appSettingDao().set(AppSetting("homer-payday-day", row.value))
+        }
+    }
+
+    // ── Recurring Tasks ───────────────────────────────────────────────────────
+    // Website key: "homer-recurring" → Supabase: "ls:homer-recurring"
+
+    private suspend fun pushRecurring() {
+        val v = db.appSettingDao().get("homer-recurring") ?: return
+        if (v.isBlank()) return
+        supabase.setFieldState("ls:homer-recurring", v)
+    }
+
+    private suspend fun pullRecurring() {
+        supabase.getFieldState("ls:homer-recurring")?.let { row ->
+            if (row.value.isBlank()) return@let
+            db.appSettingDao().set(AppSetting("homer-recurring", row.value))
+        }
+    }
+
+    // ── Weekly Reviews ────────────────────────────────────────────────────────
+    // Website key: "homer-weekly-reviews" → Supabase: "ls:homer-weekly-reviews"
+
+    private suspend fun pushWeeklyReviews() {
+        val v = db.appSettingDao().get("homer-weekly-reviews") ?: return
+        if (v.isBlank()) return
+        supabase.setFieldState("ls:homer-weekly-reviews", v)
+    }
+
+    private suspend fun pullWeeklyReviews() {
+        supabase.getFieldState("ls:homer-weekly-reviews")?.let { row ->
+            if (row.value.isBlank()) return@let
+            db.appSettingDao().set(AppSetting("homer-weekly-reviews", row.value))
+        }
+    }
+
+    // ── Realtime field dispatcher ─────────────────────────────────────────────
+
+    /**
+     * Called by RealtimeSyncManager when a field_state row is updated by another device.
+     * Routes the field_id to the correct pull method so Room is updated immediately.
+     */
+    suspend fun applyFieldUpdate(fieldId: String) {
+        if (!supabase.isBogdan()) return
+        runCatching {
+            when (fieldId) {
+                "ls:homer-expenses",
+                "ls:homer-income",
+                "ls:homer-expense-budgets"   -> pullExpenses()
+                "ls:homer-habits"            -> pullHabits()
+                "ls:homer-inbox"             -> pullInbox()
+                "ls:homer-links"             -> pullLinks()
+                "ls:pom-tasks"               -> pullPomodoroTasks()
+                "ls:homer-notes"             -> pullNotes()
+                "ls:homer-journal"           -> pullJournal()
+                "ls:homer-car"               -> pullCar()
+                "ls:homer-kanban"            -> pullKanban()
+                "ls:homer-life-goals"        -> pullLifeGoals()
+                "ls:homer-brain-dump"        -> pullBrainDump()
+                "ls:homer-zen-goal"          -> pullZenGoal()
+                "ls:homer-expense-goals"     -> pullExpenseGoals()
+                "ls:homer-cal-events"        -> pullCalendarEvents()
+                "ls:savedQuotes"             -> pullSavedQuotes()
+                "ls:homer-sessions"          -> pullSessions()
+                "ls:pom-settings"            -> pullPomSettings()
+                "ls:homer-expense-templates" -> pullExpenseTemplates()
+                "ls:homer-expense-cats"      -> pullExpenseCats()
+                "ls:homer-payday-day"        -> pullPaydayDay()
+                "ls:homer-recurring"         -> pullRecurring()
+                "ls:homer-weekly-reviews"    -> pullWeeklyReviews()
+                "ls:homer-countdown"         -> pullCountdown()
+            }
+        }.onFailure { Log.e("HomerSync", "applyFieldUpdate[$fieldId] failed", it) }
+    }
+
+    // ── Countdown ─────────────────────────────────────────────────────────────
+    // Website key: "homer-countdown" → Supabase: "ls:homer-countdown"
+    // Format: {name: "", date: "YYYY-MM-DDTHH:mm", collapsed: false}
+    // Android: SharedPreferences "homer_countdown" {name (String), dateMs (Long)}
+
+    @Serializable
+    private data class WsCountdown(
+        val name: String = "",
+        val date: String = "",      // ISO datetime-local e.g. "2026-12-31T23:59"
+        val collapsed: Boolean = false,
+    )
+
+    private suspend fun pushCountdown() {
+        val sp = ctx.getSharedPreferences("homer_countdown", Context.MODE_PRIVATE)
+        val name   = sp.getString("name", "") ?: ""
+        val dateMs = sp.getLong("dateMs", 0L)
+        if (name.isBlank() && dateMs == 0L) return
+        val date = if (dateMs > 0L) {
+            val zdt = java.time.Instant.ofEpochMilli(dateMs)
+                .atZone(java.time.ZoneId.systemDefault())
+            "%04d-%02d-%02dT%02d:%02d".format(
+                zdt.year, zdt.monthValue, zdt.dayOfMonth, zdt.hour, zdt.minute)
+        } else ""
+        supabase.setFieldState("ls:homer-countdown",
+            json.encodeToString(WsCountdown.serializer(), WsCountdown(name = name, date = date)))
+    }
+
+    private suspend fun pullCountdown() {
+        supabase.getFieldState("ls:homer-countdown")?.let { row ->
+            if (row.value.isBlank()) return@let
+            val ws = json.decodeFromString(WsCountdown.serializer(), row.value)
+            if (ws.name.isBlank() && ws.date.isBlank()) return@let
+            val dateMs = if (ws.date.isNotBlank()) {
+                try {
+                    val str = if (ws.date.length == 16) "${ws.date}:00" else ws.date
+                    java.time.LocalDateTime.parse(str)
+                        .atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                } catch (_: Exception) {
+                    try {
+                        java.time.LocalDate.parse(ws.date)
+                            .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    } catch (_: Exception) { 0L }
+                }
+            } else 0L
+            ctx.getSharedPreferences("homer_countdown", Context.MODE_PRIVATE).edit()
+                .putString("name", ws.name)
+                .putLong("dateMs", dateMs)
+                .apply()
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

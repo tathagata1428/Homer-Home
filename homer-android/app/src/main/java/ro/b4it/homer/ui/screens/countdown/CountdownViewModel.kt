@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ro.b4it.homer.data.remote.Quote
 import ro.b4it.homer.data.remote.QuotesApi
+import ro.b4it.homer.data.sync.SyncEngine
 import javax.inject.Inject
 
 data class CountdownTick(
@@ -28,6 +29,7 @@ data class CountdownTick(
 class CountdownViewModel @Inject constructor(
     @ApplicationContext private val ctx: Context,
     private val quotesApi: QuotesApi,
+    private val sync: SyncEngine,
 ) : ViewModel() {
 
     private val _eventName    = MutableStateFlow("")
@@ -65,6 +67,7 @@ class CountdownViewModel @Inject constructor(
         _eventDateMs.value = dateMs
         updateTick()
         saveConfig()
+        sync.pushCountdownDebounced()
         refreshQuote()
     }
 
@@ -74,6 +77,7 @@ class CountdownViewModel @Inject constructor(
         _quote.value       = ""
         _tick.value        = CountdownTick()
         saveConfig()
+        sync.pushCountdownDebounced()
     }
 
     fun refreshQuote() {

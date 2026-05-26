@@ -198,6 +198,7 @@ class SyncViewModel @Inject constructor(
             SyncScopeItem("ls:homer-journal",   "📔", "Journal"),
             SyncScopeItem("ls:pom-tasks",       "⏱", "Focus Tasks"),
             SyncScopeItem("ls:homer-car",       "🚗", "Car Data"),
+            SyncScopeItem("ls:homer-countdown", "⏳", "Countdown"),
         )
     }
 }

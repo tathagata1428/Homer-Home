@@ -9069,7 +9069,8 @@ let tvWidgetCreated = false;
     'homer-habits', 'homer-inbox',
     'homer-expenses', 'homer-income', 'homer-expense-goals',
     'homer-expense-templates', 'homer-expense-budgets', 'homer-payday-day',
-    'homer-notes', 'homer-recurring', 'homer-sessions', 'homer-weekly-reviews'
+    'homer-notes', 'homer-recurring', 'homer-sessions', 'homer-weekly-reviews',
+    'homer-countdown'
   ];
   var IDB_KEYS = ['homer-vault-salt', 'homer-vault-hash', 'homer-vault-data'];
   var ALL_KEYS = LS_KEYS.concat(IDB_KEYS);
@@ -9133,6 +9134,7 @@ let tvWidgetCreated = false;
     'homer-recurring':          'ls:homer-recurring',
     'homer-sessions':           'ls:homer-sessions',
     'homer-weekly-reviews':     'ls:homer-weekly-reviews',
+    'homer-countdown':          'ls:homer-countdown',
     'homer-car':                'ls:homer-car',
     'homer-journal':            'ls:homer-journal',
     'homer-kanban':             'ls:homer-kanban',

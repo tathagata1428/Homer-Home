@@ -39,6 +39,13 @@ interface PomodoroDao {
     @Query("SELECT * FROM pomodoro_sessions ORDER BY ts DESC LIMIT 100")
     fun getRecentSessions(): Flow<List<PomodoroSession>>
 
+    /** All session timestamps — used for dedup when pulling from cloud. */
+    @Query("SELECT ts FROM pomodoro_sessions")
+    suspend fun getAllSessionTs(): List<Long>
+
     @Insert
     suspend fun insertSession(session: PomodoroSession)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAllSessions(sessions: List<PomodoroSession>)
 }

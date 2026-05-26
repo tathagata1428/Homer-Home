@@ -17,7 +17,9 @@ import ro.b4it.homer.BuildConfig
 import ro.b4it.homer.data.preferences.AppPreferences
 import ro.b4it.homer.data.supabase.SupabaseManager
 import ro.b4it.homer.data.sync.SyncEngine
+import ro.b4it.homer.data.sync.RealtimeSyncManager
 import ro.b4it.homer.notification.ReminderManager
+import ro.b4it.homer.worker.SyncWorker
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -27,6 +29,7 @@ class HomerApplication : Application(), Configuration.Provider {
     @Inject lateinit var reminderManager: ReminderManager
     @Inject lateinit var supabase: SupabaseManager
     @Inject lateinit var syncEngine: SyncEngine
+    @Inject lateinit var realtimeSync: RealtimeSyncManager
     @Inject lateinit var prefs: AppPreferences
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -75,6 +78,8 @@ class HomerApplication : Application(), Configuration.Provider {
                         supabase.setCachedAuthUser(username)
                         prefs.setAuthUser(username)
                         syncEngine.start()
+                        realtimeSync.start()
+                        SyncWorker.schedule(this@HomerApplication)
                     }
                     // NotAuthenticated: don't touch cachedAuthUser here —
                     // explicit sign-out clears it via AccountViewModel.
