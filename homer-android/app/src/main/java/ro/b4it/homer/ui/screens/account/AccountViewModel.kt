@@ -25,6 +25,7 @@ class AccountViewModel @Inject constructor(
     private val prefs: AppPreferences,
     private val supabase: SupabaseManager,
     private val sync: SyncEngine,
+    @javax.inject.Named("syncEmail") private val syncEmail: String,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AccountState())
@@ -47,15 +48,17 @@ class AccountViewModel @Inject constructor(
         if (username.isBlank() || pw.isBlank()) return
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
-            // Validate local Homer credentials (same as website: bogdan / qaz123pl.)
-            if (username.equals("bogdan", ignoreCase = true) && pw == "qaz123pl.") {
-                prefs.setAuthUser("bogdan")
-                supabase.setCachedAuthUser("bogdan")
-                // Also establish the real Supabase session (uses BuildConfig credentials).
-                // This triggers SessionStatus.Authenticated so SyncViewModel updates.
-                runCatching { supabase.ensureSignedIn() }
-                sync.start()
-                _state.update { it.copy(loading = false, isBogdan = supabase.isBogdan()) }
+            if (username.equals("bogdan", ignoreCase = true) && syncEmail.isNotBlank()) {
+                try {
+                    // Authenticate directly with Supabase — same credentials as the website.
+                    supabase.signIn(syncEmail, pw)
+                    prefs.setAuthUser("bogdan")
+                    supabase.setCachedAuthUser("bogdan")
+                    sync.start()
+                    _state.update { it.copy(loading = false, isBogdan = supabase.isBogdan()) }
+                } catch (e: Exception) {
+                    _state.update { it.copy(loading = false, error = e.message ?: "Sign-in failed") }
+                }
             } else {
                 _state.update { it.copy(loading = false, error = "Invalid username or password") }
             }
