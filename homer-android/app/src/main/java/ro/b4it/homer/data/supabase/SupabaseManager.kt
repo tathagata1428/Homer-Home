@@ -30,17 +30,13 @@ class SupabaseManager @Inject constructor(
         val session = try { client.auth.currentSessionOrNull() } catch (_: Exception) { null }
         val sessionEmail = session?.user?.email ?: ""
         return sessionEmail.contains("bogdan", ignoreCase = true) ||
-               cachedAuthUser?.equals("bogdan", ignoreCase = true) == true
+               _cachedAuthUser.value?.equals("bogdan", ignoreCase = true) == true
     }
 
     private val _cachedAuthUser = MutableStateFlow<String?>(null)
     val cachedAuthUserFlow: StateFlow<String?> = _cachedAuthUser.asStateFlow()
 
-    private var cachedAuthUser: String?
-        get() = _cachedAuthUser.value
-        set(value) { _cachedAuthUser.value = value }
-
-    fun setCachedAuthUser(user: String?) { cachedAuthUser = user }
+    fun setCachedAuthUser(user: String?) { _cachedAuthUser.value = user }
 
     /** Session status as a Flow for UI observation. */
     val sessionStatus: Flow<SessionStatus> get() = client.auth.sessionStatus
