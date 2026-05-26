@@ -4,7 +4,7 @@
  * POST /api/auth
  * GET  /api/auth?action=user
  */
-import { createUserClient, isSupabaseClientConfigured, verifySupabaseJwt, isSupabaseConfigured } from '../../lib/supabase-server.js';
+import { createUserClient, createAdminClient, isSupabaseClientConfigured, verifySupabaseJwt, isSupabaseConfigured, resolveSupabaseOwnerId } from '../../lib/supabase-server.js';
 import { isReservedSyncHash, createRedisFetch, safeJsonParse } from '../../lib/joey-server.js';
 import crypto from 'crypto';
 
@@ -146,12 +146,19 @@ export async function onRequest(context) {
         return Response.json({ error: 'Invalid credentials' }, { status: 401, headers: CORS });
       }
 
-      // Exchange for a Supabase session using the server-side sync password
+      // Exchange for a Supabase session.
+      // Use SUPABASE_SYNC_PASSWORD env var if set; otherwise fall back to the
+      // Homer password the user just proved they know.
       const syncEmail = String(env.SUPABASE_SYNC_EMAIL || 'bogdan.radu@b4it.ro').trim();
-      const syncPass  = String(env.SUPABASE_SYNC_PASSWORD || '').trim();
-      if (!syncPass) {
-        return Response.json({ error: 'SUPABASE_SYNC_PASSWORD not configured' }, { status: 503, headers: CORS });
-      }
+      const syncPass  = String(env.SUPABASE_SYNC_PASSWORD || password).trim();
+
+      // Force-set the Supabase Auth password so sign-in always works,
+      // even if the account was created without a password (magic-link / OAuth).
+      const admin   = createAdminClient();
+      const ownerId = await resolveSupabaseOwnerId();
+      if (!ownerId) return Response.json({ error: 'Supabase owner not found' }, { status: 500, headers: CORS });
+      await admin.auth.admin.updateUserById(ownerId, { password: syncPass });
+
       const client = createUserClient();
       const { data, error } = await client.auth.signInWithPassword({ email: syncEmail, password: syncPass });
       if (error) return Response.json({ error: error.message }, { status: 401, headers: CORS });
