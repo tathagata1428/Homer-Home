@@ -7,11 +7,15 @@ import kotlinx.coroutines.launch
 import ro.b4it.homer.data.local.dao.VaultDao
 import ro.b4it.homer.data.local.entity.VaultCredential
 import ro.b4it.homer.data.local.entity.VaultLink
+import ro.b4it.homer.data.sync.SyncEngine
 import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
-class SecretsViewModel @Inject constructor(private val dao: VaultDao) : ViewModel() {
+class SecretsViewModel @Inject constructor(
+    private val dao: VaultDao,
+    private val sync: SyncEngine,
+) : ViewModel() {
     val credentials = dao.getCredentials()
     val links = dao.getLinks()
 
@@ -24,11 +28,15 @@ class SecretsViewModel @Inject constructor(private val dao: VaultDao) : ViewMode
                     passwordEncrypted = pw, details = details,
                 )
             )
+            sync.pushSecretsNow()
         }
     }
 
     fun deleteCredential(cred: VaultCredential) {
-        viewModelScope.launch { dao.deleteCredential(cred) }
+        viewModelScope.launch {
+            dao.deleteCredential(cred)
+            sync.pushSecretsNow()  // immediate so cloud matches before next pull
+        }
     }
 
     fun addLink(name: String, url: String, desc: String) {

@@ -12,8 +12,14 @@ interface VaultDao {
     @Query("SELECT * FROM vault_credentials ORDER BY label ASC")
     fun getCredentials(): Flow<List<VaultCredential>>
 
+    @Query("SELECT * FROM vault_credentials ORDER BY label ASC")
+    suspend fun getAllCredentials(): List<VaultCredential>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertCredential(cred: VaultCredential)
+
+    @Query("DELETE FROM vault_credentials")
+    suspend fun clearAllCredentials()
 
     @Delete
     suspend fun deleteCredential(cred: VaultCredential)

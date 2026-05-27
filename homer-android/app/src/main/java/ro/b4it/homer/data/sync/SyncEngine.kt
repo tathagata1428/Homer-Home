@@ -86,6 +86,8 @@ class SyncEngine @Inject constructor(
         if (isFieldEnabled("ls:homer-recurring"))          runCatching { pullRecurring()       }.onFailure { Log.e("HomerSync", "pullRecurring failed", it) }
         if (isFieldEnabled("ls:homer-weekly-reviews"))     runCatching { pullWeeklyReviews()   }.onFailure { Log.e("HomerSync", "pullWeeklyReviews failed", it) }
         if (isFieldEnabled("ls:homer-countdown"))           runCatching { pullCountdown()        }.onFailure { Log.e("HomerSync", "pullCountdown failed", it) }
+        if (isFieldEnabled("ls:homer-secrets"))             runCatching { pullSecrets()          }.onFailure { Log.e("HomerSync", "pullSecrets failed", it) }
+        if (isFieldEnabled("ls:homer-vault-notes"))         runCatching { pullVaultNotes()       }.onFailure { Log.e("HomerSync", "pullVaultNotes failed", it) }
         Log.d("HomerSync", "pullAll: done")
     }
 
@@ -134,6 +136,8 @@ class SyncEngine @Inject constructor(
     fun pushRecurringDebounced()         = schedulePush("ls:homer-recurring")           { pushRecurring() }
     fun pushWeeklyReviewsDebounced()     = schedulePush("ls:homer-weekly-reviews")      { pushWeeklyReviews() }
     fun pushCountdownDebounced()         = schedulePush("ls:homer-countdown")            { pushCountdown() }
+    fun pushSecretsDebounced()           = schedulePush("ls:homer-secrets")              { pushSecrets() }
+    fun pushVaultNotesDebounced()        = schedulePush("ls:homer-vault-notes")          { pushVaultNotes() }
 
     /** Push all data to Supabase immediately (no debounce). Throws on auth failure. */
     suspend fun pushAll() {
@@ -162,12 +166,20 @@ class SyncEngine @Inject constructor(
         runCatching { pushRecurring() }
         runCatching { pushWeeklyReviews() }
         runCatching { pushCountdown() }
+        runCatching { pushSecrets() }
+        runCatching { pushVaultNotes() }
     }
 
     /** Push Pomodoro tasks immediately — called on delete so Supabase is updated before any pull. */
     suspend fun pushPomodoroTasksNow() {
         if (!supabase.isBogdan()) return
         runCatching { pushPomodoroTasks() }
+    }
+
+    /** Push vault secrets immediately — called on add/delete to prevent next pull from restoring deleted items. */
+    suspend fun pushSecretsNow() {
+        if (!supabase.isBogdan()) return
+        runCatching { pushSecrets() }
     }
 
     // ── Expenses ─────────────────────────────────────────────────────────────
@@ -1269,6 +1281,20 @@ class SyncEngine @Inject constructor(
                 pullFn  = ::pullCountdown,
                 pushFn  = ::pushCountdown)
         }.onFailure { Log.e("HomerSync", "countdown resolution failed", it) }
+
+        runCatching {
+            apply("ls:homer-secrets",
+                clearFn = { db.vaultDao().clearAllCredentials() },
+                pullFn  = ::pullSecrets,
+                pushFn  = ::pushSecrets)
+        }.onFailure { Log.e("HomerSync", "secrets resolution failed", it) }
+
+        runCatching {
+            apply("ls:homer-vault-notes",
+                clearFn = { /* notes are upserted by mode, no full clear needed */ },
+                pullFn  = ::pullVaultNotes,
+                pushFn  = ::pushVaultNotes)
+        }.onFailure { Log.e("HomerSync", "vault-notes resolution failed", it) }
     }
 
     // ── Saved Quotes ──────────────────────────────────────────────────────────
@@ -1465,8 +1491,89 @@ class SyncEngine @Inject constructor(
                 "ls:homer-recurring"         -> pullRecurring()
                 "ls:homer-weekly-reviews"    -> pullWeeklyReviews()
                 "ls:homer-countdown"         -> pullCountdown()
+                "ls:homer-secrets:personal",
+                "ls:homer-secrets:work"      -> pullSecrets()
+                "ls:homer-vault-notes:personal",
+                "ls:homer-vault-notes:work"  -> pullVaultNotes()
             }
         }.onFailure { Log.e("HomerSync", "applyFieldUpdate[$fieldId] failed", it) }
+    }
+
+    // ── Vault Secrets (Passwords) ─────────────────────────────────────────────
+    // Website key: "homer-secrets:personal" / "homer-secrets:work"
+    // Supabase field_id: "ls:homer-secrets:personal" / "ls:homer-secrets:work"
+    // Website format: [{label, site, user, pass, details}]
+    // Android: VaultCredential(id, label, site, username, passwordEncrypted, details)
+    //   - "user" ↔ "username";  "pass" ↔ "passwordEncrypted"
+    //   - No mode field on Android — personal+work credentials merged in one table
+
+    @Serializable
+    private data class WsVaultCred(
+        val label: String = "",
+        val site: String = "",
+        val user: String = "",
+        val pass: String = "",
+        val details: String = "",
+    )
+
+    private suspend fun pushSecrets() {
+        val creds = db.vaultDao().getAllCredentials()
+        if (creds.isEmpty()) return
+        val wsCreds = creds.map { c ->
+            WsVaultCred(label = c.label, site = c.site, user = c.username,
+                pass = c.passwordEncrypted, details = c.details)
+        }
+        val encoded = json.encodeToString(ListSerializer(WsVaultCred.serializer()), wsCreds)
+        supabase.setFieldState("ls:homer-secrets:personal", encoded)
+    }
+
+    private suspend fun pullSecrets() {
+        var replaced = false
+        for (mode in listOf("personal", "work")) {
+            supabase.getFieldState("ls:homer-secrets:$mode")?.let { row ->
+                if (row.value.isBlank()) return@let
+                val wsCreds = json.decodeFromString(ListSerializer(WsVaultCred.serializer()), row.value)
+                if (wsCreds.isEmpty()) return@let
+                if (!replaced) { db.vaultDao().clearAllCredentials(); replaced = true }
+                wsCreds.forEach { c ->
+                    db.vaultDao().upsertCredential(VaultCredential(
+                        id = stableId(c.site, c.label),
+                        label = c.label,
+                        site = c.site,
+                        username = c.user,
+                        passwordEncrypted = c.pass,
+                        details = c.details,
+                    ))
+                }
+            }
+        }
+    }
+
+    // ── Vault Notes ───────────────────────────────────────────────────────────
+    // Website key: "homer-vault-notes:personal" / "homer-vault-notes:work"
+    // Supabase field_id: "ls:homer-vault-notes:personal" / "ls:homer-vault-notes:work"
+    // Website pushes JSON.stringify(vault.notes) → value is a JSON-encoded string
+    // Android: VaultNote(id=1→personal, id=2→work, mode, textEncrypted)
+
+    private suspend fun pushVaultNotes() {
+        for (mode in listOf("personal", "work")) {
+            val note = db.vaultDao().getNote(mode) ?: continue
+            if (note.textEncrypted.isBlank()) continue
+            supabase.setFieldState("ls:homer-vault-notes:$mode",
+                json.encodeToString(note.textEncrypted))
+        }
+    }
+
+    private suspend fun pullVaultNotes() {
+        for (mode in listOf("personal", "work")) {
+            supabase.getFieldState("ls:homer-vault-notes:$mode")?.let { row ->
+                if (row.value.isBlank()) return@let
+                val text = try { json.decodeFromString<String>(row.value) } catch (_: Exception) { row.value }
+                if (text.isBlank()) return@let
+                val id = if (mode == "work") 2 else 1
+                db.vaultDao().upsertNote(VaultNote(id = id, mode = mode, textEncrypted = text))
+            }
+        }
     }
 
     // ── Countdown ─────────────────────────────────────────────────────────────

@@ -9,10 +9,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ro.b4it.homer.data.local.dao.VaultDao
 import ro.b4it.homer.data.local.entity.VaultNote
+import ro.b4it.homer.data.sync.SyncEngine
 import javax.inject.Inject
 
 @HiltViewModel
-class SecretNotesViewModel @Inject constructor(private val dao: VaultDao) : ViewModel() {
+class SecretNotesViewModel @Inject constructor(
+    private val dao: VaultDao,
+    private val sync: SyncEngine,
+) : ViewModel() {
 
     private val _personalText = MutableStateFlow("")
     val personalText: StateFlow<String> = _personalText.asStateFlow()
@@ -31,6 +35,7 @@ class SecretNotesViewModel @Inject constructor(private val dao: VaultDao) : View
         _personalText.value = text
         viewModelScope.launch {
             dao.upsertNote(VaultNote(id = 1, mode = "personal", textEncrypted = text))
+            sync.pushVaultNotesDebounced()
         }
     }
 
@@ -38,6 +43,7 @@ class SecretNotesViewModel @Inject constructor(private val dao: VaultDao) : View
         _workText.value = text
         viewModelScope.launch {
             dao.upsertNote(VaultNote(id = 2, mode = "work", textEncrypted = text))
+            sync.pushVaultNotesDebounced()
         }
     }
 }

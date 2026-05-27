@@ -21,6 +21,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import ro.b4it.homer.BuildConfig
 import ro.b4it.homer.data.preferences.AppPreferences
+import ro.b4it.homer.data.supabase.SupabaseManager
 import javax.inject.Inject
 
 data class ChatMessage(val role: String, val content: String)
@@ -29,11 +30,15 @@ data class ChatMessage(val role: String, val content: String)
 class JoeyViewModel @Inject constructor(
     private val http: OkHttpClient,
     private val prefs: AppPreferences,
+    private val supabase: SupabaseManager,
 ) : ViewModel() {
 
     /** Separate history per mode, matching the website's per-mode memory. */
     private val personalHistory = mutableListOf<ChatMessage>()
     private val workHistory     = mutableListOf<ChatMessage>()
+
+    /** Joey memories per mode — loaded from /api/joey?action=bundle on init. */
+    private val memoriesMap = mutableMapOf<String, String>()
 
     private val _mode    = MutableStateFlow("personal")   // "personal" | "work"
     val mode: StateFlow<String> = _mode.asStateFlow()
@@ -56,6 +61,28 @@ class JoeyViewModel @Inject constructor(
                 if (_mode.value != vaultMode) switchMode(vaultMode)
             }
         }
+        // Load Joey bundle memories in background
+        viewModelScope.launch { loadMemories("personal") }
+        viewModelScope.launch { loadMemories("work") }
+    }
+
+    private suspend fun loadMemories(mode: String) {
+        try {
+            val token = supabase.accessToken ?: return
+            val req = Request.Builder()
+                .url("https://b4it.ro/api/joey?action=bundle&mode=$mode")
+                .header("Authorization", "Bearer $token")
+                .build()
+            val resp = withContext(Dispatchers.IO) {
+                http.newCall(req).execute().body?.string() ?: return@withContext ""
+            }
+            if (resp.isBlank()) return
+            val bundle = json.parseToJsonElement(resp).jsonObject
+            val memories = bundle["memories"]?.jsonPrimitive?.content
+                ?: bundle["memories"]?.toString()
+                ?: return
+            if (memories.isNotBlank()) memoriesMap[mode] = memories
+        } catch (_: Exception) { /* best-effort */ }
     }
 
     fun setInput(text: String) { _input.value = text }
@@ -131,9 +158,13 @@ class JoeyViewModel @Inject constructor(
         }
     }
 
-    private fun buildSystemPrompt(mode: String): String = when (mode) {
-        "work" -> """You are Joey, a sharp work assistant. You help with professional tasks, project management, code, writing, and work goals. Be concise, direct, and practical. Current mode: Work."""
-        else   -> """You are Joey, a helpful personal assistant. You help with daily tasks, habits, goals, motivation, and personal planning. Be warm, encouraging, and practical. Current mode: Personal."""
+    private fun buildSystemPrompt(mode: String): String {
+        val base = when (mode) {
+            "work" -> "You are Joey, a sharp work assistant. You help with professional tasks, project management, code, writing, and work goals. Be concise, direct, and practical. Current mode: Work."
+            else   -> "You are Joey, a helpful personal assistant. You help with daily tasks, habits, goals, motivation, and personal planning. Be warm, encouraging, and practical. Current mode: Personal."
+        }
+        val memories = memoriesMap[mode]
+        return if (!memories.isNullOrBlank()) "$base\n\n$memories" else base
     }
 
     private fun extractContent(resp: String): String = try {

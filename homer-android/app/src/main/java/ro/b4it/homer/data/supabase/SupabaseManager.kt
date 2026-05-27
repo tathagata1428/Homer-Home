@@ -45,6 +45,9 @@ class SupabaseManager @Inject constructor(
     /** Current Supabase user ID, or null if not signed in. */
     val userId: String? get() = try { client.auth.currentUserOrNull()?.id } catch (_: Exception) { null }
 
+    /** Current Supabase access token, or null if not signed in. Used for API calls that need a Bearer token. */
+    val accessToken: String? get() = try { client.auth.currentSessionOrNull()?.accessToken } catch (_: Exception) { null }
+
     /**
      * Ensure a Supabase session exists before any sync operation.
      * Called automatically by getFieldState / setFieldState so timing of
@@ -137,6 +140,7 @@ class SupabaseManager @Inject constructor(
                         value     = data,
                         clientTs  = ts,
                         clientSeq = clientSeq.getAndIncrement(),
+                        serverTs  = ts,
                         deleted   = false,
                         deviceId  = "android",
                         updatedAt = java.time.Instant.ofEpochMilli(ts)
