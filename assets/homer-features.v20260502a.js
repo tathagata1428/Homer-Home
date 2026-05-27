@@ -1065,6 +1065,7 @@
     });
     document.getElementById('homer-exp-newcat-name').addEventListener('keydown',function(e){if(e.key==='Enter') document.getElementById('homer-exp-cat-add').click();});
 
+    window._homerRenderExpenses = render;
     function open(prefill, cat) {
       panel.classList.add('open'); ov.classList.add('open');
       rebuildCatPicker(cat||null); render();

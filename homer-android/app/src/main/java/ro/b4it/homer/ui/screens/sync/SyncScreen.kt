@@ -143,6 +143,19 @@ fun SyncScreen(vm: SyncViewModel = hiltViewModel()) {
         item {
             val busy = phase !is SyncPhase.Idle
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Show re-authenticate when not signed in to Supabase
+                if (state.userId == null && state.isBogdan) {
+                    Button(
+                        onClick  = vm::reAuthenticate,
+                        enabled  = !busy,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors   = ButtonDefaults.buttonColors(containerColor = AccentRed),
+                    ) {
+                        Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Re-authenticate", fontWeight = FontWeight.SemiBold)
+                    }
+                }
                 Button(
                     onClick  = vm::startPull,
                     enabled  = state.isBogdan && !busy,

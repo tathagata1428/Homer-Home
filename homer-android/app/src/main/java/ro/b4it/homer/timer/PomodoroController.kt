@@ -193,6 +193,7 @@ class PomodoroController @Inject constructor(
         scope.launch {
             dao.insertSession(PomodoroSession(durationSecs = cur.elapsedFocusSecs))
             sync.pushPomodoroTasksDebounced()
+            sync.pushSessionsDebounced()
         }
     }
 

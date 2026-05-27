@@ -1013,7 +1013,7 @@
       // Embed timestamp inside the stored value so any device can compare freshness
       var ts=getLocalTs(key)||Date.now();
       showBadge('Syncing\u2026','syncing');
-      client.from('field_state').upsert({field_id:'ls:'+key,value:val,user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',updated_at:new Date(ts).toISOString()},{onConflict:'user_id,field_id'})
+      client.from('field_state').upsert({field_id:'ls:'+key,value:val,user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',server_ts:ts,updated_at:new Date(ts).toISOString()},{onConflict:'user_id,field_id'})
         .then(function(r){
           if(r.error)showBadge('Sync error','error');
           else{delete _syncDirty[key];showBadge('Synced \u2713','synced');}
@@ -1077,7 +1077,7 @@
           }
           var ts=getLocalTs(key)||Date.now();
           delete _syncDirty[key];
-          return client.from('field_state').upsert({field_id:'ls:'+key,value:mergedStr,user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',updated_at:new Date(ts).toISOString()},{onConflict:'user_id,field_id'});
+          return client.from('field_state').upsert({field_id:'ls:'+key,value:mergedStr,user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',server_ts:ts,updated_at:new Date(ts).toISOString()},{onConflict:'user_id,field_id'});
         })
         .then(function(r){
           if(r&&r.error)showBadge('Sync error','error');
@@ -1139,7 +1139,7 @@
           setLocalTs(key,ts);
           delete _syncDirty[key];
           return client.from('field_state').upsert(
-            {field_id:'ls:'+key,value:mergedStr,user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',updated_at:new Date(ts).toISOString()},
+            {field_id:'ls:'+key,value:mergedStr,user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',server_ts:ts,updated_at:new Date(ts).toISOString()},
             {onConflict:'user_id,field_id'}
           );
         })
@@ -1196,12 +1196,12 @@
           var remote=remoteParsed||emptyVal;
           var merged=mergeFn(local,remote);
           var mergedStr=JSON.stringify(merged);
-          if(mergedStr!==localRaw)nativeSetItem(key,mergedStr);
+          if(mergedStr!==localRaw){nativeSetItem(key,mergedStr);try{window.dispatchEvent(new CustomEvent('homer-data-synced',{detail:{key:key}}));}catch(_de){}}
           var ts=getLocalTs(key)||Date.now();
           setLocalTs(key,ts);
           delete _syncDirty[key];
           return client.from('field_state').upsert(
-            {field_id:'ls:'+key,value:mergedStr,user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',updated_at:new Date(ts).toISOString()},
+            {field_id:'ls:'+key,value:mergedStr,user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',server_ts:ts,updated_at:new Date(ts).toISOString()},
             {onConflict:'user_id,field_id'}
           );
         })
@@ -1322,12 +1322,12 @@
           var remote=remoteParsed||[];
           var merged=mergePomTasks(local,remote);
           var mergedStr=JSON.stringify(merged);
-          if(mergedStr!==localRaw)nativeSetItem(key,mergedStr);
+          if(mergedStr!==localRaw){nativeSetItem(key,mergedStr);try{window.dispatchEvent(new CustomEvent('homer-data-synced',{detail:{key:'pom.tasks.v1'}}));}catch(_de){}}
           var ts=getLocalTs(key)||Date.now();
           setLocalTs(key,ts);
           delete _syncDirty[key];
           return client.from('field_state').upsert(
-            {field_id:fieldId,value:mergedStr,user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',updated_at:new Date(ts).toISOString()},
+            {field_id:fieldId,value:mergedStr,user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',server_ts:ts,updated_at:new Date(ts).toISOString()},
             {onConflict:'user_id,field_id'}
           );
         })
@@ -1584,6 +1584,22 @@
       waitForEl(id,function(el){
         new MutationObserver(function(){if(!el.classList.contains('open'))pushDirty();}).observe(el,{attributes:true,attributeFilter:['class']});
       });
+    });
+
+    // Re-render open tool panels/tabs when sync writes fresh data
+    window.addEventListener('homer-data-synced',function(e){
+      var key=e&&e.detail&&e.detail.key;
+      if(!key)return;
+      // Expenses panel: re-render if open
+      if(key==='homer-expenses'||key==='homer-income'||key==='homer-expense-cats'||key==='homer-expense-budgets'){
+        var ep=document.getElementById('homer-expense-panel');
+        if(ep&&ep.classList.contains('open')&&typeof window._homerRenderExpenses==='function')window._homerRenderExpenses();
+      }
+      // Notes tab: re-render sidebar list if tab is visible
+      if(key==='homer-notes'){
+        var nt=document.getElementById('tab-notes');
+        if(nt&&nt.style.display!=='none'&&typeof window._homerRenderNoteList==='function')window._homerRenderNoteList();
+      }
     });
 
     window._heSyncPush=pushKey;

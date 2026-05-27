@@ -40,11 +40,21 @@ class SyncEngine @Inject constructor(
 
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
-    /** Auto-pull on sign-in so Room is immediately up to date with Supabase. */
+    private var startCount = 0
+
+    /**
+     * Pull on sign-in so Room is up to date, then push on first launch so any
+     * data added before sync was wired up (pre-fix builds) reaches Supabase.
+     */
     fun start() {
+        val isFirstStart = startCount++ == 0
         scope.launch {
             runCatching { pullAll() }
                 .onFailure { Log.e("HomerSync", "start: pullAll failed", it) }
+            if (isFirstStart) {
+                runCatching { pushAll() }
+                    .onFailure { Log.e("HomerSync", "start: pushAll failed", it) }
+            }
         }
     }
 

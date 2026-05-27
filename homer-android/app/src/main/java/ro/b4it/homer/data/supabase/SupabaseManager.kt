@@ -22,8 +22,9 @@ class SupabaseManager @Inject constructor(
     @Named("syncEmail") private val syncEmail: String,
     @Named("syncPass")  private val syncPass:  String,
 ) {
-    /** Monotonic client-seq counter — ensures stale-reject logic works correctly. */
-    private val clientSeq = java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis())
+    /** Monotonic client-seq counter — must stay within PostgreSQL INTEGER range (< 2^31).
+     *  Starts at 0 each session; stale-reject uses client_ts first so reset is safe. */
+    private val clientSeq = java.util.concurrent.atomic.AtomicLong(0L)
 
     /** True when the signed-in user is "bogdan" — only then do we enable Supabase sync. */
     fun isBogdan(): Boolean {
@@ -91,7 +92,10 @@ class SupabaseManager @Inject constructor(
      */
     suspend fun getFieldState(fieldId: String): FieldStateRow? {
         ensureSignedIn()
-        val uid = userId ?: return null
+        val uid = userId ?: run {
+            android.util.Log.w("HomerSupabase", "getFieldState[$fieldId]: uid=null (not signed in)")
+            return null
+        }
         return try {
             client.postgrest["field_state"]
                 .select {
@@ -102,7 +106,14 @@ class SupabaseManager @Inject constructor(
                     limit(1)
                 }
                 .decodeSingleOrNull<FieldStateRow>()
-        } catch (_: Exception) { null }
+                .also { row ->
+                    if (row == null) android.util.Log.d("HomerSupabase", "getFieldState[$fieldId]: no row in Supabase")
+                    else android.util.Log.d("HomerSupabase", "getFieldState[$fieldId]: got ${row.value.length} chars")
+                }
+        } catch (e: Exception) {
+            android.util.Log.e("HomerSupabase", "getFieldState[$fieldId] failed: ${e.message}", e)
+            null
+        }
     }
 
     /**

@@ -84,6 +84,27 @@ class SyncViewModel @Inject constructor(
         }
     }
 
+    // ── Re-authenticate (try stored Supabase credentials) ─────────────────────
+
+    fun reAuthenticate() {
+        viewModelScope.launch {
+            _state.update { it.copy(phase = SyncPhase.Applying, error = null) }
+            try {
+                supabase.signInWithStoredCredentials()
+                val uid = supabase.userId
+                _state.update { it.copy(
+                    phase    = SyncPhase.Idle,
+                    isBogdan = supabase.isBogdan(),
+                    userId   = uid,
+                    error    = if (uid == null) "Sign-in failed — credentials may be wrong. Go to Account to sign in manually." else null,
+                ) }
+                if (uid != null) sync.start()
+            } catch (e: Exception) {
+                _state.update { it.copy(phase = SyncPhase.Idle, error = "Re-auth failed: ${e.message}") }
+            }
+        }
+    }
+
     // ── Pull from cloud (with conflict detection) ─────────────────────────────
 
     fun startPull() {

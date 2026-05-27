@@ -436,6 +436,7 @@
       d.onclick = function () { openNote(n.id); }; el.appendChild(d);
     });
   }
+  window._homerRenderNoteList = renderNoteList;
   function initNotesTab() {
     var tab = document.getElementById('tab-notes'); if (!tab || tab.dataset.init) return; tab.dataset.init = '1';
     tab.innerHTML =
@@ -1395,7 +1396,7 @@
 
   // ── Tab init on show ──────────────────────────────────────────────────
   function onTab(tab) {
-    if (tab === 'notes') initNotesTab();
+    if (tab === 'notes') { initNotesTab(); renderNoteList(); }
     else if (tab === 'analytics') initAnalyticsTab();
     else if (tab === 'recurring') initRecurringTab();
   }

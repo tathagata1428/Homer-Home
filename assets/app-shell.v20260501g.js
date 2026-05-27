@@ -9481,6 +9481,7 @@ let tvWidgetCreated = false;
       var _lsKey = LS_FIELD_MAP_REVERSE[fieldId];
       try{ origSetItem(_lsKey, nextValue); }catch(e){}
       if(_lsKey === 'homer-habits') try{ window.dispatchEvent(new CustomEvent('homer-habits-restored')); }catch(_e){}
+      try{ window.dispatchEvent(new CustomEvent('homer-data-synced',{detail:{key:_lsKey}})); }catch(_e){}
       return;
     }
     try{
