@@ -1408,8 +1408,9 @@
       return Object.keys(byId).map(function(k){return byId[k];});
     }
     var _vaultSyncTimer=null;
-    var _inVaultPull=false;      // prevents vault-goals-changed from re-triggering sync during our own save
-    var _remoteKanbanCache=null; // pre-fetched by pullAll so doVaultSync needs no extra round-trip
+    var _inVaultPull=false;          // prevents vault-goals-changed from re-triggering sync during our own save
+    var _localMutationPending=false; // set by local edits so doVaultSync pushes local-wins (no merge with stale remote)
+    var _remoteKanbanCache=null;     // pre-fetched by pullAll so doVaultSync needs no extra round-trip
     var _remoteLgCache=null;
     function scheduleVaultSync(){clearTimeout(_vaultSyncTimer);_vaultSyncTimer=setTimeout(doVaultSync,3000);}
     function doVaultSync(){
@@ -1476,7 +1477,14 @@
               .catch(function(e){console.warn('[HomerSync] vaultSync creds push',e);});
           }
         }
-        if(_remoteKanbanCache!==null){
+        // Local-wins mode: skip merge entirely when triggered by a local mutation.
+        // This prevents deleted items from being restored from the stale remote cache.
+        var isLocalPush=_localMutationPending;
+        _localMutationPending=false;
+        if(isLocalPush){
+          // Push local state as-is — no merge with remote
+          applyMerge({projects:[],tasks:[]},[]); // empty remote → merge result == local only
+        } else if(_remoteKanbanCache!==null){
           applyMerge(_remoteKanbanCache,_remoteLgCache||[]);
         } else {
           Promise.all([
@@ -1492,8 +1500,9 @@
         }
       }).catch(function(e){console.warn('[HomerSync] vaultSync',e);});
     }
-    // Re-sync on vault data changes — but never re-trigger from our own save
-    window.addEventListener('vault-goals-changed',function(){if(!_inVaultPull&&canSync())scheduleVaultSync();});
+    // Re-sync on vault data changes — but never re-trigger from our own save.
+    // Mark as local mutation so doVaultSync pushes local-wins (prevents deletion resurrection).
+    window.addEventListener('vault-goals-changed',function(){if(!_inVaultPull&&canSync()){_localMutationPending=true;scheduleVaultSync();}});
     // Also fire when vault unlocks — first unlock on page load is the most important
     window.addEventListener('homer-vault-state',function(){if(canSync()&&window._homerVaultUnlocked)scheduleVaultSync();});
 
