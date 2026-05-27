@@ -18,7 +18,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -263,6 +265,8 @@ fun NotePageCard(note: Note, onClick: () -> Unit, onDelete: () -> Unit, onPin: (
 fun NoteEditorScreen(note: Note, content: String, vm: NotesViewModel) {
     var showEmojiInput by remember { mutableStateOf(false) }
     var titleState by remember(note.id) { mutableStateOf(note.title) }
+    // TextFieldValue tracks cursor/selection for cursor-aware formatting insertion
+    var contentState by remember(note.id) { mutableStateOf(TextFieldValue(content)) }
 
     Column(Modifier.fillMaxSize().background(BgPrimary).imePadding()) {
         // ── Top bar ─────────────────────────────────────────────────────────
@@ -304,7 +308,7 @@ fun NoteEditorScreen(note: Note, content: String, vm: NotesViewModel) {
             )
 
             // Word count
-            val wordCount = content.trim().split(Regex("\\s+")).count { it.isNotBlank() }
+            val wordCount = contentState.text.trim().split(Regex("\\s+")).count { it.isNotBlank() }
             Text("$wordCount w", fontSize = 10.sp, color = TextSubtle, fontFamily = FontFamily.Monospace)
         }
 
@@ -338,16 +342,42 @@ fun NoteEditorScreen(note: Note, content: String, vm: NotesViewModel) {
 
         // ── Formatting toolbar ───────────────────────────────────────────────
         FormattingToolbar(onFormat = { prefix, suffix ->
-            val newContent = content + prefix + suffix
-            vm.setEditContent(newContent)
+            val sel  = contentState.selection
+            val text = contentState.text
+            // Block-level formats (H1, H2, bullet, task) → insert at start of current line
+            val isBlock = prefix == "# " || prefix == "## " || prefix == "- " || prefix == "- [ ] "
+            val (newText, newCursor) = when {
+                isBlock -> {
+                    val lineStart = (text.lastIndexOf('\n', (sel.start - 1).coerceAtLeast(0)) + 1)
+                        .coerceAtLeast(0)
+                    val newStr = text.substring(0, lineStart) + prefix + text.substring(lineStart)
+                    Pair(newStr, lineStart + prefix.length + (sel.start - lineStart))
+                }
+                !sel.collapsed -> {
+                    // Wrap selected text with prefix/suffix
+                    val selected = text.substring(sel.start, sel.end)
+                    val newStr = text.substring(0, sel.start) + prefix + selected + suffix + text.substring(sel.end)
+                    Pair(newStr, sel.start + prefix.length + selected.length + suffix.length)
+                }
+                else -> {
+                    // Insert at cursor; place cursor between prefix and suffix
+                    val newStr = text.substring(0, sel.start) + prefix + suffix + text.substring(sel.start)
+                    Pair(newStr, sel.start + prefix.length)
+                }
+            }
+            contentState = TextFieldValue(newText, TextRange(newCursor))
+            vm.setEditContent(newText)
         })
 
         HorizontalDivider(color = BorderDefault)
 
         // ── Editor area ──────────────────────────────────────────────────────
         androidx.compose.foundation.text.BasicTextField(
-            value = content,
-            onValueChange = vm::setEditContent,
+            value = contentState,
+            onValueChange = { newValue ->
+                contentState = newValue
+                vm.setEditContent(newValue.text)
+            },
             modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp),
             textStyle = MaterialTheme.typography.bodyMedium.copy(
                 color = TextPrimary,
@@ -355,7 +385,7 @@ fun NoteEditorScreen(note: Note, content: String, vm: NotesViewModel) {
                 letterSpacing = 0.2.sp,
             ),
             decorationBox = { inner ->
-                if (content.isEmpty()) {
+                if (contentState.text.isEmpty()) {
                     Text(
                         "Start writing…\n\nUse # for headings\n**bold**, *italic*, `code`\n- list items\n- [ ] tasks",
                         color = TextSubtle.copy(0.6f),

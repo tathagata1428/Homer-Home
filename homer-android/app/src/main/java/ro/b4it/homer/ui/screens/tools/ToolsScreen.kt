@@ -76,11 +76,14 @@ fun ToolsScreen() {
             verticalArrangement = Arrangement.spacedBy(10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            // Keep Awake — first grid item like website
+            // First 8 tools (Nextcloud → Immich), then Keep Awake, then remaining — matches website order
+            items(TOOLS.take(8)) { tool ->
+                ToolCard(tool = tool, onClick = { openUrl(ctx, tool.url) })
+            }
             item {
                 KeepAwakeCard(keepAwake = keepAwake, onToggle = { keepAwake = !keepAwake })
             }
-            items(TOOLS) { tool ->
+            items(TOOLS.drop(8)) { tool ->
                 ToolCard(tool = tool, onClick = { openUrl(ctx, tool.url) })
             }
         }
