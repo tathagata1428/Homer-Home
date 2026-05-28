@@ -1331,19 +1331,31 @@ class SyncEngine @Inject constructor(
 
     // ── Saved Quotes ──────────────────────────────────────────────────────────
     // Website key: "motivator.savedQuotes.v1" → Supabase field_id: "ls:savedQuotes"
-    // Format: [{text, author, savedAt}]
+    // Website format: [{q, a, ts}]  — short keys used by website renderSaved/buildMarkdown
+    // Old Android format: [{text, author, savedAt}]  — kept as fallback fields for backwards compat
 
     @Serializable
     private data class WsQuote(
-        val text: String = "",
-        val author: String = "",
-        val savedAt: Long = 0L,
+        val q: String = "",          // website format (primary)
+        val a: String = "",          // website format (primary)
+        val ts: Long = 0L,           // website format (primary)
+        val text: String = "",       // old android format (fallback)
+        val author: String = "",     // old android format (fallback)
+        val savedAt: Long = 0L,      // old android format (fallback)
     )
+
+    private fun WsQuote.toSavedQuote(): SavedQuote {
+        val resolvedText   = q.ifBlank { text }
+        val resolvedAuthor = a.ifBlank { author }.ifBlank { "Unknown" }
+        val resolvedTs     = ts.takeIf { it > 0 } ?: savedAt.takeIf { it > 0 } ?: System.currentTimeMillis()
+        return SavedQuote(text = resolvedText, author = resolvedAuthor, savedAt = resolvedTs)
+    }
 
     private suspend fun pushSavedQuotes() {
         val quotes = db.quoteDao().getAll().first()
         if (quotes.isEmpty()) return
-        val ws = quotes.map { q -> WsQuote(text = q.text, author = q.author, savedAt = q.savedAt) }
+        // Push in website format {q, a, ts} so website renderSaved() displays correctly
+        val ws = quotes.map { q -> WsQuote(q = q.text, a = q.author, ts = q.savedAt) }
         supabase.setFieldState("ls:savedQuotes",
             json.encodeToString(ListSerializer(WsQuote.serializer()), ws))
     }
@@ -1352,8 +1364,7 @@ class SyncEngine @Inject constructor(
         supabase.getFieldState("ls:savedQuotes")?.let { row ->
             if (row.value.isBlank()) return@let
             val wsQuotes = json.decodeFromString(ListSerializer(WsQuote.serializer()), row.value)
-            val quotes = wsQuotes.filter { it.text.isNotBlank() }
-                .map { SavedQuote(text = it.text, author = it.author, savedAt = it.savedAt) }
+            val quotes = wsQuotes.map { it.toSavedQuote() }.filter { it.text.isNotBlank() }
             if (quotes.isEmpty()) return@let
             db.quoteDao().deleteAll()
             quotes.forEach { db.quoteDao().insert(it) }
