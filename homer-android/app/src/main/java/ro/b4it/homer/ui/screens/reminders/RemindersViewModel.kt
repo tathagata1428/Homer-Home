@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import ro.b4it.homer.data.local.dao.ReminderDao
 import ro.b4it.homer.data.local.entity.Reminder
+import ro.b4it.homer.data.sync.SyncEngine
 import ro.b4it.homer.notification.ReminderManager
 import java.util.UUID
 import javax.inject.Inject
@@ -14,6 +15,7 @@ import javax.inject.Inject
 class RemindersViewModel @Inject constructor(
     private val dao: ReminderDao,
     private val reminderManager: ReminderManager,
+    private val sync: SyncEngine,
 ) : ViewModel() {
 
     val reminders = dao.getAll()
@@ -27,6 +29,7 @@ class RemindersViewModel @Inject constructor(
         viewModelScope.launch {
             dao.upsert(reminder)
             reminderManager.scheduleReminder(reminder)
+            sync.pushRemindersDebounced()
         }
     }
 
@@ -36,6 +39,7 @@ class RemindersViewModel @Inject constructor(
             dao.upsert(updated)
             if (updated.enabled) reminderManager.scheduleReminder(updated)
             else reminderManager.cancelReminder(updated.id)
+            sync.pushRemindersDebounced()
         }
     }
 
@@ -43,6 +47,7 @@ class RemindersViewModel @Inject constructor(
         viewModelScope.launch {
             dao.delete(reminder)
             reminderManager.cancelReminder(reminder.id)
+            sync.pushRemindersDebounced()
         }
     }
 }

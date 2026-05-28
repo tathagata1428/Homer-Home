@@ -1390,10 +1390,17 @@
       function mergeArr(loc,rem){
         var byId={};
         (loc||[]).forEach(function(x){byId[x.id]=x;});
-        (rem||[]).forEach(function(x){
-          var ex=byId[x.id];
-          if(!ex||(x.updatedAt||0)>(ex.updatedAt||0))byId[x.id]=x;
-        });
+        if(loc&&loc.length>0){
+          // Local has items: only update existing items with newer remote versions.
+          // Remote-only items are NOT added — they were deleted locally and must stay deleted.
+          (rem||[]).forEach(function(x){
+            var ex=byId[x.id];
+            if(ex&&(x.updatedAt||0)>(ex.updatedAt||0))byId[x.id]=x;
+          });
+        } else {
+          // Local is empty: accept everything from remote (fresh install / first sync)
+          (rem||[]).forEach(function(x){byId[x.id]=x;});
+        }
         return Object.keys(byId).map(function(k){return byId[k];});
       }
       return{projects:mergeArr(local.projects,remote.projects),tasks:mergeArr(local.tasks,remote.tasks)};
@@ -1401,17 +1408,22 @@
     function mergeLifeGoalsArr(local,remote){
       var byId={};
       (local||[]).forEach(function(g){byId[g.id]=g;});
-      (remote||[]).forEach(function(g){
-        var ex=byId[g.id];
-        if(!ex||(g.updatedAt||0)>(ex.updatedAt||0))byId[g.id]=g;
-      });
+      if(local&&local.length>0){
+        // Local has items: only update existing items with newer remote versions.
+        // Remote-only items are NOT added — they were deleted locally and must stay deleted.
+        (remote||[]).forEach(function(g){
+          var ex=byId[g.id];
+          if(ex&&(g.updatedAt||0)>(ex.updatedAt||0))byId[g.id]=g;
+        });
+      } else {
+        // Local is empty: accept everything from remote (fresh install / first sync)
+        (remote||[]).forEach(function(g){byId[g.id]=g;});
+      }
       return Object.keys(byId).map(function(k){return byId[k];});
     }
     var _vaultSyncTimer=null;
     var _inVaultPull=false;          // prevents vault-goals-changed from re-triggering sync during our own save
     var _localMutationPending=false; // set by local edits so doVaultSync pushes local-wins (no merge with stale remote)
-    var _remoteKanbanCache=null;     // pre-fetched by pullAll so doVaultSync needs no extra round-trip
-    var _remoteLgCache=null;
     function scheduleVaultSync(){clearTimeout(_vaultSyncTimer);_vaultSyncTimer=setTimeout(doVaultSync,3000);}
     function doVaultSync(){
       if(!canSync())return;
@@ -1444,7 +1456,6 @@
               icon:g.icon||'',targetDate:g.targetDate||'',milestones:safeJson(g.milestonesJson,[]),
               status:g.status||'active',progress:g.progress||0,updatedAt:g.updatedAt||Date.now()};
           });
-          _remoteKanbanCache=mergedKanban;_remoteLgCache=mergedLg;
           // Guard flag: suppress the vault-goals-changed handler so it doesn't re-trigger sync
           _inVaultPull=true;
           window._homerSaveVault(vault)
@@ -1484,8 +1495,6 @@
         if(isLocalPush){
           // Push local state as-is — no merge with remote
           applyMerge({projects:[],tasks:[]},[]); // empty remote → merge result == local only
-        } else if(_remoteKanbanCache!==null){
-          applyMerge(_remoteKanbanCache,_remoteLgCache||[]);
         } else {
           Promise.all([
             client.from('field_state').select('value').eq('field_id','ls:homer-kanban').eq('user_id',uid).maybeSingle(),
@@ -1513,20 +1522,6 @@
       _pullDone=true;
       // Pre-fetch remote kanban + life-goals so doVaultSync can merge immediately on vault unlock
       var _c=getClient(),_u=getUid();
-      if(_c&&_u){
-        _remoteKanbanCache=null;_remoteLgCache=null;
-        Promise.all([
-          _c.from('field_state').select('value').eq('field_id','ls:homer-kanban').eq('user_id',_u).maybeSingle(),
-          _c.from('field_state').select('value').eq('field_id','ls:homer-life-goals').eq('user_id',_u).maybeSingle()
-        ]).then(function(res){
-          var rk=safeJson((res[0].data||{}).value||'{}',{});
-          _remoteKanbanCache={projects:rk.projects||[],tasks:(rk.tasks||[]).concat(rk.goals||[])};
-          var lg=safeJson((res[1].data||{}).value||'[]',[]);
-          _remoteLgCache=Array.isArray(lg)?lg:[];
-          // If vault already unlocked by the time this resolves, trigger merge now
-          if(window._homerVaultUnlocked)scheduleVaultSync();
-        }).catch(function(){});
-      }
       SYNC_KEYS.filter(function(k){return k!=='homer-inbox';}).forEach(pullKey);
       syncInbox();
       syncHabits();

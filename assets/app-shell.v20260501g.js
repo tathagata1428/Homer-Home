@@ -9138,7 +9138,8 @@ let tvWidgetCreated = false;
     'homer-car':                'ls:homer-car',
     'homer-journal':            'ls:homer-journal',
     'homer-kanban':             'ls:homer-kanban',
-    'homer-life-goals':         'ls:homer-life-goals'
+    'homer-life-goals':         'ls:homer-life-goals',
+    'homer-reminders':          'ls:homer-reminders'
   };
   var LS_FIELD_MAP_REVERSE = {};
   Object.keys(LS_FIELD_MAP).forEach(function(k){ LS_FIELD_MAP_REVERSE[LS_FIELD_MAP[k]] = k; });

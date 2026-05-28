@@ -228,6 +228,7 @@ class SyncViewModel @Inject constructor(
             SyncScopeItem("ls:homer-countdown",  "⏳", "Countdown"),
             SyncScopeItem("ls:homer-secrets",    "🔐", "Passwords"),
             SyncScopeItem("ls:homer-vault-notes","📓", "Vault Notes"),
+            SyncScopeItem("ls:homer-reminders",  "🔔", "Reminders"),
         )
     }
 }

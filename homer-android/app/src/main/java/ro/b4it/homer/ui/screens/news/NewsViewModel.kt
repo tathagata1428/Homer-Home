@@ -7,7 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.xmlpull.v1.XmlPullParser
@@ -81,7 +83,9 @@ class NewsViewModel @Inject constructor(private val http: OkHttpClient) : ViewMo
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             try {
-                val xml = http.newCall(Request.Builder().url(url).build()).execute().body?.string() ?: ""
+                val xml = withContext(Dispatchers.IO) {
+                    http.newCall(Request.Builder().url(url).build()).execute().body?.string() ?: ""
+                }
                 val articles = parseRss(xml, s.source)
                 _state.update { it.copy(articles = articles, loading = false) }
             } catch (e: Exception) {

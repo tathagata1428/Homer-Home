@@ -88,6 +88,7 @@ class SyncEngine @Inject constructor(
         if (isFieldEnabled("ls:homer-countdown"))           runCatching { pullCountdown()        }.onFailure { Log.e("HomerSync", "pullCountdown failed", it) }
         if (isFieldEnabled("ls:homer-secrets"))             runCatching { pullSecrets()          }.onFailure { Log.e("HomerSync", "pullSecrets failed", it) }
         if (isFieldEnabled("ls:homer-vault-notes"))         runCatching { pullVaultNotes()       }.onFailure { Log.e("HomerSync", "pullVaultNotes failed", it) }
+        if (isFieldEnabled("ls:homer-reminders"))           runCatching { pullReminders()        }.onFailure { Log.e("HomerSync", "pullReminders failed", it) }
         Log.d("HomerSync", "pullAll: done")
     }
 
@@ -110,6 +111,18 @@ class SyncEngine @Inject constructor(
                     push()
                 }.onFailure { Log.e("HomerSync", "schedulePush[$fieldKey] failed", it) }
             }
+        }
+    }
+
+    /**
+     * Cancel any pending debounced push for [fieldKey].
+     * Called from applyFieldUpdate so a Realtime update from another device
+     * doesn't get overwritten by a stale local push queued before the update arrived.
+     */
+    fun cancelPendingPush(fieldKey: String) {
+        synchronized(pendingJobs) {
+            pendingJobs[fieldKey]?.cancel()
+            pendingJobs.remove(fieldKey)
         }
     }
 
@@ -138,6 +151,7 @@ class SyncEngine @Inject constructor(
     fun pushCountdownDebounced()         = schedulePush("ls:homer-countdown")            { pushCountdown() }
     fun pushSecretsDebounced()           = schedulePush("ls:homer-secrets")              { pushSecrets() }
     fun pushVaultNotesDebounced()        = schedulePush("ls:homer-vault-notes")          { pushVaultNotes() }
+    fun pushRemindersDebounced()         = schedulePush("ls:homer-reminders")            { pushReminders() }
 
     /** Push all data to Supabase immediately (no debounce). Throws on auth failure. */
     suspend fun pushAll() {
@@ -168,6 +182,7 @@ class SyncEngine @Inject constructor(
         runCatching { pushCountdown() }
         runCatching { pushSecrets() }
         runCatching { pushVaultNotes() }
+        runCatching { pushReminders() }
     }
 
     /** Push Pomodoro tasks immediately — called on delete so Supabase is updated before any pull. */
@@ -763,7 +778,7 @@ class SyncEngine @Inject constructor(
                 updatedAt   = t.updatedAt,
             )
         }
-        val blob = KanbanBlobWs(projects = wsProjects, goals = wsTasks)
+        val blob = KanbanBlobWs(projects = wsProjects, tasks = wsTasks)
         supabase.setFieldState("ls:homer-kanban", json.encodeToString(KanbanBlobWs.serializer(), blob))
     }
 
@@ -771,7 +786,8 @@ class SyncEngine @Inject constructor(
         supabase.getFieldState("ls:homer-kanban")?.let { row ->
             if (row.value.isBlank()) return@let
             val blob     = json.decodeFromString(KanbanBlobWs.serializer(), row.value)
-            val allTasks = blob.tasks + blob.goals  // union: android-push tasks + web-vault goals
+            // Union tasks + goals, then deduplicate by id (prevents duplication if both keys exist)
+            val allTasks = (blob.tasks + blob.goals).distinctBy { jsonElemStr(it.id) }
             val projects = blob.projects.map { it.toProject() }
             val tasks    = allTasks.map { it.toTask() }
             if (projects.isEmpty() && tasks.isEmpty()) return@let
@@ -1113,6 +1129,15 @@ class SyncEngine @Inject constructor(
             add("ls:homer-sessions", "Focus Sessions", "🍅", local, cloud)
         }
 
+        runCatching {
+            val local = db.reminderDao().getAllSync().size
+            val cloud = supabase.getFieldState("ls:homer-reminders")?.let { row ->
+                if (row.value.isBlank()) return@let 0
+                json.decodeFromString(ListSerializer(Reminder.serializer()), row.value).size
+            } ?: 0
+            add("ls:homer-reminders", "Reminders", "🔔", local, cloud)
+        }
+
         return result
     }
 
@@ -1295,6 +1320,13 @@ class SyncEngine @Inject constructor(
                 pullFn  = ::pullVaultNotes,
                 pushFn  = ::pushVaultNotes)
         }.onFailure { Log.e("HomerSync", "vault-notes resolution failed", it) }
+
+        runCatching {
+            apply("ls:homer-reminders",
+                clearFn = { db.reminderDao().clearAll() },
+                pullFn  = ::pullReminders,
+                pushFn  = ::pushReminders)
+        }.onFailure { Log.e("HomerSync", "reminders resolution failed", it) }
     }
 
     // ── Saved Quotes ──────────────────────────────────────────────────────────
@@ -1464,6 +1496,30 @@ class SyncEngine @Inject constructor(
      */
     suspend fun applyFieldUpdate(fieldId: String) {
         if (!supabase.isBogdan()) return
+        // Cancel any pending local push for this field before applying the incoming remote update.
+        // This prevents a stale debounced Android push from overwriting the fresh remote state
+        // (which is the root cause of deletion resurrection bugs).
+        val pushKey = when (fieldId) {
+            "ls:homer-expenses", "ls:homer-income", "ls:homer-expense-budgets" -> "ls:homer-expenses"
+            "ls:homer-habits"            -> "ls:homer-habits"
+            "ls:homer-inbox"             -> "ls:homer-inbox"
+            "ls:homer-links"             -> "ls:homer-links"
+            "ls:pom-tasks"               -> "ls:pom-tasks"
+            "ls:homer-notes"             -> "ls:homer-notes"
+            "ls:homer-journal"           -> "ls:homer-journal"
+            "ls:homer-car"               -> "ls:homer-car"
+            "ls:homer-kanban"            -> "ls:homer-kanban"
+            "ls:homer-life-goals"        -> "ls:homer-life-goals"
+            "ls:homer-cal-events"        -> "ls:homer-cal-events"
+            "ls:savedQuotes"             -> "ls:savedQuotes"
+            "ls:homer-reminders"         -> "ls:homer-reminders"
+            "ls:homer-secrets:personal",
+            "ls:homer-secrets:work"      -> "ls:homer-secrets"
+            "ls:homer-vault-notes:personal",
+            "ls:homer-vault-notes:work"  -> "ls:homer-vault-notes"
+            else -> null
+        }
+        pushKey?.let { cancelPendingPush(it) }
         runCatching {
             when (fieldId) {
                 "ls:homer-expenses",
@@ -1495,6 +1551,7 @@ class SyncEngine @Inject constructor(
                 "ls:homer-secrets:work"      -> pullSecrets()
                 "ls:homer-vault-notes:personal",
                 "ls:homer-vault-notes:work"  -> pullVaultNotes()
+                "ls:homer-reminders"         -> pullReminders()
             }
         }.onFailure { Log.e("HomerSync", "applyFieldUpdate[$fieldId] failed", it) }
     }
@@ -1624,6 +1681,28 @@ class SyncEngine @Inject constructor(
                 .putString("name", ws.name)
                 .putLong("dateMs", dateMs)
                 .apply()
+        }
+    }
+
+    // ── Reminders ─────────────────────────────────────────────────────────────
+    // Website key: "homer-reminders" → Supabase field_id: "ls:homer-reminders"
+    // Format: [{id, title, body, triggerAt, recurType, enabled, createdAt}]
+    // Matches Android Reminder entity exactly.
+
+    private suspend fun pushReminders() {
+        val reminders = db.reminderDao().getAllSync()
+        if (reminders.isEmpty()) return
+        supabase.setFieldState("ls:homer-reminders",
+            json.encodeToString(ListSerializer(Reminder.serializer()), reminders))
+    }
+
+    private suspend fun pullReminders() {
+        supabase.getFieldState("ls:homer-reminders")?.let { row ->
+            if (row.value.isBlank()) return@let
+            val cloudReminders = json.decodeFromString(ListSerializer(Reminder.serializer()), row.value)
+            if (cloudReminders.isEmpty()) return@let
+            db.reminderDao().clearAll()
+            db.reminderDao().upsertAll(cloudReminders)
         }
     }
 

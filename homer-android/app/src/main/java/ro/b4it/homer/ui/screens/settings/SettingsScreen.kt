@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import ro.b4it.homer.BuildConfig
 import ro.b4it.homer.ui.screens.home.HomerCard
 import ro.b4it.homer.ui.theme.*
 
@@ -87,9 +88,9 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel(), onNavigateReminders:
             HomerCard {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("App Info", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    InfoRow("Version", "1.0.0")
-                    InfoRow("Package", "ro.b4it.homer")
-                    InfoRow("Build", "Phase 16 – Complete")
+                    InfoRow("Version", BuildConfig.VERSION_NAME)
+                    InfoRow("Package", BuildConfig.APPLICATION_ID)
+                    InfoRow("Build", "versionCode ${BuildConfig.VERSION_CODE}")
                 }
             }
         }

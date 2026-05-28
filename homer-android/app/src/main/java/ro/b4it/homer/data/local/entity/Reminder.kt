@@ -2,11 +2,13 @@ package ro.b4it.homer.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * Standalone recurring reminder.
  * recurType: "none" | "daily" | "weekly" | "monthly" | "yearly"
  */
+@Serializable
 @Entity(tableName = "reminders")
 data class Reminder(
     @PrimaryKey val id: String,
