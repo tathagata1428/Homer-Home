@@ -99,7 +99,7 @@
     var ts = Date.now();
     client.from('field_state').upsert({
       user_id: uid2, field_id: SB_FIELD_ID, kind: 'json',
-      value: JSON.stringify(data), client_ts: ts,
+      value: JSON.stringify(data), client_ts: ts, server_ts: ts,
       client_seq: 0, device_id: 'web',
       updated_at: new Date(ts).toISOString(),
     }, { onConflict: 'user_id,field_id' });
@@ -1227,11 +1227,14 @@
     // Pull from Supabase when session is ready (fires after Supabase auth)
     function applyRemote(remote) {
       if (!remote) return;
+      // Cloud-wins: remote is source of truth (Bogdan-only, single user).
+      // Guard: only replace a category if cloud has data or local is also empty,
+      // preventing accidental wipe from empty cloud response.
       var merged = {
-        vehicles:    mergeById(state.data.vehicles,    remote.vehicles    || []),
-        documents:   mergeById(state.data.documents,   remote.documents   || []),
-        maintenance: mergeById(state.data.maintenance, remote.maintenance || []),
-        fuel:        mergeById(state.data.fuel,        remote.fuel        || []),
+        vehicles:    (remote.vehicles    && remote.vehicles.length)    ? remote.vehicles    : (state.data.vehicles    || []),
+        documents:   (remote.documents   && remote.documents.length)   ? remote.documents   : (state.data.documents   || []),
+        maintenance: (remote.maintenance && remote.maintenance.length) ? remote.maintenance : (state.data.maintenance || []),
+        fuel:        (remote.fuel        && remote.fuel.length)        ? remote.fuel        : (state.data.fuel        || []),
       };
       saveToIDB(merged);
       state.data = merged;

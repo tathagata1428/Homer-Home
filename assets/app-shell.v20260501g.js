@@ -6920,6 +6920,7 @@ let tvWidgetCreated = false;
     if(p==='high') return 'p-high';
     if(p==='medium') return 'p-medium';
     if(p==='low') return 'p-low';
+    if(p==='reminder') return 'p-reminder';
     if(CAL_CATEGORIES[p]) return 'p-cat-'+p;
     return 'p-none';
   }
@@ -6929,10 +6930,11 @@ let tvWidgetCreated = false;
     if(p==='low') return '#22c55e';
     if(p==='ext') return '#3b82f6';
     if(p==='custom') return '#a78bfa';
+    if(p==='reminder') return '#ff0066';
     if(CAL_CATEGORIES[p]) return CAL_CATEGORIES[p].color;
     return '#94a3b8';
   }
-  var colLbl = {todo:'To Do', progress:'In Progress', pending:'Pending', backlog:'Backlog', done:'Done'};
+  var colLbl = {todo:'To Do', progress:'In Progress', pending:'Pending', backlog:'Backlog', done:'Done', reminder:'Reminder', custom:'Event'};
 
   // Generate consistent color for a label name (hash-based)
   var _labelPalette = ['#ef4444','#f97316','#f59e0b','#22c55e','#14b8a6','#0ea5e9','#3b82f6','#6366f1','#8b5cf6','#a855f7','#ec4899','#f43f5e'];
@@ -7223,6 +7225,35 @@ let tvWidgetCreated = false;
         location: ev.location || '',
         recurrence: ev.recurrence || null,
         id: ev.id
+      });
+    });
+    return dueMap;
+  }
+  function mergeReminders(dueMap){
+    var raw = localStorage.getItem('homer-reminders');
+    if(!raw) return dueMap;
+    var reminders;
+    try{ reminders = JSON.parse(raw); }catch(_e){ return dueMap; }
+    if(!Array.isArray(reminders)) return dueMap;
+    var pad = function(n){ return n < 10 ? '0'+n : ''+n; };
+    reminders.forEach(function(r){
+      if(!r || r.enabled === false) return;
+      var ms = Number(r.triggerAt);
+      if(!ms) return;
+      var d = new Date(ms);
+      var dateKey = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+      var timeStr = pad(d.getHours())+':'+pad(d.getMinutes());
+      var recur = (r.recurType && r.recurType !== 'none') ? ' \u00b7 '+r.recurType : '';
+      if(!dueMap[dateKey]) dueMap[dateKey] = [];
+      dueMap[dateKey].push({
+        summary: r.title || 'Reminder',
+        priority: 'reminder',
+        col: 'reminder',
+        type: 'reminder',
+        time: timeStr,
+        description: (r.body || '') + recur,
+        location: '',
+        id: r.id
       });
     });
     return dueMap;
@@ -7543,7 +7574,7 @@ let tvWidgetCreated = false;
       h += '<span style="color:' + (statusColors[item.status] || 'var(--muted)') + '">' + esc(item.status.charAt(0).toUpperCase() + item.status.slice(1).toLowerCase()) + '</span>';
     }
     if(item.col && colLbl[item.col]) h += '<span>&#9679; ' + colLbl[item.col] + '</span>';
-    if(item.priority && item.priority !== 'ext' && item.priority !== 'custom'){
+    if(item.priority && item.priority !== 'ext' && item.priority !== 'custom' && item.priority !== 'reminder'){
       h += '<span style="color:' + pColor(item.priority) + '">&#9650; ' + item.priority + ' priority</span>';
     }
     if(item.transparency === 'TRANSPARENT') h += '<span style="opacity:.6">Free</span>';
@@ -8065,6 +8096,7 @@ let tvWidgetCreated = false;
       var icsEvents = results[1];
       mergeICSEvents(dueMap, icsEvents);
       mergeCustomEvents(dueMap);
+      mergeReminders(dueMap);
       lastDueMap = dueMap;
       render(dueMap);
       if(viewMode === 'day') renderDayView(dueMap);

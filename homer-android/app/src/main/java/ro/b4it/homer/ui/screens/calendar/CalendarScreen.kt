@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ro.b4it.homer.data.local.entity.CalendarEvent
+import ro.b4it.homer.data.local.entity.Reminder
 import ro.b4it.homer.ui.screens.home.HomerCard
 import ro.b4it.homer.ui.theme.*
 import java.text.SimpleDateFormat
@@ -33,8 +34,8 @@ private val FMT_DATE   = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
 
 @Composable
 fun CalendarScreen(vm: CalendarViewModel = hiltViewModel()) {
-    val ym     by vm.selectedMonth.collectAsStateWithLifecycle()
-    val events by vm.events.collectAsStateWithLifecycle(emptyList())
+    val ym       by vm.selectedMonth.collectAsStateWithLifecycle()
+    val calItems by vm.items.collectAsStateWithLifecycle(emptyList())
     var showAdd by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<Int?>(null) }   // selected day-of-month
 
@@ -43,20 +44,17 @@ fun CalendarScreen(vm: CalendarViewModel = hiltViewModel()) {
 
     val cal = Calendar.getInstance().apply { set(year, month, 1) }
     val daysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
-    // Monday-based offset
     val firstDow = ((cal.get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7)
 
     val todayCal = Calendar.getInstance()
     val isCurrentMonth = todayCal.get(Calendar.YEAR) == year && todayCal.get(Calendar.MONTH) == month
     val todayDay = if (isCurrentMonth) todayCal.get(Calendar.DAY_OF_MONTH) else -1
 
-    // Group events by day-of-month
-    val eventsByDay: Map<Int, List<CalendarEvent>> = events.groupBy { e ->
-        Calendar.getInstance().apply { timeInMillis = e.start }.get(Calendar.DAY_OF_MONTH)
+    val itemsByDay: Map<Int, List<CalendarItem>> = calItems.groupBy { item ->
+        Calendar.getInstance().apply { timeInMillis = item.sortMs }.get(Calendar.DAY_OF_MONTH)
     }
 
-    val selectedEvents = if (selected != null) eventsByDay[selected] ?: emptyList() else
-        events.sortedBy { it.start }
+    val selectedItems = if (selected != null) itemsByDay[selected] ?: emptyList() else calItems
 
     Column(Modifier.fillMaxSize().background(BgPrimary)) {
         // Header
@@ -98,7 +96,9 @@ fun CalendarScreen(vm: CalendarViewModel = hiltViewModel()) {
                         if (day < 1 || day > daysInMonth) {
                             Box(Modifier.weight(1f).height(40.dp))
                         } else {
-                            val hasEvents = eventsByDay.containsKey(day)
+                            val dayItems    = itemsByDay[day]
+                            val hasEvents   = dayItems?.any { it is CalendarItem.Event } == true
+                            val hasReminders = dayItems?.any { it is CalendarItem.ReminderEntry } == true
                             val isToday   = day == todayDay
                             val isSel     = day == selected
                             Box(
@@ -123,10 +123,12 @@ fun CalendarScreen(vm: CalendarViewModel = hiltViewModel()) {
                                         },
                                         fontWeight = if (isToday || isSel) FontWeight.Bold else FontWeight.Normal,
                                     )
-                                    if (hasEvents) {
-                                        Box(Modifier.size(4.dp).clip(CircleShape).background(
-                                            if (isSel) androidx.compose.ui.graphics.Color.White else AccentBlue
-                                        ))
+                                    if (hasEvents || hasReminders) {
+                                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            if (hasEvents) Box(Modifier.size(4.dp).clip(CircleShape).background(
+                                                if (isSel) androidx.compose.ui.graphics.Color.White else AccentBlue))
+                                            if (hasReminders) Box(Modifier.size(4.dp).clip(CircleShape).background(NeonPink))
+                                        }
                                     }
                                 }
                             }
@@ -139,10 +141,10 @@ fun CalendarScreen(vm: CalendarViewModel = hiltViewModel()) {
         HorizontalDivider(Modifier.padding(vertical = 8.dp), color = BorderSubtle)
 
         // Events list
-        if (selectedEvents.isEmpty()) {
+        if (selectedItems.isEmpty()) {
             Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    if (selected != null) "No events on day $selected" else "No events this month",
+                    if (selected != null) "Nothing on day $selected" else "Nothing this month",
                     color = TextMuted, style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -151,8 +153,11 @@ fun CalendarScreen(vm: CalendarViewModel = hiltViewModel()) {
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                items(selectedEvents) { ev ->
-                    EventRow(ev, onDelete = { vm.deleteEvent(ev) })
+                items(selectedItems) { item ->
+                    when (item) {
+                        is CalendarItem.Event         -> EventRow(item.event, onDelete = { vm.deleteEvent(item.event) })
+                        is CalendarItem.ReminderEntry -> ReminderCalRow(item.reminder)
+                    }
                 }
             }
         }
@@ -191,6 +196,28 @@ private fun EventRow(event: CalendarEvent, onDelete: () -> Unit) {
             }
             IconButton(onClick = onDelete, Modifier.size(28.dp)) {
                 Icon(Icons.Filled.Delete, null, tint = AccentRed.copy(0.7f), modifier = Modifier.size(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReminderCalRow(reminder: Reminder) {
+    HomerCard {
+        Row(
+            Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.width(4.dp).height(36.dp).clip(RoundedCornerShape(2.dp)).background(NeonPink))
+            Spacer(Modifier.width(10.dp))
+            Icon(Icons.Filled.Notifications, null, tint = NeonPink, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text(reminder.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                val time = FMT_TIME.format(java.util.Date(reminder.triggerAt))
+                val recur = if (reminder.recurType != "none") " · ${reminder.recurType}" else ""
+                Text("$time$recur", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                if (reminder.body.isNotBlank()) Text(reminder.body, style = MaterialTheme.typography.labelSmall, color = TextMuted)
             }
         }
     }

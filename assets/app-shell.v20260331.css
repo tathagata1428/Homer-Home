@@ -1787,6 +1787,8 @@
     #homer-cal .cal-dot.p-cat-reminder { background:#f59e0b; }
     #homer-cal .cal-dot.p-cat-personal { background:#a78bfa; }
     #homer-cal .cal-dot.p-cat-work { background:#3b82f6; }
+    #homer-cal .cal-dot.p-reminder { background:#ff0066; }
+    #homer-cal .cal-pop-badge.s-reminder { background:rgba(255,0,102,.15); color:#ff0066; }
     #homer-cal .cal-pop-badge.s-custom { background:rgba(167,139,250,.15); color:#a78bfa; }
     #homer-cal .cal-pop-badge.s-cat-meeting { background:rgba(14,165,233,.15); color:#0ea5e9; }
     #homer-cal .cal-pop-badge.s-cat-deadline { background:rgba(239,68,68,.15); color:#ef4444; }

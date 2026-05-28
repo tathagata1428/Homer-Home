@@ -1364,10 +1364,26 @@ class SyncEngine @Inject constructor(
         supabase.getFieldState("ls:savedQuotes")?.let { row ->
             if (row.value.isBlank()) return@let
             val wsQuotes = json.decodeFromString(ListSerializer(WsQuote.serializer()), row.value)
-            val quotes = wsQuotes.map { it.toSavedQuote() }.filter { it.text.isNotBlank() }
-            if (quotes.isEmpty()) return@let
+            val cloudQuotes = wsQuotes.map { it.toSavedQuote() }.filter { it.text.isNotBlank() }
+            if (cloudQuotes.isEmpty()) return@let
+            // Merge: union of local + cloud, dedup by lowercased text, keep most recent
+            val localQuotes = db.quoteDao().getAll().first()
+            val merged = mutableMapOf<String, SavedQuote>()
+            for (q in cloudQuotes) merged[q.text.trim().lowercase()] = q
+            for (q in localQuotes) {
+                val key = q.text.trim().lowercase()
+                val ex  = merged[key]
+                if (ex == null || q.savedAt > ex.savedAt) merged[key] = q
+            }
+            if (merged.isEmpty()) return@let
             db.quoteDao().deleteAll()
-            quotes.forEach { db.quoteDao().insert(it) }
+            for (q in merged.values) db.quoteDao().insert(q)
+            // Push merged set back to cloud if local added new quotes
+            if (merged.size > cloudQuotes.size) {
+                val ws = merged.values.map { q -> WsQuote(q = q.text, a = q.author, ts = q.savedAt) }
+                supabase.setFieldState("ls:savedQuotes",
+                    json.encodeToString(ListSerializer(WsQuote.serializer()), ws))
+            }
         }
     }
 
