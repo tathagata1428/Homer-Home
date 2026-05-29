@@ -1264,6 +1264,15 @@
     if (isBogdan()) {
       setTimeout(function() { pullFromSupabase(applyRemote); }, 3000);
     }
+
+    // Re-pull from Supabase into IDB whenever Android pushes car data via Realtime.
+    // applySyncedFieldValue writes to localStorage but the car UI reads from IDB,
+    // so we need this explicit pull to bridge the gap.
+    window.addEventListener('homer-data-synced', function(e) {
+      if (e && e.detail && e.detail.key === 'homer-car' && isBogdan()) {
+        pullFromSupabase(applyRemote);
+      }
+    });
   });
 
   function mergeById(local, remote) {

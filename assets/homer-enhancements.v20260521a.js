@@ -1437,6 +1437,7 @@
     var _vaultSyncTimer=null;
     var _inVaultPull=false;          // prevents vault-goals-changed from re-triggering sync during our own save
     var _localMutationPending=false; // set by local edits so doVaultSync pushes local-wins (no merge with stale remote)
+    var _vaultSyncPending=false;     // set when Android pushes while vault is locked; flushed on vault unlock
     function scheduleVaultSync(){clearTimeout(_vaultSyncTimer);_vaultSyncTimer=setTimeout(doVaultSync,3000);}
     function doVaultSync(){
       if(!canSync())return;
@@ -1531,8 +1532,14 @@
     // Re-sync on vault data changes — but never re-trigger from our own save.
     // Mark as local mutation so doVaultSync pushes local-wins (prevents deletion resurrection).
     window.addEventListener('vault-goals-changed',function(){if(!_inVaultPull&&canSync()){_localMutationPending=true;scheduleVaultSync();}});
-    // Also fire when vault unlocks — first unlock on page load is the most important
-    window.addEventListener('homer-vault-state',function(){if(canSync()&&window._homerVaultUnlocked)scheduleVaultSync();});
+    // Also fire when vault unlocks — first unlock on page load is the most important.
+    // Also flush any pending Android-pushed data that arrived while vault was locked.
+    window.addEventListener('homer-vault-state',function(){
+      if(canSync()&&window._homerVaultUnlocked){
+        _vaultSyncPending=false;
+        scheduleVaultSync();
+      }
+    });
 
     var _pullDone=false;
     function pullAll(){
@@ -1639,9 +1646,14 @@
         var nt=document.getElementById('tab-notes');
         if(nt&&nt.style.display!=='none'&&typeof window._homerRenderNoteList==='function')window._homerRenderNoteList();
       }
-      // Kanban/life-goals: Android pushed new data → trigger vault sync to write into vault IDB
-      if((key==='homer-kanban'||key==='homer-life-goals')&&canSync()&&window._homerVaultUnlocked){
-        scheduleVaultSync();
+      // Kanban/life-goals: Android pushed new data → trigger vault sync to write into vault IDB.
+      // If vault is locked, set a pending flag so we sync immediately on next vault unlock.
+      if(key==='homer-kanban'||key==='homer-life-goals'){
+        if(canSync()&&window._homerVaultUnlocked){
+          scheduleVaultSync();
+        } else if(canSync()){
+          _vaultSyncPending=true; // flush when vault unlocks
+        }
       }
     });
 
