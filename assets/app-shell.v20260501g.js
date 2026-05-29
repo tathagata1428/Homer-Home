@@ -9512,7 +9512,25 @@ let tvWidgetCreated = false;
     // LS field sync: write to the real localStorage key
     if(fieldId.indexOf('ls:') === 0 && LS_FIELD_MAP_REVERSE[fieldId]){
       var _lsKey = LS_FIELD_MAP_REVERSE[fieldId];
-      try{ origSetItem(_lsKey, nextValue); }catch(e){}
+      if(_lsKey === 'homer-journal'){
+        // Merge incoming Realtime data with local entries (by date, prefer newer updatedAt)
+        // so that entries added on THIS device are never overwritten by stale Realtime pushes
+        try{
+          var _inc=JSON.parse(nextValue||'[]'), _ex=JSON.parse(localStorage.getItem('homer-journal')||'[]');
+          if(!Array.isArray(_inc)) _inc=[];
+          if(!Array.isArray(_ex)) _ex=[];
+          var _m={};
+          _ex.forEach(function(e){ if(e&&e.date) _m[e.date]=e; });
+          _inc.forEach(function(e){
+            if(!e||!e.date) return;
+            var x=_m[e.date];
+            if(!x||(e.updatedAt||0)>(x.updatedAt||0)) _m[e.date]=e;
+          });
+          origSetItem('homer-journal', JSON.stringify(Object.values(_m)));
+        }catch(_je){ try{origSetItem(_lsKey,nextValue);}catch(e){} }
+      } else {
+        try{ origSetItem(_lsKey, nextValue); }catch(e){}
+      }
       if(_lsKey === 'homer-habits') try{ window.dispatchEvent(new CustomEvent('homer-habits-restored')); }catch(_e){}
       try{ window.dispatchEvent(new CustomEvent('homer-data-synced',{detail:{key:_lsKey}})); }catch(_e){}
       return;

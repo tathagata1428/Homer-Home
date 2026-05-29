@@ -1639,6 +1639,10 @@
         var nt=document.getElementById('tab-notes');
         if(nt&&nt.style.display!=='none'&&typeof window._homerRenderNoteList==='function')window._homerRenderNoteList();
       }
+      // Kanban/life-goals: Android pushed new data → trigger vault sync to write into vault IDB
+      if((key==='homer-kanban'||key==='homer-life-goals')&&canSync()&&window._homerVaultUnlocked){
+        scheduleVaultSync();
+      }
     });
 
     window._heSyncPush=pushKey;
