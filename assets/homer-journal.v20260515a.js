@@ -812,6 +812,13 @@
         });
       }, 2000);
     }
+    // Re-render when Realtime syncs new journal data from another device (e.g. Android push)
+    window.addEventListener('homer-data-synced', function (e) {
+      if (e && e.detail && e.detail.key === 'homer-journal') {
+        var tab = document.getElementById('tab-journal');
+        if (tab && tab.style.display !== 'none') renderTab();
+      }
+    });
   });
 
 })();

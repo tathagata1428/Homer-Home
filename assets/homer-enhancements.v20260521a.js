@@ -1386,16 +1386,26 @@
         updatedAt:     g.updatedAt||Date.now(),
       };
     }
+    // UUID-format IDs (e.g. "550e8400-e29b-41d4-a716-446655440000") come from Android.
+    // Integer-like IDs ("1","2",...) come from the website's IDB auto-increment.
+    // We use this to distinguish "never existed locally (from Android)" vs "was deleted locally".
+    function isUuidLike(id){return typeof id==='string'&&id.length===36&&id.charAt(8)==='-';}
     function mergeKanbanBlob(local,remote){
       function mergeArr(loc,rem){
         var byId={};
         (loc||[]).forEach(function(x){byId[x.id]=x;});
         if(loc&&loc.length>0){
-          // Local has items: only update existing items with newer remote versions.
-          // Remote-only items are NOT added — they were deleted locally and must stay deleted.
+          // Local has items. For each remote item:
+          //   - If it exists locally: keep newer version (updatedAt wins).
+          //   - If it's UUID-format (from Android): it was never in local, not a deletion — keep it.
+          //   - If it's integer-format and not in local: was deleted locally — drop it.
           (rem||[]).forEach(function(x){
             var ex=byId[x.id];
-            if(ex&&(x.updatedAt||0)>(ex.updatedAt||0))byId[x.id]=x;
+            if(ex){
+              if((x.updatedAt||0)>(ex.updatedAt||0))byId[x.id]=x;
+            } else if(isUuidLike(x.id)){
+              byId[x.id]=x;
+            }
           });
         } else {
           // Local is empty: accept everything from remote (fresh install / first sync)
@@ -1409,11 +1419,14 @@
       var byId={};
       (local||[]).forEach(function(g){byId[g.id]=g;});
       if(local&&local.length>0){
-        // Local has items: only update existing items with newer remote versions.
-        // Remote-only items are NOT added — they were deleted locally and must stay deleted.
+        // Same UUID-aware logic: Android-created goals (UUID IDs) are never locally deleted.
         (remote||[]).forEach(function(g){
           var ex=byId[g.id];
-          if(ex&&(g.updatedAt||0)>(ex.updatedAt||0))byId[g.id]=g;
+          if(ex){
+            if((g.updatedAt||0)>(ex.updatedAt||0))byId[g.id]=g;
+          } else if(isUuidLike(g.id)){
+            byId[g.id]=g;
+          }
         });
       } else {
         // Local is empty: accept everything from remote (fresh install / first sync)
@@ -1440,20 +1453,26 @@
           var mergedKanban=mergeKanbanBlob({projects:localProjects,tasks:localTasks},remoteKanban);
           var mergedLg=mergeLifeGoalsArr(localLg,remoteLg);
           vault.goals=mergedKanban.tasks.map(function(t){
+            // Handle both Android format (labels as array, labelsJson as string) and local format
+            var labels=Array.isArray(t.labels)?t.labels:safeJson(t.labelsJson,[]);
+            var subtasks=Array.isArray(t.subtasks)?t.subtasks:safeJson(t.subtasksJson,[]);
+            var attachments=Array.isArray(t.attachments)?t.attachments:safeJson(t.attachmentsJson,[]);
             return{id:t.id,col:t.column||t.col||'todo',summary:t.summary,notes:t.description||t.notes||'',
-              priority:t.priority||'medium',labels:safeJson(t.labelsJson,[]),
-              subtasks:safeJson(t.subtasksJson,[]),attachments:safeJson(t.attachmentsJson,[]),
+              priority:t.priority||'medium',labels:labels,
+              subtasks:subtasks,attachments:attachments,
               due:t.dueDate||t.due||'',archived:!!t.archived,backlog:!!t.backlog,
-              order:t.order||0,projectId:t.projectId||'',updatedAt:t.updatedAt||Date.now()};
+              order:t.order||0,projectId:String(t.projectId||''),updatedAt:t.updatedAt||Date.now()};
           });
           vault.projects=mergedKanban.projects.map(function(p){
+            var customFields=Array.isArray(p.customFields)?p.customFields:safeJson(p.customFieldsJson,[]);
             return{id:p.id,name:p.name,key:p.key,description:p.description||'',icon:p.icon||'',
-              color:p.color||'#3B82F6',customFields:safeJson(p.customFieldsJson,[]),
+              color:p.color||'#3B82F6',customFields:customFields,
               archived:!!p.archived,updatedAt:p.updatedAt||Date.now()};
           });
           vault.lifeGoals=mergedLg.map(function(g){
+            var milestones=Array.isArray(g.milestones)?g.milestones:safeJson(g.milestonesJson,[]);
             return{id:g.id,title:g.title,description:g.description||'',category:g.category||'',
-              icon:g.icon||'',targetDate:g.targetDate||'',milestones:safeJson(g.milestonesJson,[]),
+              icon:g.icon||'',targetDate:g.targetDate||'',milestones:milestones,
               status:g.status||'active',progress:g.progress||0,updatedAt:g.updatedAt||Date.now()};
           });
           // Guard flag: suppress the vault-goals-changed handler so it doesn't re-trigger sync

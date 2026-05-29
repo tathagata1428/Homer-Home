@@ -20,8 +20,10 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import ro.b4it.homer.BuildConfig
+import ro.b4it.homer.data.local.dao.JournalDao
 import ro.b4it.homer.data.preferences.AppPreferences
 import ro.b4it.homer.data.supabase.SupabaseManager
+import java.time.LocalDate
 import javax.inject.Inject
 
 data class ChatMessage(val role: String, val content: String)
@@ -31,6 +33,7 @@ class JoeyViewModel @Inject constructor(
     private val http: OkHttpClient,
     private val prefs: AppPreferences,
     private val supabase: SupabaseManager,
+    private val journalDao: JournalDao,
 ) : ViewModel() {
 
     /** Separate history per mode, matching the website's per-mode memory. */
@@ -39,6 +42,9 @@ class JoeyViewModel @Inject constructor(
 
     /** Joey memories per mode — loaded from /api/joey?action=bundle on init. */
     private val memoriesMap = mutableMapOf<String, String>()
+
+    /** Recent journal entries — loaded from local Room DB on init. */
+    private var recentJournalContext: String = ""
 
     private val _mode    = MutableStateFlow("personal")   // "personal" | "work"
     val mode: StateFlow<String> = _mode.asStateFlow()
@@ -64,6 +70,8 @@ class JoeyViewModel @Inject constructor(
         // Load Joey bundle memories in background
         viewModelScope.launch { loadMemories("personal") }
         viewModelScope.launch { loadMemories("work") }
+        // Load recent journal entries from local DB for context
+        viewModelScope.launch { loadJournalContext() }
     }
 
     private suspend fun loadMemories(mode: String) {
@@ -82,6 +90,23 @@ class JoeyViewModel @Inject constructor(
                 ?: bundle["memories"]?.toString()
                 ?: return
             if (memories.isNotBlank()) memoriesMap[mode] = memories
+        } catch (_: Exception) { /* best-effort */ }
+    }
+
+    private suspend fun loadJournalContext() {
+        try {
+            val cutoff = LocalDate.now().minusDays(30).toString()
+            val entries = journalDao.getSince(cutoff)
+                .filter { it.content.isNotBlank() }
+                .take(14)
+            if (entries.isEmpty()) return
+            val sb = StringBuilder("=== My Recent Journal Entries (last 30 days) ===\n")
+            entries.forEach { e ->
+                sb.append("\n[${e.date}]")
+                if (e.moodLabel.isNotBlank()) sb.append(" Mood: ${e.moodLabel}")
+                sb.append("\n${e.content.trim()}\n")
+            }
+            recentJournalContext = sb.toString()
         } catch (_: Exception) { /* best-effort */ }
     }
 
@@ -164,7 +189,11 @@ class JoeyViewModel @Inject constructor(
             else   -> "You are Joey, a helpful personal assistant. You help with daily tasks, habits, goals, motivation, and personal planning. Be warm, encouraging, and practical. Current mode: Personal."
         }
         val memories = memoriesMap[mode]
-        return if (!memories.isNullOrBlank()) "$base\n\n$memories" else base
+        return buildString {
+            append(base)
+            if (!memories.isNullOrBlank()) append("\n\n$memories")
+            if (recentJournalContext.isNotBlank()) append("\n\n$recentJournalContext")
+        }
     }
 
     private fun extractContent(resp: String): String = try {

@@ -17130,6 +17130,26 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(typeof window._homerBuildJoeyWebsiteInstruction === 'function'){
       systemPrompt += window._homerBuildJoeyWebsiteInstruction();
     }
+    // Inject recent journal entries from localStorage so Joey is aware of what the user wrote
+    (function(){
+      try{
+        var jEntries = JSON.parse(localStorage.getItem('homer-journal') || '[]');
+        if(!Array.isArray(jEntries)) return;
+        var cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
+        var cutoffStr = cutoff.toISOString().slice(0,10);
+        var recent = jEntries.filter(function(e){ return e && e.date >= cutoffStr && e.content && !e.deleted; })
+          .sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); })
+          .slice(0, 14);
+        if(!recent.length) return;
+        var jSection = '\n\n=== MY RECENT JOURNAL ENTRIES (last 30 days) ===\n- Use these to understand my current state of mind, mood, and recent experiences.\n- Reference them naturally when relevant — do not announce "I see in your journal...".\n';
+        recent.forEach(function(e){
+          jSection += '\n[' + e.date + ']';
+          if(e.moodLabel) jSection += ' Mood: ' + e.moodLabel;
+          jSection += '\n' + (e.content||'').trim() + '\n';
+        });
+        systemPrompt += jSection;
+      }catch(_){}
+    })();
     systemPrompt += '\n\n=== PROJECT ACTIONS ===\n- If the user explicitly asks to create, rename, edit, archive, restore, or delete a project, append a PROJECT action.\n- PROJECT create format: [ACTION:PROJECT]{\"op\":\"create\",\"name\":\"Project Name\",\"description\":\"Optional description\",\"icon\":\"rocket\",\"color\":\"#60a5fa\"}[/ACTION]\n- PROJECT update format: [ACTION:PROJECT]{\"op\":\"update\",\"project\":\"Apps\",\"name\":\"Apps Platform\",\"description\":\"Shared product work\",\"icon\":\"AP\",\"color\":\"#34d399\"}[/ACTION]\n- PROJECT archive format: [ACTION:PROJECT]{\"op\":\"archive\",\"project\":\"Apps\"}[/ACTION]\n- PROJECT restore format: [ACTION:PROJECT]{\"op\":\"restore\",\"project\":\"Apps\"}[/ACTION]\n- PROJECT delete format: [ACTION:PROJECT]{\"op\":\"delete\",\"project\":\"Apps\"}[/ACTION]\n- Use \"project\" to identify the existing project for any non-create action.\n- Never delete a project that still has issues.\n- Never place new tasks into archived projects.';
     systemPrompt += '\n\n=== MODE ISOLATION ===\n- Personal and Work are separate memory domains.\n- Never reveal, summarize, hint at, or rely on information from the other mode.\n- If the user asks for something that belongs to the other mode, tell them to switch modes.\n- "Use full context" means full context for the current mode only.';
     systemPrompt += '\n- All vault mutations are mode-bound. In Personal mode, create and update only Personal vault items and Personal Drive backup. In Work mode, create and update only Work vault items and Work Drive backup. Never write across modes.';
