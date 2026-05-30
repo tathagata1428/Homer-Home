@@ -84,9 +84,6 @@ class HomerApplication : Application(), Configuration.Provider {
                         supabase.setCachedAuthUser(username)
                         prefs.setAuthUser(username)
                         syncEngine.start()
-                        // Also fire a network-aware retry pull so data loads even if WiFi
-                        // wasn't ready yet when start() ran (e.g., device just woke up).
-                        scheduleNetworkRetryPull()
                         realtimeSync.start()
                         SyncWorker.schedule(this@HomerApplication)
                     }

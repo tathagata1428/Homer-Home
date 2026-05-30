@@ -41,16 +41,24 @@ class SyncEngine @Inject constructor(
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
     private var startCount = 0
+    @Volatile private var pullJob: Job? = null
 
     /**
      * Pull on sign-in so Room is up to date, then push on first launch so any
      * data added before sync was wired up (pre-fix builds) reaches Supabase.
+     * If a pull is already in flight, the new call is ignored to prevent duplicate
+     * parallel requests that overwhelm Supabase.
      */
     fun start() {
         val isFirstStart = startCount++ == 0
         scope.launch {
-            runCatching { pullAll() }
-                .onFailure { Log.e("HomerSync", "start: pullAll failed", it) }
+            if (pullJob?.isActive != true) {
+                pullJob = scope.launch {
+                    runCatching { pullAll() }
+                        .onFailure { Log.e("HomerSync", "start: pullAll failed", it) }
+                }
+                pullJob?.join()
+            }
             if (isFirstStart) {
                 runCatching { pushAll() }
                     .onFailure { Log.e("HomerSync", "start: pushAll failed", it) }
