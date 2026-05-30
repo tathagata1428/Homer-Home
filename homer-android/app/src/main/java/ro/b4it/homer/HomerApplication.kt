@@ -3,6 +3,10 @@ package ro.b4it.homer
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
@@ -80,6 +84,9 @@ class HomerApplication : Application(), Configuration.Provider {
                         supabase.setCachedAuthUser(username)
                         prefs.setAuthUser(username)
                         syncEngine.start()
+                        // Also fire a network-aware retry pull so data loads even if WiFi
+                        // wasn't ready yet when start() ran (e.g., device just woke up).
+                        scheduleNetworkRetryPull()
                         realtimeSync.start()
                         SyncWorker.schedule(this@HomerApplication)
                     }
@@ -89,6 +96,27 @@ class HomerApplication : Application(), Configuration.Provider {
                 }
             }
         }
+    }
+
+    /**
+     * Register a one-shot ConnectivityManager callback that fires [SyncEngine.pullAll] once
+     * as soon as the device has a working internet connection. Used when the startup pull
+     * fails because WiFi hasn't reconnected yet after the screen was off.
+     */
+    private fun scheduleNetworkRetryPull() {
+        val cm = getSystemService(ConnectivityManager::class.java) ?: return
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+        val cb = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                cm.unregisterNetworkCallback(this)
+                appScope.launch {
+                    runCatching { syncEngine.pullAll() }
+                }
+            }
+        }
+        runCatching { cm.registerNetworkCallback(request, cb) }
     }
 
     private fun createNotificationChannels() {
