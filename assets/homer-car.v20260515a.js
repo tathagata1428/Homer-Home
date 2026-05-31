@@ -78,6 +78,8 @@
     state.data = data;
     saveToIDB(data);
     pushToSupabase(data);
+    // Also push via localStorage → queueLsFieldOp → CF Pages (works without Supabase session)
+    if(isBogdan()) try{ localStorage.setItem('homer-car', JSON.stringify(data)); }catch(e){}
   }
 
   /* ── Supabase ─────────────────────────────────────────────────────── */
@@ -1270,7 +1272,15 @@
     // so we need this explicit pull to bridge the gap.
     window.addEventListener('homer-data-synced', function(e) {
       if (e && e.detail && e.detail.key === 'homer-car' && isBogdan()) {
-        pullFromSupabase(applyRemote);
+        // applySyncedFieldValue already wrote the value to localStorage — use it directly
+        // so car data from Android works even without an active Supabase session.
+        var lsVal = localStorage.getItem('homer-car');
+        var remote = lsVal ? safeJson(lsVal, null) : null;
+        if (remote && (remote.vehicles || remote.documents || remote.maintenance || remote.fuel)) {
+          applyRemote(remote);
+        } else {
+          pullFromSupabase(applyRemote);
+        }
       }
     });
   });

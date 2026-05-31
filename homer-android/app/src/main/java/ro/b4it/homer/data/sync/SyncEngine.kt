@@ -609,6 +609,9 @@ class SyncEngine @Inject constructor(
             maintenance = db.carDao().getAllMaintenance().first(),
             fuel        = db.carDao().getAllFuelLog().first(),
         )
+        // Never push empty car data — would wipe real data on the website
+        if (blob.vehicles.isEmpty() && blob.documents.isEmpty() &&
+            blob.maintenance.isEmpty() && blob.fuel.isEmpty()) return
         syncClient.pushField("ls:homer-car", json.encodeToString(CarBlob.serializer(), blob))
     }
 

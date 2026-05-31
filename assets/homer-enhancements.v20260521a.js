@@ -1536,9 +1536,20 @@
         var isLocalPush=_localMutationPending||(Date.now()-_lastLocalVaultMutation<60000);
         _localMutationPending=false;
         if(isLocalPush||!client||!uid){
-          // Push local state as-is — no merge with remote.
-          // Also used as fallback when Supabase session is unavailable.
-          applyMerge({projects:[],tasks:[]},[]); // empty remote → merge result == local only
+          if(isLocalPush){
+            // Local mutation: push local vault state, ignore remote entirely.
+            applyMerge({projects:[],tasks:[]},[]); // empty remote → merge result == local only
+          } else {
+            // No Supabase session: read remote kanban/life-goals from localStorage
+            // (populated by applySyncedFieldValue when the website poll finds new Android data).
+            // This prevents the no-session path from erasing Android-pushed tasks.
+            var _lsKb=safeJson(localStorage.getItem('homer-kanban')||'{}',{});
+            var _lsLg=safeJson(localStorage.getItem('homer-life-goals')||'[]',[]);
+            applyMerge(
+              {projects:_lsKb.projects||[],tasks:(_lsKb.tasks||[]).concat(_lsKb.goals||[])},
+              Array.isArray(_lsLg)?_lsLg:[]
+            );
+          }
         } else {
           Promise.all([
             client.from('field_state').select('value').eq('field_id','ls:homer-kanban').eq('user_id',uid).maybeSingle(),
