@@ -1222,6 +1222,12 @@
         }
       }
       state.data = data;
+      // Push existing IDB car data via localStorage → queueLsFieldOp → CF Pages → Supabase.
+      // This runs on every page load so Android can pull car data even without a Supabase session.
+      if (isBogdan() && (data.vehicles.length || data.documents.length ||
+          data.maintenance.length || data.fuel.length)) {
+        try { localStorage.setItem('homer-car', JSON.stringify(data)); } catch(_) {}
+      }
       var ct = document.getElementById(CONTAINER_ID);
       if (ct && ct.style.display !== 'none') renderTab();
     });
