@@ -1569,8 +1569,10 @@
     window.addEventListener('vault-goals-changed',function(){if(!_inVaultPull&&isBogdan()){_localMutationPending=true;_lastLocalVaultMutation=Date.now();scheduleVaultSync();}});
     // Also fire when vault unlocks — first unlock on page load is the most important.
     // Also flush any pending Android-pushed data that arrived while vault was locked.
+    // Use isBogdan() (not canSync()) so vault sync runs even without a Supabase session —
+    // doVaultSync() reads from localStorage which works with the CF Pages / admin-hash path.
     window.addEventListener('homer-vault-state',function(){
-      if(canSync()&&window._homerVaultUnlocked){
+      if(isBogdan()&&window._homerVaultUnlocked){
         _vaultSyncPending=false;
         scheduleVaultSync();
       }
@@ -1592,6 +1594,8 @@
 
     var _pullDone=false;
     function pullAll(){
+      // Always attempt vault sync when vault is unlocked — works via localStorage even without Supabase session.
+      if(isBogdan()&&window._homerVaultUnlocked)scheduleVaultSync();
       if(!canSync())return;
       var firstPull=!_pullDone;
       _pullDone=true;
@@ -1695,13 +1699,37 @@
         var nt=document.getElementById('tab-notes');
         if(nt&&nt.style.display!=='none'&&typeof window._homerRenderNoteList==='function')window._homerRenderNoteList();
       }
-      // Kanban/life-goals: Android pushed new data → trigger vault sync to write into vault IDB.
-      // If vault is locked, set a pending flag so we sync immediately on next vault unlock.
+      // Kanban/life-goals/secrets: Android pushed new data → trigger vault sync.
+      // Use isBogdan() — doVaultSync() works via localStorage even without Supabase session.
       if(key==='homer-kanban'||key==='homer-life-goals'){
-        if(canSync()&&window._homerVaultUnlocked){
+        if(isBogdan()&&window._homerVaultUnlocked){
           scheduleVaultSync();
-        } else if(canSync()){
+        } else if(isBogdan()){
           _vaultSyncPending=true; // flush when vault unlocks
+        }
+      }
+      // Secrets from Android: merge into vault IDB so passwords appear in vault on website.
+      if((key==='homer-secrets:personal'||key==='homer-secrets:work')&&isBogdan()&&window._homerVaultUnlocked){
+        if(typeof window._homerLoadVault==='function'&&typeof window._homerSaveVault==='function'){
+          var _mode=key==='homer-secrets:personal'?'personal':'work';
+          var _cur=window._homerGetVaultMode?window._homerGetVaultMode():'personal';
+          if(_mode===_cur){
+            var _lsCreds=safeJson(localStorage.getItem(key)||'[]',[]);
+            if(Array.isArray(_lsCreds)&&_lsCreds.length>0){
+              window._homerLoadVault().then(function(v){
+                if(!v)return;
+                // Merge: local vault creds win for existing entries (by id/username), add new from Android.
+                var byId={};
+                (v.creds||[]).forEach(function(c){byId[c.id||c.username]=c;});
+                _lsCreds.forEach(function(c){
+                  var ek=c.id||c.username;
+                  if(!byId[ek])byId[ek]=c; // add new; local wins if already exists
+                });
+                v.creds=Object.values(byId);
+                window._homerSaveVault(v).catch(function(e){console.warn('[VaultSync] secrets merge',e);});
+              }).catch(function(e){console.warn('[VaultSync] secrets load',e);});
+            }
+          }
         }
       }
     });
