@@ -1,5 +1,6 @@
 package ro.b4it.homer
 
+import android.app.Activity
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -8,20 +9,15 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Build
+import android.os.Bundle
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
-import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import ro.b4it.homer.BuildConfig
-import ro.b4it.homer.data.preferences.AppPreferences
-import ro.b4it.homer.data.supabase.SupabaseManager
 import ro.b4it.homer.data.sync.SyncEngine
-import ro.b4it.homer.data.sync.RealtimeSyncManager
 import ro.b4it.homer.notification.ReminderManager
 import ro.b4it.homer.worker.SyncWorker
 import javax.inject.Inject
@@ -31,10 +27,7 @@ class HomerApplication : Application(), Configuration.Provider {
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var reminderManager: ReminderManager
-    @Inject lateinit var supabase: SupabaseManager
     @Inject lateinit var syncEngine: SyncEngine
-    @Inject lateinit var realtimeSync: RealtimeSyncManager
-    @Inject lateinit var prefs: AppPreferences
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -47,52 +40,33 @@ class HomerApplication : Application(), Configuration.Provider {
         super.onCreate()
         createNotificationChannels()
         reminderManager.scheduleAll()
-        initSupabaseSync()
+        // Start sync: pull all fields on launch; periodic 15-min push via SyncWorker.
+        syncEngine.start()
+        SyncWorker.schedule(this)
+        // Register a one-shot network callback so that if the initial pull failed
+        // (device was offline at boot / WiFi not yet reconnected), we retry as soon
+        // as the device has a working internet connection rather than waiting 15 min.
+        scheduleNetworkRetryPull()
+        // Pull fresh data whenever the user brings the app to the foreground (2-min debounce).
+        // This ensures website changes appear promptly without waiting 15 min for SyncWorker.
+        registerForegroundSyncObserver()
     }
 
     /**
-     * Auto sign-in to Supabase on every launch (credentials baked into BuildConfig),
-     * then watch session status and start sync on authentication.
-     *
-     * We do NOT clear cachedAuthUser on NotAuthenticated — that would race with
-     * the savedUser restoration and disable sync. Explicit sign-out is handled
-     * in AccountViewModel which calls setCachedAuthUser(null) directly.
+     * Register an activity lifecycle observer that calls [SyncEngine.onForeground] every time
+     * any activity is resumed. SyncEngine.onForeground() debounces to at most one pull per
+     * 2 minutes, so this is safe to register globally without flooding the server.
      */
-    private fun initSupabaseSync() {
-        appScope.launch {
-            // Restore saved username so isBogdan() can return true immediately.
-            val savedUser = prefs.authUser.first()
-            if (savedUser != null) supabase.setCachedAuthUser(savedUser)
-
-            // Auto sign-in using BuildConfig credentials (set in local.properties).
-            // This re-establishes the Supabase session on every launch without
-            // requiring the user to enter credentials manually each time.
-            val syncEmail = BuildConfig.SUPABASE_SYNC_EMAIL
-            val syncPass  = BuildConfig.SUPABASE_SYNC_PASSWORD
-            if (syncEmail.isNotBlank() && syncPass.isNotBlank()) {
-                runCatching { supabase.signIn(syncEmail, syncPass) }
-            }
-
-            // Watch session status and start sync on authentication.
-            supabase.sessionStatus.collect { status ->
-                when (status) {
-                    is SessionStatus.Authenticated -> {
-                        // Preserve the username set by AccountViewModel (e.g. "bogdan").
-                        // Deriving from email would give "bogdan.radu" which breaks vault unlock.
-                        val existingUser = prefs.authUser.first()
-                        val username = existingUser ?: "bogdan"
-                        supabase.setCachedAuthUser(username)
-                        prefs.setAuthUser(username)
-                        syncEngine.start()
-                        realtimeSync.start()
-                        SyncWorker.schedule(this@HomerApplication)
-                    }
-                    // NotAuthenticated: don't touch cachedAuthUser here —
-                    // explicit sign-out clears it via AccountViewModel.
-                    else -> Unit
-                }
-            }
-        }
+    private fun registerForegroundSyncObserver() {
+        registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+            override fun onActivityResumed(activity: Activity) { syncEngine.onForeground() }
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+            override fun onActivityStarted(activity: Activity) {}
+            override fun onActivityPaused(activity: Activity) {}
+            override fun onActivityStopped(activity: Activity) {}
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+            override fun onActivityDestroyed(activity: Activity) {}
+        })
     }
 
     /**

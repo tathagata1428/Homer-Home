@@ -24,7 +24,7 @@ import ro.b4it.homer.data.remote.WeatherApi
 import ro.b4it.homer.data.remote.WeatherResponse
 import ro.b4it.homer.data.remote.weatherCodeToDesc
 import ro.b4it.homer.data.remote.weatherCodeToIcon
-import ro.b4it.homer.data.supabase.SupabaseManager
+import ro.b4it.homer.data.sync.SyncClient
 import ro.b4it.homer.data.sync.SyncEngine
 import java.time.LocalDateTime
 import javax.inject.Inject
@@ -39,7 +39,7 @@ class HomeViewModel @Inject constructor(
     private val kanbanDao: KanbanDao,
     private val quoteDao: QuoteDao,
     private val sync: SyncEngine,
-    private val supabase: SupabaseManager,
+    private val syncClient: SyncClient,
 ) : ViewModel() {
 
     // ---- Sync ----
@@ -47,7 +47,7 @@ class HomeViewModel @Inject constructor(
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
     fun pullAll() {
-        if (!supabase.isBogdan()) return
+        if (!syncClient.isConfigured()) return
         viewModelScope.launch {
             _isRefreshing.value = true
             runCatching { sync.pullAll() }

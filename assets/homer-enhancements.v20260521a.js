@@ -1437,14 +1437,19 @@
     var _vaultSyncTimer=null;
     var _inVaultPull=false;          // prevents vault-goals-changed from re-triggering sync during our own save
     var _localMutationPending=false; // set by local edits so doVaultSync pushes local-wins (no merge with stale remote)
+    var _lastLocalVaultMutation=0;   // timestamp of last local vault mutation; grace-period guard against resurrection
     var _vaultSyncPending=false;     // set when Android pushes while vault is locked; flushed on vault unlock
     function scheduleVaultSync(){clearTimeout(_vaultSyncTimer);_vaultSyncTimer=setTimeout(doVaultSync,3000);}
     function doVaultSync(){
-      if(!canSync())return;
+      if(!isBogdan())return;
       if(!window._homerVaultUnlocked)return;
       if(typeof window._homerLoadVault!=='function')return;
       if(typeof window._homerSaveVault!=='function')return;
-      var client=getClient(),uid=getUid();if(!client||!uid)return;
+      // canSync() requires active Supabase session; isBogdan() is enough for CF Pages path.
+      var _canSupa=canSync();
+      var client=_canSupa?getClient():null,uid=_canSupa?getUid():null;
+      // Capture time before async vault load so we can detect mutations that arrive while we run.
+      var syncAt=Date.now();
       window._homerLoadVault().then(function(vault){
         if(!vault)return;
         var localTasks=   (vault.goals||[]).map(vaultNormalizeTask);
@@ -1476,44 +1481,61 @@
               icon:g.icon||'',targetDate:g.targetDate||'',milestones:milestones,
               status:g.status||'active',progress:g.progress||0,updatedAt:g.updatedAt||Date.now()};
           });
-          // Guard flag: suppress the vault-goals-changed handler so it doesn't re-trigger sync
+          // Push merged kanban+life-goals via localStorage → queueLsFieldOp → CF Pages.
+          // This path works even without an active Supabase session (uses admin hash).
+          try{origSetItem('homer-kanban',JSON.stringify(mergedKanban));}catch(e){}
+          try{origSetItem('homer-life-goals',JSON.stringify(mergedLg));}catch(e){}
+          // Also push directly to Supabase when session is active (fires Realtime for other devices).
+          if(client&&uid){
+            var tsK=Date.now();
+            client.from('field_state').upsert(
+              {field_id:'ls:homer-kanban',value:JSON.stringify(mergedKanban),user_id:uid,kind:'json',client_ts:tsK,client_seq:0,device_id:'web',server_ts:tsK,updated_at:new Date(tsK).toISOString()},
+              {onConflict:'user_id,field_id'})
+              .catch(function(e){console.warn('[HomerSync] vaultSync kanban push',e);});
+            var tsLG=Date.now();
+            client.from('field_state').upsert(
+              {field_id:'ls:homer-life-goals',value:JSON.stringify(mergedLg),user_id:uid,kind:'json',client_ts:tsLG,client_seq:0,device_id:'web',server_ts:tsLG,updated_at:new Date(tsLG).toISOString()},
+              {onConflict:'user_id,field_id'})
+              .catch(function(e){console.warn('[HomerSync] vaultSync life-goals push',e);});
+            var _vaultMode=window._homerGetVaultMode?window._homerGetVaultMode():'personal';
+            var tsN=Date.now();
+            if(typeof vault.notes==='string'){
+              client.from('field_state').upsert(
+                {field_id:'ls:homer-vault-notes:'+_vaultMode,value:JSON.stringify(vault.notes),user_id:uid,kind:'json',client_ts:tsN,client_seq:0,device_id:'web',server_ts:tsN,updated_at:new Date(tsN).toISOString()},
+                {onConflict:'user_id,field_id'})
+                .catch(function(e){console.warn('[HomerSync] vaultSync notes push',e);});
+            }
+            if(Array.isArray(vault.creds)&&vault.creds.length>0){
+              var tsC=Date.now();
+              client.from('field_state').upsert(
+                {field_id:'ls:homer-secrets:'+_vaultMode,value:JSON.stringify(vault.creds),user_id:uid,kind:'json',client_ts:tsC,client_seq:0,device_id:'web',server_ts:tsC,updated_at:new Date(tsC).toISOString()},
+                {onConflict:'user_id,field_id'})
+                .catch(function(e){console.warn('[HomerSync] vaultSync creds push',e);});
+            }
+          }
+          // In local-push mode: IDB is already correct from the user's own save.
+          // Skip vault write here — writing back would race with in-flight user mutations
+          // (the _inVaultPull flag would suppress vault-goals-changed for concurrent deletes,
+          // causing _lastLocalVaultMutation to not update, and deleted items to resurrect).
+          if(isLocalPush)return;
+          // Remote-merge mode: abort if a user mutation arrived after we started loading.
+          // Our snapshot is stale — the mutation's own save already has the correct state.
+          if(_lastLocalVaultMutation>syncAt){scheduleVaultSync();return;}
+          // Save merged vault (needed to persist Android-created UUID items into vault IDB).
           _inVaultPull=true;
           window._homerSaveVault(vault)
             .then(function(){window.dispatchEvent(new Event('vault-goals-changed'));_inVaultPull=false;})
             .catch(function(e){_inVaultPull=false;console.warn('[HomerSync] vaultSync save',e);});
-          var tsK=Date.now();
-          client.from('field_state').upsert(
-            {field_id:'ls:homer-kanban',value:JSON.stringify(mergedKanban),user_id:uid,kind:'json',client_ts:tsK,client_seq:0,device_id:'web',server_ts:tsK,updated_at:new Date(tsK).toISOString()},
-            {onConflict:'user_id,field_id'})
-            .catch(function(e){console.warn('[HomerSync] vaultSync kanban push',e);});
-          var tsLG=Date.now();
-          client.from('field_state').upsert(
-            {field_id:'ls:homer-life-goals',value:JSON.stringify(mergedLg),user_id:uid,kind:'json',client_ts:tsLG,client_seq:0,device_id:'web',server_ts:tsLG,updated_at:new Date(tsLG).toISOString()},
-            {onConflict:'user_id,field_id'})
-            .catch(function(e){console.warn('[HomerSync] vaultSync life-goals push',e);});
-          // Sync vault notes and credentials — per mode, so Android can read each separately
-          var _vaultMode=window._homerGetVaultMode?window._homerGetVaultMode():'personal';
-          var tsN=Date.now();
-          if(typeof vault.notes==='string'){
-            client.from('field_state').upsert(
-              {field_id:'ls:homer-vault-notes:'+_vaultMode,value:JSON.stringify(vault.notes),user_id:uid,kind:'json',client_ts:tsN,client_seq:0,device_id:'web',server_ts:tsN,updated_at:new Date(tsN).toISOString()},
-              {onConflict:'user_id,field_id'})
-              .catch(function(e){console.warn('[HomerSync] vaultSync notes push',e);});
-          }
-          if(Array.isArray(vault.creds)&&vault.creds.length>0){
-            var tsC=Date.now();
-            client.from('field_state').upsert(
-              {field_id:'ls:homer-secrets:'+_vaultMode,value:JSON.stringify(vault.creds),user_id:uid,kind:'json',client_ts:tsC,client_seq:0,device_id:'web',server_ts:tsC,updated_at:new Date(tsC).toISOString()},
-              {onConflict:'user_id,field_id'})
-              .catch(function(e){console.warn('[HomerSync] vaultSync creds push',e);});
-          }
         }
         // Local-wins mode: skip merge entirely when triggered by a local mutation.
-        // This prevents deleted items from being restored from the stale remote cache.
-        var isLocalPush=_localMutationPending;
+        // Grace period: for 60 s after any local vault mutation, treat every doVaultSync as
+        // a local push — this prevents a Realtime event arriving just after a deletion from
+        // clearing _localMutationPending and re-adding the deleted item via the UUID exception.
+        var isLocalPush=_localMutationPending||(Date.now()-_lastLocalVaultMutation<60000);
         _localMutationPending=false;
-        if(isLocalPush){
-          // Push local state as-is — no merge with remote
+        if(isLocalPush||!client||!uid){
+          // Push local state as-is — no merge with remote.
+          // Also used as fallback when Supabase session is unavailable.
           applyMerge({projects:[],tasks:[]},[]); // empty remote → merge result == local only
         } else {
           Promise.all([
@@ -1531,13 +1553,27 @@
     }
     // Re-sync on vault data changes — but never re-trigger from our own save.
     // Mark as local mutation so doVaultSync pushes local-wins (prevents deletion resurrection).
-    window.addEventListener('vault-goals-changed',function(){if(!_inVaultPull&&canSync()){_localMutationPending=true;scheduleVaultSync();}});
+    window.addEventListener('vault-goals-changed',function(){if(!_inVaultPull&&isBogdan()){_localMutationPending=true;_lastLocalVaultMutation=Date.now();scheduleVaultSync();}});
     // Also fire when vault unlocks — first unlock on page load is the most important.
     // Also flush any pending Android-pushed data that arrived while vault was locked.
     window.addEventListener('homer-vault-state',function(){
       if(canSync()&&window._homerVaultUnlocked){
         _vaultSyncPending=false;
         scheduleVaultSync();
+      }
+    });
+    // When Android pushes kanban or life-goals data, the website's poll writes the value to
+    // localStorage['homer-kanban'] / localStorage['homer-life-goals'] and dispatches
+    // homer-data-synced. The Kanban board and Life Goals read from vault IDB, not localStorage,
+    // so we must trigger doVaultSync() to merge the LS value into the vault.
+    window.addEventListener('homer-data-synced',function(e){
+      if(!e||!e.detail)return;
+      var k=e.detail.key;
+      if(k==='homer-kanban'||k==='homer-life-goals'){
+        if(!_inVaultPull&&isBogdan()){
+          if(window._homerVaultUnlocked)scheduleVaultSync();
+          else _vaultSyncPending=true;
+        }
       }
     });
 

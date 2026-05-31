@@ -5,43 +5,61 @@ import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.*
 import ro.b4it.homer.data.local.HomerDatabase
 import ro.b4it.homer.data.local.entity.*
-import ro.b4it.homer.data.preferences.AppPreferences
-import ro.b4it.homer.data.supabase.SupabaseManager
 import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * SyncEngine — bidirectional sync between Room (local) and Supabase (cloud).
+ * SyncEngine — bidirectional sync between Room (local) and the CF Pages /api/sync endpoint.
  *
  * Rules:
- *  - Non-bogdan: all methods are no-ops; data lives only in Room.
- *  - Bogdan: on app launch pull latest → merge into Room; on write debounce 8s → push.
+ *  - Not configured (no admin hash): all methods are no-ops; data lives only in Room.
+ *  - Configured: on app launch pull all fields once → store in Room; on user write debounce 8s → push.
  *
  * Field IDs and JSON formats MUST match the website's localStorage / field_state schema.
- * See comments on each section for the exact website data shape.
  */
 @Singleton
 class SyncEngine @Inject constructor(
     @ApplicationContext private val ctx: Context,
     private val db: HomerDatabase,
-    private val prefs: AppPreferences,
-    private val supabase: SupabaseManager,
+    private val syncClient: SyncClient,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val pendingJobs = mutableMapOf<String, Job>()
     private val DEBOUNCE_MS = 8_000L
 
+    /**
+     * Mutex that ensures only one pullAll() runs at a time.
+     * tryLock() returns false if a pull is already in-flight; callers skip silently.
+     * This prevents concurrent Supabase reads + racing Room writes from startup,
+     * SyncWorker, HomeViewModel.pullAll(), and SyncViewModel.startPull().
+     */
+    private val pullMutex = Mutex()
+
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
-    private var startCount = 0
-    @Volatile private var pullJob: Job? = null
+    /** Cache populated once per pullAll() call — avoids N individual HTTP calls. */
+    @Volatile private var fieldCache: Map<String, String> = emptyMap()
+
+    /**
+     * Timestamp of the last successful pullAll() completion.
+     * Used by onForeground() to skip redundant pulls when the app is re-opened
+     * within a short window.
+     */
+    @Volatile private var lastPullAt = 0L
+    private val FOREGROUND_PULL_INTERVAL_MS = 2 * 60_000L   // 2 minutes
+
+    /** Returns the cached value for [fieldId], or null if missing/blank. */
+    private fun fieldValue(fieldId: String): String? =
+        fieldCache[fieldId]?.takeIf { it.isNotBlank() }
 
     /**
      * Pull on sign-in so Room is up to date, then push on first launch so any
@@ -49,28 +67,27 @@ class SyncEngine @Inject constructor(
      * If a pull is already in flight, the new call is ignored to prevent duplicate
      * parallel requests that overwhelm Supabase.
      */
+    /** Pull on launch. Pushes happen only via debounced methods after user mutations. */
     fun start() {
-        val isFirstStart = startCount++ == 0
+        if (!syncClient.isConfigured()) return
         scope.launch {
-            if (pullJob?.isActive != true) {
-                pullJob = scope.launch {
-                    runCatching { pullAll() }
-                        .onFailure { Log.e("HomerSync", "start: pullAll failed", it) }
-                }
-                pullJob?.join()
-            }
-            if (isFirstStart) {
-                runCatching { pushAll() }
-                    .onFailure { Log.e("HomerSync", "start: pushAll failed", it) }
-            }
+            runCatching { pullAll() }
+                .onFailure { Log.e("HomerSync", "start: pullAll failed", it) }
         }
     }
 
-    /** Pull all synced fields from Supabase and merge into Room. Throws on auth failure. */
+    /** Fetch all fields from the cloud in one call, then update Room for each enabled field. */
     suspend fun pullAll() {
-        supabase.ensureSignedIn()
-        Log.d("HomerSync", "pullAll: userId=${supabase.userId} isBogdan=${supabase.isBogdan()}")
-        if (!supabase.isBogdan()) { Log.w("HomerSync", "pullAll: not Bogdan, aborting"); return }
+        if (!syncClient.isConfigured()) return
+        // Deduplicate: if a pull is already in flight, skip this call to prevent
+        // concurrent Supabase reads and racing Room clear+upsert operations.
+        if (!pullMutex.tryLock()) {
+            Log.d("HomerSync", "pullAll: already in flight, skipping duplicate call")
+            return
+        }
+        try {
+        fieldCache = syncClient.getAllFields()
+        Log.d("HomerSync", "pullAll: fetched ${fieldCache.size} fields")
         if (isFieldEnabled("ls:homer-expenses"))  runCatching { pullExpenses()      }.onFailure { Log.e("HomerSync", "pullExpenses failed", it) }
         if (isFieldEnabled("ls:homer-habits"))    runCatching { pullHabits()        }.onFailure { Log.e("HomerSync", "pullHabits failed", it) }
         if (isFieldEnabled("ls:homer-inbox"))     runCatching { pullInbox()         }.onFailure { Log.e("HomerSync", "pullInbox failed", it) }
@@ -97,7 +114,27 @@ class SyncEngine @Inject constructor(
         if (isFieldEnabled("ls:homer-secrets"))             runCatching { pullSecrets()          }.onFailure { Log.e("HomerSync", "pullSecrets failed", it) }
         if (isFieldEnabled("ls:homer-vault-notes"))         runCatching { pullVaultNotes()       }.onFailure { Log.e("HomerSync", "pullVaultNotes failed", it) }
         if (isFieldEnabled("ls:homer-reminders"))           runCatching { pullReminders()        }.onFailure { Log.e("HomerSync", "pullReminders failed", it) }
+        lastPullAt = System.currentTimeMillis()
         Log.d("HomerSync", "pullAll: done")
+        } finally {
+            pullMutex.unlock()
+        }
+    }
+
+    /**
+     * Called when the app comes to the foreground (activity resumed).
+     * Pulls fresh data if it has been longer than [FOREGROUND_PULL_INTERVAL_MS] since the last pull.
+     * This ensures website changes appear promptly when the user opens the app, without
+     * hammering the server on every config change or screen rotation.
+     */
+    fun onForeground() {
+        if (!syncClient.isConfigured()) return
+        val now = System.currentTimeMillis()
+        if (now - lastPullAt < FOREGROUND_PULL_INTERVAL_MS) return
+        scope.launch {
+            runCatching { pullAll() }
+                .onFailure { Log.e("HomerSync", "onForeground: pullAll failed", it) }
+        }
     }
 
     // ---- Debounced push ----
@@ -113,95 +150,48 @@ class SyncEngine @Inject constructor(
             pendingJobs[fieldKey]?.cancel()
             pendingJobs[fieldKey] = scope.launch {
                 delay(DEBOUNCE_MS)
-                runCatching {
-                    supabase.ensureSignedIn()
-                    if (!supabase.isBogdan()) return@runCatching
-                    push()
-                }.onFailure { Log.e("HomerSync", "schedulePush[$fieldKey] failed", it) }
+                runCatching { push() }
+                    .onFailure { Log.e("HomerSync", "schedulePush[$fieldKey] failed", it) }
             }
         }
     }
 
-    /**
-     * Cancel any pending debounced push for [fieldKey].
-     * Called from applyFieldUpdate so a Realtime update from another device
-     * doesn't get overwritten by a stale local push queued before the update arrived.
-     */
-    fun cancelPendingPush(fieldKey: String) {
-        synchronized(pendingJobs) {
-            pendingJobs[fieldKey]?.cancel()
-            pendingJobs.remove(fieldKey)
-        }
-    }
+    fun pushExpensesDebounced()         = schedulePush("ls:homer-expenses")            { pushExpenses() }
+    fun pushHabitsDebounced()           = schedulePush("ls:homer-habits")              { pushHabits() }
+    fun pushInboxDebounced()            = schedulePush("ls:homer-inbox")               { pushInbox() }
+    fun pushLinksDebounced()            = schedulePush("ls:homer-links")               { pushLinks() }
+    fun pushPomodoroTasksDebounced()    = schedulePush("ls:pom-tasks")                 { pushPomodoroTasks() }
+    fun pushNotesDebounced()            = schedulePush("ls:homer-notes")               { pushNotes() }
+    fun pushJournalDebounced()          = schedulePush("ls:homer-journal")             { pushJournal() }
+    fun pushCarDebounced()              = schedulePush("ls:homer-car")                 { pushCar() }
+    fun pushKanbanDebounced()           = schedulePush("ls:homer-kanban")              { pushKanban() }
+    fun pushLifeGoalsDebounced()        = schedulePush("ls:homer-life-goals")          { pushLifeGoals() }
+    fun pushBrainDumpDebounced()        = schedulePush("ls:homer-brain-dump")          { pushBrainDump() }
+    fun pushZenGoalDebounced()          = schedulePush("ls:homer-zen-goal")            { pushZenGoal() }
+    fun pushExpenseGoalsDebounced()     = schedulePush("ls:homer-expense-goals")       { pushExpenseGoals() }
+    fun pushCalendarEventsDebounced()   = schedulePush("ls:homer-cal-events")          { pushCalendarEvents() }
+    fun pushSavedQuotesDebounced()      = schedulePush("ls:savedQuotes")               { pushSavedQuotes() }
+    fun pushSessionsDebounced()         = schedulePush("ls:homer-sessions")            { pushSessions() }
+    fun pushPomSettingsDebounced()      = schedulePush("ls:pom-settings")              { pushPomSettings() }
+    fun pushExpenseTemplatesDebounced() = schedulePush("ls:homer-expense-templates")   { pushExpenseTemplates() }
+    fun pushExpenseCatsDebounced()      = schedulePush("ls:homer-expense-cats")        { pushExpenseCats() }
+    fun pushPaydayDayDebounced()        = schedulePush("ls:homer-payday-day")          { pushPaydayDay() }
+    fun pushRecurringDebounced()        = schedulePush("ls:homer-recurring")           { pushRecurring() }
+    fun pushWeeklyReviewsDebounced()    = schedulePush("ls:homer-weekly-reviews")      { pushWeeklyReviews() }
+    fun pushCountdownDebounced()        = schedulePush("ls:homer-countdown")           { pushCountdown() }
+    fun pushSecretsDebounced()          = schedulePush("ls:homer-secrets")             { pushSecrets() }
+    fun pushVaultNotesDebounced()       = schedulePush("ls:homer-vault-notes")         { pushVaultNotes() }
+    fun pushRemindersDebounced()        = schedulePush("ls:homer-reminders")           { pushReminders() }
 
-    fun pushExpensesDebounced()      = schedulePush("ls:homer-expenses")   { pushExpenses() }
-    fun pushHabitsDebounced()        = schedulePush("ls:homer-habits")     { pushHabits() }
-    fun pushInboxDebounced()         = schedulePush("ls:homer-inbox")      { pushInbox() }
-    fun pushLinksDebounced()         = schedulePush("ls:homer-links")      { pushLinks() }
-    fun pushPomodoroTasksDebounced() = schedulePush("ls:pom-tasks")        { pushPomodoroTasks() }
-    fun pushNotesDebounced()         = schedulePush("ls:homer-notes")      { pushNotes() }
-    fun pushJournalDebounced()       = schedulePush("ls:homer-journal")    { pushJournal() }
-    fun pushCarDebounced()           = schedulePush("ls:homer-car")        { pushCar() }
-    fun pushKanbanDebounced()            = schedulePush("ls:homer-kanban")              { pushKanban() }
-    fun pushLifeGoalsDebounced()         = schedulePush("ls:homer-life-goals")          { pushLifeGoals() }
-    fun pushBrainDumpDebounced()         = schedulePush("ls:homer-brain-dump")          { pushBrainDump() }
-    fun pushZenGoalDebounced()           = schedulePush("ls:homer-zen-goal")            { pushZenGoal() }
-    fun pushExpenseGoalsDebounced()      = schedulePush("ls:homer-expense-goals")       { pushExpenseGoals() }
-    fun pushCalendarEventsDebounced()    = schedulePush("ls:homer-cal-events")          { pushCalendarEvents() }
-    fun pushSavedQuotesDebounced()       = schedulePush("ls:savedQuotes")               { pushSavedQuotes() }
-    fun pushSessionsDebounced()          = schedulePush("ls:homer-sessions")            { pushSessions() }
-    fun pushPomSettingsDebounced()       = schedulePush("ls:pom-settings")              { pushPomSettings() }
-    fun pushExpenseTemplatesDebounced()  = schedulePush("ls:homer-expense-templates")   { pushExpenseTemplates() }
-    fun pushExpenseCatsDebounced()       = schedulePush("ls:homer-expense-cats")        { pushExpenseCats() }
-    fun pushPaydayDayDebounced()         = schedulePush("ls:homer-payday-day")          { pushPaydayDay() }
-    fun pushRecurringDebounced()         = schedulePush("ls:homer-recurring")           { pushRecurring() }
-    fun pushWeeklyReviewsDebounced()     = schedulePush("ls:homer-weekly-reviews")      { pushWeeklyReviews() }
-    fun pushCountdownDebounced()         = schedulePush("ls:homer-countdown")            { pushCountdown() }
-    fun pushSecretsDebounced()           = schedulePush("ls:homer-secrets")              { pushSecrets() }
-    fun pushVaultNotesDebounced()        = schedulePush("ls:homer-vault-notes")          { pushVaultNotes() }
-    fun pushRemindersDebounced()         = schedulePush("ls:homer-reminders")            { pushReminders() }
-
-    /** Push all data to Supabase immediately (no debounce). Throws on auth failure. */
-    suspend fun pushAll() {
-        supabase.ensureSignedIn()
-        if (!supabase.isBogdan()) return
-        runCatching { pushExpenses() }
-        runCatching { pushHabits() }
-        runCatching { pushInbox() }
-        runCatching { pushLinks() }
-        runCatching { pushPomodoroTasks() }
-        runCatching { pushNotes() }
-        runCatching { pushJournal() }
-        runCatching { pushCar() }
-        runCatching { pushKanban() }
-        runCatching { pushLifeGoals() }
-        runCatching { pushBrainDump() }
-        runCatching { pushZenGoal() }
-        runCatching { pushExpenseGoals() }
-        runCatching { pushCalendarEvents() }
-        runCatching { pushSavedQuotes() }
-        runCatching { pushSessions() }
-        runCatching { pushPomSettings() }
-        runCatching { pushExpenseTemplates() }
-        runCatching { pushExpenseCats() }
-        runCatching { pushPaydayDay() }
-        runCatching { pushRecurring() }
-        runCatching { pushWeeklyReviews() }
-        runCatching { pushCountdown() }
-        runCatching { pushSecrets() }
-        runCatching { pushVaultNotes() }
-        runCatching { pushReminders() }
-    }
-
-    /** Push Pomodoro tasks immediately — called on delete so Supabase is updated before any pull. */
+    /** Push Pomodoro tasks immediately — called on delete to prevent next pull restoring deleted items. */
     suspend fun pushPomodoroTasksNow() {
-        if (!supabase.isBogdan()) return
+        if (!syncClient.isConfigured()) return
         runCatching { pushPomodoroTasks() }
     }
 
-    /** Push vault secrets immediately — called on add/delete to prevent next pull from restoring deleted items. */
+    /** Push vault secrets immediately — called on add/delete to prevent next pull restoring deleted items. */
     suspend fun pushSecretsNow() {
-        if (!supabase.isBogdan()) return
+        if (!syncClient.isConfigured()) return
         runCatching { pushSecrets() }
     }
 
@@ -252,31 +242,29 @@ class SyncEngine @Inject constructor(
         val all = db.expenseDao().getAll().first()
         // Expenses (type="expense") → ls:homer-expenses
         val wsExp = all.filter { it.type != "income" }.map { it.toWsExpense() }
-        supabase.setFieldState("ls:homer-expenses",
+        syncClient.pushField("ls:homer-expenses",
             json.encodeToString(ListSerializer(WsExpense.serializer()), wsExp))
         // Income (type="income") → ls:homer-income
         val wsInc = all.filter { it.type == "income" }.map { it.toWsExpense() }
         if (wsInc.isNotEmpty())
-            supabase.setFieldState("ls:homer-income",
+            syncClient.pushField("ls:homer-income",
                 json.encodeToString(ListSerializer(WsExpense.serializer()), wsInc))
         // Budgets → {category: limit} object (website format)
         val budgets = db.expenseDao().getAllBudgets().first()
         if (budgets.isNotEmpty()) {
             val budgetObj = buildJsonObject { budgets.forEach { b -> put(b.category, b.limit) } }
-            supabase.setFieldState("ls:homer-expense-budgets", budgetObj.toString())
+            syncClient.pushField("ls:homer-expense-budgets", budgetObj.toString())
         }
     }
 
     private suspend fun pullExpenses() {
         // Cloud wins: fetch both expense + income arrays, then replace local entirely.
-        val cloudExp = supabase.getFieldState("ls:homer-expenses")?.let { row ->
-            if (row.value.isBlank()) return@let null
-            json.decodeFromString(ListSerializer(WsExpense.serializer()), row.value)
+        val cloudExp = fieldValue("ls:homer-expenses")?.let { v ->
+            json.decodeFromString(ListSerializer(WsExpense.serializer()), v)
                 .map { it.toExpense("expense") }
         }
-        val cloudInc = supabase.getFieldState("ls:homer-income")?.let { row ->
-            if (row.value.isBlank()) return@let null
-            json.decodeFromString(ListSerializer(WsExpense.serializer()), row.value)
+        val cloudInc = fieldValue("ls:homer-income")?.let { v ->
+            json.decodeFromString(ListSerializer(WsExpense.serializer()), v)
                 .map { it.toExpense("income") }
         }
         if (!cloudExp.isNullOrEmpty() || !cloudInc.isNullOrEmpty()) {
@@ -285,16 +273,15 @@ class SyncEngine @Inject constructor(
             cloudInc?.let { if (it.isNotEmpty()) db.expenseDao().upsertAll(it) }
         }
         // Pull budgets — website stores as {category: limit} object
-        supabase.getFieldState("ls:homer-expense-budgets")?.let { row ->
-            if (row.value.isBlank()) return@let
-            val elem = try { json.parseToJsonElement(row.value) } catch (_: Exception) { return@let }
+        fieldValue("ls:homer-expense-budgets")?.let { v ->
+            val elem = try { json.parseToJsonElement(v) } catch (_: Exception) { return@let }
             val budgets: List<Budget> = when (elem) {
-                is JsonObject -> elem.entries.mapNotNull { (cat, v) ->
-                    val limit = (v as? JsonPrimitive)?.doubleOrNull ?: return@mapNotNull null
+                is JsonObject -> elem.entries.mapNotNull { (cat, bv) ->
+                    val limit = (bv as? JsonPrimitive)?.doubleOrNull ?: return@mapNotNull null
                     Budget(category = cat, limit = limit)
                 }
                 is JsonArray  -> runCatching {
-                    json.decodeFromString(ListSerializer(Budget.serializer()), row.value)
+                    json.decodeFromString(ListSerializer(Budget.serializer()), v)
                 }.getOrElse { emptyList() }
                 else -> emptyList()
             }
@@ -368,51 +355,49 @@ class SyncEngine @Inject constructor(
         }
 
         val blob = WsHabitsBlob(habits = wsHabits, completions = wsCompletions)
-        supabase.setFieldState("ls:homer-habits",
+        syncClient.pushField("ls:homer-habits",
             json.encodeToString(WsHabitsBlob.serializer(), blob))
     }
 
     private suspend fun pullHabits() {
-        supabase.getFieldState("ls:homer-habits")?.let { row ->
-            if (row.value.isBlank()) return@let
-            val blob = json.decodeFromString(WsHabitsBlob.serializer(), row.value)
-            val habits = blob.habits.map { wh ->
-                val clientId = wh.id.ifBlank {
-                    wh.name.lowercase().replace(" ", "-") + "-" + wh.created
-                }
-                Habit(
-                    clientId  = clientId,
-                    name      = wh.name,
-                    emoji     = wh.emoji,
-                    color     = wh.color,
-                    category  = wh.category,
-                    freq      = when (val f = wh.freq) { is JsonPrimitive -> f.content; else -> "daily" },
-                    target    = wh.target,
-                    note      = wh.note,
-                    archived  = wh.archived,
-                    createdAt = wh.created.takeIf { it > 0 } ?: System.currentTimeMillis(),
-                )
+        val fieldVal = fieldValue("ls:homer-habits") ?: return
+        val blob = json.decodeFromString(WsHabitsBlob.serializer(), fieldVal)
+        val habits = blob.habits.map { wh ->
+            val clientId = wh.id.ifBlank {
+                wh.name.lowercase().replace(" ", "-") + "-" + wh.created
             }
-            if (habits.isEmpty()) return@let  // safety: don't wipe local with empty cloud
-            val knownIds = habits.map { it.clientId }.toSet()
-            val completions = blob.completions.mapNotNull { (key, value) ->
-                val colon = key.lastIndexOf(':')
-                if (colon < 1) return@mapNotNull null
-                val habitId = key.substring(0, colon)
-                val date    = key.substring(colon + 1)
-                if (habitId !in knownIds) return@mapNotNull null
-                val count = when (value) {
-                    is JsonPrimitive -> value.intOrNull ?: if (value.booleanOrNull == true) 1 else 0
-                    else -> 1
-                }
-                if (count <= 0) null else HabitCompletion(habitClientId = habitId, date = date, count = count)
-            }
-            // Cloud wins: clear local, upsert cloud
-            db.habitDao().clearAll()
-            db.habitDao().clearAllCompletions()
-            db.habitDao().upsertAll(habits)
-            if (completions.isNotEmpty()) db.habitDao().upsertCompletions(completions)
+            Habit(
+                clientId  = clientId,
+                name      = wh.name,
+                emoji     = wh.emoji,
+                color     = wh.color,
+                category  = wh.category,
+                freq      = when (val f = wh.freq) { is JsonPrimitive -> f.content; else -> "daily" },
+                target    = wh.target,
+                note      = wh.note,
+                archived  = wh.archived,
+                createdAt = wh.created.takeIf { it > 0 } ?: System.currentTimeMillis(),
+            )
         }
+        if (habits.isEmpty()) return  // safety: don't wipe local with empty cloud
+        val knownIds = habits.map { it.clientId }.toSet()
+        val completions = blob.completions.mapNotNull { (key, elem) ->
+            val colon = key.lastIndexOf(':')
+            if (colon < 1) return@mapNotNull null
+            val habitId = key.substring(0, colon)
+            val date    = key.substring(colon + 1)
+            if (habitId !in knownIds) return@mapNotNull null
+            val count = when (elem) {
+                is JsonPrimitive -> elem.intOrNull ?: if (elem.booleanOrNull == true) 1 else 0
+                else -> 1
+            }
+            if (count <= 0) null else HabitCompletion(habitClientId = habitId, date = date, count = count)
+        }
+        // Cloud wins: clear local, upsert cloud
+        db.habitDao().clearAll()
+        db.habitDao().clearAllCompletions()
+        db.habitDao().upsertAll(habits)
+        if (completions.isNotEmpty()) db.habitDao().upsertCompletions(completions)
     }
 
     // ── Inbox ─────────────────────────────────────────────────────────────────
@@ -420,18 +405,16 @@ class SyncEngine @Inject constructor(
 
     private suspend fun pushInbox() {
         val items = db.inboxDao().getAll().first()
-        supabase.setFieldState("ls:homer-inbox",
+        syncClient.pushField("ls:homer-inbox",
             json.encodeToString(ListSerializer(InboxItem.serializer()), items))
     }
 
     private suspend fun pullInbox() {
-        supabase.getFieldState("ls:homer-inbox")?.let { row ->
-            if (row.value.isBlank()) return@let
-            val items = json.decodeFromString(ListSerializer(InboxItem.serializer()), row.value)
-            if (items.isEmpty()) return@let
-            db.inboxDao().clearAll()
-            db.inboxDao().upsertAll(items)
-        }
+        val v = fieldValue("ls:homer-inbox") ?: return
+        val items = json.decodeFromString(ListSerializer(InboxItem.serializer()), v)
+        if (items.isEmpty()) return
+        db.inboxDao().clearAll()
+        db.inboxDao().upsertAll(items)
     }
 
     // ── Links ─────────────────────────────────────────────────────────────────
@@ -457,29 +440,27 @@ class SyncEngine @Inject constructor(
             WsLink(emoji = l.emoji, name = l.name, url = l.url,
                    cat = l.category, useFavicon = l.useFavicon)
         }
-        supabase.setFieldState("ls:homer-links",
+        syncClient.pushField("ls:homer-links",
             json.encodeToString(ListSerializer(WsLink.serializer()), wsLinks))
     }
 
     private suspend fun pullLinks() {
-        supabase.getFieldState("ls:homer-links")?.let { row ->
-            if (row.value.isBlank()) return@let
-            val wsLinks = json.decodeFromString(ListSerializer(WsLink.serializer()), row.value)
-            if (wsLinks.isEmpty()) return@let
-            val links = wsLinks.mapIndexed { idx, wl ->
-                Link(
-                    id         = stableId(wl.url, wl.name),
-                    name       = wl.name,
-                    url        = wl.url,
-                    category   = wl.cat,
-                    emoji      = wl.emoji,
-                    useFavicon = wl.useFavicon,
-                    order      = idx,
-                )
-            }
-            db.linkDao().deleteAll()
-            db.linkDao().upsertAll(links)
+        val v = fieldValue("ls:homer-links") ?: return
+        val wsLinks = json.decodeFromString(ListSerializer(WsLink.serializer()), v)
+        if (wsLinks.isEmpty()) return
+        val links = wsLinks.mapIndexed { idx, wl ->
+            Link(
+                id         = stableId(wl.url, wl.name),
+                name       = wl.name,
+                url        = wl.url,
+                category   = wl.cat,
+                emoji      = wl.emoji,
+                useFavicon = wl.useFavicon,
+                order      = idx,
+            )
         }
+        db.linkDao().deleteAll()
+        db.linkDao().upsertAll(links)
     }
 
     // ── Pomodoro tasks ────────────────────────────────────────────────────────
@@ -498,27 +479,25 @@ class SyncEngine @Inject constructor(
     private suspend fun pushPomodoroTasks() {
         val tasks = db.pomodoroDao().getAllTasks().first()
         val wsTasks = tasks.map { t -> WsTask(text = t.text, done = t.done, ts = t.createdAt) }
-        supabase.setFieldState("ls:pom-tasks",
+        syncClient.pushField("ls:pom-tasks",
             json.encodeToString(ListSerializer(WsTask.serializer()), wsTasks))
     }
 
     private suspend fun pullPomodoroTasks() {
-        supabase.getFieldState("ls:pom-tasks")?.let { row ->
-            if (row.value.isBlank()) return@let
-            val wsTasks = json.decodeFromString(ListSerializer(WsTask.serializer()), row.value)
-            if (wsTasks.isEmpty()) return@let
-            val tasks = wsTasks.map { wt ->
-                PomodoroTask(
-                    id        = wt.ts.toString().ifBlank { System.currentTimeMillis().toString() },
-                    text      = wt.text,
-                    done      = wt.done,
-                    createdAt = wt.ts,
-                    updatedAt = wt.ts,
-                )
-            }
-            db.pomodoroDao().clearAllTasks()
-            db.pomodoroDao().upsertAllTasks(tasks)
+        val v = fieldValue("ls:pom-tasks") ?: return
+        val wsTasks = json.decodeFromString(ListSerializer(WsTask.serializer()), v)
+        if (wsTasks.isEmpty()) return
+        val tasks = wsTasks.map { wt ->
+            PomodoroTask(
+                id        = wt.ts.toString().ifBlank { System.currentTimeMillis().toString() },
+                text      = wt.text,
+                done      = wt.done,
+                createdAt = wt.ts,
+                updatedAt = wt.ts,
+            )
         }
+        db.pomodoroDao().clearAllTasks()
+        db.pomodoroDao().upsertAllTasks(tasks)
     }
 
     // ── Notes ─────────────────────────────────────────────────────────────────
@@ -572,19 +551,17 @@ class SyncEngine @Inject constructor(
     private suspend fun pushNotes() {
         val notes = db.noteDao().getAll().first()
         if (notes.isEmpty()) return   // safety: never wipe cloud with empty local
-        supabase.setFieldState("ls:homer-notes",
+        syncClient.pushField("ls:homer-notes",
             json.encodeToString(ListSerializer(Note.serializer()), notes))
     }
 
     private suspend fun pullNotes() {
-        supabase.getFieldState("ls:homer-notes")?.let { row ->
-            if (row.value.isBlank()) return@let
-            val wsNotes = json.decodeFromString(ListSerializer(WsNote.serializer()), row.value)
-            val cloudNotes = wsNotes.filter { it.id.isNotBlank() }.map { it.toNote() }
-            if (cloudNotes.isEmpty()) return@let
-            db.noteDao().clearAll()
-            db.noteDao().upsertAll(cloudNotes)
-        }
+        val v = fieldValue("ls:homer-notes") ?: return
+        val wsNotes = json.decodeFromString(ListSerializer(WsNote.serializer()), v)
+        val cloudNotes = wsNotes.filter { it.id.isNotBlank() }.map { it.toNote() }
+        if (cloudNotes.isEmpty()) return
+        db.noteDao().clearAll()
+        db.noteDao().upsertAll(cloudNotes)
     }
 
     // ── Journal ───────────────────────────────────────────────────────────────
@@ -594,18 +571,16 @@ class SyncEngine @Inject constructor(
     private suspend fun pushJournal() {
         val entries = db.journalDao().getAll().first()
         if (entries.isEmpty()) return
-        supabase.setFieldState("ls:homer-journal",
+        syncClient.pushField("ls:homer-journal",
             json.encodeToString(ListSerializer(JournalEntry.serializer()), entries))
     }
 
     private suspend fun pullJournal() {
-        supabase.getFieldState("ls:homer-journal")?.let { row ->
-            if (row.value.isBlank()) return@let
-            val cloudEntries = json.decodeFromString(ListSerializer(JournalEntry.serializer()), row.value)
-            if (cloudEntries.isEmpty()) return@let
-            db.journalDao().clearAll()
-            db.journalDao().upsertAll(cloudEntries)
-        }
+        val v = fieldValue("ls:homer-journal") ?: return
+        val cloudEntries = json.decodeFromString(ListSerializer(JournalEntry.serializer()), v)
+        if (cloudEntries.isEmpty()) return
+        db.journalDao().clearAll()
+        db.journalDao().upsertAll(cloudEntries)
     }
 
     // ── Car ───────────────────────────────────────────────────────────────────
@@ -627,25 +602,23 @@ class SyncEngine @Inject constructor(
             maintenance = db.carDao().getAllMaintenance().first(),
             fuel        = db.carDao().getAllFuelLog().first(),
         )
-        supabase.setFieldState("ls:homer-car", json.encodeToString(CarBlob.serializer(), blob))
+        syncClient.pushField("ls:homer-car", json.encodeToString(CarBlob.serializer(), blob))
     }
 
     private suspend fun pullCar() {
-        supabase.getFieldState("ls:homer-car")?.let { row ->
-            if (row.value.isBlank()) return@let
-            val blob = json.decodeFromString(CarBlob.serializer(), row.value)
-            if (blob.vehicles.isEmpty() && blob.documents.isEmpty() &&
-                blob.maintenance.isEmpty() && blob.fuel.isEmpty()) return@let
-            // Cloud wins: clear all, upsert cloud
-            db.carDao().clearAllVehicles()
-            db.carDao().clearAllDocuments()
-            db.carDao().clearAllMaintenance()
-            db.carDao().clearAllFuelLog()
-            if (blob.vehicles.isNotEmpty())    db.carDao().upsertVehicles(blob.vehicles)
-            if (blob.documents.isNotEmpty())   db.carDao().upsertDocuments(blob.documents)
-            if (blob.maintenance.isNotEmpty()) db.carDao().upsertMaintenanceAll(blob.maintenance)
-            if (blob.fuel.isNotEmpty())        db.carDao().upsertFuelLogAll(blob.fuel)
-        }
+        val v = fieldValue("ls:homer-car") ?: return
+        val blob = json.decodeFromString(CarBlob.serializer(), v)
+        if (blob.vehicles.isEmpty() && blob.documents.isEmpty() &&
+            blob.maintenance.isEmpty() && blob.fuel.isEmpty()) return
+        // Cloud wins: clear all, upsert cloud
+        db.carDao().clearAllVehicles()
+        db.carDao().clearAllDocuments()
+        db.carDao().clearAllMaintenance()
+        db.carDao().clearAllFuelLog()
+        if (blob.vehicles.isNotEmpty())    db.carDao().upsertVehicles(blob.vehicles)
+        if (blob.documents.isNotEmpty())   db.carDao().upsertDocuments(blob.documents)
+        if (blob.maintenance.isNotEmpty()) db.carDao().upsertMaintenanceAll(blob.maintenance)
+        if (blob.fuel.isNotEmpty())        db.carDao().upsertFuelLogAll(blob.fuel)
     }
 
     // ── Kanban ────────────────────────────────────────────────────────────────
@@ -787,24 +760,22 @@ class SyncEngine @Inject constructor(
             )
         }
         val blob = KanbanBlobWs(projects = wsProjects, tasks = wsTasks)
-        supabase.setFieldState("ls:homer-kanban", json.encodeToString(KanbanBlobWs.serializer(), blob))
+        syncClient.pushField("ls:homer-kanban", json.encodeToString(KanbanBlobWs.serializer(), blob))
     }
 
     private suspend fun pullKanban() {
-        supabase.getFieldState("ls:homer-kanban")?.let { row ->
-            if (row.value.isBlank()) return@let
-            val blob     = json.decodeFromString(KanbanBlobWs.serializer(), row.value)
-            // Union tasks + goals, then deduplicate by id (prevents duplication if both keys exist)
-            val allTasks = (blob.tasks + blob.goals).distinctBy { jsonElemStr(it.id) }
-            val projects = blob.projects.map { it.toProject() }
-            val tasks    = allTasks.map { it.toTask() }
-            if (projects.isEmpty() && tasks.isEmpty()) return@let
-            // Cloud wins: clear all, upsert cloud
-            db.kanbanDao().clearAllProjects()
-            db.kanbanDao().clearAllTasks()
-            if (projects.isNotEmpty()) db.kanbanDao().upsertProjects(projects)
-            if (tasks.isNotEmpty())    db.kanbanDao().upsertTasks(tasks)
-        }
+        val v = fieldValue("ls:homer-kanban") ?: return
+        val blob     = json.decodeFromString(KanbanBlobWs.serializer(), v)
+        // Union tasks + goals, then deduplicate by id (prevents duplication if both keys exist)
+        val allTasks = (blob.tasks + blob.goals).distinctBy { jsonElemStr(it.id) }
+        val projects = blob.projects.map { it.toProject() }
+        val tasks    = allTasks.map { it.toTask() }
+        if (projects.isEmpty() && tasks.isEmpty()) return
+        // Cloud wins: clear all, upsert cloud
+        db.kanbanDao().clearAllProjects()
+        db.kanbanDao().clearAllTasks()
+        if (projects.isNotEmpty()) db.kanbanDao().upsertProjects(projects)
+        if (tasks.isNotEmpty())    db.kanbanDao().upsertTasks(tasks)
     }
 
     // ── Life Goals ────────────────────────────────────────────────────────────
@@ -863,19 +834,17 @@ class SyncEngine @Inject constructor(
                 updatedAt   = g.updatedAt,
             )
         }
-        supabase.setFieldState("ls:homer-life-goals",
+        syncClient.pushField("ls:homer-life-goals",
             json.encodeToString(ListSerializer(WsLifeGoal.serializer()), wsGoals))
     }
 
     private suspend fun pullLifeGoals() {
-        supabase.getFieldState("ls:homer-life-goals")?.let { row ->
-            if (row.value.isBlank()) return@let
-            val wsGoals = json.decodeFromString(ListSerializer(WsLifeGoal.serializer()), row.value)
-            val goals   = wsGoals.map { it.toLifeGoal() }
-            if (goals.isEmpty()) return@let
-            db.lifeGoalDao().clearAll()
-            db.lifeGoalDao().upsertAll(goals)
-        }
+        val v = fieldValue("ls:homer-life-goals") ?: return
+        val wsGoals = json.decodeFromString(ListSerializer(WsLifeGoal.serializer()), v)
+        val goals   = wsGoals.map { it.toLifeGoal() }
+        if (goals.isEmpty()) return
+        db.lifeGoalDao().clearAll()
+        db.lifeGoalDao().upsertAll(goals)
     }
 
     // ── Focus Lab — brain dump & zen goal ─────────────────────────────────────
@@ -884,26 +853,22 @@ class SyncEngine @Inject constructor(
 
     private suspend fun pushBrainDump() {
         val text = db.appSettingDao().get("homer-brain-dump") ?: return
-        supabase.setFieldState("ls:homer-brain-dump", text)
+        syncClient.pushField("ls:homer-brain-dump", text)
     }
 
     private suspend fun pullBrainDump() {
-        supabase.getFieldState("ls:homer-brain-dump")?.let { row ->
-            if (row.value.isBlank()) return@let
-            db.appSettingDao().set(AppSetting("homer-brain-dump", row.value))
-        }
+        val v = fieldValue("ls:homer-brain-dump") ?: return
+        db.appSettingDao().set(AppSetting("homer-brain-dump", v))
     }
 
     private suspend fun pushZenGoal() {
         val text = db.appSettingDao().get("homer-zen-goal") ?: return
-        supabase.setFieldState("ls:homer-zen-goal", text)
+        syncClient.pushField("ls:homer-zen-goal", text)
     }
 
     private suspend fun pullZenGoal() {
-        supabase.getFieldState("ls:homer-zen-goal")?.let { row ->
-            if (row.value.isBlank()) return@let
-            db.appSettingDao().set(AppSetting("homer-zen-goal", row.value))
-        }
+        val v = fieldValue("ls:homer-zen-goal") ?: return
+        db.appSettingDao().set(AppSetting("homer-zen-goal", v))
     }
 
     // ── Expense Goals ─────────────────────────────────────────────────────────
@@ -913,14 +878,12 @@ class SyncEngine @Inject constructor(
     private suspend fun pushExpenseGoals() {
         val text = db.appSettingDao().get("homer-expense-goals") ?: return
         if (text.isBlank()) return
-        supabase.setFieldState("ls:homer-expense-goals", text)
+        syncClient.pushField("ls:homer-expense-goals", text)
     }
 
     private suspend fun pullExpenseGoals() {
-        supabase.getFieldState("ls:homer-expense-goals")?.let { row ->
-            if (row.value.isBlank()) return@let
-            db.appSettingDao().set(AppSetting("homer-expense-goals", row.value))
-        }
+        val v = fieldValue("ls:homer-expense-goals") ?: return
+        db.appSettingDao().set(AppSetting("homer-expense-goals", v))
     }
 
     // ── Calendar Events ───────────────────────────────────────────────────────
@@ -992,350 +955,57 @@ class SyncEngine @Inject constructor(
                 category    = "",
             )
         }
-        supabase.setFieldState("ls:homer-cal-events",
+        syncClient.pushField("ls:homer-cal-events",
             json.encodeToString(ListSerializer(WsCalEvent.serializer()), wsEvents))
     }
 
     private suspend fun pullCalendarEvents() {
-        supabase.getFieldState("ls:homer-cal-events")?.let { row ->
-            if (row.value.isBlank()) return@let
-            val wsEvents = json.decodeFromString(ListSerializer(WsCalEvent.serializer()), row.value)
-            val cloudEvents = wsEvents.filter { it.id.isNotBlank() && it.date.isNotBlank() }
-                .map { it.toCalendarEvent() }
-            if (cloudEvents.isEmpty()) return@let
-            db.calendarDao().clearManualEvents()
-            db.calendarDao().upsertAll(cloudEvents)
-        }
+        val v = fieldValue("ls:homer-cal-events") ?: return
+        val wsEvents = json.decodeFromString(ListSerializer(WsCalEvent.serializer()), v)
+        val cloudEvents = wsEvents.filter { it.id.isNotBlank() && it.date.isNotBlank() }
+            .map { it.toCalendarEvent() }
+        if (cloudEvents.isEmpty()) return
+        db.calendarDao().clearManualEvents()
+        db.calendarDao().upsertAll(cloudEvents)
     }
 
-    // ── Conflict detection ────────────────────────────────────────────────────
+    // ── Push all ─────────────────────────────────────────────────────────────
 
-    /**
-     * Fetch cloud counts for each synced field and compare to local Room counts.
-     * Returns one [ConflictInfo] per field where the counts differ and cloud is non-empty.
-     * Call this before pulling to decide whether to prompt the user for resolution.
-     */
-    suspend fun detectConflicts(): List<ConflictInfo> {
-        supabase.ensureSignedIn()
-        val uid = supabase.userId
-            ?: throw Exception("Not authenticated with Supabase — sign-in failed or credentials missing")
-        Log.d("HomerSync", "detectConflicts: uid=$uid isBogdan=${supabase.isBogdan()}")
-        if (!supabase.isBogdan()) return emptyList()
-        val result = mutableListOf<ConflictInfo>()
-
-        // Only flag a conflict when BOTH sides have data and counts differ.
-        // If local == 0 (fresh install / empty db), just pull automatically — no dialog needed.
-        fun add(key: String, label: String, emoji: String, local: Int, cloud: Int) {
-            if (cloud > 0 && local > 0 && local != cloud) result += ConflictInfo(key, label, emoji, local, cloud)
-        }
-
-        runCatching {
-            val local = db.expenseDao().getAll().first().count { it.type != "income" }
-            val cloud = supabase.getFieldState("ls:homer-expenses")?.let { row ->
-                if (row.value.isBlank()) return@let 0
-                json.decodeFromString(ListSerializer(WsExpense.serializer()), row.value).size
-            } ?: 0
-            add("ls:homer-expenses", "Expenses", "💰", local, cloud)
-        }
-
-        runCatching {
-            val local = db.habitDao().getAllHabits().first().size
-            val cloud = supabase.getFieldState("ls:homer-habits")?.let { row ->
-                if (row.value.isBlank()) return@let 0
-                json.decodeFromString(WsHabitsBlob.serializer(), row.value).habits.size
-            } ?: 0
-            add("ls:homer-habits", "Habits", "✅", local, cloud)
-        }
-
-        runCatching {
-            val local = db.inboxDao().getAll().first().size
-            val cloud = supabase.getFieldState("ls:homer-inbox")?.let { row ->
-                if (row.value.isBlank()) return@let 0
-                json.decodeFromString(ListSerializer(InboxItem.serializer()), row.value).size
-            } ?: 0
-            add("ls:homer-inbox", "Inbox", "📥", local, cloud)
-        }
-
-        runCatching {
-            val local = db.linkDao().getAll().first().size
-            val cloud = supabase.getFieldState("ls:homer-links")?.let { row ->
-                if (row.value.isBlank()) return@let 0
-                json.decodeFromString(ListSerializer(WsLink.serializer()), row.value).size
-            } ?: 0
-            add("ls:homer-links", "Links", "🔗", local, cloud)
-        }
-
-        runCatching {
-            val local = db.noteDao().getAll().first().size
-            val cloud = supabase.getFieldState("ls:homer-notes")?.let { row ->
-                if (row.value.isBlank()) return@let 0
-                json.decodeFromString(ListSerializer(Note.serializer()), row.value).size
-            } ?: 0
-            add("ls:homer-notes", "Notes", "📝", local, cloud)
-        }
-
-        runCatching {
-            val local = db.journalDao().getAll().first().size
-            val cloud = supabase.getFieldState("ls:homer-journal")?.let { row ->
-                if (row.value.isBlank()) return@let 0
-                json.decodeFromString(ListSerializer(JournalEntry.serializer()), row.value).size
-            } ?: 0
-            add("ls:homer-journal", "Journal", "📔", local, cloud)
-        }
-
-        runCatching {
-            val local = db.kanbanDao().getAllProjects().first().size
-            val cloud = supabase.getFieldState("ls:homer-kanban")?.let { row ->
-                if (row.value.isBlank()) return@let 0
-                json.decodeFromString(KanbanBlobWs.serializer(), row.value).projects.size
-            } ?: 0
-            add("ls:homer-kanban", "Projects & Tasks", "📋", local, cloud)
-        }
-
-        runCatching {
-            val local = db.lifeGoalDao().getAll().first().size
-            val cloud = supabase.getFieldState("ls:homer-life-goals")?.let { row ->
-                if (row.value.isBlank()) return@let 0
-                json.decodeFromString(ListSerializer(WsLifeGoal.serializer()), row.value).size
-            } ?: 0
-            add("ls:homer-life-goals", "Life Goals", "🎯", local, cloud)
-        }
-
-        runCatching {
-            val local = db.carDao().getVehicles().first().size
-            val cloud = supabase.getFieldState("ls:homer-car")?.let { row ->
-                if (row.value.isBlank()) return@let 0
-                json.decodeFromString(CarBlob.serializer(), row.value).vehicles.size
-            } ?: 0
-            add("ls:homer-car", "Car Data", "🚗", local, cloud)
-        }
-
-        runCatching {
-            val local = db.calendarDao().getManualEvents().first().size
-            val cloud = supabase.getFieldState("ls:homer-cal-events")?.let { row ->
-                if (row.value.isBlank()) return@let 0
-                json.decodeFromString(ListSerializer(WsCalEvent.serializer()), row.value).size
-            } ?: 0
-            add("ls:homer-cal-events", "Calendar Events", "📅", local, cloud)
-        }
-
-        runCatching {
-            val local = db.quoteDao().getAllSavedAt().size
-            val cloud = supabase.getFieldState("ls:savedQuotes")?.let { row ->
-                if (row.value.isBlank()) return@let 0
-                json.decodeFromString(ListSerializer(WsQuote.serializer()), row.value).size
-            } ?: 0
-            add("ls:savedQuotes", "Saved Quotes", "💬", local, cloud)
-        }
-
-        runCatching {
-            val local = db.pomodoroDao().getAllSessionTs().size
-            val cloud = supabase.getFieldState("ls:homer-sessions")?.let { row ->
-                if (row.value.isBlank()) return@let 0
-                json.decodeFromString(ListSerializer(WsSession.serializer()), row.value).size
-            } ?: 0
-            add("ls:homer-sessions", "Focus Sessions", "🍅", local, cloud)
-        }
-
-        runCatching {
-            val local = db.reminderDao().getAllSync().size
-            val cloud = supabase.getFieldState("ls:homer-reminders")?.let { row ->
-                if (row.value.isBlank()) return@let 0
-                json.decodeFromString(ListSerializer(Reminder.serializer()), row.value).size
-            } ?: 0
-            add("ls:homer-reminders", "Reminders", "🔔", local, cloud)
-        }
-
-        return result
+    /** Push all enabled fields to the cloud. Called from SyncViewModel "Push to Cloud". */
+    suspend fun pushAll() {
+        if (!syncClient.isConfigured()) return
+        if (isFieldEnabled("ls:homer-expenses"))            runCatching { pushExpenses()         }.onFailure { Log.e("HomerSync", "pushExpenses failed", it) }
+        if (isFieldEnabled("ls:homer-habits"))              runCatching { pushHabits()           }.onFailure { Log.e("HomerSync", "pushHabits failed", it) }
+        if (isFieldEnabled("ls:homer-inbox"))               runCatching { pushInbox()            }.onFailure { Log.e("HomerSync", "pushInbox failed", it) }
+        if (isFieldEnabled("ls:homer-links"))               runCatching { pushLinks()            }.onFailure { Log.e("HomerSync", "pushLinks failed", it) }
+        if (isFieldEnabled("ls:pom-tasks"))                 runCatching { pushPomodoroTasks()    }.onFailure { Log.e("HomerSync", "pushTasks failed", it) }
+        if (isFieldEnabled("ls:homer-notes"))               runCatching { pushNotes()            }.onFailure { Log.e("HomerSync", "pushNotes failed", it) }
+        if (isFieldEnabled("ls:homer-journal"))             runCatching { pushJournal()          }.onFailure { Log.e("HomerSync", "pushJournal failed", it) }
+        if (isFieldEnabled("ls:homer-car"))                 runCatching { pushCar()              }.onFailure { Log.e("HomerSync", "pushCar failed", it) }
+        if (isFieldEnabled("ls:homer-kanban"))              runCatching { pushKanban()           }.onFailure { Log.e("HomerSync", "pushKanban failed", it) }
+        if (isFieldEnabled("ls:homer-life-goals"))          runCatching { pushLifeGoals()        }.onFailure { Log.e("HomerSync", "pushLifeGoals failed", it) }
+        if (isFieldEnabled("ls:homer-brain-dump"))          runCatching { pushBrainDump()        }.onFailure { Log.e("HomerSync", "pushBrainDump failed", it) }
+        if (isFieldEnabled("ls:homer-zen-goal"))            runCatching { pushZenGoal()          }.onFailure { Log.e("HomerSync", "pushZenGoal failed", it) }
+        if (isFieldEnabled("ls:homer-expense-goals"))       runCatching { pushExpenseGoals()     }.onFailure { Log.e("HomerSync", "pushExpenseGoals failed", it) }
+        if (isFieldEnabled("ls:homer-cal-events"))          runCatching { pushCalendarEvents()   }.onFailure { Log.e("HomerSync", "pushCalendarEvents failed", it) }
+        if (isFieldEnabled("ls:savedQuotes"))               runCatching { pushSavedQuotes()      }.onFailure { Log.e("HomerSync", "pushSavedQuotes failed", it) }
+        if (isFieldEnabled("ls:homer-sessions"))            runCatching { pushSessions()         }.onFailure { Log.e("HomerSync", "pushSessions failed", it) }
+        if (isFieldEnabled("ls:pom-settings"))              runCatching { pushPomSettings()      }.onFailure { Log.e("HomerSync", "pushPomSettings failed", it) }
+        if (isFieldEnabled("ls:homer-expense-templates"))   runCatching { pushExpenseTemplates() }.onFailure { Log.e("HomerSync", "pushExpenseTemplates failed", it) }
+        if (isFieldEnabled("ls:homer-expense-cats"))        runCatching { pushExpenseCats()      }.onFailure { Log.e("HomerSync", "pushExpenseCats failed", it) }
+        if (isFieldEnabled("ls:homer-payday-day"))          runCatching { pushPaydayDay()        }.onFailure { Log.e("HomerSync", "pushPaydayDay failed", it) }
+        if (isFieldEnabled("ls:homer-recurring"))           runCatching { pushRecurring()        }.onFailure { Log.e("HomerSync", "pushRecurring failed", it) }
+        if (isFieldEnabled("ls:homer-weekly-reviews"))      runCatching { pushWeeklyReviews()    }.onFailure { Log.e("HomerSync", "pushWeeklyReviews failed", it) }
+        if (isFieldEnabled("ls:homer-countdown"))           runCatching { pushCountdown()        }.onFailure { Log.e("HomerSync", "pushCountdown failed", it) }
+        if (isFieldEnabled("ls:homer-secrets"))             runCatching { pushSecrets()          }.onFailure { Log.e("HomerSync", "pushSecrets failed", it) }
+        if (isFieldEnabled("ls:homer-vault-notes"))         runCatching { pushVaultNotes()       }.onFailure { Log.e("HomerSync", "pushVaultNotes failed", it) }
+        if (isFieldEnabled("ls:homer-reminders"))           runCatching { pushReminders()        }.onFailure { Log.e("HomerSync", "pushReminders failed", it) }
+        Log.d("HomerSync", "pushAll: done")
     }
 
-    /**
-     * Pull all synced fields applying per-field [SyncResolution] decisions.
-     * Fields not present in [resolutions] default to [SyncResolution.MERGE_BOTH].
-     *  - KEEP_LOCAL → push local to cloud; skip pull.
-     *  - MERGE_BOTH → upsert cloud into local (safe, no deletions).
-     *  - USE_CLOUD  → clear local table first, then pull from cloud.
-     */
-    suspend fun pullWithResolutions(resolutions: Map<String, SyncResolution>) {
-        supabase.ensureSignedIn()
-        val uid = supabase.userId
-            ?: throw Exception("Not authenticated with Supabase — sign-in failed or credentials missing")
-        if (!supabase.isBogdan()) throw Exception("Signed in as non-Bogdan user (id=$uid)")
+    // ── Removed: detectConflicts / pullWithResolutions / applyFieldUpdate (Option A) ─
+    // These methods used Supabase SDK directly. Replaced by pullAll() + pushAll() via SyncClient.
 
-        suspend fun apply(
-            key: String,
-            clearFn: suspend () -> Unit,
-            pullFn: suspend () -> Unit,
-            pushFn: suspend () -> Unit,
-        ) = when (resolutions[key] ?: SyncResolution.MERGE_BOTH) {
-            SyncResolution.KEEP_LOCAL -> pushFn()
-            SyncResolution.USE_CLOUD  -> { clearFn(); pullFn() }
-            SyncResolution.MERGE_BOTH -> pullFn()
-        }
-
-        runCatching {
-            apply("ls:homer-expenses",
-                clearFn = { db.expenseDao().clearAll(); db.expenseDao().clearAllBudgets() },
-                pullFn  = ::pullExpenses,
-                pushFn  = ::pushExpenses)
-        }.onFailure { Log.e("HomerSync", "expenses resolution failed", it) }
-
-        runCatching {
-            apply("ls:homer-habits",
-                clearFn = { db.habitDao().clearAll(); db.habitDao().clearAllCompletions() },
-                pullFn  = ::pullHabits,
-                pushFn  = ::pushHabits)
-        }.onFailure { Log.e("HomerSync", "habits resolution failed", it) }
-
-        runCatching {
-            apply("ls:homer-inbox",
-                clearFn = { db.inboxDao().clearAll() },
-                pullFn  = ::pullInbox,
-                pushFn  = ::pushInbox)
-        }.onFailure { Log.e("HomerSync", "inbox resolution failed", it) }
-
-        runCatching {
-            apply("ls:homer-links",
-                clearFn = { db.linkDao().deleteAll() },
-                pullFn  = ::pullLinks,
-                pushFn  = ::pushLinks)
-        }.onFailure { Log.e("HomerSync", "links resolution failed", it) }
-
-        runCatching {
-            apply("ls:pom-tasks",
-                clearFn = { db.pomodoroDao().clearAllTasks() },
-                pullFn  = ::pullPomodoroTasks,
-                pushFn  = ::pushPomodoroTasks)
-        }.onFailure { Log.e("HomerSync", "tasks resolution failed", it) }
-
-        runCatching {
-            apply("ls:homer-notes",
-                clearFn = { db.noteDao().clearAll() },
-                pullFn  = ::pullNotes,
-                pushFn  = ::pushNotes)
-        }.onFailure { Log.e("HomerSync", "notes resolution failed", it) }
-
-        runCatching {
-            apply("ls:homer-journal",
-                clearFn = { db.journalDao().clearAll() },
-                pullFn  = ::pullJournal,
-                pushFn  = ::pushJournal)
-        }.onFailure { Log.e("HomerSync", "journal resolution failed", it) }
-
-        runCatching {
-            apply("ls:homer-car",
-                clearFn = {
-                    db.carDao().clearAllVehicles()
-                    db.carDao().clearAllDocuments()
-                    db.carDao().clearAllMaintenance()
-                    db.carDao().clearAllFuelLog()
-                },
-                pullFn  = ::pullCar,
-                pushFn  = ::pushCar)
-        }.onFailure { Log.e("HomerSync", "car resolution failed", it) }
-
-        runCatching {
-            apply("ls:homer-kanban",
-                clearFn = { db.kanbanDao().clearAllProjects(); db.kanbanDao().clearAllTasks() },
-                pullFn  = ::pullKanban,
-                pushFn  = ::pushKanban)
-        }.onFailure { Log.e("HomerSync", "kanban resolution failed", it) }
-
-        runCatching {
-            apply("ls:homer-life-goals",
-                clearFn = { db.lifeGoalDao().clearAll() },
-                pullFn  = ::pullLifeGoals,
-                pushFn  = ::pushLifeGoals)
-        }.onFailure { Log.e("HomerSync", "life-goals resolution failed", it) }
-
-        runCatching {
-            apply("ls:homer-expense-goals",
-                clearFn = { db.appSettingDao().set(AppSetting("homer-expense-goals", "[]")) },
-                pullFn  = ::pullExpenseGoals,
-                pushFn  = ::pushExpenseGoals)
-        }.onFailure { Log.e("HomerSync", "expense-goals resolution failed", it) }
-
-        runCatching {
-            apply("ls:homer-cal-events",
-                clearFn = { db.calendarDao().clearManualEvents() },
-                pullFn  = ::pullCalendarEvents,
-                pushFn  = ::pushCalendarEvents)
-        }.onFailure { Log.e("HomerSync", "cal-events resolution failed", it) }
-
-        runCatching {
-            apply("ls:savedQuotes",
-                clearFn = { db.quoteDao().deleteAll() },
-                pullFn  = ::pullSavedQuotes,
-                pushFn  = ::pushSavedQuotes)
-        }.onFailure { Log.e("HomerSync", "savedQuotes resolution failed", it) }
-
-        // Blob fields — clearFn resets the AppSetting to empty
-        runCatching {
-            apply("ls:pom-settings",
-                clearFn = { db.appSettingDao().set(AppSetting("pom.settings.v1", "")) },
-                pullFn  = ::pullPomSettings,
-                pushFn  = ::pushPomSettings)
-        }.onFailure { Log.e("HomerSync", "pom-settings resolution failed", it) }
-
-        runCatching {
-            apply("ls:homer-expense-templates",
-                clearFn = { db.appSettingDao().set(AppSetting("homer-expense-templates", "[]")) },
-                pullFn  = ::pullExpenseTemplates,
-                pushFn  = ::pushExpenseTemplates)
-        }.onFailure { Log.e("HomerSync", "expense-templates resolution failed", it) }
-
-        runCatching {
-            apply("ls:homer-expense-cats",
-                clearFn = { db.appSettingDao().set(AppSetting("homer-expense-cats", "[]")) },
-                pullFn  = ::pullExpenseCats,
-                pushFn  = ::pushExpenseCats)
-        }.onFailure { Log.e("HomerSync", "expense-cats resolution failed", it) }
-
-        runCatching {
-            apply("ls:homer-recurring",
-                clearFn = { db.appSettingDao().set(AppSetting("homer-recurring", "[]")) },
-                pullFn  = ::pullRecurring,
-                pushFn  = ::pushRecurring)
-        }.onFailure { Log.e("HomerSync", "recurring resolution failed", it) }
-
-        runCatching {
-            apply("ls:homer-weekly-reviews",
-                clearFn = { db.appSettingDao().set(AppSetting("homer-weekly-reviews", "[]")) },
-                pullFn  = ::pullWeeklyReviews,
-                pushFn  = ::pushWeeklyReviews)
-        }.onFailure { Log.e("HomerSync", "weekly-reviews resolution failed", it) }
-
-        runCatching {
-            apply("ls:homer-countdown",
-                clearFn = {
-                    ctx.getSharedPreferences("homer_countdown", Context.MODE_PRIVATE)
-                        .edit().remove("name").remove("dateMs").apply()
-                },
-                pullFn  = ::pullCountdown,
-                pushFn  = ::pushCountdown)
-        }.onFailure { Log.e("HomerSync", "countdown resolution failed", it) }
-
-        runCatching {
-            apply("ls:homer-secrets",
-                clearFn = { db.vaultDao().clearAllCredentials() },
-                pullFn  = ::pullSecrets,
-                pushFn  = ::pushSecrets)
-        }.onFailure { Log.e("HomerSync", "secrets resolution failed", it) }
-
-        runCatching {
-            apply("ls:homer-vault-notes",
-                clearFn = { /* notes are upserted by mode, no full clear needed */ },
-                pullFn  = ::pullVaultNotes,
-                pushFn  = ::pushVaultNotes)
-        }.onFailure { Log.e("HomerSync", "vault-notes resolution failed", it) }
-
-        runCatching {
-            apply("ls:homer-reminders",
-                clearFn = { db.reminderDao().clearAll() },
-                pullFn  = ::pullReminders,
-                pushFn  = ::pushReminders)
-        }.onFailure { Log.e("HomerSync", "reminders resolution failed", it) }
-    }
 
     // ── Saved Quotes ──────────────────────────────────────────────────────────
     // Website key: "motivator.savedQuotes.v1" → Supabase field_id: "ls:savedQuotes"
@@ -1364,34 +1034,32 @@ class SyncEngine @Inject constructor(
         if (quotes.isEmpty()) return
         // Push in website format {q, a, ts} so website renderSaved() displays correctly
         val ws = quotes.map { q -> WsQuote(q = q.text, a = q.author, ts = q.savedAt) }
-        supabase.setFieldState("ls:savedQuotes",
+        syncClient.pushField("ls:savedQuotes",
             json.encodeToString(ListSerializer(WsQuote.serializer()), ws))
     }
 
     private suspend fun pullSavedQuotes() {
-        supabase.getFieldState("ls:savedQuotes")?.let { row ->
-            if (row.value.isBlank()) return@let
-            val wsQuotes = json.decodeFromString(ListSerializer(WsQuote.serializer()), row.value)
-            val cloudQuotes = wsQuotes.map { it.toSavedQuote() }.filter { it.text.isNotBlank() }
-            if (cloudQuotes.isEmpty()) return@let
-            // Merge: union of local + cloud, dedup by lowercased text, keep most recent
-            val localQuotes = db.quoteDao().getAll().first()
-            val merged = mutableMapOf<String, SavedQuote>()
-            for (q in cloudQuotes) merged[q.text.trim().lowercase()] = q
-            for (q in localQuotes) {
-                val key = q.text.trim().lowercase()
-                val ex  = merged[key]
-                if (ex == null || q.savedAt > ex.savedAt) merged[key] = q
-            }
-            if (merged.isEmpty()) return@let
-            db.quoteDao().deleteAll()
-            for (q in merged.values) db.quoteDao().insert(q)
-            // Push merged set back to cloud if local added new quotes
-            if (merged.size > cloudQuotes.size) {
-                val ws = merged.values.map { q -> WsQuote(q = q.text, a = q.author, ts = q.savedAt) }
-                supabase.setFieldState("ls:savedQuotes",
-                    json.encodeToString(ListSerializer(WsQuote.serializer()), ws))
-            }
+        val v = fieldValue("ls:savedQuotes") ?: return
+        val wsQuotes = json.decodeFromString(ListSerializer(WsQuote.serializer()), v)
+        val cloudQuotes = wsQuotes.map { it.toSavedQuote() }.filter { it.text.isNotBlank() }
+        if (cloudQuotes.isEmpty()) return
+        // Merge: union of local + cloud, dedup by lowercased text, keep most recent
+        val localQuotes = db.quoteDao().getAll().first()
+        val merged = mutableMapOf<String, SavedQuote>()
+        for (q in cloudQuotes) merged[q.text.trim().lowercase()] = q
+        for (q in localQuotes) {
+            val key = q.text.trim().lowercase()
+            val ex  = merged[key]
+            if (ex == null || q.savedAt > ex.savedAt) merged[key] = q
+        }
+        if (merged.isEmpty()) return
+        db.quoteDao().deleteAll()
+        for (q in merged.values) db.quoteDao().insert(q)
+        // Push merged set back to cloud if local added new quotes
+        if (merged.size > cloudQuotes.size) {
+            val ws = merged.values.map { q -> WsQuote(q = q.text, a = q.author, ts = q.savedAt) }
+            syncClient.pushField("ls:savedQuotes",
+                json.encodeToString(ListSerializer(WsQuote.serializer()), ws))
         }
     }
 
@@ -1410,20 +1078,18 @@ class SyncEngine @Inject constructor(
         val sessions = db.pomodoroDao().getRecentSessions().first()
         if (sessions.isEmpty()) return
         val ws = sessions.map { s -> WsSession(ts = s.ts, durationSecs = s.durationSecs, taskLabel = s.taskLabel) }
-        supabase.setFieldState("ls:homer-sessions",
+        syncClient.pushField("ls:homer-sessions",
             json.encodeToString(ListSerializer(WsSession.serializer()), ws))
     }
 
     private suspend fun pullSessions() {
-        supabase.getFieldState("ls:homer-sessions")?.let { row ->
-            if (row.value.isBlank()) return@let
-            val wsSessions = json.decodeFromString(ListSerializer(WsSession.serializer()), row.value)
-            val existingTs = db.pomodoroDao().getAllSessionTs().toSet()
-            val toInsert = wsSessions
-                .filter { it.ts > 0 && it.ts !in existingTs && it.durationSecs > 0 }
-                .map { PomodoroSession(ts = it.ts, durationSecs = it.durationSecs, taskLabel = it.taskLabel) }
-            if (toInsert.isNotEmpty()) db.pomodoroDao().insertAllSessions(toInsert)
-        }
+        val v = fieldValue("ls:homer-sessions") ?: return
+        val wsSessions = json.decodeFromString(ListSerializer(WsSession.serializer()), v)
+        val existingTs = db.pomodoroDao().getAllSessionTs().toSet()
+        val toInsert = wsSessions
+            .filter { it.ts > 0 && it.ts !in existingTs && it.durationSecs > 0 }
+            .map { PomodoroSession(ts = it.ts, durationSecs = it.durationSecs, taskLabel = it.taskLabel) }
+        if (toInsert.isNotEmpty()) db.pomodoroDao().insertAllSessions(toInsert)
     }
 
     // ── Pomodoro Settings ─────────────────────────────────────────────────────
@@ -1433,14 +1099,12 @@ class SyncEngine @Inject constructor(
     private suspend fun pushPomSettings() {
         val v = db.appSettingDao().get("pom.settings.v1") ?: return
         if (v.isBlank()) return
-        supabase.setFieldState("ls:pom-settings", v)
+        syncClient.pushField("ls:pom-settings", v)
     }
 
     private suspend fun pullPomSettings() {
-        supabase.getFieldState("ls:pom-settings")?.let { row ->
-            if (row.value.isBlank()) return@let
-            db.appSettingDao().set(AppSetting("pom.settings.v1", row.value))
-        }
+        val v = fieldValue("ls:pom-settings") ?: return
+        db.appSettingDao().set(AppSetting("pom.settings.v1", v))
     }
 
     // ── Expense Templates ─────────────────────────────────────────────────────
@@ -1449,14 +1113,12 @@ class SyncEngine @Inject constructor(
     private suspend fun pushExpenseTemplates() {
         val v = db.appSettingDao().get("homer-expense-templates") ?: return
         if (v.isBlank()) return
-        supabase.setFieldState("ls:homer-expense-templates", v)
+        syncClient.pushField("ls:homer-expense-templates", v)
     }
 
     private suspend fun pullExpenseTemplates() {
-        supabase.getFieldState("ls:homer-expense-templates")?.let { row ->
-            if (row.value.isBlank()) return@let
-            db.appSettingDao().set(AppSetting("homer-expense-templates", row.value))
-        }
+        val v = fieldValue("ls:homer-expense-templates") ?: return
+        db.appSettingDao().set(AppSetting("homer-expense-templates", v))
     }
 
     // ── Expense Categories ────────────────────────────────────────────────────
@@ -1465,14 +1127,12 @@ class SyncEngine @Inject constructor(
     private suspend fun pushExpenseCats() {
         val v = db.appSettingDao().get("homer-expense-cats") ?: return
         if (v.isBlank()) return
-        supabase.setFieldState("ls:homer-expense-cats", v)
+        syncClient.pushField("ls:homer-expense-cats", v)
     }
 
     private suspend fun pullExpenseCats() {
-        supabase.getFieldState("ls:homer-expense-cats")?.let { row ->
-            if (row.value.isBlank()) return@let
-            db.appSettingDao().set(AppSetting("homer-expense-cats", row.value))
-        }
+        val v = fieldValue("ls:homer-expense-cats") ?: return
+        db.appSettingDao().set(AppSetting("homer-expense-cats", v))
     }
 
     // ── Payday Day ────────────────────────────────────────────────────────────
@@ -1481,14 +1141,12 @@ class SyncEngine @Inject constructor(
     private suspend fun pushPaydayDay() {
         val v = db.appSettingDao().get("homer-payday-day") ?: return
         if (v.isBlank()) return
-        supabase.setFieldState("ls:homer-payday-day", v)
+        syncClient.pushField("ls:homer-payday-day", v)
     }
 
     private suspend fun pullPaydayDay() {
-        supabase.getFieldState("ls:homer-payday-day")?.let { row ->
-            if (row.value.isBlank()) return@let
-            db.appSettingDao().set(AppSetting("homer-payday-day", row.value))
-        }
+        val v = fieldValue("ls:homer-payday-day") ?: return
+        db.appSettingDao().set(AppSetting("homer-payday-day", v))
     }
 
     // ── Recurring Tasks ───────────────────────────────────────────────────────
@@ -1497,14 +1155,12 @@ class SyncEngine @Inject constructor(
     private suspend fun pushRecurring() {
         val v = db.appSettingDao().get("homer-recurring") ?: return
         if (v.isBlank()) return
-        supabase.setFieldState("ls:homer-recurring", v)
+        syncClient.pushField("ls:homer-recurring", v)
     }
 
     private suspend fun pullRecurring() {
-        supabase.getFieldState("ls:homer-recurring")?.let { row ->
-            if (row.value.isBlank()) return@let
-            db.appSettingDao().set(AppSetting("homer-recurring", row.value))
-        }
+        val v = fieldValue("ls:homer-recurring") ?: return
+        db.appSettingDao().set(AppSetting("homer-recurring", v))
     }
 
     // ── Weekly Reviews ────────────────────────────────────────────────────────
@@ -1513,83 +1169,21 @@ class SyncEngine @Inject constructor(
     private suspend fun pushWeeklyReviews() {
         val v = db.appSettingDao().get("homer-weekly-reviews") ?: return
         if (v.isBlank()) return
-        supabase.setFieldState("ls:homer-weekly-reviews", v)
+        syncClient.pushField("ls:homer-weekly-reviews", v)
     }
 
     private suspend fun pullWeeklyReviews() {
-        supabase.getFieldState("ls:homer-weekly-reviews")?.let { row ->
-            if (row.value.isBlank()) return@let
-            db.appSettingDao().set(AppSetting("homer-weekly-reviews", row.value))
-        }
+        val v = fieldValue("ls:homer-weekly-reviews") ?: return
+        db.appSettingDao().set(AppSetting("homer-weekly-reviews", v))
     }
 
-    // ── Realtime field dispatcher ─────────────────────────────────────────────
-
-    /**
-     * Called by RealtimeSyncManager when a field_state row is updated by another device.
-     * Routes the field_id to the correct pull method so Room is updated immediately.
-     */
-    suspend fun applyFieldUpdate(fieldId: String) {
-        if (!supabase.isBogdan()) return
-        // Cancel any pending local push for this field before applying the incoming remote update.
-        // This prevents a stale debounced Android push from overwriting the fresh remote state
-        // (which is the root cause of deletion resurrection bugs).
-        val pushKey = when (fieldId) {
-            "ls:homer-expenses", "ls:homer-income", "ls:homer-expense-budgets" -> "ls:homer-expenses"
-            "ls:homer-habits"            -> "ls:homer-habits"
-            "ls:homer-inbox"             -> "ls:homer-inbox"
-            "ls:homer-links"             -> "ls:homer-links"
-            "ls:pom-tasks"               -> "ls:pom-tasks"
-            "ls:homer-notes"             -> "ls:homer-notes"
-            "ls:homer-journal"           -> "ls:homer-journal"
-            "ls:homer-car"               -> "ls:homer-car"
-            "ls:homer-kanban"            -> "ls:homer-kanban"
-            "ls:homer-life-goals"        -> "ls:homer-life-goals"
-            "ls:homer-cal-events"        -> "ls:homer-cal-events"
-            "ls:savedQuotes"             -> "ls:savedQuotes"
-            "ls:homer-reminders"         -> "ls:homer-reminders"
-            "ls:homer-secrets:personal",
-            "ls:homer-secrets:work"      -> "ls:homer-secrets"
-            "ls:homer-vault-notes:personal",
-            "ls:homer-vault-notes:work"  -> "ls:homer-vault-notes"
-            else -> null
-        }
-        pushKey?.let { cancelPendingPush(it) }
-        runCatching {
-            when (fieldId) {
-                "ls:homer-expenses",
-                "ls:homer-income",
-                "ls:homer-expense-budgets"   -> pullExpenses()
-                "ls:homer-habits"            -> pullHabits()
-                "ls:homer-inbox"             -> pullInbox()
-                "ls:homer-links"             -> pullLinks()
-                "ls:pom-tasks"               -> pullPomodoroTasks()
-                "ls:homer-notes"             -> pullNotes()
-                "ls:homer-journal"           -> pullJournal()
-                "ls:homer-car"               -> pullCar()
-                "ls:homer-kanban"            -> pullKanban()
-                "ls:homer-life-goals"        -> pullLifeGoals()
-                "ls:homer-brain-dump"        -> pullBrainDump()
-                "ls:homer-zen-goal"          -> pullZenGoal()
-                "ls:homer-expense-goals"     -> pullExpenseGoals()
-                "ls:homer-cal-events"        -> pullCalendarEvents()
-                "ls:savedQuotes"             -> pullSavedQuotes()
-                "ls:homer-sessions"          -> pullSessions()
-                "ls:pom-settings"            -> pullPomSettings()
-                "ls:homer-expense-templates" -> pullExpenseTemplates()
-                "ls:homer-expense-cats"      -> pullExpenseCats()
-                "ls:homer-payday-day"        -> pullPaydayDay()
-                "ls:homer-recurring"         -> pullRecurring()
-                "ls:homer-weekly-reviews"    -> pullWeeklyReviews()
-                "ls:homer-countdown"         -> pullCountdown()
-                "ls:homer-secrets:personal",
-                "ls:homer-secrets:work"      -> pullSecrets()
-                "ls:homer-vault-notes:personal",
-                "ls:homer-vault-notes:work"  -> pullVaultNotes()
-                "ls:homer-reminders"         -> pullReminders()
-            }
-        }.onFailure { Log.e("HomerSync", "applyFieldUpdate[$fieldId] failed", it) }
-    }
+    // ── Note: Realtime subscription removed ──────────────────────────────────
+    // RealtimeSyncManager was removed in favour of a simpler pull-only model:
+    //  - on startup  → start() → pullAll()
+    //  - on foreground (Activity.onResume, 2-min debounce) → onForeground() → pullAll()
+    //  - on network reconnect (one-shot ConnectivityManager callback) → pullAll()
+    //  - background (SyncWorker every 15 min) → pullAll()
+    // Website changes therefore appear on Android within 2 min of opening the app.
 
     // ── Vault Secrets (Passwords) ─────────────────────────────────────────────
     // Website key: "homer-secrets:personal" / "homer-secrets:work"
@@ -1616,27 +1210,25 @@ class SyncEngine @Inject constructor(
                 pass = c.passwordEncrypted, details = c.details)
         }
         val encoded = json.encodeToString(ListSerializer(WsVaultCred.serializer()), wsCreds)
-        supabase.setFieldState("ls:homer-secrets:personal", encoded)
+        syncClient.pushField("ls:homer-secrets:personal", encoded)
     }
 
     private suspend fun pullSecrets() {
         var replaced = false
         for (mode in listOf("personal", "work")) {
-            supabase.getFieldState("ls:homer-secrets:$mode")?.let { row ->
-                if (row.value.isBlank()) return@let
-                val wsCreds = json.decodeFromString(ListSerializer(WsVaultCred.serializer()), row.value)
-                if (wsCreds.isEmpty()) return@let
-                if (!replaced) { db.vaultDao().clearAllCredentials(); replaced = true }
-                wsCreds.forEach { c ->
-                    db.vaultDao().upsertCredential(VaultCredential(
-                        id = stableId(c.site, c.label),
-                        label = c.label,
-                        site = c.site,
-                        username = c.user,
-                        passwordEncrypted = c.pass,
-                        details = c.details,
-                    ))
-                }
+            val v = fieldValue("ls:homer-secrets:$mode") ?: continue
+            val wsCreds = json.decodeFromString(ListSerializer(WsVaultCred.serializer()), v)
+            if (wsCreds.isEmpty()) continue
+            if (!replaced) { db.vaultDao().clearAllCredentials(); replaced = true }
+            wsCreds.forEach { c ->
+                db.vaultDao().upsertCredential(VaultCredential(
+                    id = stableId(c.site, c.label),
+                    label = c.label,
+                    site = c.site,
+                    username = c.user,
+                    passwordEncrypted = c.pass,
+                    details = c.details,
+                ))
             }
         }
     }
@@ -1651,20 +1243,18 @@ class SyncEngine @Inject constructor(
         for (mode in listOf("personal", "work")) {
             val note = db.vaultDao().getNote(mode) ?: continue
             if (note.textEncrypted.isBlank()) continue
-            supabase.setFieldState("ls:homer-vault-notes:$mode",
-                json.encodeToString(note.textEncrypted))
+            syncClient.pushField("ls:homer-vault-notes:$mode",
+                json.encodeToString(String.serializer(), note.textEncrypted))
         }
     }
 
     private suspend fun pullVaultNotes() {
         for (mode in listOf("personal", "work")) {
-            supabase.getFieldState("ls:homer-vault-notes:$mode")?.let { row ->
-                if (row.value.isBlank()) return@let
-                val text = try { json.decodeFromString<String>(row.value) } catch (_: Exception) { row.value }
-                if (text.isBlank()) return@let
-                val id = if (mode == "work") 2 else 1
-                db.vaultDao().upsertNote(VaultNote(id = id, mode = mode, textEncrypted = text))
-            }
+            val v = fieldValue("ls:homer-vault-notes:$mode") ?: continue
+            val text = try { json.decodeFromString<String>(v) } catch (_: Exception) { v }
+            if (text.isBlank()) continue
+            val id = if (mode == "work") 2 else 1
+            db.vaultDao().upsertNote(VaultNote(id = id, mode = mode, textEncrypted = text))
         }
     }
 
@@ -1691,32 +1281,30 @@ class SyncEngine @Inject constructor(
             "%04d-%02d-%02dT%02d:%02d".format(
                 zdt.year, zdt.monthValue, zdt.dayOfMonth, zdt.hour, zdt.minute)
         } else ""
-        supabase.setFieldState("ls:homer-countdown",
+        syncClient.pushField("ls:homer-countdown",
             json.encodeToString(WsCountdown.serializer(), WsCountdown(name = name, date = date)))
     }
 
     private suspend fun pullCountdown() {
-        supabase.getFieldState("ls:homer-countdown")?.let { row ->
-            if (row.value.isBlank()) return@let
-            val ws = json.decodeFromString(WsCountdown.serializer(), row.value)
-            if (ws.name.isBlank() && ws.date.isBlank()) return@let
-            val dateMs = if (ws.date.isNotBlank()) {
+        val v = fieldValue("ls:homer-countdown") ?: return
+        val ws = json.decodeFromString(WsCountdown.serializer(), v)
+        if (ws.name.isBlank() && ws.date.isBlank()) return
+        val dateMs = if (ws.date.isNotBlank()) {
+            try {
+                val str = if (ws.date.length == 16) "${ws.date}:00" else ws.date
+                java.time.LocalDateTime.parse(str)
+                    .atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+            } catch (_: Exception) {
                 try {
-                    val str = if (ws.date.length == 16) "${ws.date}:00" else ws.date
-                    java.time.LocalDateTime.parse(str)
-                        .atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
-                } catch (_: Exception) {
-                    try {
-                        java.time.LocalDate.parse(ws.date)
-                            .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
-                    } catch (_: Exception) { 0L }
-                }
-            } else 0L
-            ctx.getSharedPreferences("homer_countdown", Context.MODE_PRIVATE).edit()
-                .putString("name", ws.name)
-                .putLong("dateMs", dateMs)
-                .apply()
-        }
+                    java.time.LocalDate.parse(ws.date)
+                        .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                } catch (_: Exception) { 0L }
+            }
+        } else 0L
+        ctx.getSharedPreferences("homer_countdown", Context.MODE_PRIVATE).edit()
+            .putString("name", ws.name)
+            .putLong("dateMs", dateMs)
+            .apply()
     }
 
     // ── Reminders ─────────────────────────────────────────────────────────────
@@ -1727,18 +1315,16 @@ class SyncEngine @Inject constructor(
     private suspend fun pushReminders() {
         val reminders = db.reminderDao().getAllSync()
         if (reminders.isEmpty()) return
-        supabase.setFieldState("ls:homer-reminders",
+        syncClient.pushField("ls:homer-reminders",
             json.encodeToString(ListSerializer(Reminder.serializer()), reminders))
     }
 
     private suspend fun pullReminders() {
-        supabase.getFieldState("ls:homer-reminders")?.let { row ->
-            if (row.value.isBlank()) return@let
-            val cloudReminders = json.decodeFromString(ListSerializer(Reminder.serializer()), row.value)
-            if (cloudReminders.isEmpty()) return@let
-            db.reminderDao().clearAll()
-            db.reminderDao().upsertAll(cloudReminders)
-        }
+        val v = fieldValue("ls:homer-reminders") ?: return
+        val cloudReminders = json.decodeFromString(ListSerializer(Reminder.serializer()), v)
+        if (cloudReminders.isEmpty()) return
+        db.reminderDao().clearAll()
+        db.reminderDao().upsertAll(cloudReminders)
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

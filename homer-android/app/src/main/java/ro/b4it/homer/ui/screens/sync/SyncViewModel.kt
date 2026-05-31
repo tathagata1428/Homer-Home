@@ -10,14 +10,11 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import ro.b4it.homer.data.supabase.SupabaseManager
-import ro.b4it.homer.data.sync.ConflictInfo
 import ro.b4it.homer.data.sync.LocalBackupManager
+import ro.b4it.homer.data.sync.SyncClient
 import ro.b4it.homer.data.sync.SyncEngine
-import ro.b4it.homer.data.sync.SyncResolution
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
@@ -30,12 +27,7 @@ data class SyncScopeItem(val key: String, val emoji: String, val label: String)
 
 sealed class SyncPhase {
     object Idle : SyncPhase()
-    object Detecting : SyncPhase()
-    data class AwaitingResolution(
-        val conflicts: List<ConflictInfo>,
-        val index: Int,
-    ) : SyncPhase()
-    object Applying : SyncPhase()
+    object Syncing : SyncPhase()
     object CreatingBackup : SyncPhase()
 }
 
@@ -43,9 +35,7 @@ sealed class SyncPhase {
 
 data class SyncState(
     val isBogdan: Boolean = false,
-    val userId: String? = null,
     val phase: SyncPhase = SyncPhase.Idle,
-    val pendingResolutions: Map<String, SyncResolution> = emptyMap(),
     val lastSyncAt: String? = null,
     val error: String? = null,
     val backups: List<LocalBackupManager.BackupSummary> = emptyList(),
@@ -57,95 +47,27 @@ data class SyncState(
 @HiltViewModel
 class SyncViewModel @Inject constructor(
     @ApplicationContext private val ctx: Context,
-    private val supabase: SupabaseManager,
+    private val syncClient: SyncClient,
     private val sync: SyncEngine,
     private val backupManager: LocalBackupManager,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
         SyncState(
-            isBogdan  = supabase.isBogdan(),
-            userId    = supabase.userId,
+            isBogdan  = syncClient.isConfigured(),
             backups   = backupManager.listBackups(),
             syncScope = loadSyncScope(),
         )
     )
     val state: StateFlow<SyncState> = _state.asStateFlow()
 
-    init {
-        viewModelScope.launch {
-            combine(supabase.sessionStatus, supabase.cachedAuthUserFlow) { _, _ -> Unit }
-                .collect {
-                    _state.update { it.copy(
-                        isBogdan = supabase.isBogdan(),
-                        userId   = supabase.userId,
-                    ) }
-                }
-        }
-    }
-
-    // ── Re-authenticate (try stored Supabase credentials) ─────────────────────
-
-    fun reAuthenticate() {
-        viewModelScope.launch {
-            _state.update { it.copy(phase = SyncPhase.Applying, error = null) }
-            try {
-                supabase.signInWithStoredCredentials()
-                val uid = supabase.userId
-                _state.update { it.copy(
-                    phase    = SyncPhase.Idle,
-                    isBogdan = supabase.isBogdan(),
-                    userId   = uid,
-                    error    = if (uid == null) "Sign-in failed — credentials may be wrong. Go to Account to sign in manually." else null,
-                ) }
-                if (uid != null) sync.start()
-            } catch (e: Exception) {
-                _state.update { it.copy(phase = SyncPhase.Idle, error = "Re-auth failed: ${e.message}") }
-            }
-        }
-    }
-
-    // ── Pull from cloud (with conflict detection) ─────────────────────────────
+    // ── Pull from cloud ───────────────────────────────────────────────────────
 
     fun startPull() {
         viewModelScope.launch {
-            _state.update { it.copy(phase = SyncPhase.Detecting, error = null) }
+            _state.update { it.copy(phase = SyncPhase.Syncing, error = null) }
             try {
-                val conflicts = sync.detectConflicts()
-                if (conflicts.isEmpty()) {
-                    applyPull(emptyMap())
-                } else {
-                    _state.update { it.copy(
-                        phase              = SyncPhase.AwaitingResolution(conflicts, 0),
-                        pendingResolutions = emptyMap(),
-                    ) }
-                }
-            } catch (e: Exception) {
-                _state.update { it.copy(phase = SyncPhase.Idle, error = e.message ?: e.toString()) }
-            }
-        }
-    }
-
-    /** Called from UI when user picks a resolution for the current conflict. */
-    fun resolveConflict(fieldKey: String, resolution: SyncResolution) {
-        val phase = _state.value.phase as? SyncPhase.AwaitingResolution ?: return
-        val updated = _state.value.pendingResolutions + (fieldKey to resolution)
-        val next = phase.index + 1
-        if (next >= phase.conflicts.size) {
-            applyPull(updated)
-        } else {
-            _state.update { it.copy(
-                phase              = SyncPhase.AwaitingResolution(phase.conflicts, next),
-                pendingResolutions = updated,
-            ) }
-        }
-    }
-
-    private fun applyPull(resolutions: Map<String, SyncResolution>) {
-        viewModelScope.launch {
-            _state.update { it.copy(phase = SyncPhase.Applying, pendingResolutions = emptyMap()) }
-            try {
-                sync.pullWithResolutions(resolutions)
+                sync.pullAll()
                 doBackup()
                 _state.update { it.copy(phase = SyncPhase.Idle, lastSyncAt = timestamp()) }
             } catch (e: Exception) {
@@ -158,9 +80,9 @@ class SyncViewModel @Inject constructor(
 
     fun pushToCloud() {
         viewModelScope.launch {
-            _state.update { it.copy(phase = SyncPhase.Applying, error = null) }
+            _state.update { it.copy(phase = SyncPhase.Syncing, error = null) }
             try {
-                doBackup()                  // backup before any destructive push
+                doBackup()
                 sync.pushAll()
                 _state.update { it.copy(phase = SyncPhase.Idle, lastSyncAt = timestamp()) }
             } catch (e: Exception) {
@@ -172,9 +94,7 @@ class SyncViewModel @Inject constructor(
     // ── Local backup ──────────────────────────────────────────────────────────
 
     fun createBackupNow() {
-        viewModelScope.launch {
-            doBackup()
-        }
+        viewModelScope.launch { doBackup() }
     }
 
     private suspend fun doBackup() {
@@ -215,15 +135,15 @@ class SyncViewModel @Inject constructor(
     companion object {
         const val SYNC_PREFS = "homer_sync_scope"
         val SYNC_SCOPE = listOf(
-            SyncScopeItem("ls:homer-habits",    "✅", "Habits"),
-            SyncScopeItem("ls:homer-notes",     "📝", "Notes"),
+            SyncScopeItem("ls:homer-habits",     "✅", "Habits"),
+            SyncScopeItem("ls:homer-notes",      "📝", "Notes"),
             SyncScopeItem("ls:homer-life-goals", "🎯", "Life Goals"),
-            SyncScopeItem("ls:homer-kanban",    "📋", "Kanban"),
-            SyncScopeItem("ls:homer-expenses",  "💰", "Expenses"),
-            SyncScopeItem("ls:homer-inbox",     "📥", "Inbox"),
-            SyncScopeItem("ls:homer-links",     "🔗", "Links"),
-            SyncScopeItem("ls:homer-journal",   "📔", "Journal"),
-            SyncScopeItem("ls:pom-tasks",       "⏱", "Focus Tasks"),
+            SyncScopeItem("ls:homer-kanban",     "📋", "Kanban"),
+            SyncScopeItem("ls:homer-expenses",   "💰", "Expenses"),
+            SyncScopeItem("ls:homer-inbox",      "📥", "Inbox"),
+            SyncScopeItem("ls:homer-links",      "🔗", "Links"),
+            SyncScopeItem("ls:homer-journal",    "📔", "Journal"),
+            SyncScopeItem("ls:pom-tasks",        "⏱", "Focus Tasks"),
             SyncScopeItem("ls:homer-car",        "🚗", "Car Data"),
             SyncScopeItem("ls:homer-countdown",  "⏳", "Countdown"),
             SyncScopeItem("ls:homer-secrets",    "🔐", "Passwords"),

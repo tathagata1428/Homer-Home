@@ -19,9 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import ro.b4it.homer.data.sync.ConflictInfo
 import ro.b4it.homer.data.sync.LocalBackupManager
-import ro.b4it.homer.data.sync.SyncResolution
 import ro.b4it.homer.ui.screens.home.HomerCard
 import ro.b4it.homer.ui.theme.*
 import java.text.SimpleDateFormat
@@ -32,17 +30,6 @@ fun SyncScreen(vm: SyncViewModel = hiltViewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
     val ctx   = LocalContext.current
     val phase = state.phase
-
-    // Conflict resolution dialog (shown one conflict at a time)
-    if (phase is SyncPhase.AwaitingResolution) {
-        val conflict = phase.conflicts[phase.index]
-        ConflictDialog(
-            conflict  = conflict,
-            index     = phase.index,
-            total     = phase.conflicts.size,
-            onResolve = { vm.resolveConflict(conflict.fieldKey, it) },
-        )
-    }
 
     LazyColumn(
         modifier            = Modifier.fillMaxSize().background(BgPrimary),
@@ -82,15 +69,15 @@ fun SyncScreen(vm: SyncViewModel = hiltViewModel()) {
                     }
                     Column(Modifier.weight(1f)) {
                         Text(
-                            if (active) "Supabase Sync Active" else "Sync Unavailable",
+                            if (active) "Cloud Sync Active" else "Sync Unavailable",
                             style      = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             color      = TextPrimary,
                         )
                         Text(
-                            state.userId?.let { "uid: ${it.take(8)}…" } ?: "uid: null — not signed in!",
+                            if (active) "Via CF Pages /api/sync" else "Admin hash not configured",
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (state.userId != null) TextMuted else NeonPink,
+                            color = TextMuted,
                         )
                         Text(
                             state.lastSyncAt?.let { "Last sync: $it" } ?: "Not synced yet",
@@ -100,7 +87,7 @@ fun SyncScreen(vm: SyncViewModel = hiltViewModel()) {
                     }
                     // Phase indicator
                     when (phase) {
-                        is SyncPhase.Detecting, is SyncPhase.Applying, is SyncPhase.CreatingBackup ->
+                        is SyncPhase.Syncing, is SyncPhase.CreatingBackup ->
                             CircularProgressIndicator(Modifier.size(20.dp), color = NeonCyan, strokeWidth = 2.dp)
                         else -> {}
                     }
@@ -126,10 +113,8 @@ fun SyncScreen(vm: SyncViewModel = hiltViewModel()) {
 
         // ── Phase label ──────────────────────────────────────────────────────
         val phaseLabel = when (phase) {
-            is SyncPhase.Detecting      -> "Checking for conflicts..."
-            is SyncPhase.Applying       -> "Applying changes..."
+            is SyncPhase.Syncing        -> "Syncing..."
             is SyncPhase.CreatingBackup -> "Creating backup..."
-            is SyncPhase.AwaitingResolution -> "Waiting for your decision..."
             else -> null
         }
         if (phaseLabel != null) {
@@ -143,19 +128,6 @@ fun SyncScreen(vm: SyncViewModel = hiltViewModel()) {
         item {
             val busy = phase !is SyncPhase.Idle
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                // Show re-authenticate when not signed in to Supabase
-                if (state.userId == null && state.isBogdan) {
-                    Button(
-                        onClick  = vm::reAuthenticate,
-                        enabled  = !busy,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors   = ButtonDefaults.buttonColors(containerColor = AccentRed),
-                    ) {
-                        Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Re-authenticate", fontWeight = FontWeight.SemiBold)
-                    }
-                }
                 Button(
                     onClick  = vm::startPull,
                     enabled  = state.isBogdan && !busy,
@@ -264,90 +236,6 @@ fun SyncScreen(vm: SyncViewModel = hiltViewModel()) {
         }
 
         item { Spacer(Modifier.height(24.dp)) }
-    }
-}
-
-// ── Conflict resolution dialog ────────────────────────────────────────────────
-
-@Composable
-private fun ConflictDialog(
-    conflict: ConflictInfo,
-    index: Int,
-    total: Int,
-    onResolve: (SyncResolution) -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = {},
-        containerColor   = BgCard,
-        title = {
-            Column {
-                Text(
-                    "Conflict ${index + 1} of $total",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextMuted,
-                )
-                Text(
-                    "${conflict.emoji} ${conflict.label}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
-                )
-            }
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CountChip("LOCAL", conflict.localCount, NeonPink)
-                    CountChip("CLOUD", conflict.cloudCount, NeonCyan)
-                }
-                Text(
-                    "The counts differ. How do you want to handle this?",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted,
-                )
-            }
-        },
-        confirmButton = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Button(
-                    onClick  = { onResolve(SyncResolution.MERGE_BOTH) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors   = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                ) { Text("Merge Both (recommended)", fontWeight = FontWeight.SemiBold) }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick  = { onResolve(SyncResolution.KEEP_LOCAL) },
-                        modifier = Modifier.weight(1f),
-                        colors   = ButtonDefaults.outlinedButtonColors(contentColor = NeonPink),
-                        border   = androidx.compose.foundation.BorderStroke(1.dp, NeonPink.copy(0.5f)),
-                    ) { Text("Keep Local", fontSize = 13.sp) }
-                    OutlinedButton(
-                        onClick  = { onResolve(SyncResolution.USE_CLOUD) },
-                        modifier = Modifier.weight(1f),
-                        colors   = ButtonDefaults.outlinedButtonColors(contentColor = NeonCyan),
-                        border   = androidx.compose.foundation.BorderStroke(1.dp, NeonCyan.copy(0.5f)),
-                    ) { Text("Use Cloud", fontSize = 13.sp) }
-                }
-                Spacer(Modifier.height(4.dp))
-            }
-        },
-        dismissButton = null,
-    )
-}
-
-@Composable
-private fun CountChip(label: String, count: Int, color: androidx.compose.ui.graphics.Color) {
-    Column(
-        Modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(color.copy(0.12f))
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(count.toString(), style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.ExtraBold, color = color)
-        Text(label, style = MaterialTheme.typography.labelSmall,
-            fontSize = 9.sp, letterSpacing = 1.sp, color = color.copy(0.7f))
     }
 }
 

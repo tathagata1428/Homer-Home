@@ -4,12 +4,6 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.auth.Auth
-import io.github.jan.supabase.createSupabaseClient
-import io.github.jan.supabase.postgrest.Postgrest
-import io.github.jan.supabase.realtime.Realtime
-import io.github.jan.supabase.storage.Storage
 import okhttp3.OkHttpClient
 import ro.b4it.homer.BuildConfig
 import java.util.concurrent.TimeUnit
@@ -20,25 +14,12 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    @Provides @Named("syncEmail")    fun provideSyncEmail():    String = BuildConfig.SUPABASE_SYNC_EMAIL
-    @Provides @Named("syncPass")     fun provideSyncPass():     String = BuildConfig.SUPABASE_SYNC_PASSWORD
     @Provides @Named("homerBaseUrl") fun provideHomerBaseUrl(): String = BuildConfig.HOMER_BASE_URL
+    @Provides @Named("adminHash")    fun provideAdminHash():    String = BuildConfig.HOMER_ADMIN_HASH
 
     @Provides @Singleton
     fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30,  TimeUnit.SECONDS)
         .build()
-
-    @Provides @Singleton
-    fun provideSupabaseClient(): SupabaseClient = createSupabaseClient(
-        supabaseUrl = BuildConfig.SUPABASE_URL,
-        supabaseKey = BuildConfig.SUPABASE_ANON_KEY,
-    ) {
-        install(Auth)
-        install(Postgrest)
-        install(Realtime)
-        install(Storage)
-        // Android HTTP engine is auto-selected from ktor-client-android on the classpath
-    }
 }

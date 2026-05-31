@@ -23,19 +23,14 @@ android {
         applicationId = "com.homer.com"
         minSdk = 26
         targetSdk = 35
-        versionCode = 26
-        versionName = "2.1.1-20260530"
+        versionCode = 28
+        versionName = "1.94"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Supabase credentials — set in local.properties:
-        //   SUPABASE_URL=https://fwzxxrldxnlhcyulkwrg.supabase.co
-        //   SUPABASE_ANON_KEY=eyJ...
-        buildConfigField("String", "SUPABASE_URL",
-            "\"${localProps["SUPAB" +
-                    "ASE_URL"] ?: "https://fwzxxrldxnlhcyulkwrg.supabase.co"}\"")
-        buildConfigField("String", "SUPABASE_ANON_KEY",
-            "\"${localProps["SUPABASE_ANON_KEY"] ?: ""}\"")
+        // Sync key for CF Pages /api/sync endpoint (sha256 of "bogdan:password")
+        buildConfigField("String", "HOMER_ADMIN_HASH",
+            "\"${localProps["HOMER_ADMIN_HASH"] ?: ""}\"")
 
         // AI gateway (OpenRouter)
         buildConfigField("String", "OC_GATEWAY_URL",
@@ -54,11 +49,6 @@ android {
         buildConfigField("String", "HOMER_BASE_URL",
             "\"${localProps["HOMER_BASE_URL"] ?: "https://b4it.ro"}\"")
 
-        // Supabase auto sign-in credentials (set in local.properties, never committed)
-        buildConfigField("String", "SUPABASE_SYNC_EMAIL",
-            "\"${localProps["SUPABASE_SYNC_EMAIL"] ?: ""}\"")
-        buildConfigField("String", "SUPABASE_SYNC_PASSWORD",
-            "\"${localProps["SUPABASE_SYNC_PASSWORD"] ?: ""}\"")
     }
 
     val keystorePath = localProps["KEYSTORE_PATH"] as String? ?: ""
@@ -143,17 +133,6 @@ dependencies {
 
     // DataStore
     implementation(libs.datastore.preferences)
-
-    // Supabase — BOM pins all module versions; core makes SupabaseClient visible to KSP
-    implementation(platform(libs.supabase.bom))
-    implementation(libs.supabase.core)
-    implementation(libs.supabase.postgrest)
-    implementation(libs.supabase.auth)
-    implementation(libs.supabase.realtime)
-    implementation(libs.supabase.storage)
-    implementation(libs.ktor.client.okhttp)
-    implementation(libs.ktor.client.content.negotiation)
-    implementation(libs.ktor.serialization.json)
 
     // Serialization + Coroutines
     implementation(libs.kotlinx.serialization.json)

@@ -22,7 +22,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import ro.b4it.homer.BuildConfig
 import ro.b4it.homer.data.local.dao.JournalDao
 import ro.b4it.homer.data.preferences.AppPreferences
-import ro.b4it.homer.data.supabase.SupabaseManager
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -32,7 +31,6 @@ data class ChatMessage(val role: String, val content: String)
 class JoeyViewModel @Inject constructor(
     private val http: OkHttpClient,
     private val prefs: AppPreferences,
-    private val supabase: SupabaseManager,
     private val journalDao: JournalDao,
 ) : ViewModel() {
 
@@ -74,23 +72,9 @@ class JoeyViewModel @Inject constructor(
         viewModelScope.launch { loadJournalContext() }
     }
 
-    private suspend fun loadMemories(mode: String) {
-        try {
-            val token = supabase.accessToken ?: return
-            val req = Request.Builder()
-                .url("https://b4it.ro/api/joey?action=bundle&mode=$mode")
-                .header("Authorization", "Bearer $token")
-                .build()
-            val resp = withContext(Dispatchers.IO) {
-                http.newCall(req).execute().body?.string() ?: return@withContext ""
-            }
-            if (resp.isBlank()) return
-            val bundle = json.parseToJsonElement(resp).jsonObject
-            val memories = bundle["memories"]?.jsonPrimitive?.content
-                ?: bundle["memories"]?.toString()
-                ?: return
-            if (memories.isNotBlank()) memoriesMap[mode] = memories
-        } catch (_: Exception) { /* best-effort */ }
+    private suspend fun loadMemories(@Suppress("UNUSED_PARAMETER") mode: String) {
+        // Bundle memory loading requires Supabase JWT (removed in Option A).
+        // Joey still uses local journal context loaded in loadJournalContext().
     }
 
     private suspend fun loadJournalContext() {
