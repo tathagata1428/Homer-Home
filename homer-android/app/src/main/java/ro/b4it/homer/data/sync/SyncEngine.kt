@@ -62,15 +62,22 @@ class SyncEngine @Inject constructor(
         fieldCache[fieldId]?.takeIf { it.isNotBlank() }
 
     /**
-     * Pull on sign-in so Room is up to date, then push on first launch so any
-     * data added before sync was wired up (pre-fix builds) reaches Supabase.
-     * If a pull is already in flight, the new call is ignored to prevent duplicate
-     * parallel requests that overwhelm Supabase.
+     * On first launch with sync configured, push local Room data to cloud BEFORE pulling.
+     * This prevents the "pull wipes local-only data" problem when the user installs the app
+     * with data already in Room that was created before sync was set up.
+     * On subsequent launches, just pull (pushes happen via debounced writes).
      */
-    /** Pull on launch. Pushes happen only via debounced methods after user mutations. */
     fun start() {
         if (!syncClient.isConfigured()) return
         scope.launch {
+            val prefs = ctx.getSharedPreferences("homer_sync", Context.MODE_PRIVATE)
+            val bootstrapped = prefs.getBoolean("sync_bootstrapped", false)
+            if (!bootstrapped) {
+                Log.d("HomerSync", "start: first sync — pushing local data first to preserve it")
+                runCatching { pushAll() }
+                    .onFailure { Log.e("HomerSync", "start: initial pushAll failed", it) }
+                prefs.edit().putBoolean("sync_bootstrapped", true).apply()
+            }
             runCatching { pullAll() }
                 .onFailure { Log.e("HomerSync", "start: pullAll failed", it) }
         }
