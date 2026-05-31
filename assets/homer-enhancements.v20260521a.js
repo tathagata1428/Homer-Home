@@ -1481,10 +1481,13 @@
               icon:g.icon||'',targetDate:g.targetDate||'',milestones:milestones,
               status:g.status||'active',progress:g.progress||0,updatedAt:g.updatedAt||Date.now()};
           });
-          // Push merged kanban+life-goals via localStorage → queueLsFieldOp → CF Pages.
-          // This path works even without an active Supabase session (uses admin hash).
+          // Push vault data via localStorage → queueLsFieldOp → CF Pages.
+          // This path works without an active Supabase session (uses admin hash / sync passphrase).
+          var _vaultMode=window._homerGetVaultMode?window._homerGetVaultMode():'personal';
           try{origSetItem('homer-kanban',JSON.stringify(mergedKanban));}catch(e){}
           try{origSetItem('homer-life-goals',JSON.stringify(mergedLg));}catch(e){}
+          if(Array.isArray(vault.creds)&&vault.creds.length>0)try{origSetItem('homer-secrets:'+_vaultMode,JSON.stringify(vault.creds));}catch(e){}
+          if(typeof vault.notes==='string'&&vault.notes)try{origSetItem('homer-vault-notes:'+_vaultMode,JSON.stringify(vault.notes));}catch(e){}
           // Also push directly to Supabase when session is active (fires Realtime for other devices).
           if(client&&uid){
             var tsK=Date.now();
@@ -1497,7 +1500,6 @@
               {field_id:'ls:homer-life-goals',value:JSON.stringify(mergedLg),user_id:uid,kind:'json',client_ts:tsLG,client_seq:0,device_id:'web',server_ts:tsLG,updated_at:new Date(tsLG).toISOString()},
               {onConflict:'user_id,field_id'})
               .catch(function(e){console.warn('[HomerSync] vaultSync life-goals push',e);});
-            var _vaultMode=window._homerGetVaultMode?window._homerGetVaultMode():'personal';
             var tsN=Date.now();
             if(typeof vault.notes==='string'){
               client.from('field_state').upsert(

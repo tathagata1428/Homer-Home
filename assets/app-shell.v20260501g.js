@@ -9171,7 +9171,11 @@ let tvWidgetCreated = false;
     'homer-journal':            'ls:homer-journal',
     'homer-kanban':             'ls:homer-kanban',
     'homer-life-goals':         'ls:homer-life-goals',
-    'homer-reminders':          'ls:homer-reminders'
+    'homer-reminders':          'ls:homer-reminders',
+    'homer-secrets:personal':   'ls:homer-secrets:personal',
+    'homer-secrets:work':       'ls:homer-secrets:work',
+    'homer-vault-notes:personal':'ls:homer-vault-notes:personal',
+    'homer-vault-notes:work':   'ls:homer-vault-notes:work'
   };
   var LS_FIELD_MAP_REVERSE = {};
   Object.keys(LS_FIELD_MAP).forEach(function(k){ LS_FIELD_MAP_REVERSE[LS_FIELD_MAP[k]] = k; });
