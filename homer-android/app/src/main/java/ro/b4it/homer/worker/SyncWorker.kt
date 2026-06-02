@@ -25,6 +25,9 @@ class SyncWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         Log.d(TAG, "Background sync started (attempt $runAttemptCount)")
         return try {
+            // Background worker only pulls. Pushes happen via debounced mutation hooks
+            // or the explicit "Sync Now" button — never in background, to prevent stale
+            // Android data from overwriting newer website changes.
             sync.pullAll()
             Log.d(TAG, "Background sync completed")
             Result.success()

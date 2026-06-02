@@ -62,7 +62,7 @@ fun AccountScreen(vm: AccountViewModel = hiltViewModel()) {
                         color = TextPrimary,
                     )
                     Text(
-                        if (active) "Syncing via CF Pages /api/sync" else "HOMER_ADMIN_HASH not configured",
+                        if (active) "Direct Supabase REST sync" else "Supabase credentials not configured",
                         style = MaterialTheme.typography.labelSmall,
                         color = if (active) AccentGreen else TextMuted,
                     )

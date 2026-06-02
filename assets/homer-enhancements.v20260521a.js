@@ -991,7 +991,7 @@
     // All sync operations use canSync() which is evaluated lazily.
 
     var badge=document.createElement('div');badge.id='he-sync-badge';document.body.appendChild(badge);
-    function showBadge(txt,cls){badge.className=cls;badge.textContent=txt;badge.classList.add('visible');if(cls==='synced')setTimeout(function(){badge.classList.remove('visible');},3000);}
+    function showBadge(txt,cls){if(cls==='error'){console.warn('[Sync] Supabase-direct call failed (CF Pages path handles sync):',txt);badge.classList.remove('visible');return;}badge.className=cls;badge.textContent=txt;badge.classList.add('visible');if(cls==='synced')setTimeout(function(){badge.classList.remove('visible');},3000);}
 
     // nativeSetItem = Storage prototype directly — bypasses ALL patches (ours + app-shell's).
     // Used for internal writes (pulls, timestamps) so they don't trigger R2 dirty-marking.
@@ -1535,32 +1535,20 @@
         // clearing _localMutationPending and re-adding the deleted item via the UUID exception.
         var isLocalPush=_localMutationPending||(Date.now()-_lastLocalVaultMutation<60000);
         _localMutationPending=false;
-        if(isLocalPush||!client||!uid){
-          if(isLocalPush){
-            // Local mutation: push local vault state, ignore remote entirely.
-            applyMerge({projects:[],tasks:[]},[]); // empty remote → merge result == local only
-          } else {
-            // No Supabase session: read remote kanban/life-goals from localStorage
-            // (populated by applySyncedFieldValue when the website poll finds new Android data).
-            // This prevents the no-session path from erasing Android-pushed tasks.
-            var _lsKb=safeJson(localStorage.getItem('homer-kanban')||'{}',{});
-            var _lsLg=safeJson(localStorage.getItem('homer-life-goals')||'[]',[]);
-            applyMerge(
-              {projects:_lsKb.projects||[],tasks:(_lsKb.tasks||[]).concat(_lsKb.goals||[])},
-              Array.isArray(_lsLg)?_lsLg:[]
-            );
-          }
+        if(isLocalPush){
+          // Local mutation: push local vault state, ignore remote entirely.
+          applyMerge({projects:[],tasks:[]},[]); // empty remote → merge result == local only
         } else {
-          Promise.all([
-            client.from('field_state').select('value').eq('field_id','ls:homer-kanban').eq('user_id',uid).maybeSingle(),
-            client.from('field_state').select('value').eq('field_id','ls:homer-life-goals').eq('user_id',uid).maybeSingle()
-          ]).then(function(res){
-            var rk=safeJson((res[0].data||{}).value||'{}',{});
-            var remoteKanban={projects:rk.projects||[],tasks:(rk.tasks||[]).concat(rk.goals||[])};
-            var remoteLg=safeJson((res[1].data||{}).value||'[]',[]);
-            if(!Array.isArray(remoteLg))remoteLg=[];
-            applyMerge(remoteKanban,remoteLg);
-          }).catch(function(e){console.warn('[HomerSync] vaultSync fetch',e);});
+          // Remote-merge mode: always read kanban/life-goals from localStorage.
+          // localStorage is written by hydrateFieldSyncState (CF Pages poll) which reads
+          // the same field_state rows as a direct Supabase query — no Supabase session needed.
+          // This path is reliable regardless of whether the Supabase JWT is valid.
+          var _lsKb=safeJson(localStorage.getItem('homer-kanban')||'{}',{});
+          var _lsLg=safeJson(localStorage.getItem('homer-life-goals')||'[]',[]);
+          applyMerge(
+            {projects:_lsKb.projects||[],tasks:(_lsKb.tasks||[]).concat(_lsKb.goals||[])},
+            Array.isArray(_lsLg)?_lsLg:[]
+          );
         }
       }).catch(function(e){console.warn('[HomerSync] vaultSync',e);});
     }

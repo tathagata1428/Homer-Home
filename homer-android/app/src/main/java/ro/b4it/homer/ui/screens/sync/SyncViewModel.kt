@@ -67,6 +67,10 @@ class SyncViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(phase = SyncPhase.Syncing, error = null) }
             try {
+                // Push local data first so cloud-wins pull doesn't wipe unpushed local changes.
+                // Cancel debounced jobs after immediate push to prevent stale overwrites post-pull.
+                sync.pushAll()
+                sync.cancelAllPendingPushes()
                 sync.pullAll()
                 doBackup()
                 _state.update { it.copy(phase = SyncPhase.Idle, lastSyncAt = timestamp()) }

@@ -1,95 +1,151 @@
 package ro.b4it.homer.data.sync
 
 import android.util.Log
+import ro.b4it.homer.BuildConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.time.Instant
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
 
 /**
- * Thin HTTP client that talks to the CF Pages /api/sync endpoint.
+ * Thin HTTP client that talks directly to Supabase REST API (Option A).
  *
- * All sync data lives in Supabase field_state but Android never touches Supabase directly —
- * it goes through the CF edge function using the admin hash for auth.
+ * No CF Pages hop, no resolveSupabaseOwnerId() lookup.
+ * Signs in with email+password via Supabase Auth to get access_token + user_id,
+ * then uses them for all field_state REST calls.
  *
- * GET  /api/sync?action=field-state&key=HASH  → { state: { fieldId: { value, ... } } }
- * POST /api/sync  { action:"field-op", key:HASH, ops:[...] }  → upsert fields
+ * GET  /rest/v1/field_state?user_id=eq.{uid}&select=field_id,value
+ * POST /rest/v1/field_state?on_conflict=user_id,field_id  (upsert)
  */
 @Singleton
 class SyncClient @Inject constructor(
     private val okHttp: OkHttpClient,
-    @Named("homerBaseUrl") private val baseUrl: String,
-    @Named("adminHash")    private val adminHash: String,
+    @Named("supabaseUrl")     private val supabaseUrl: String,
+    @Named("supabaseAnonKey") private val anonKey: String,
+    @Named("syncEmail")       private val syncEmail: String,
+    @Named("syncPassword")    private val syncPassword: String,
 ) {
-    private val seq = AtomicLong(0L)
-    /**
-     * Monotonically-increasing clientTs.
-     * The server rejects any push where incomingClientTs < existingClientTs.
-     * NTP corrections can move System.currentTimeMillis() backward, causing
-     * every subsequent push to be silently dropped as "stale".
-     * Using updateAndGet(max(now, prev+1)) guarantees we never go backward.
-     */
+    private val seq          = AtomicLong(0L)
     private val lastClientTs = AtomicLong(0L)
-    private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
+    private val json         = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
-    fun isConfigured(): Boolean = adminHash.isNotBlank()
+    // Cached Supabase session — protected by authMutex
+    private val authMutex     = Mutex()
+    private var accessToken   : String? = null
+    private var userId        : String? = null
+    private var tokenExpiresAt: Long    = 0L
+
+    fun isConfigured(): Boolean =
+        BuildConfig.SYNC_ENABLED &&
+        supabaseUrl.isNotBlank() && anonKey.isNotBlank() && syncEmail.isNotBlank() && syncPassword.isNotBlank()
+
+    // ── Auth ──────────────────────────────────────────────────────────────────
+
+    private suspend fun ensureSession() = authMutex.withLock {
+        val now = System.currentTimeMillis()
+        if (accessToken != null && now < tokenExpiresAt - 60_000L) return@withLock
+
+        Log.d("SyncClient", "Signing in to Supabase as $syncEmail …")
+        val bodyStr = buildJsonObject {
+            put("email", syncEmail)
+            put("password", syncPassword)
+        }.toString()
+        val req = Request.Builder()
+            .url("$supabaseUrl/auth/v1/token?grant_type=password")
+            .addHeader("apikey", anonKey)
+            .addHeader("Content-Type", "application/json")
+            .post(bodyStr.toRequestBody("application/json".toMediaType()))
+            .build()
+        val raw = okHttp.newCall(req).execute().use { r ->
+            if (!r.isSuccessful) throw Exception("Supabase auth failed: HTTP ${r.code} ${r.body?.string()}")
+            r.body?.string() ?: throw Exception("Supabase auth: empty response body")
+        }
+        val root      = json.parseToJsonElement(raw).jsonObject
+        accessToken   = root["access_token"]?.jsonPrimitive?.content
+            ?: throw Exception("Supabase auth: no access_token in response")
+        userId        = root["user"]?.jsonObject?.get("id")?.jsonPrimitive?.content
+            ?: throw Exception("Supabase auth: no user.id in response")
+        val expiresIn = root["expires_in"]?.jsonPrimitive?.long ?: 3600L
+        tokenExpiresAt = now + expiresIn * 1000L
+        Log.d("SyncClient", "Supabase session ok — uid=$userId expires_in=${expiresIn}s")
+    }
+
+    // ── Read ──────────────────────────────────────────────────────────────────
 
     /** Fetch all field values in a single HTTP call. Returns fieldId → raw value string. */
     suspend fun getAllFields(): Map<String, String> = withContext(Dispatchers.IO) {
-        val url = "$baseUrl/api/sync?action=field-state&key=$adminHash"
-        val req = Request.Builder().url(url).get().build()
+        if (!isConfigured()) return@withContext emptyMap()
+        ensureSession()
+        val req = Request.Builder()
+            .url("$supabaseUrl/rest/v1/field_state?user_id=eq.$userId&select=field_id,value")
+            .addHeader("Authorization", "Bearer $accessToken")
+            .addHeader("apikey", anonKey)
+            .get()
+            .build()
         val body = okHttp.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) {
-                Log.w("SyncClient", "getAllFields: HTTP ${resp.code}")
+                Log.w("SyncClient", "getAllFields: HTTP ${resp.code} ${resp.body?.string()}")
                 return@withContext emptyMap()
             }
             resp.body?.string() ?: return@withContext emptyMap()
         }
-        val root = runCatching { json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val arr = runCatching { json.parseToJsonElement(body).jsonArray }.getOrNull()
             ?: return@withContext emptyMap()
-        val state = root["state"]?.jsonObject ?: return@withContext emptyMap()
         buildMap {
-            for ((fieldId, entry) in state) {
-                val value = entry.jsonObject["value"]?.jsonPrimitive?.contentOrNull ?: continue
+            for (el in arr) {
+                val obj     = el.jsonObject
+                val fieldId = obj["field_id"]?.jsonPrimitive?.contentOrNull ?: continue
+                // value column may be TEXT (JsonPrimitive) or JSONB (JsonObject/JsonArray)
+                val value   = when (val v = obj["value"]) {
+                    is JsonPrimitive -> v.contentOrNull ?: continue
+                    null             -> continue
+                    else             -> v.toString()
+                }
                 put(fieldId, value)
             }
         }.also { Log.d("SyncClient", "getAllFields: ${it.size} fields") }
     }
 
-    /** Push a single field value to the cloud. */
+    // ── Write ─────────────────────────────────────────────────────────────────
+
+    /** Push a single field value directly to Supabase field_state (upsert). */
     suspend fun pushField(fieldId: String, value: String) = withContext(Dispatchers.IO) {
         if (!isConfigured()) return@withContext
-        val rawTs = System.currentTimeMillis()
-        val ts = lastClientTs.updateAndGet { prev -> maxOf(rawTs, prev + 1) }
-        val s   = seq.getAndIncrement()
-        val body = buildJsonObject {
-            put("action",   "field-op")
-            put("key",      adminHash)
-            put("deviceId", "android")
-            putJsonArray("ops") {
-                addJsonObject {
-                    put("fieldId",   fieldId)
-                    put("kind",      "json")
-                    put("value",     value)
-                    put("clientTs",  ts)
-                    put("clientSeq", s)
-                }
+        ensureSession()
+        val rawTs  = System.currentTimeMillis()
+        val ts     = lastClientTs.updateAndGet { prev -> maxOf(rawTs, prev + 1) }
+        val s      = seq.getAndIncrement()
+        val bodyStr = buildJsonArray {
+            addJsonObject {
+                put("user_id",    userId!!)
+                put("field_id",   fieldId)
+                put("value",      value)
+                put("client_ts",  ts)
+                put("client_seq", s)
+                put("updated_at", Instant.now().toString())
             }
         }.toString()
         val req = Request.Builder()
-            .url("$baseUrl/api/sync")
-            .post(body.toRequestBody("application/json".toMediaType()))
+            .url("$supabaseUrl/rest/v1/field_state?on_conflict=user_id,field_id")
+            .addHeader("Authorization", "Bearer $accessToken")
+            .addHeader("apikey", anonKey)
+            .addHeader("Content-Type", "application/json")
+            .addHeader("Prefer", "resolution=merge-duplicates,return=minimal")
+            .post(bodyStr.toRequestBody("application/json".toMediaType()))
             .build()
         okHttp.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful)
-                Log.w("SyncClient", "pushField[$fieldId]: HTTP ${resp.code}")
+                Log.w("SyncClient", "pushField[$fieldId]: HTTP ${resp.code} ${resp.body?.string()}")
             else
                 Log.d("SyncClient", "pushField[$fieldId]: ok")
         }

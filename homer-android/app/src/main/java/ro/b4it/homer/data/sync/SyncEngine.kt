@@ -34,7 +34,7 @@ class SyncEngine @Inject constructor(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val pendingJobs = mutableMapOf<String, Job>()
-    private val DEBOUNCE_MS = 8_000L
+    private val DEBOUNCE_MS = 2_000L
 
     /**
      * Mutex that ensures only one pullAll() runs at a time.
@@ -55,29 +55,21 @@ class SyncEngine @Inject constructor(
      * within a short window.
      */
     @Volatile private var lastPullAt = 0L
-    private val FOREGROUND_PULL_INTERVAL_MS = 2 * 60_000L   // 2 minutes
+    private val FOREGROUND_PULL_INTERVAL_MS = 30_000L   // 30 seconds
 
     /** Returns the cached value for [fieldId], or null if missing/blank. */
     private fun fieldValue(fieldId: String): String? =
         fieldCache[fieldId]?.takeIf { it.isNotBlank() }
 
     /**
-     * On first launch with sync configured, push local Room data to cloud BEFORE pulling.
-     * This prevents the "pull wipes local-only data" problem when the user installs the app
-     * with data already in Room that was created before sync was set up.
-     * On subsequent launches, just pull (pushes happen via debounced writes).
+     * Called on app launch. Pulls all fields from cloud to bring Android in sync.
+     * Push happens only via debounced mutation hooks (when user edits data on Android)
+     * or explicitly via SyncViewModel.startPull() — never on background startup, to
+     * prevent stale Android data from overwriting newer website changes.
      */
     fun start() {
         if (!syncClient.isConfigured()) return
         scope.launch {
-            val prefs = ctx.getSharedPreferences("homer_sync", Context.MODE_PRIVATE)
-            val bootstrapped = prefs.getBoolean("sync_bootstrapped", false)
-            if (!bootstrapped) {
-                Log.d("HomerSync", "start: first sync — pushing local data first to preserve it")
-                runCatching { pushAll() }
-                    .onFailure { Log.e("HomerSync", "start: initial pushAll failed", it) }
-                prefs.edit().putBoolean("sync_bootstrapped", true).apply()
-            }
             runCatching { pullAll() }
                 .onFailure { Log.e("HomerSync", "start: pullAll failed", it) }
         }
@@ -140,7 +132,7 @@ class SyncEngine @Inject constructor(
         if (now - lastPullAt < FOREGROUND_PULL_INTERVAL_MS) return
         scope.launch {
             runCatching { pullAll() }
-                .onFailure { Log.e("HomerSync", "onForeground: pullAll failed", it) }
+                .onFailure { Log.e("HomerSync", "onForeground: sync failed", it) }
         }
     }
 
@@ -160,6 +152,15 @@ class SyncEngine @Inject constructor(
                 runCatching { push() }
                     .onFailure { Log.e("HomerSync", "schedulePush[$fieldKey] failed", it) }
             }
+        }
+    }
+
+    /** Cancel all pending debounced pushes. Called after an immediate pushAll() to prevent
+     *  stale debounced jobs from firing and overwriting the freshly-pulled cloud data. */
+    fun cancelAllPendingPushes() {
+        synchronized(pendingJobs) {
+            pendingJobs.values.forEach { it.cancel() }
+            pendingJobs.clear()
         }
     }
 
@@ -247,6 +248,7 @@ class SyncEngine @Inject constructor(
 
     private suspend fun pushExpenses() {
         val all = db.expenseDao().getAll().first()
+        if (all.isEmpty()) return   // never wipe cloud with empty local
         // Expenses (type="expense") → ls:homer-expenses
         val wsExp = all.filter { it.type != "income" }.map { it.toWsExpense() }
         syncClient.pushField("ls:homer-expenses",
@@ -330,6 +332,7 @@ class SyncEngine @Inject constructor(
 
     private suspend fun pushHabits() {
         val habits = db.habitDao().getAllHabits().first()
+        if (habits.isEmpty()) return   // never wipe cloud with empty local
         // Get completions from the past 90 days
         val since = run {
             val cal = java.util.Calendar.getInstance()
@@ -412,6 +415,7 @@ class SyncEngine @Inject constructor(
 
     private suspend fun pushInbox() {
         val items = db.inboxDao().getAll().first()
+        if (items.isEmpty()) return   // never wipe cloud with empty local
         syncClient.pushField("ls:homer-inbox",
             json.encodeToString(ListSerializer(InboxItem.serializer()), items))
     }
@@ -485,6 +489,7 @@ class SyncEngine @Inject constructor(
 
     private suspend fun pushPomodoroTasks() {
         val tasks = db.pomodoroDao().getAllTasks().first()
+        if (tasks.isEmpty()) return   // never wipe cloud with empty local
         val wsTasks = tasks.map { t -> WsTask(text = t.text, done = t.done, ts = t.createdAt) }
         syncClient.pushField("ls:pom-tasks",
             json.encodeToString(ListSerializer(WsTask.serializer()), wsTasks))

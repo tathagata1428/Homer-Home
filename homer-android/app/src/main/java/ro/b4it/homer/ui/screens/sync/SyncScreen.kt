@@ -75,7 +75,7 @@ fun SyncScreen(vm: SyncViewModel = hiltViewModel()) {
                             color      = TextPrimary,
                         )
                         Text(
-                            if (active) "Via CF Pages /api/sync" else "Admin hash not configured",
+                            if (active) "Direct Supabase REST sync" else "Supabase credentials not configured",
                             style = MaterialTheme.typography.labelSmall,
                             color = TextMuted,
                         )
@@ -136,7 +136,7 @@ fun SyncScreen(vm: SyncViewModel = hiltViewModel()) {
                 ) {
                     Icon(Icons.Filled.CloudDownload, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Pull from Cloud", fontWeight = FontWeight.SemiBold)
+                    Text("Sync Now (Push + Pull)", fontWeight = FontWeight.SemiBold)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedButton(

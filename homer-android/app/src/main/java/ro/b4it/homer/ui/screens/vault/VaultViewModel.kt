@@ -33,12 +33,15 @@ class VaultViewModel @Inject constructor(private val prefs: AppPreferences) : Vi
         .stateIn(viewModelScope, SharingStarted.Eagerly, "personal")
 
     init {
-        // Auto-unlock if remember-me password is saved
+        // Auto-unlock: use remember-me password if saved; otherwise unlock for any logged-in user
         viewModelScope.launch {
             val user = prefs.authUser.firstOrNull()
             val pw   = prefs.vaultRememberPw.firstOrNull()
             if (user != null && !pw.isNullOrBlank()) {
                 unlock(user, pw, rememberMe = true)
+            } else if (user != null) {
+                // Vault on Android is a UI gate — Room data is unencrypted; auto-unlock when logged in
+                _locked.value = false
             }
         }
     }

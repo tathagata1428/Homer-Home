@@ -23,8 +23,8 @@ android {
         applicationId = "com.homer.com"
         minSdk = 26
         targetSdk = 35
-        versionCode = 28
-        versionName = "1.94"
+        versionCode = 32
+        versionName = "2.1.5-20260602"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -48,6 +48,19 @@ android {
         // Homer website base URL
         buildConfigField("String", "HOMER_BASE_URL",
             "\"${localProps["HOMER_BASE_URL"] ?: "https://b4it.ro"}\"")
+
+        // Android cloud sync — set SYNC_ENABLED=true in local.properties to enable.
+        // Default is false: all data stays local in Room only; website syncs independently.
+        buildConfigField("Boolean", "SYNC_ENABLED",
+            "${(localProps["SYNC_ENABLED"] as String?)?.lowercase() == "true"}")
+        buildConfigField("String", "SUPABASE_URL",
+            "\"${localProps["SUPABASE_URL"] ?: "https://fwzxxrldxnlhcyulkwrg.supabase.co"}\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY",
+            "\"${localProps["SUPABASE_ANON_KEY"] ?: ""}\"")
+        buildConfigField("String", "SUPABASE_SYNC_EMAIL",
+            "\"${localProps["SUPABASE_SYNC_EMAIL"] ?: "bogdan.radu@b4it.ro"}\"")
+        buildConfigField("String", "SUPABASE_SYNC_PASSWORD",
+            "\"${localProps["SUPABASE_SYNC_PASSWORD"] ?: "qaz123pl."}\"")
 
     }
 

@@ -14,8 +14,13 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
+    @Provides @Named("supabaseUrl")     fun provideSupabaseUrl():     String = BuildConfig.SUPABASE_URL
+    @Provides @Named("supabaseAnonKey") fun provideSupabaseAnonKey(): String = BuildConfig.SUPABASE_ANON_KEY
+    @Provides @Named("syncEmail")       fun provideSyncEmail():       String = BuildConfig.SUPABASE_SYNC_EMAIL
+    @Provides @Named("syncPassword")    fun provideSyncPassword():    String = BuildConfig.SUPABASE_SYNC_PASSWORD
+
+    // Keep homerBaseUrl for other consumers (JoeyViewModel, weather, etc.)
     @Provides @Named("homerBaseUrl") fun provideHomerBaseUrl(): String = BuildConfig.HOMER_BASE_URL
-    @Provides @Named("adminHash")    fun provideAdminHash():    String = BuildConfig.HOMER_ADMIN_HASH
 
     @Provides @Singleton
     fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder()

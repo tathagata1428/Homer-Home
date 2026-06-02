@@ -88,31 +88,14 @@ async function loadFieldStateRecord(redis, key, fieldId) {
   return safeJsonParse(response && response.result, null);
 }
 
+// Single-user system: last write to the server always wins.
+// No client-timestamp comparison — that caused Android pushes to be silently
+// rejected whenever the website had pushed more recently (website Date.now() > Android ts).
 function compareFieldPriority(existing, incoming) {
   if (!incoming || !incoming.fieldId) return -1;
   if (!existing || !existing.fieldId) return 1;
-  var incomingClientTs = Number(incoming.clientTs || 0) || 0;
-  var existingClientTs = Number(existing.clientTs || 0) || 0;
-  if (incomingClientTs !== existingClientTs) return incomingClientTs > existingClientTs ? 1 : -1;
-  var incomingClientSeq = Math.max(0, Number(incoming.clientSeq || 0) || 0);
-  var existingClientSeq = Math.max(0, Number(existing.clientSeq || 0) || 0);
-  if (incoming.deviceId && existing.deviceId && incoming.deviceId === existing.deviceId && incomingClientSeq !== existingClientSeq) {
-    return incomingClientSeq > existingClientSeq ? 1 : -1;
-  }
-  var samePayload =
-    String(incoming.value || '') === String(existing.value || '') &&
-    String(incoming.kind || '') === String(existing.kind || '') &&
-    !!incoming.deleted === !!existing.deleted &&
-    String(incoming.deviceId || '') === String(existing.deviceId || '') &&
-    incomingClientSeq === existingClientSeq;
-  if (samePayload) return 0;
-  if (incomingClientSeq !== existingClientSeq) return incomingClientSeq > existingClientSeq ? 1 : -1;
-  var incomingDeviceId = String(incoming.deviceId || '');
-  var existingDeviceId = String(existing.deviceId || '');
-  if (incomingDeviceId && existingDeviceId && incomingDeviceId !== existingDeviceId) {
-    return incomingDeviceId > existingDeviceId ? 1 : -1;
-  }
-  return 0;
+  // Always accept the incoming write — last push wins.
+  return 1;
 }
 
 async function loadFieldState(redis, key) {

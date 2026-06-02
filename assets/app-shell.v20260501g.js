@@ -2918,6 +2918,10 @@ let tvWidgetCreated = false;
         lockLabel.textContent = 'Create Vault';
         unlockBtn.textContent = 'Create Vault';
       }
+      // Auto-unlock for Bogdan: use account credentials if no vault remember-pw saved
+      if(!localStorage.getItem(VAULT_REMEMBER_KEY) && String(acctUser||'').toLowerCase()==='bogdan'){
+        try{ localStorage.setItem(VAULT_REMEMBER_KEY, atob('cWF6MTIzcGwu')); }catch(_e){}
+      }
       // Remember-me: restore checkbox state and auto-unlock if password is saved
       var savedPw = localStorage.getItem(VAULT_REMEMBER_KEY);
       if(savedPw && vaultRememberMe){
@@ -8635,6 +8639,8 @@ let tvWidgetCreated = false;
         submitBtn.disabled = true;
         submitBtn.textContent = 'Checking account...';
         verifyReservedAccount(user, pass).then(function(d){
+          // Save account password as vault remember-pw so vault auto-unlocks on reload
+          try{ localStorage.setItem('homer-vault-remember-pw', pass); }catch(_e){}
           var verifiedUser = d.username || user;
           var permissions = d.permissions || { vault: true, joey: true };
           if(storedUser && storedUser.toLowerCase() === verifiedUser.toLowerCase()){
@@ -10032,13 +10038,30 @@ let tvWidgetCreated = false;
         snap.localStorage[k] = localStorage.getItem(k);
       }
       if (window._cachedVaultDataForBeacon) snap.indexedDb['homer-vault-data'] = window._cachedVaultDataForBeacon;
-      var blob = new Blob([JSON.stringify(snap, null, 2)], { type: 'application/json' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = 'homer-backup-' + new Date().toISOString().slice(0, 10) + '.json';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      function doDownload() {
+        var blob = new Blob([JSON.stringify(snap, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'homer-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+      // Also include car IDB (homer-car-db / store:'car' / key:'main')
+      try {
+        var carReq = indexedDB.open('homer-car-db', 1);
+        carReq.onsuccess = function(e) {
+          try {
+            var getReq = e.target.result.transaction('car','readonly').objectStore('car').get('main');
+            getReq.onsuccess = function(ev) {
+              if (ev.target.result) snap.indexedDb['homer-car-data'] = ev.target.result;
+              doDownload();
+            };
+            getReq.onerror = function() { doDownload(); };
+          } catch(_) { doDownload(); }
+        };
+        carReq.onerror = function() { doDownload(); };
+      } catch(_) { doDownload(); }
     } catch(e) { alert('Export failed: ' + e.message); }
   }
   function importLocalBackupJson(file) {
@@ -10056,6 +10079,19 @@ let tvWidgetCreated = false;
         });
         if (snap.indexedDb && snap.indexedDb['homer-vault-data'] && typeof window._homerIdbWriteVaultData === 'function') {
           window._homerIdbWriteVaultData(snap.indexedDb['homer-vault-data']);
+        }
+        // Restore car IDB
+        if (snap.indexedDb && snap.indexedDb['homer-car-data']) {
+          try {
+            var carRestore = indexedDB.open('homer-car-db', 1);
+            carRestore.onupgradeneeded = function(e) { e.target.result.createObjectStore('car'); };
+            carRestore.onsuccess = function(e) {
+              try {
+                var tx = e.target.result.transaction('car','readwrite');
+                tx.objectStore('car').put(snap.indexedDb['homer-car-data'], 'main');
+              } catch(_) {}
+            };
+          } catch(_) {}
         }
         if (confirm('Restored ' + count + ' items from local backup. Reload to apply?')) location.reload();
       } catch(e) { alert('Import failed: ' + e.message); }
@@ -10909,13 +10945,17 @@ let tvWidgetCreated = false;
     var btn = this;
     btn.disabled = true;
     btn.textContent = 'Syncing…';
-    if(typeof window._heSyncPullAll === 'function'){
-      window._heSyncPullAll();
-      setTimeout(function(){ btn.disabled = false; btn.textContent = '\u21D3 Pull from Supabase (sync from phone)'; }, 3000);
-    } else {
-      btn.textContent = 'Not signed in';
-      setTimeout(function(){ btn.disabled = false; btn.textContent = '\u21D3 Pull from Supabase (sync from phone)'; }, 2000);
-    }
+    // Step 1: Force a fresh CF Pages fetch so localStorage has the latest Android data.
+    // Step 2: After fetch completes, run vault sync (kanban/life-goals/secrets) directly
+    //         using the now-fresh localStorage — no Supabase session required.
+    // Step 3: Also call _heSyncPullAll for non-vault fields (expenses, habits, etc.)
+    var doHePull = function(){
+      if(typeof window._heSyncPullAll === 'function') window._heSyncPullAll();
+      // Vault sync reads directly from localStorage which hydrateFieldSyncState just refreshed.
+      if(typeof window._heVaultSync === 'function') setTimeout(window._heVaultSync, 300);
+      setTimeout(function(){ btn.disabled = false; btn.textContent = '\u21D3 Pull from Supabase (sync from phone)'; }, 4000);
+    };
+    try{ hydrateFieldSyncState(true).then(doHePull).catch(doHePull); }catch(_){ doHePull(); }
   });
   var localExportBtn = document.getElementById('fab-local-export');
   var localImportBtn = document.getElementById('fab-local-import');
@@ -11362,7 +11402,13 @@ let tvWidgetCreated = false;
     origSetItem(key, value);
     if(syncMetaKeys.indexOf(key) >= 0 || isLocalOnlyBackupKey(key)) return;
     markDirty();
-    if(isSharedSyncUser() && LS_FIELD_MAP[key]) queueLsFieldOp(key, String(value == null ? '' : value));
+    if(isSharedSyncUser() && LS_FIELD_MAP[key]){
+      queueLsFieldOp(key, String(value == null ? '' : value));
+      // Schedule a flush — queueLsFieldOp only adds to the pending map;
+      // without this, data sits unsent until pagehide (e.g. car data on page load never reached CF Pages).
+      if(fieldSyncPushTimer) clearTimeout(fieldSyncPushTimer);
+      fieldSyncPushTimer = setTimeout(function(){ fieldSyncPushTimer = null; flushFieldSyncOps('ls-change'); }, 1000);
+    }
   };
   localStorage.removeItem = function(key){
     origRemoveItem(key);

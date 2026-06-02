@@ -1222,11 +1222,22 @@
         }
       }
       state.data = data;
-      // Push existing IDB car data via localStorage → queueLsFieldOp → CF Pages → Supabase.
-      // This runs on every page load so Android can pull car data even without a Supabase session.
+      // Merge local IDB data with any CF Pages data already in localStorage (e.g. from Android's
+      // last push via background poll), then push the union so neither side loses data.
       if (isBogdan() && (data.vehicles.length || data.documents.length ||
           data.maintenance.length || data.fuel.length)) {
-        try { localStorage.setItem('homer-car', JSON.stringify(data)); } catch(_) {}
+        var _existing = safeJson(localStorage.getItem('homer-car'), null);
+        var _toSync = (_existing && ((_existing.vehicles||[]).length || (_existing.documents||[]).length ||
+            (_existing.maintenance||[]).length || (_existing.fuel||[]).length)) ? {
+          vehicles:    mergeById(data.vehicles||[], _existing.vehicles||[]),
+          documents:   mergeById(data.documents||[], _existing.documents||[]),
+          maintenance: mergeById(data.maintenance||[], _existing.maintenance||[]),
+          fuel:        mergeById(data.fuel||[], _existing.fuel||[]),
+        } : data;
+        try { localStorage.setItem('homer-car', JSON.stringify(_toSync)); } catch(_) {}
+        // Push directly to Supabase in case supabase:session already fired before IDB loaded
+        // (race condition: applyRemote would have seen empty state.data and pushed empty arrays).
+        pushToSupabase(_toSync);
       }
       var ct = document.getElementById(CONTAINER_ID);
       if (ct && ct.style.display !== 'none') renderTab();
