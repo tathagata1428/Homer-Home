@@ -11673,7 +11673,12 @@ let tvWidgetCreated = false;
     } else if(action === 'signin'){
       // Existing account — restore from cloud, then enable auto-backup
       var p = getActiveSyncPass();
-      if(!p) return;
+      if(!p){
+        // No R2 pass, but if a Supabase JWT is available (fresh browser, Bogdan just logged in)
+        // still start field sync so car/habits/etc. pull from Supabase field_state.
+        if(getSyncJwt()) startFieldSyncLoop();
+        return;
+      }
       st('Restoring your data...');
       fetch(R2_WORKER_URL+'/sync',{headers:{'X-Sync-Key':p}})
         .then(function(r){ return r.json(); })
@@ -11756,14 +11761,17 @@ let tvWidgetCreated = false;
 
   // ── Supabase session: switch from Redis polling to Realtime ──
   window.addEventListener('supabase:session', function(){
-    if(!isSharedSyncUser()) return;
+    // isSharedSyncUser() reads homer-auth-user which may not be set yet when supabase:session
+    // fires during login (hydrateSupabaseSession dispatches before finalizeSignin sets the key).
+    // Use getSyncJwt() instead — if we have a JWT the session is for Bogdan.
+    if(!getSyncJwt()) return;
     // JWT is now available — restart field sync in Supabase mode (no polling)
     startFieldSyncLoop();
   });
   window.addEventListener('supabase:authchange', function(e){
     var detail = e && e.detail;
     if(!detail || !detail.session) return;
-    if(!isSharedSyncUser()) return;
+    if(!getSyncJwt()) return;
     startFieldSyncLoop();
   });
 })();
