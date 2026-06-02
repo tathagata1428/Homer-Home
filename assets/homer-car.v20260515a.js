@@ -1266,7 +1266,17 @@
     }
 
     window.addEventListener('supabase:session', function(e) {
-      if (e.detail && isBogdan()) pullFromSupabase(applyRemote);
+      if (!e.detail || !isBogdan()) return;
+      // Push local IDB data now that the Supabase JS client is authenticated.
+      // loadFromIDB runs before session is ready, so pushToSupabase silently no-ops there.
+      // This ensures data from the main browser reaches Supabase for other browsers to pull.
+      if (state.data.vehicles.length || state.data.documents.length ||
+          state.data.maintenance.length || state.data.fuel.length) {
+        pushToSupabase(state.data);
+        // Also update localStorage so the CF Pages path has it too
+        try { localStorage.setItem('homer-car', JSON.stringify(state.data)); } catch(_) {}
+      }
+      pullFromSupabase(applyRemote);
     });
 
     // Realtime: react immediately when Android pushes new car data
@@ -1279,10 +1289,9 @@
       applyRemote(safeJson(String(rec.value || ''), null));
     });
 
-    // Fallback: pull after 3 s in case session event already fired
-    if (isBogdan()) {
-      setTimeout(function() { pullFromSupabase(applyRemote); }, 3000);
-    }
+    // Fallback: pull after 3 s in case supabase:session already fired before this listener was registered.
+    // Check isBogdan() inside the callback so it works on fresh browser (not logged in at page load).
+    setTimeout(function() { if (isBogdan()) pullFromSupabase(applyRemote); }, 3000);
 
     // Re-pull from Supabase into IDB whenever Android pushes car data via Realtime.
     // applySyncedFieldValue writes to localStorage but the car UI reads from IDB,
