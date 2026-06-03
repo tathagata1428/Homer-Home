@@ -9549,6 +9549,16 @@ let tvWidgetCreated = false;
     // LS field sync: write to the real localStorage key
     if(fieldId.indexOf('ls:') === 0 && LS_FIELD_MAP_REVERSE[fieldId]){
       var _lsKey = LS_FIELD_MAP_REVERSE[fieldId];
+      // Guard: if local mutation is newer than incoming server clientTs, skip overwrite and re-queue push
+      if(!opts.force && opts.clientTs){
+        var _localMutTs = parseInt(localStorage.getItem('_ls_mut_'+_lsKey) || '0', 10);
+        if(_localMutTs > opts.clientTs){
+          // Local is newer — don't overwrite; re-queue push so server gets the deletion
+          var _pendingVal = localStorage.getItem(_lsKey);
+          if(_pendingVal !== null) queueLsFieldOp(_lsKey, _pendingVal);
+          return;
+        }
+      }
       if(_lsKey === 'homer-journal'){
         // Merge incoming Realtime data with local entries (by date, prefer newer updatedAt)
         // so that entries added on THIS device are never overwritten by stale Realtime pushes
@@ -9765,12 +9775,12 @@ let tvWidgetCreated = false;
           }).sort(function(a, b){
             return (a && a.version || 0) - (b && b.version || 0);
           }).forEach(function(record){
-            if(record && record.fieldId) applySyncedFieldValue(record.fieldId, record.deleted ? '' : record.value, { force:false, silent:false });
+            if(record && record.fieldId) applySyncedFieldValue(record.fieldId, record.deleted ? '' : record.value, { force:false, silent:false, clientTs: record.client_ts || record.clientTs || 0 });
           });
         } else {
           (d.ops || []).forEach(function(op){
             if(!op || !op.fieldId) return;
-            applySyncedFieldValue(op.fieldId, op.deleted ? '' : op.value, { force:false, silent:false });
+            applySyncedFieldValue(op.fieldId, op.deleted ? '' : op.value, { force:false, silent:false, clientTs: op.client_ts || op.clientTs || 0 });
           });
         }
         if(d.latestVersion) setFieldSyncCursor(d.latestVersion);
@@ -11430,6 +11440,8 @@ let tvWidgetCreated = false;
     if(syncMetaKeys.indexOf(key) >= 0 || isLocalOnlyBackupKey(key)) return;
     markDirty();
     if(isSharedSyncUser() && LS_FIELD_MAP[key]){
+      // Track local mutation time — used to guard against stale cloud overwrites on pull
+      try{ origSetItem('_ls_mut_'+key, String(Date.now())); }catch(_e){}
       queueLsFieldOp(key, String(value == null ? '' : value));
       // Schedule a flush — queueLsFieldOp only adds to the pending map;
       // without this, data sits unsent until pagehide (e.g. car data on page load never reached CF Pages).
@@ -11786,7 +11798,7 @@ let tvWidgetCreated = false;
     if(!rec || !rec.field_id) return;
     // Skip updates that originated from this device (already applied locally)
     if(rec.device_id && rec.device_id === getFieldSyncDeviceId()) return;
-    applySyncedFieldValue(rec.field_id, (rec.deleted || payload.eventType === 'DELETE') ? '' : String(rec.value || ''), { force:false });
+    applySyncedFieldValue(rec.field_id, (rec.deleted || payload.eventType === 'DELETE') ? '' : String(rec.value || ''), { force:false, clientTs: rec.client_ts || rec.clientTs || 0 });
     requestSyncFieldLabelUpdate();
   });
 
