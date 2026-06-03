@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import androidx.core.app.NotificationManagerCompat
 import androidx.work.*
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -96,6 +97,8 @@ class ReminderManager @Inject constructor(
                 scheduleCarDocumentAlarms(doc)
             }
 
+            // Cancel any stale habit notification that may have been shown before sync
+            cancelHabitNotification()
             // Daily habit reminder at 9:00 AM
             scheduleHabitDailyReminder()
         }
@@ -205,15 +208,23 @@ class ReminderManager @Inject constructor(
 
     // ---- WorkManager: daily habit summary ----
 
+    /** Immediately cancel any displayed habit daily notification (clears stale notifications). */
+    fun cancelHabitNotification() {
+        NotificationManagerCompat.from(ctx).cancel(HabitReminderWorker.NOTIF_ID)
+    }
+
     fun scheduleHabitDailyReminder() {
         val delay = delayUntil(9, 0)
         val req = PeriodicWorkRequestBuilder<HabitReminderWorker>(1, TimeUnit.DAYS)
             .setInitialDelay(delay, TimeUnit.MILLISECONDS)
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.NOT_REQUIRED).build())
             .build()
+        // CANCEL_AND_REENQUEUE: cancel any previously scheduled job (which may have stale
+        // habit data embedded in its parameters) and enqueue a fresh one. The worker always
+        // reads from the DB at runtime, so cancelling the old job and re-scheduling is safe.
         WorkManager.getInstance(ctx).enqueueUniquePeriodicWork(
             "homer_habit_daily",
-            ExistingPeriodicWorkPolicy.KEEP,
+            ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE,
             req,
         )
     }

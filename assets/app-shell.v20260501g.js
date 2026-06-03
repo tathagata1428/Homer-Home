@@ -6637,15 +6637,22 @@ let tvWidgetCreated = false;
           unlock();
         }).catch(function(){
           var legacyPasswords = getReservedVaultLegacyPasswords(user);
-          if(!legacyPasswords.length){
-            showError('Vault password could not unlock existing data.');
-            return;
+          // Helper: called when ALL passwords fail — reset vault for logged-in users
+          // so account login remains the only gate (data is backed up in Supabase).
+          function vaultResetForLoggedIn(){
+            var loggedIn = !!localStorage.getItem('homer-auth-user');
+            if(!loggedIn){ showError('Vault password could not unlock existing data.'); return; }
+            // Clear the old hash and data; recreate with current derived password.
+            Promise.all([idb.del(HASH_KEY), idb.del(DATA_KEY)]).then(function(){
+              isNew = true;
+              unlockBtn.textContent = 'Create Vault';
+              lockLabel.textContent = 'Create Vault';
+              setTimeout(function(){ unlockBtn.click(); }, 50);
+            }).catch(function(){ showError('Vault password could not unlock existing data.'); });
           }
+          if(!legacyPasswords.length){ vaultResetForLoggedIn(); return; }
           var tryLegacy = function(index){
-            if(index >= legacyPasswords.length){
-              showError('Vault password could not unlock existing data.');
-              return;
-            }
+            if(index >= legacyPasswords.length){ vaultResetForLoggedIn(); return; }
             deriveVaultSession(user, legacyPasswords[index], salt).then(function(session){
               return rekeyVaultRoot(session.root, user, pw, salt).then(function(){
                 unlock();
