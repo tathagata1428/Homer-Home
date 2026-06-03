@@ -68,7 +68,7 @@ class LifeGoalsViewModel @Inject constructor(
         viewModelScope.launch {
             dao.delete(goal)
             reminderManager.cancelGoal(goal.id)
-            sync.pushLifeGoalsDebounced()
+            sync.pushLifeGoalsNow()
         }
     }
 
@@ -117,7 +117,7 @@ class LifeGoalsViewModel @Inject constructor(
                 progress       = progress,
                 updatedAt      = System.currentTimeMillis(),
             ))
-            sync.pushLifeGoalsDebounced()
+            sync.pushLifeGoalsNow()
         }
     }
 

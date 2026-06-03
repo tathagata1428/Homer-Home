@@ -272,6 +272,17 @@ class SyncEngine @Inject constructor(
         runCatching { pushSecrets() }
     }
 
+    /** Immediate push variants for delete operations — prevents resurrection on next pullAll(). */
+    suspend fun pushHabitsNow()    { if (!syncClient.isConfigured()) return; runCatching { pushHabits()    } }
+    suspend fun pushCarNow()       { if (!syncClient.isConfigured()) return; runCatching { pushCar()       } }
+    suspend fun pushKanbanNow()    { if (!syncClient.isConfigured()) return; runCatching { pushKanban()    } }
+    suspend fun pushLifeGoalsNow() { if (!syncClient.isConfigured()) return; runCatching { pushLifeGoals() } }
+    suspend fun pushExpensesNow()  { if (!syncClient.isConfigured()) return; runCatching { pushExpenses()  } }
+    suspend fun pushInboxNow()     { if (!syncClient.isConfigured()) return; runCatching { pushInbox()     } }
+    suspend fun pushLinksNow()     { if (!syncClient.isConfigured()) return; runCatching { pushLinks()     } }
+    suspend fun pushNotesNow()     { if (!syncClient.isConfigured()) return; runCatching { pushNotes()     } }
+    suspend fun pushRemindersNow() { if (!syncClient.isConfigured()) return; runCatching { pushReminders() } }
+
     // ── Expenses ─────────────────────────────────────────────────────────────
     // Website expense key: "homer-expenses" → [{id, desc, amount, cat, date, note}]
     // Website income key:  "homer-income"   → [{id, desc, amount, date, note}]

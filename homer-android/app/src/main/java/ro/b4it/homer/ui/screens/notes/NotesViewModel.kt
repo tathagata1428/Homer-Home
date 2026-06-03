@@ -68,7 +68,7 @@ class NotesViewModel @Inject constructor(
 
     fun deleteNote(note: Note) {
         if (_editing.value?.id == note.id) closeNote()
-        viewModelScope.launch { dao.delete(note); pushSync() }
+        viewModelScope.launch { dao.delete(note); sync.pushNotesNow() }
     }
 
     fun pinNote(note: Note) {

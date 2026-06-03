@@ -38,7 +38,7 @@ class InboxViewModel @Inject constructor(
     fun delete(item: InboxItem) {
         viewModelScope.launch {
             dao.delete(item)
-            sync.pushInboxDebounced()
+            sync.pushInboxNow()
         }
     }
 

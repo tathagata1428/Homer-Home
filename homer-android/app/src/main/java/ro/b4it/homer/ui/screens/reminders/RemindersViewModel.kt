@@ -47,7 +47,7 @@ class RemindersViewModel @Inject constructor(
         viewModelScope.launch {
             dao.delete(reminder)
             reminderManager.cancelReminder(reminder.id)
-            sync.pushRemindersDebounced()
+            sync.pushRemindersNow()
         }
     }
 }

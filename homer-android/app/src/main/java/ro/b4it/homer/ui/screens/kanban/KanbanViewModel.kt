@@ -48,7 +48,7 @@ class KanbanViewModel @Inject constructor(
     }
 
     fun deleteProject(project: KanbanProject) {
-        viewModelScope.launch { dao.deleteProject(project); sync.pushKanbanDebounced() }
+        viewModelScope.launch { dao.deleteProject(project); sync.pushKanbanNow() }
     }
 
     fun addTask(summary: String, desc: String = "", priority: String = "medium", dueDate: String = "") {
@@ -76,7 +76,7 @@ class KanbanViewModel @Inject constructor(
         viewModelScope.launch {
             dao.deleteTask(task)
             reminderManager.cancelTask(task.id)
-            sync.pushKanbanDebounced()
+            sync.pushKanbanNow()
         }
     }
 }

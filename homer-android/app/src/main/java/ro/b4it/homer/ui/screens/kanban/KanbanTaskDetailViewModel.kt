@@ -101,7 +101,12 @@ class KanbanTaskDetailViewModel @Inject constructor(
     fun deleteSubtask(subtaskId: String) {
         val current  = _task.value ?: return
         val subtasks = parseSubtasks(current.subtasksJson).filter { it.id != subtaskId }
-        persist(current.copy(subtasksJson = encode(subtasks)))
+        val task = current.copy(subtasksJson = encode(subtasks), updatedAt = System.currentTimeMillis())
+        viewModelScope.launch {
+            dao.upsertTask(task)
+            _task.value = task
+            sync.pushKanbanNow()
+        }
     }
 
     private fun persist(updated: KanbanTask) {

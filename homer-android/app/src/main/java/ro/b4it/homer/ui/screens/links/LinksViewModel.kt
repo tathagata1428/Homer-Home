@@ -26,7 +26,7 @@ class LinksViewModel @Inject constructor(
     fun deleteLink(link: Link) {
         viewModelScope.launch {
             dao.delete(link)
-            sync.pushLinksDebounced()
+            sync.pushLinksNow()
         }
     }
 }

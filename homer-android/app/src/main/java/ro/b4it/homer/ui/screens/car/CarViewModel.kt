@@ -91,7 +91,7 @@ class CarViewModel @Inject constructor(
     }
 
     fun deleteVehicle(vehicle: CarVehicle) {
-        viewModelScope.launch { dao.deleteVehicle(vehicle); sync.pushCarDebounced() }
+        viewModelScope.launch { dao.deleteVehicle(vehicle); sync.pushCarNow() }
     }
 
     fun saveDocument(
@@ -142,7 +142,7 @@ class CarViewModel @Inject constructor(
             doc.fileData?.let { path -> if (path.startsWith("/")) File(path).delete() }
             dao.deleteDocument(doc)
             reminderManager.cancelCarDocument(doc.id)
-            sync.pushCarDebounced()
+            sync.pushCarNow()
         }
     }
 
@@ -165,7 +165,7 @@ class CarViewModel @Inject constructor(
     }
 
     fun deleteMaintenance(record: CarMaintenance) {
-        viewModelScope.launch { dao.deleteMaintenance(record); sync.pushCarDebounced() }
+        viewModelScope.launch { dao.deleteMaintenance(record); sync.pushCarNow() }
     }
 
     fun saveFuelLog(
@@ -187,7 +187,7 @@ class CarViewModel @Inject constructor(
     }
 
     fun deleteFuelLog(entry: CarFuelLog) {
-        viewModelScope.launch { dao.deleteFuelLog(entry); sync.pushCarDebounced() }
+        viewModelScope.launch { dao.deleteFuelLog(entry); sync.pushCarNow() }
     }
 
     /** Days remaining until expiry. Negative = already expired. */

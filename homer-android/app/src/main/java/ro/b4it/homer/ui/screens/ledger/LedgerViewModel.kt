@@ -28,7 +28,7 @@ class LedgerViewModel @Inject constructor(
     fun deleteExpense(expense: Expense) {
         viewModelScope.launch {
             dao.delete(expense)
-            sync.pushExpensesDebounced()
+            sync.pushExpensesNow()
         }
     }
 
@@ -42,7 +42,7 @@ class LedgerViewModel @Inject constructor(
     fun deleteBudget(budget: Budget) {
         viewModelScope.launch {
             dao.deleteBudget(budget)
-            sync.pushExpensesDebounced()
+            sync.pushExpensesNow()
         }
     }
 }
