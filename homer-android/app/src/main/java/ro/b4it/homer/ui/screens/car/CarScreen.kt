@@ -18,8 +18,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -184,7 +188,7 @@ fun CarScreen(onBack: () -> Unit, vm: CarViewModel = hiltViewModel()) {
 
                 // ── Vehicle header ────────────────────────────────────────────
                 item {
-                    VehicleHeader(vehicle = selectedVehicle!!, vehicles = vehicles, onSelect = vm::selectVehicle)
+                    VehicleHeader(vehicle = selectedVehicle!!, vehicles = vehicles, maintenance = maintenance, onSelect = vm::selectVehicle)
                     Spacer(Modifier.height(16.dp))
                 }
 
@@ -267,6 +271,12 @@ fun CarScreen(onBack: () -> Unit, vm: CarViewModel = hiltViewModel()) {
                         item {
                             FuelStatsBar(avgConsumption = avgConsumption, fuelLog = fuelLog)
                             Spacer(Modifier.height(8.dp))
+                        }
+                        if (fuelLog.size >= 2) {
+                            item {
+                                OdometerChart(fuelLog = fuelLog)
+                                Spacer(Modifier.height(8.dp))
+                            }
                         }
                         item {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -367,7 +377,7 @@ fun CarScreen(onBack: () -> Unit, vm: CarViewModel = hiltViewModel()) {
 // ─── Vehicle dashboard ────────────────────────────────────────────────────────
 
 @Composable
-private fun VehicleHeader(vehicle: CarVehicle, vehicles: List<CarVehicle>, onSelect: (String) -> Unit) {
+private fun VehicleHeader(vehicle: CarVehicle, vehicles: List<CarVehicle>, maintenance: List<CarMaintenance>, onSelect: (String) -> Unit) {
     Column(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
@@ -469,6 +479,43 @@ private fun VehicleHeader(vehicle: CarVehicle, vehicles: List<CarVehicle>, onSel
                 Text("🔢", fontSize = 12.sp)
                 Text("VIN:", fontSize = 10.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
                 Text(vehicle.vin.uppercase(), fontSize = 10.sp, color = TextMuted, letterSpacing = 0.5.sp)
+            }
+        }
+
+        // ── Maintenance due alerts ────────────────────────────────────────
+        val now = LocalDate.now()
+        val dueAlerts = maintenance.filter { rec ->
+            val kmOverdue = rec.nextOdoKm > 0 && vehicle.odoKm > 0 && vehicle.odoKm >= rec.nextOdoKm
+            val dateOverdue = rec.nextDateDue.isNotBlank() && rec.nextDateDue <= now.toString()
+            kmOverdue || dateOverdue
+        }
+        if (dueAlerts.isNotEmpty()) {
+            Box(Modifier.fillMaxWidth().height(1.dp).background(AccentRed.copy(0.3f)))
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    "⚠️  SERVICE DUE",
+                    fontSize = 8.sp, letterSpacing = 2.sp, color = AccentRed, fontWeight = FontWeight.ExtraBold,
+                )
+                dueAlerts.forEach { rec ->
+                    val kmOverdue = rec.nextOdoKm > 0 && vehicle.odoKm >= rec.nextOdoKm
+                    val overBy = if (kmOverdue) " (${"%,d".format(vehicle.odoKm - rec.nextOdoKm)} km overdue)" else " (date passed)"
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(AccentRed.copy(0.1f))
+                            .border(1.dp, AccentRed.copy(0.4f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(maintTypeIcon(rec.type), fontSize = 14.sp)
+                        Text(
+                            rec.label + overBy,
+                            fontSize = 11.sp, color = AccentRed, fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
             }
         }
 
@@ -685,6 +732,88 @@ private fun InfoChip(text: String) {
             .padding(horizontal = 8.dp, vertical = 2.dp),
     ) {
         Text(text, fontSize = 9.sp, color = TextMuted)
+    }
+}
+
+@Composable
+private fun OdometerChart(fuelLog: List<CarFuelLog>) {
+    val points = fuelLog.filter { it.odometer > 0 && it.date.isNotBlank() }
+        .sortedBy { it.date }
+        .takeLast(20)
+    if (points.size < 2) return
+
+    val minOdo = points.minOf { it.odometer }.toFloat()
+    val maxOdo = points.maxOf { it.odometer }.toFloat()
+    val odoRange = (maxOdo - minOdo).coerceAtLeast(1f)
+
+    Box(
+        Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(BgCard)
+            .border(1.dp, BorderSubtle, RoundedCornerShape(12.dp))
+            .padding(12.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("KM HISTORY", fontSize = 8.sp, letterSpacing = 2.sp, color = NeonCyan.copy(0.7f), fontWeight = FontWeight.ExtraBold)
+            androidx.compose.foundation.Canvas(
+                Modifier.fillMaxWidth().height(100.dp)
+            ) {
+                val w = size.width
+                val h = size.height
+                val padH = 12f
+                val step = w / (points.size - 1).coerceAtLeast(1)
+
+                // Grid lines
+                repeat(3) { i ->
+                    val y = padH + (h - 2 * padH) * i / 2f
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.05f),
+                        start = Offset(0f, y), end = Offset(w, y),
+                        strokeWidth = 1f,
+                    )
+                }
+
+                // Build path
+                val path = Path()
+                points.forEachIndexed { idx, entry ->
+                    val x = idx * step
+                    val y = padH + (h - 2 * padH) * (1f - (entry.odometer - minOdo) / odoRange)
+                    if (idx == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                }
+
+                // Gradient fill
+                val fillPath = Path().apply {
+                    addPath(path)
+                    lineTo((points.size - 1) * step, h)
+                    lineTo(0f, h)
+                    close()
+                }
+                drawPath(
+                    fillPath,
+                    brush = Brush.verticalGradient(
+                        listOf(NeonCyan.copy(0.25f), Color.Transparent),
+                        startY = 0f, endY = h,
+                    ),
+                )
+
+                // Line
+                drawPath(path, color = NeonCyan, style = Stroke(width = 2.5f, cap = StrokeCap.Round))
+
+                // Dots
+                points.forEachIndexed { idx, entry ->
+                    val x = idx * step
+                    val y = padH + (h - 2 * padH) * (1f - (entry.odometer - minOdo) / odoRange)
+                    drawCircle(NeonCyan, radius = 4f, center = Offset(x, y))
+                    drawCircle(BgCard, radius = 2f, center = Offset(x, y))
+                }
+            }
+            // X labels: first and last date
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(points.first().date, fontSize = 9.sp, color = TextSubtle)
+                Text("%,d km".format(points.last().odometer), fontSize = 9.sp, color = NeonCyan, fontWeight = FontWeight.Bold)
+                Text(points.last().date, fontSize = 9.sp, color = TextSubtle)
+            }
+        }
     }
 }
 

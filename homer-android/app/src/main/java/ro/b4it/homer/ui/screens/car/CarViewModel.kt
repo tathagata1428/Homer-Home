@@ -160,6 +160,11 @@ class CarViewModel @Inject constructor(
                     nextOdoKm = nextOdoKm, cost = cost, workshop = workshop, notes = notes,
                 )
             )
+            // Auto-update vehicle odometer if this service is at a higher reading
+            if (odometer > 0) {
+                val v = dao.getVehicleById(vehicleId)
+                if (v != null && odometer > v.odoKm) dao.upsertVehicle(v.copy(odoKm = odometer, updatedAt = System.currentTimeMillis()))
+            }
             sync.pushCarDebounced()
         }
     }
@@ -182,6 +187,11 @@ class CarViewModel @Inject constructor(
                     station = station, fullTank = fullTank, notes = notes,
                 )
             )
+            // Auto-update vehicle odometer if this fill is at a higher reading
+            if (odometer > 0) {
+                val v = dao.getVehicleById(vehicleId)
+                if (v != null && odometer > v.odoKm) dao.upsertVehicle(v.copy(odoKm = odometer, updatedAt = System.currentTimeMillis()))
+            }
             sync.pushCarDebounced()
         }
     }
