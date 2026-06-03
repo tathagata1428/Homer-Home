@@ -9124,7 +9124,7 @@ let tvWidgetCreated = false;
     'homer-expenses', 'homer-income', 'homer-expense-goals',
     'homer-expense-templates', 'homer-expense-budgets', 'homer-payday-day',
     'homer-notes', 'homer-recurring', 'homer-sessions', 'homer-weekly-reviews',
-    'homer-countdown'
+    'homer-countdown', 'homer-car', 'homer-journal', 'homer-reminders'
   ];
   var IDB_KEYS = ['homer-vault-salt', 'homer-vault-hash', 'homer-vault-data'];
   var ALL_KEYS = LS_KEYS.concat(IDB_KEYS);
@@ -11449,8 +11449,12 @@ let tvWidgetCreated = false;
     if(!isSharedSyncUser()) return;
     stopAuto();
     startFieldSyncLoop();
-    // Pull first, then start backup cycle
-    pullIfNewer().then(function(){
+    // Pull first, then start backup cycle.
+    // Skip R2 pullIfNewer when Supabase JWT is active — Supabase field sync is authoritative;
+    // R2 snapshot can be months stale and would overwrite current Supabase data + delete
+    // keys not in the old manifest (homer-car, homer-reminders, homer-journal).
+    var _pullPromise = getSyncJwt() ? Promise.resolve() : pullIfNewer();
+    _pullPromise.then(function(){
       timer = setInterval(function(){
         if(getActiveSyncPass()){
           if(dirty || (Date.now() - lastSyncTs) > SYNC_INTERVAL){
