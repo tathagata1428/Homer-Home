@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import ro.b4it.homer.data.sync.RealtimeSyncManager
 import ro.b4it.homer.data.sync.SyncEngine
 import ro.b4it.homer.notification.ReminderManager
 import ro.b4it.homer.worker.SyncWorker
@@ -28,6 +29,7 @@ class HomerApplication : Application(), Configuration.Provider {
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var reminderManager: ReminderManager
     @Inject lateinit var syncEngine: SyncEngine
+    @Inject lateinit var realtimeSyncManager: RealtimeSyncManager
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -43,6 +45,8 @@ class HomerApplication : Application(), Configuration.Provider {
         // Start sync: pull all fields on launch; periodic 15-min push via SyncWorker.
         syncEngine.start()
         SyncWorker.schedule(this)
+        // Supabase Realtime: instant push to Room when other devices write field_state.
+        realtimeSyncManager.start()
         // Register a one-shot network callback so that if the initial pull failed
         // (device was offline at boot / WiFi not yet reconnected), we retry as soon
         // as the device has a working internet connection rather than waiting 15 min.

@@ -32,7 +32,6 @@ class AppPreferences @Inject constructor(@ApplicationContext private val ctx: Co
         val KEY_POMO_VOICE     = booleanPreferencesKey("homer-pomo-voice")
         val KEY_POMO_SFX       = booleanPreferencesKey("homer-pomo-sfx")
 
-        val KEY_PAYDAY_DAY     = intPreferencesKey("homer-payday-day")
         val KEY_CALENDAR_ICS   = stringPreferencesKey("homer-calendar-ics-url")
         val KEY_SIDEBAR_COLLAPSED = booleanPreferencesKey("homer-sidebar-collapsed")
         val KEY_LAST_TAB       = stringPreferencesKey("homer-last-tab")
@@ -57,7 +56,6 @@ class AppPreferences @Inject constructor(@ApplicationContext private val ctx: Co
     val pomoVoice:  Flow<Boolean> = store.data.map { it[KEY_POMO_VOICE]     ?: false }
     val pomoSfx:    Flow<Boolean> = store.data.map { it[KEY_POMO_SFX]       ?: true  }
 
-    val paydayDay:  Flow<Int>     = store.data.map { it[KEY_PAYDAY_DAY]     ?: 25 }
     val calendarIcs: Flow<String?> = store.data.map { it[KEY_CALENDAR_ICS] }
 
     // ---- Generic setters ----

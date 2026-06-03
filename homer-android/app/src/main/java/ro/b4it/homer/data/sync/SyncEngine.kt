@@ -70,6 +70,8 @@ class SyncEngine @Inject constructor(
     fun start() {
         if (!syncClient.isConfigured()) return
         scope.launch {
+            runCatching { drainPushQueue() }
+                .onFailure { Log.w("HomerSync", "start: drainPushQueue failed", it) }
             runCatching { pullAll() }
                 .onFailure { Log.e("HomerSync", "start: pullAll failed", it) }
         }
@@ -100,7 +102,9 @@ class SyncEngine @Inject constructor(
         if (isFieldEnabled("ls:homer-brain-dump"))    runCatching { pullBrainDump()     }.onFailure { Log.e("HomerSync", "pullBrainDump failed", it) }
         if (isFieldEnabled("ls:homer-zen-goal"))      runCatching { pullZenGoal()       }.onFailure { Log.e("HomerSync", "pullZenGoal failed", it) }
         if (isFieldEnabled("ls:homer-expense-goals")) runCatching { pullExpenseGoals()  }.onFailure { Log.e("HomerSync", "pullExpenseGoals failed", it) }
-        if (isFieldEnabled("ls:homer-cal-events"))    runCatching { pullCalendarEvents()}.onFailure { Log.e("HomerSync", "pullCalendarEvents failed", it) }
+        if (isFieldEnabled("ls:homer-cal-events"))              runCatching { pullCalendarEvents()         }.onFailure { Log.e("HomerSync", "pullCalendarEvents failed", it) }
+        if (isFieldEnabled("ls:homer-cal-events-personal"))     runCatching { pullCalendarEventsScope("personal") }.onFailure { Log.e("HomerSync", "pullCalendarEventsPersonal failed", it) }
+        if (isFieldEnabled("ls:homer-cal-events-work"))         runCatching { pullCalendarEventsScope("work")     }.onFailure { Log.e("HomerSync", "pullCalendarEventsWork failed", it) }
         if (isFieldEnabled("ls:savedQuotes"))              runCatching { pullSavedQuotes()     }.onFailure { Log.e("HomerSync", "pullSavedQuotes failed", it) }
         if (isFieldEnabled("ls:homer-sessions"))           runCatching { pullSessions()        }.onFailure { Log.e("HomerSync", "pullSessions failed", it) }
         if (isFieldEnabled("ls:pom-settings"))             runCatching { pullPomSettings()     }.onFailure { Log.e("HomerSync", "pullPomSettings failed", it) }
@@ -131,6 +135,8 @@ class SyncEngine @Inject constructor(
         val now = System.currentTimeMillis()
         if (now - lastPullAt < FOREGROUND_PULL_INTERVAL_MS) return
         scope.launch {
+            runCatching { drainPushQueue() }
+                .onFailure { Log.w("HomerSync", "onForeground: drainPushQueue failed", it) }
             runCatching { pullAll() }
                 .onFailure { Log.e("HomerSync", "onForeground: sync failed", it) }
         }
@@ -150,7 +156,11 @@ class SyncEngine @Inject constructor(
             pendingJobs[fieldKey] = scope.launch {
                 delay(DEBOUNCE_MS)
                 runCatching { push() }
-                    .onFailure { Log.e("HomerSync", "schedulePush[$fieldKey] failed", it) }
+                    .onSuccess { db.syncQueueDao().remove(fieldKey) }   // clear any queued retry
+                    .onFailure {
+                        Log.w("HomerSync", "schedulePush[$fieldKey] failed — queued for retry", it)
+                        db.syncQueueDao().enqueue(ro.b4it.homer.data.local.entity.SyncQueue(fieldKey))
+                    }
             }
         }
     }
@@ -161,6 +171,65 @@ class SyncEngine @Inject constructor(
         synchronized(pendingJobs) {
             pendingJobs.values.forEach { it.cancel() }
             pendingJobs.clear()
+        }
+    }
+
+    /** Cancel any pending debounced push for a single field.
+     *  Called from [applyFieldUpdate] so a Realtime update from another device
+     *  is not immediately overwritten by a stale local push. */
+    fun cancelPendingPush(fieldKey: String) {
+        synchronized(pendingJobs) {
+            pendingJobs.remove(fieldKey)?.cancel()
+        }
+    }
+
+    /** Drain the offline push queue — retry every field that failed to push while offline. */
+    private suspend fun drainPushQueue() {
+        val queued = runCatching { db.syncQueueDao().getAll() }.getOrNull() ?: return
+        if (queued.isEmpty()) return
+        Log.d("HomerSync", "drainPushQueue: retrying ${queued.size} queued fields")
+        pushAll()
+        db.syncQueueDao().clear()
+    }
+
+    // ── Realtime field update ─────────────────────────────────────────────────
+
+    /**
+     * Called by RealtimeSyncManager when Supabase pushes a field change instantly.
+     * Cancels any pending local push for this field (Realtime wins), updates the field
+     * cache with the new value, and routes to the correct Room entity pull method.
+     */
+    suspend fun applyFieldUpdate(fieldId: String, value: String) {
+        cancelPendingPush(fieldId)
+        fieldCache = fieldCache + (fieldId to value)
+        Log.d("HomerSync", "applyFieldUpdate: $fieldId")
+        when {
+            fieldId == "ls:homer-habits"                    -> runCatching { pullHabits() }
+            fieldId == "ls:homer-notes"                     -> runCatching { pullNotes() }
+            fieldId == "ls:homer-links"                     -> runCatching { pullLinks() }
+            fieldId.startsWith("ls:homer-cal-events")       -> runCatching { pullCalendarEvents() }
+            // expenses / income / budgets all handled by pullExpenses()
+            fieldId == "ls:homer-expenses"                  -> runCatching { pullExpenses() }
+            fieldId == "ls:homer-income"                    -> runCatching { pullExpenses() }
+            fieldId == "ls:homer-expense-budgets"           -> runCatching { pullExpenses() }
+            fieldId == "ls:homer-kanban"                    -> runCatching { pullKanban() }
+            fieldId == "ls:homer-life-goals"                -> runCatching { pullLifeGoals() }
+            fieldId == "ls:savedQuotes"                     -> runCatching { pullSavedQuotes() }
+            fieldId == "ls:homer-sessions"                  -> runCatching { pullSessions() }
+            fieldId == "ls:homer-journal"                   -> runCatching { pullJournal() }
+            fieldId == "ls:homer-car"                       -> runCatching { pullCar() }
+            fieldId == "ls:homer-countdown"                 -> runCatching { pullCountdown() }
+            fieldId == "ls:homer-reminders"                 -> runCatching { pullReminders() }
+            fieldId.startsWith("ls:homer-secrets")          -> runCatching { pullSecrets() }
+            fieldId.startsWith("ls:homer-vault-notes")      -> runCatching { pullVaultNotes() }
+            fieldId == "ls:homer-payday-day"                -> runCatching { pullPaydayDay() }
+            fieldId == "ls:pom-settings"                    -> runCatching { pullPomSettings() }
+            fieldId == "pom.tasks.v1"                       -> runCatching { pullPomodoroTasks() }
+            fieldId == "ls:homer-expense-templates"         -> runCatching { pullExpenseTemplates() }
+            fieldId == "ls:homer-expense-cats"              -> runCatching { pullExpenseCats() }
+            fieldId == "ls:homer-recurring"                 -> runCatching { pullRecurring() }
+            fieldId == "ls:homer-weekly-reviews"            -> runCatching { pullWeeklyReviews() }
+            else -> Log.d("HomerSync", "applyFieldUpdate: unknown field=$fieldId")
         }
     }
 
@@ -984,6 +1053,23 @@ class SyncEngine @Inject constructor(
         db.calendarDao().upsertAll(cloudEvents)
     }
 
+    /**
+     * Pull scoped calendar events (personal / work mode).
+     * Website field IDs: ls:homer-cal-events-personal, ls:homer-cal-events-work
+     * Note: these are additive — they upsert on top of what pullCalendarEvents() already wrote.
+     * pullCalendarEvents() must run first (it does the clearManualEvents() wipe).
+     */
+    private suspend fun pullCalendarEventsScope(scope: String) {
+        val v = fieldValue("ls:homer-cal-events-$scope") ?: return
+        val wsEvents = json.decodeFromString(ListSerializer(WsCalEvent.serializer()), v)
+        val cloudEvents = wsEvents.filter { it.id.isNotBlank() && it.date.isNotBlank() }
+            .map { it.toCalendarEvent() }
+        if (cloudEvents.isEmpty()) return
+        // Upsert only — no clear, since pullCalendarEvents() already cleared.
+        // Duplicate IDs (same event in both default + scoped keys) are handled by REPLACE.
+        db.calendarDao().upsertAll(cloudEvents)
+    }
+
     // ── Push all ─────────────────────────────────────────────────────────────
 
     /** Push all enabled fields to the cloud. Called from SyncViewModel "Push to Cloud". */
@@ -1018,8 +1104,10 @@ class SyncEngine @Inject constructor(
         Log.d("HomerSync", "pushAll: done")
     }
 
-    // ── Removed: detectConflicts / pullWithResolutions / applyFieldUpdate (Option A) ─
-    // These methods used Supabase SDK directly. Replaced by pullAll() + pushAll() via SyncClient.
+    // ── Conflict resolution: last-write-wins ─────────────────────────────────
+    // compareFieldPriority() in sync.js returns 1 always → last HTTP write wins.
+    // cancelPendingPush() is called in applyFieldUpdate() so Realtime updates from
+    // other devices always win over stale debounced local pushes.
 
 
     // ── Saved Quotes ──────────────────────────────────────────────────────────

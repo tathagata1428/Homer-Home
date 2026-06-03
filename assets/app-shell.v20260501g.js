@@ -2928,6 +2928,9 @@ let tvWidgetCreated = false;
         vaultRememberMe.checked = true;
         pwInput.value = savedPw;
         _pendingRememberPw = savedPw; // keep remember flag so re-save on unlock
+        // Hide lock screen immediately — no flash while PBKDF2 key derivation runs
+        lockScreen.style.display = 'none';
+        if(lockBtn) lockBtn.style.display = 'none';
         setTimeout(function(){ unlockBtn.click(); }, 80);
       }
     } else {

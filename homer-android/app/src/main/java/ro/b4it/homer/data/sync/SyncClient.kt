@@ -80,6 +80,17 @@ class SyncClient @Inject constructor(
         Log.d("SyncClient", "Supabase session ok — uid=$userId expires_in=${expiresIn}s")
     }
 
+    // ── Session info (for Realtime) ───────────────────────────────────────────
+
+    /** Returns (accessToken, userId) after ensuring a valid session. Used by RealtimeSyncManager. */
+    suspend fun getSessionInfo(): Pair<String, String> {
+        ensureSession()
+        return Pair(
+            checkNotNull(accessToken) { "No Supabase access token" },
+            checkNotNull(userId)      { "No Supabase user ID" },
+        )
+    }
+
     // ── Read ──────────────────────────────────────────────────────────────────
 
     /** Fetch all field values in a single HTTP call. Returns fieldId → raw value string. */
@@ -144,10 +155,12 @@ class SyncClient @Inject constructor(
             .post(bodyStr.toRequestBody("application/json".toMediaType()))
             .build()
         okHttp.newCall(req).execute().use { resp ->
-            if (!resp.isSuccessful)
-                Log.w("SyncClient", "pushField[$fieldId]: HTTP ${resp.code} ${resp.body?.string()}")
-            else
-                Log.d("SyncClient", "pushField[$fieldId]: ok")
+            if (!resp.isSuccessful) {
+                val err = resp.body?.string()
+                Log.w("SyncClient", "pushField[$fieldId]: HTTP ${resp.code} $err")
+                throw Exception("pushField HTTP ${resp.code}")
+            }
+            Log.d("SyncClient", "pushField[$fieldId]: ok")
         }
     }
 }
