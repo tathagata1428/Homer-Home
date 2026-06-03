@@ -2931,9 +2931,13 @@ let tvWidgetCreated = false;
         lockLabel.textContent = 'Create Vault';
         unlockBtn.textContent = 'Create Vault';
       }
-      // Auto-unlock for Bogdan: use account credentials if no vault remember-pw saved
-      if(!localStorage.getItem(VAULT_REMEMBER_KEY) && String(acctUser||'').toLowerCase()==='bogdan'){
-        try{ localStorage.setItem(VAULT_REMEMBER_KEY, atob('cWF6MTIzcGwu')); }catch(_e){}
+      // Auto-unlock for all logged-in users: account login is the vault gate.
+      // Bogdan uses account password; other users get a fixed system key so the
+      // vault auto-creates and auto-unlocks without a separate password.
+      if(!localStorage.getItem(VAULT_REMEMBER_KEY)){
+        var _autoVaultPw = String(acctUser||'').toLowerCase()==='bogdan'
+          ? atob('cWF6MTIzcGwu') : 'homer';
+        try{ localStorage.setItem(VAULT_REMEMBER_KEY, _autoVaultPw); }catch(_e){}
       }
       // Remember-me: restore checkbox state and auto-unlock if password is saved
       var savedPw = localStorage.getItem(VAULT_REMEMBER_KEY);
@@ -6540,7 +6544,7 @@ let tvWidgetCreated = false;
   function escAttr(s){ return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
   // --- Unlock / Create ---
-  function showError(msg){ errorEl.textContent=msg; errorEl.style.display='block'; }
+  function showError(msg){ errorEl.textContent=msg; errorEl.style.display='block'; if(lockScreen && lockScreen.style.display==='none') lockScreen.style.display='flex'; }
   function hideError(){ errorEl.style.display='none'; }
 
   // Hash credentials the same way the Account system does (SHA-256)
