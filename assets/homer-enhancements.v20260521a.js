@@ -1539,12 +1539,25 @@
           // Local mutation: push local vault state, ignore remote entirely.
           applyMerge({projects:[],tasks:[]},[]); // empty remote → merge result == local only
         } else {
-          // Remote-merge mode: always read kanban/life-goals from localStorage.
+          // Remote-merge mode: read kanban/life-goals/secrets/vault-notes from localStorage.
           // localStorage is written by hydrateFieldSyncState (CF Pages poll) which reads
           // the same field_state rows as a direct Supabase query — no Supabase session needed.
-          // This path is reliable regardless of whether the Supabase JWT is valid.
+          var _rmMode=window._homerGetVaultMode?window._homerGetVaultMode():'personal';
           var _lsKb=safeJson(localStorage.getItem('homer-kanban')||'{}',{});
           var _lsLg=safeJson(localStorage.getItem('homer-life-goals')||'[]',[]);
+          // Merge secrets: add credentials from Android that aren't in vault IDB (local wins on conflict).
+          var _lsSec=safeJson(localStorage.getItem('homer-secrets:'+_rmMode)||'[]',[]);
+          if(Array.isArray(_lsSec)&&_lsSec.length>0){
+            var _rmCredMap={};
+            (vault.creds||[]).forEach(function(c){_rmCredMap[(c.site||'')+'|'+(c.label||'')]=c;});
+            _lsSec.forEach(function(c){var _k=(c.site||'')+'|'+(c.label||'');if(!_rmCredMap[_k])_rmCredMap[_k]=c;});
+            vault.creds=Object.values(_rmCredMap);
+          }
+          // Merge vault notes: use remote only if vault IDB has no notes yet.
+          if(!vault.notes){
+            var _lsNotes=safeJson(localStorage.getItem('homer-vault-notes:'+_rmMode)||'null',null);
+            if(typeof _lsNotes==='string'&&_lsNotes.length>0)vault.notes=_lsNotes;
+          }
           applyMerge(
             {projects:_lsKb.projects||[],tasks:(_lsKb.tasks||[]).concat(_lsKb.goals||[])},
             Array.isArray(_lsLg)?_lsLg:[]
@@ -1697,8 +1710,8 @@
         }
       }
       // Secrets from Android: merge into vault IDB so passwords appear in vault on website.
-      if((key==='homer-secrets:personal'||key==='homer-secrets:work')&&isBogdan()&&window._homerVaultUnlocked){
-        if(typeof window._homerLoadVault==='function'&&typeof window._homerSaveVault==='function'){
+      if((key==='homer-secrets:personal'||key==='homer-secrets:work')&&isBogdan()){
+        if(window._homerVaultUnlocked&&typeof window._homerLoadVault==='function'&&typeof window._homerSaveVault==='function'){
           var _mode=key==='homer-secrets:personal'?'personal':'work';
           var _cur=window._homerGetVaultMode?window._homerGetVaultMode():'personal';
           if(_mode===_cur){
@@ -1706,18 +1719,39 @@
             if(Array.isArray(_lsCreds)&&_lsCreds.length>0){
               window._homerLoadVault().then(function(v){
                 if(!v)return;
-                // Merge: local vault creds win for existing entries (by id/username), add new from Android.
-                var byId={};
-                (v.creds||[]).forEach(function(c){byId[c.id||c.username]=c;});
+                // Merge: local vault creds win for existing entries (by site+label), add new from Android.
+                var _credMap={};
+                (v.creds||[]).forEach(function(c){_credMap[(c.site||'')+'|'+(c.label||'')]=c;});
                 _lsCreds.forEach(function(c){
-                  var ek=c.id||c.username;
-                  if(!byId[ek])byId[ek]=c; // add new; local wins if already exists
+                  var _k=(c.site||'')+'|'+(c.label||'');
+                  if(!_credMap[_k])_credMap[_k]=c; // add new; local wins if already exists
                 });
-                v.creds=Object.values(byId);
+                v.creds=Object.values(_credMap);
                 window._homerSaveVault(v).catch(function(e){console.warn('[VaultSync] secrets merge',e);});
               }).catch(function(e){console.warn('[VaultSync] secrets load',e);});
             }
           }
+        } else if(!window._homerVaultUnlocked&&isBogdan()){
+          _vaultSyncPending=true; // flush on vault unlock → doVaultSync() remote-merge will pick up secrets from LS
+        }
+      }
+      // Vault notes from Android: merge into vault IDB.
+      if((key==='homer-vault-notes:personal'||key==='homer-vault-notes:work')&&isBogdan()){
+        if(window._homerVaultUnlocked&&typeof window._homerLoadVault==='function'&&typeof window._homerSaveVault==='function'){
+          var _nmode=key.endsWith(':personal')?'personal':'work';
+          var _ncur=window._homerGetVaultMode?window._homerGetVaultMode():'personal';
+          if(_nmode===_ncur){
+            var _lsNotes=safeJson(localStorage.getItem(key)||'null',null);
+            if(typeof _lsNotes==='string'&&_lsNotes.length>0){
+              window._homerLoadVault().then(function(v){
+                if(!v||v.notes)return; // local wins if vault already has notes
+                v.notes=_lsNotes;
+                window._homerSaveVault(v).catch(function(e){console.warn('[VaultSync] notes merge',e);});
+              }).catch(function(e){console.warn('[VaultSync] notes load',e);});
+            }
+          }
+        } else if(!window._homerVaultUnlocked&&isBogdan()){
+          _vaultSyncPending=true;
         }
       }
     });

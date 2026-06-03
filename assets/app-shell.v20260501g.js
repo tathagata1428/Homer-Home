@@ -2902,6 +2902,19 @@ let tvWidgetCreated = false;
 
   var isNew = true;
 
+  // Synchronous pre-hide: if user is logged in with a saved password, hide the lock screen
+  // immediately (before any async IndexedDB ops) so there is zero visible flash.
+  (function(){
+    try{
+      var _earlyUser = localStorage.getItem('homer-auth-user');
+      var _earlyPw   = localStorage.getItem(VAULT_REMEMBER_KEY);
+      if(_earlyUser && _earlyPw){
+        if(lockScreen) lockScreen.style.display = 'none';
+        if(lockBtn)    lockBtn.style.display    = 'none';
+      }
+    }catch(_e){}
+  })();
+
   // Initialize: migrate localStorage → IndexedDB, then check if vault exists
   migrateToIdb().then(function(){
     return idb.get(HASH_KEY);
@@ -2924,13 +2937,13 @@ let tvWidgetCreated = false;
       }
       // Remember-me: restore checkbox state and auto-unlock if password is saved
       var savedPw = localStorage.getItem(VAULT_REMEMBER_KEY);
-      if(savedPw && vaultRememberMe){
-        vaultRememberMe.checked = true;
+      if(savedPw){
+        if(vaultRememberMe) vaultRememberMe.checked = true;
         pwInput.value = savedPw;
         _pendingRememberPw = savedPw; // keep remember flag so re-save on unlock
-        // Hide lock screen immediately — no flash while PBKDF2 key derivation runs
-        lockScreen.style.display = 'none';
-        if(lockBtn) lockBtn.style.display = 'none';
+        // Ensure lock screen is hidden (synchronous pre-hide may have already done this)
+        if(lockScreen) lockScreen.style.display = 'none';
+        if(lockBtn)    lockBtn.style.display    = 'none';
         setTimeout(function(){ unlockBtn.click(); }, 80);
       }
     } else {
