@@ -46,6 +46,26 @@
   function emptyData() {
     return { vehicles: [], documents: [], maintenance: [], fuel: [], odoLogs: [] };
   }
+  /** Strip base64 file blobs before writing to localStorage/Supabase (quota / size safety).
+   *  IDB always retains the full data including fileData. */
+  function stripFileData(data) {
+    return Object.assign({}, data, {
+      documents: (data.documents || []).map(function(doc) {
+        if (!doc.fileData) return doc;
+        return Object.assign({}, doc, { fileData: null, fileName: doc.fileName || null, fileType: doc.fileType || null, _hasFile: true });
+      })
+    });
+  }
+  /** After merging remote (no fileData) with local, restore fileData from local IDB for docs that have it. */
+  function restoreFileData(mergedDocs, localDocs) {
+    var localMap = {};
+    (localDocs || []).forEach(function(d) { if (d.fileData) localMap[d.id] = d; });
+    return mergedDocs.map(function(doc) {
+      if (doc.fileData) return doc;
+      var local = localMap[doc.id];
+      return local ? Object.assign({}, doc, { fileData: local.fileData, fileName: local.fileName || doc.fileName, fileType: local.fileType || doc.fileType }) : doc;
+    });
+  }
   function openIDB(cb) {
     var req = indexedDB.open(IDB_NAME, 1);
     req.onupgradeneeded = function(e) { e.target.result.createObjectStore(IDB_STORE); };
@@ -76,10 +96,10 @@
   /* ── Save ─────────────────────────────────────────────────────────── */
   function save(data) {
     state.data = data;
-    saveToIDB(data);
-    pushToSupabase(data);
-    // Also push via localStorage → queueLsFieldOp → CF Pages (works without Supabase session)
-    if(isBogdan()) try{ localStorage.setItem('homer-car', JSON.stringify(data)); }catch(e){}
+    saveToIDB(data);                              // IDB: full data including file blobs
+    var syncData = stripFileData(data);           // Sync: metadata only, no large blobs
+    pushToSupabase(syncData);
+    if(isBogdan()) try{ localStorage.setItem('homer-car', JSON.stringify(syncData)); }catch(e){}
   }
 
   /* ── Supabase ─────────────────────────────────────────────────────── */
@@ -1361,10 +1381,11 @@
           fuel:        mergeById(data.fuel||[], _existing.fuel||[]),
           odoLogs:     mergeById(data.odoLogs||[], (_existing.odoLogs)||[]),
         } : data;
-        try { localStorage.setItem('homer-car', JSON.stringify(_toSync)); } catch(_) {}
+        var _toSyncStripped = stripFileData(_toSync);
+        try { localStorage.setItem('homer-car', JSON.stringify(_toSyncStripped)); } catch(_) {}
         // Push directly to Supabase in case supabase:session already fired before IDB loaded
         // (race condition: applyRemote would have seen empty state.data and pushed empty arrays).
-        pushToSupabase(_toSync);
+        pushToSupabase(_toSyncStripped);
       }
       var ct = document.getElementById(CONTAINER_ID);
       if (ct && ct.style.display !== 'none') renderTab();
@@ -1377,20 +1398,24 @@
       if (!remote) return;
       // Merge-wins: union local + remote by ID so no data is ever lost from either side.
       // mergeById keeps the newer updatedAt version of each item.
+      var localDocs = state.data.documents || [];
       var merged = {
         vehicles:    mergeById(state.data.vehicles    || [], remote.vehicles    || []),
-        documents:   mergeById(state.data.documents   || [], remote.documents   || []),
+        documents:   mergeById(localDocs,                    remote.documents   || []),
         maintenance: mergeById(state.data.maintenance || [], remote.maintenance || []),
         fuel:        mergeById(state.data.fuel        || [], remote.fuel        || []),
         odoLogs:     mergeById(state.data.odoLogs     || [], remote.odoLogs     || []),
       };
-      saveToIDB(merged);
+      // Restore local fileData for docs where cloud (rightly) has no blob
+      merged.documents = restoreFileData(merged.documents, localDocs);
+      saveToIDB(merged);           // IDB: full data including blobs
       state.data = merged;
       if (merged.vehicles.length || merged.documents.length ||
           merged.maintenance.length || merged.fuel.length || merged.odoLogs.length) {
-        // Push the union back so both sides converge
-        pushToSupabase(merged);
-        try { localStorage.setItem('homer-car', JSON.stringify(merged)); } catch(_) {}
+        // Push metadata-only so large file blobs don't block sync
+        var syncData = stripFileData(merged);
+        pushToSupabase(syncData);
+        try { localStorage.setItem('homer-car', JSON.stringify(syncData)); } catch(_) {}
       }
       var container = document.getElementById(CONTAINER_ID);
       if (container && container.style.display !== 'none') renderTab();
@@ -1403,9 +1428,10 @@
       // This ensures data from the main browser reaches Supabase for other browsers to pull.
       if (state.data.vehicles.length || state.data.documents.length ||
           state.data.maintenance.length || state.data.fuel.length || (state.data.odoLogs||[]).length) {
-        pushToSupabase(state.data);
+        var _sync = stripFileData(state.data);
+        pushToSupabase(_sync);
         // Also update localStorage so the CF Pages path has it too
-        try { localStorage.setItem('homer-car', JSON.stringify(state.data)); } catch(_) {}
+        try { localStorage.setItem('homer-car', JSON.stringify(_sync)); } catch(_) {}
       }
       pullFromSupabase(applyRemote);
     });
