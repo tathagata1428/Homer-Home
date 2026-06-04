@@ -44,7 +44,7 @@
   var IDB_KEY   = 'main';
 
   function emptyData() {
-    return { vehicles: [], documents: [], maintenance: [], fuel: [] };
+    return { vehicles: [], documents: [], maintenance: [], fuel: [], odoLogs: [] };
   }
   function openIDB(cb) {
     var req = indexedDB.open(IDB_NAME, 1);
@@ -58,7 +58,7 @@
       var req = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).get(IDB_KEY);
       req.onsuccess = function() {
         var d = req.result || {};
-        cb({ vehicles: d.vehicles||[], documents: d.documents||[], maintenance: d.maintenance||[], fuel: d.fuel||[] });
+        cb({ vehicles: d.vehicles||[], documents: d.documents||[], maintenance: d.maintenance||[], fuel: d.fuel||[], odoLogs: d.odoLogs||[] });
       };
       req.onerror = function() { cb(emptyData()); };
     });
@@ -286,6 +286,18 @@
     .car-del-btn { background:none; border:none; color:rgba(239,68,68,.3); cursor:pointer; font-size:.8rem; padding:4px; border-radius:6px; flex-shrink:0; }
     .car-del-btn:hover { color:#ef4444; background:rgba(239,68,68,.08); }
 
+    /* Odo log card */
+    .car-odo-card { display:flex; align-items:center; gap:12px; border-radius:12px; padding:11px 14px; margin-bottom:6px; background:rgba(0,255,255,.03); border:1px solid rgba(0,255,255,.12); }
+    .car-odo-km { font-size:.95rem; font-weight:800; color:#00FFFF; white-space:nowrap; }
+    .car-odo-meta { flex:1; min-width:0; font-size:.75rem; color:#64748b; }
+    .car-add-odo { border-color:rgba(0,255,255,.3); color:#00FFFF; }
+    .car-add-odo:hover { background:rgba(0,255,255,.07); }
+
+    /* Car toast */
+    .car-toast { position:fixed; bottom:76px; left:50%; transform:translateX(-50%); padding:10px 18px; border-radius:12px; font-size:.82rem; font-weight:700; z-index:99999; max-width:88vw; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,.6); pointer-events:none; transition:opacity .4s; }
+    .car-toast-warn { background:rgba(239,68,68,.93); color:#fff; border:1px solid rgba(239,68,68,.6); }
+    .car-toast-info { background:rgba(251,191,36,.93); color:#0a0018; border:1px solid rgba(251,191,36,.6); }
+
     /* Modal overlay */
     .car-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:9999; display:flex; align-items:flex-end; justify-content:center; overflow-y:auto; }
     @media (min-width:600px) { .car-modal-overlay { align-items:center; padding:16px; } }
@@ -346,6 +358,7 @@
     showDocModal: false,
     showMaintModal: false,
     showFuelModal: false,
+    showOdoModal: false,
   };
 
   function getSelectedVehicle() {
@@ -372,6 +385,12 @@
   function getFuelForVehicle() {
     var v = getSelectedVehicle(); if (!v) return [];
     return state.data.fuel.filter(function(f) { return f.vehicleId === v.id; })
+      .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
+  }
+
+  function getOdoLogsForVehicle() {
+    var v = getSelectedVehicle(); if (!v) return [];
+    return (state.data.odoLogs || []).filter(function(o) { return o.vehicleId === v.id; })
       .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
   }
 
@@ -553,6 +572,7 @@
 
     html += '<div style="display:flex;gap:8px;margin-top:12px;">';
     html += '<button style="flex:1;padding:7px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:none;color:#94a3b8;font-size:.78rem;cursor:pointer;" id="car-edit-vehicle-btn">✏️ Edit</button>';
+    html += '<button style="flex:1;padding:7px;border-radius:8px;border:1px solid rgba(0,255,255,.25);background:none;color:#00FFFF;font-size:.78rem;cursor:pointer;" id="car-log-km-btn">📏 Log KM</button>';
     html += '</div>';
 
     html += '</div>';
@@ -638,6 +658,7 @@
 
   function buildFuelTab(vehicle) {
     var logs = getFuelForVehicle();
+    var odoLogs = getOdoLogsForVehicle();
     var avg = calcAvgConsumption();
     var totalSpent = logs.reduce(function(s, f) { return s + (f.totalCost || 0); }, 0);
     var html = '<div>';
@@ -647,7 +668,27 @@
     html += '<div class="car-fuel-stat"><div class="car-fuel-stat-val">' + (avg ? avg.toFixed(1) + ' L/100' : '—') + '</div><div class="car-fuel-stat-label">Avg</div></div>';
     html += '<div class="car-fuel-stat"><div class="car-fuel-stat-val" style="color:#FF0066">' + (totalSpent > 0 ? totalSpent.toLocaleString('ro-RO', {maximumFractionDigits:0}) + ' lei' : '—') + '</div><div class="car-fuel-stat-label">Total Spent</div></div>';
     html += '</div>';
-    html += '<div class="car-sec-header"><span class="car-sec-title">Fuel Log</span>';
+
+    // Odometer check-ins
+    html += '<div class="car-sec-header"><span class="car-sec-title">Odometer Log</span>';
+    html += '<button class="car-add-small car-add-odo" id="car-add-odo-btn">+ Log KM</button></div>';
+    if (odoLogs.length > 0) {
+      odoLogs.forEach(function(o) {
+        html += '<div class="car-odo-card">';
+        html += '<span style="font-size:1.1rem;">📏</span>';
+        html += '<div class="car-odo-meta">';
+        html += '<span style="color:#e5e7eb;font-weight:700;font-size:.85rem;">' + fmtDate(o.date) + '</span>';
+        if (o.notes) html += ' <span>· ' + esc(o.notes) + '</span>';
+        html += '</div>';
+        html += '<span class="car-odo-km">' + Number(o.km).toLocaleString('ro-RO') + ' km</span>';
+        html += '<button class="car-del-btn" data-del-odo="' + esc(o.id) + '">🗑</button>';
+        html += '</div>';
+      });
+    } else {
+      html += '<div style="text-align:center;padding:10px 0 4px;color:#475569;font-size:.8rem;">No odometer check-ins yet.</div>';
+    }
+
+    html += '<div class="car-sec-header" style="margin-top:14px;"><span class="car-sec-title">Fuel Log</span>';
     html += '<button class="car-add-small car-add-fuel" id="car-add-fuel-btn">+ Add Fill</button></div>';
     if (logs.length === 0) {
       html += '<div class="car-empty"><div class="car-empty-icon">⛽</div><p class="car-empty-text">No fuel entries yet.</p></div>';
@@ -695,6 +736,10 @@
       btn.onclick = function() { state.activeTab = btn.getAttribute('data-ctab'); renderTab(); };
     });
 
+    // Log KM button (on vehicle card)
+    var logKmBtn = document.getElementById('car-log-km-btn');
+    if (logKmBtn) logKmBtn.onclick = function() { if (vehicle) openOdoModal(vehicle); };
+
     // Add buttons
     var addDocBtn = document.getElementById('car-add-doc-btn');
     if (addDocBtn) addDocBtn.onclick = function() { openDocModal(null, vehicle); };
@@ -702,6 +747,8 @@
     if (addMaintBtn) addMaintBtn.onclick = function() { openMaintModal(null, vehicle); };
     var addFuelBtn = document.getElementById('car-add-fuel-btn');
     if (addFuelBtn) addFuelBtn.onclick = function() { openFuelModal(null, vehicle); };
+    var addOdoBtn = document.getElementById('car-add-odo-btn');
+    if (addOdoBtn) addOdoBtn.onclick = function() { if (vehicle) openOdoModal(vehicle); };
 
     // Edit cards
     container.querySelectorAll('[data-doc-id]').forEach(function(card) {
@@ -745,6 +792,9 @@
     container.querySelectorAll('[data-del-fuel]').forEach(function(btn) {
       btn.onclick = function(e) { e.stopPropagation(); deleteFuel(btn.getAttribute('data-del-fuel')); };
     });
+    container.querySelectorAll('[data-del-odo]').forEach(function(btn) {
+      btn.onclick = function(e) { e.stopPropagation(); deleteOdoLog(btn.getAttribute('data-del-odo')); };
+    });
   }
 
   /* ── CRUD ────────────────────────────────────────────────────────── */
@@ -758,6 +808,11 @@
   }
   function deleteFuel(id) {
     state.data.fuel = state.data.fuel.filter(function(f) { return f.id !== id; });
+    save(state.data); renderTab();
+  }
+  function deleteOdoLog(id) {
+    if (!state.data.odoLogs) state.data.odoLogs = [];
+    state.data.odoLogs = state.data.odoLogs.filter(function(o) { return o.id !== id; });
     save(state.data); renderTab();
   }
 
@@ -1175,6 +1230,77 @@
     };
   }
 
+  /* ── Odo check-in modal ──────────────────────────────────────────── */
+  function openOdoModal(vehicle) {
+    var overlay = document.createElement('div');
+    overlay.className = 'car-modal-overlay';
+    var latestKm = vehicle.odoKm || 0;
+    overlay.innerHTML = '<div class="car-modal">' +
+      '<div class="car-modal-drag"></div>' +
+      '<div class="car-modal-title">📏 Log Odometer</div>' +
+      '<div class="car-field-row">' +
+        '<div class="car-field"><label>Current KM</label><input id="co-km" type="number" inputmode="numeric" value="' + (latestKm || '') + '" placeholder="e.g. 125000"/></div>' +
+        '<div class="car-field"><label>Date</label><input id="co-date" value="' + todayStr() + '" placeholder="YYYY-MM-DD"/></div>' +
+      '</div>' +
+      '<div class="car-field"><label>Notes (optional)</label><input id="co-notes" placeholder="e.g. road trip, refuel" autocomplete="off"/></div>' +
+      '<div class="car-modal-btns">' +
+        '<button class="car-modal-cancel" id="co-cancel-btn">Cancel</button>' +
+        '<button class="car-modal-save" id="co-save-btn" style="background:linear-gradient(135deg,#00FFFF,#0099CC);color:#0a0018;">Save</button>' +
+      '</div>' +
+    '</div>';
+    document.body.appendChild(overlay);
+    var kmInput = document.getElementById('co-km');
+    setTimeout(function() { kmInput.focus(); kmInput.select(); }, 80);
+    document.getElementById('co-cancel-btn').onclick = function() { overlay.remove(); };
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+    document.getElementById('co-save-btn').onclick = function() {
+      var km = parseInt(document.getElementById('co-km').value) || 0;
+      if (km <= 0) { document.getElementById('co-km').focus(); return; }
+      var date = document.getElementById('co-date').value.trim() || todayStr();
+      var notes = document.getElementById('co-notes').value.trim();
+      if (!state.data.odoLogs) state.data.odoLogs = [];
+      state.data.odoLogs.push({ id: uid(), vehicleId: vehicle.id, km: km, date: date, notes: notes, createdAt: Date.now() });
+      // Auto-update vehicle odometer if higher
+      if (km > (vehicle.odoKm || 0)) {
+        state.data.vehicles = state.data.vehicles.map(function(v) {
+          return v.id === vehicle.id ? Object.assign({}, v, { odoKm: km, updatedAt: Date.now() }) : v;
+        });
+      }
+      save(state.data); overlay.remove(); renderTab();
+    };
+  }
+
+  /* ── Expiry alerts ────────────────────────────────────────────────── */
+  function showCarToast(msg, isWarn) {
+    var el = document.createElement('div');
+    el.className = 'car-toast ' + (isWarn ? 'car-toast-warn' : 'car-toast-info');
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(function() { el.style.opacity = '0'; setTimeout(function() { el.remove(); }, 420); }, 5000);
+  }
+
+  function checkExpiryAlerts(data) {
+    var urgent = [], warn = [];
+    (data.documents || []).forEach(function(doc) {
+      if (!doc.expiryDate) return;
+      var days = daysUntil(doc.expiryDate);
+      var label = doc.label || docTypeInfo(doc.type).label;
+      if (days < 0)        urgent.push(label + ' EXPIRED');
+      else if (days <= 7)  urgent.push(label + ': ' + days + 'd left');
+      else if (days <= 30) warn.push(label + ': ' + days + 'd left');
+    });
+    (data.maintenance || []).forEach(function(rec) {
+      if (!rec.nextDateDue) return;
+      var days = daysUntil(rec.nextDateDue);
+      var label = rec.label || maintTypeInfo(rec.type).label;
+      if (days < 0)        urgent.push('🔧 ' + label + ' overdue');
+      else if (days <= 7)  urgent.push('🔧 ' + label + ': ' + days + 'd');
+      else if (days <= 30) warn.push('🔧 ' + label + ': ' + days + 'd');
+    });
+    if (urgent.length) showCarToast('⚠️ Car alert: ' + urgent.join(' · '), true);
+    else if (warn.length) showCarToast('📅 Coming up: ' + warn.join(' · '), false);
+  }
+
   /* ── Bootstrap ───────────────────────────────────────────────────── */
   function injectCSS() {
     if (document.getElementById('homer-car-css')) return;
@@ -1215,6 +1341,7 @@
             documents:   lsData.documents   || [],
             maintenance: lsData.maintenance || [],
             fuel:        lsData.fuel        || [],
+            odoLogs:     lsData.odoLogs     || [],
           };
           saveToIDB(data, function() {
             try { localStorage.removeItem(LS_KEY); } catch(_) {}
@@ -1233,6 +1360,7 @@
           documents:   mergeById(data.documents||[], _existing.documents||[]),
           maintenance: mergeById(data.maintenance||[], _existing.maintenance||[]),
           fuel:        mergeById(data.fuel||[], _existing.fuel||[]),
+          odoLogs:     mergeById(data.odoLogs||[], (_existing.odoLogs)||[]),
         } : data;
         try { localStorage.setItem('homer-car', JSON.stringify(_toSync)); } catch(_) {}
         // Push directly to Supabase in case supabase:session already fired before IDB loaded
@@ -1241,6 +1369,8 @@
       }
       var ct = document.getElementById(CONTAINER_ID);
       if (ct && ct.style.display !== 'none') renderTab();
+      // Show expiry alerts after a short delay so UI has settled
+      if (data.documents.length || data.maintenance.length) setTimeout(function() { checkExpiryAlerts(data); }, 1500);
     });
 
     // Pull from Supabase when session is ready (fires after Supabase auth)
@@ -1254,6 +1384,7 @@
         documents:   (remote.documents   && remote.documents.length)   ? remote.documents   : (state.data.documents   || []),
         maintenance: (remote.maintenance && remote.maintenance.length) ? remote.maintenance : (state.data.maintenance || []),
         fuel:        (remote.fuel        && remote.fuel.length)        ? remote.fuel        : (state.data.fuel        || []),
+        odoLogs:     (remote.odoLogs     && remote.odoLogs.length)     ? remote.odoLogs     : (state.data.odoLogs     || []),
       };
       saveToIDB(merged);
       state.data = merged;
@@ -1271,7 +1402,7 @@
       // loadFromIDB runs before session is ready, so pushToSupabase silently no-ops there.
       // This ensures data from the main browser reaches Supabase for other browsers to pull.
       if (state.data.vehicles.length || state.data.documents.length ||
-          state.data.maintenance.length || state.data.fuel.length) {
+          state.data.maintenance.length || state.data.fuel.length || (state.data.odoLogs||[]).length) {
         pushToSupabase(state.data);
         // Also update localStorage so the CF Pages path has it too
         try { localStorage.setItem('homer-car', JSON.stringify(state.data)); } catch(_) {}
@@ -1302,7 +1433,7 @@
         // so car data from Android works even without an active Supabase session.
         var lsVal = localStorage.getItem('homer-car');
         var remote = lsVal ? safeJson(lsVal, null) : null;
-        if (remote && (remote.vehicles || remote.documents || remote.maintenance || remote.fuel)) {
+        if (remote && (remote.vehicles || remote.documents || remote.maintenance || remote.fuel || remote.odoLogs)) {
           applyRemote(remote);
         } else {
           pullFromSupabase(applyRemote);
