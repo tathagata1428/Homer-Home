@@ -550,7 +550,6 @@
     if (v.torqueNm)     stats.push({ icon:'🌀', label:'TORQUE',      value: v.torqueNm + ' Nm', color:'#00FFFF' });
     if (v.transmission) stats.push({ icon:'⚙️', label:'GEARBOX',     value: v.transmission.toUpperCase(), color:'#00FFFF' });
     if (v.drivetrain)   stats.push({ icon:'🔧', label:'DRIVE',       value: v.drivetrain.toUpperCase(), color:'#CC00FF' });
-    if (v.seats)        stats.push({ icon:'💺', label:'SEATS',       value: String(v.seats), color:'#FF0066' });
     if (v.displacement) stats.push({ icon:'🔬', label:'DISPLACEMENT',value: v.displacement, color:'#FFD700' });
     if (v.purchaseDate) stats.push({ icon:'📅', label:'PURCHASED',   value: fmtDate(v.purchaseDate), color:'#94a3b8' });
     if (v.purchasePrice) stats.push({ icon:'💶', label:'PAID',       value: fmtMoney(v.purchasePrice), color:'#00FFFF' });
@@ -1376,21 +1375,22 @@
     // Pull from Supabase when session is ready (fires after Supabase auth)
     function applyRemote(remote) {
       if (!remote) return;
-      // Cloud-wins: remote is source of truth (Bogdan-only, single user).
-      // Guard: only replace a category if cloud has data or local is also empty,
-      // preventing accidental wipe from empty cloud response.
+      // Merge-wins: union local + remote by ID so no data is ever lost from either side.
+      // mergeById keeps the newer updatedAt version of each item.
       var merged = {
-        vehicles:    (remote.vehicles    && remote.vehicles.length)    ? remote.vehicles    : (state.data.vehicles    || []),
-        documents:   (remote.documents   && remote.documents.length)   ? remote.documents   : (state.data.documents   || []),
-        maintenance: (remote.maintenance && remote.maintenance.length) ? remote.maintenance : (state.data.maintenance || []),
-        fuel:        (remote.fuel        && remote.fuel.length)        ? remote.fuel        : (state.data.fuel        || []),
-        odoLogs:     (remote.odoLogs     && remote.odoLogs.length)     ? remote.odoLogs     : (state.data.odoLogs     || []),
+        vehicles:    mergeById(state.data.vehicles    || [], remote.vehicles    || []),
+        documents:   mergeById(state.data.documents   || [], remote.documents   || []),
+        maintenance: mergeById(state.data.maintenance || [], remote.maintenance || []),
+        fuel:        mergeById(state.data.fuel        || [], remote.fuel        || []),
+        odoLogs:     mergeById(state.data.odoLogs     || [], remote.odoLogs     || []),
       };
       saveToIDB(merged);
       state.data = merged;
       if (merged.vehicles.length || merged.documents.length ||
-          merged.maintenance.length || merged.fuel.length) {
+          merged.maintenance.length || merged.fuel.length || merged.odoLogs.length) {
+        // Push the union back so both sides converge
         pushToSupabase(merged);
+        try { localStorage.setItem('homer-car', JSON.stringify(merged)); } catch(_) {}
       }
       var container = document.getElementById(CONTAINER_ID);
       if (container && container.style.display !== 'none') renderTab();
