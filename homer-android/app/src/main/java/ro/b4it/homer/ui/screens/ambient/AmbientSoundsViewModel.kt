@@ -30,11 +30,12 @@ enum class AmbientSound(val key: String, val emoji: String, val label: String, v
     LOFI     ("lofi",      "🎵", "Lo-Fi",     "Na0w3Mz46GA"),
     WIND     ("wind",      "💨", "Wind",      "sGkh1W5cbH4"),
     SYNTHWAVE("synthwave", "🌆", "Synthwave", "4xDzrJKXOOY"),
+    POWERNAMP("powernamp", "⚡", "Power Namp", "2oJqY4nhL-c"),
 }
 
 /** Mirrors the website's preset mixes (key → volume 0-100). */
 enum class AmbientPreset(val label: String, val config: Map<AmbientSound, Int>) {
-    SLEEP  ("Sleep Mix",    mapOf(AmbientSound.FIRE to 40, AmbientSound.RAIN to 60)),
+    POWERNAMP("Power Namp", mapOf(AmbientSound.POWERNAMP to 100)),
     RAINY  ("Rainy Mix",    mapOf(AmbientSound.RAIN to 70, AmbientSound.OCEAN to 40)),
     READING("Reading Mix",  mapOf(AmbientSound.LOFI to 50, AmbientSound.FIRE to 10,
                                   AmbientSound.WIND to 10, AmbientSound.RAIN to 10)),

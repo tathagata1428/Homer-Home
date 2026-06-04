@@ -1697,7 +1697,8 @@ const tracks = {
   lofi:  { id:"1Tl2FtV06qo", btn:"btn-lofi",  vol:"vol-lofi",  labelPlay:"▶️ Play Lo-Fi", labelPause:"⏸️ Pause Lo-Fi", holder:"yt-lofi", isPlaying: false },
   wind: { id:"sGkh1W5cbH4", btn:"btn-wind", vol:"vol-wind", labelPlay:"▶️ Play Wind", labelPause:"⏸️ Pause Wind", holder:"yt-wind", isPlaying: false },
   synthwave: { id:"4xDzrJKXOOY", btn:"btn-synthwave", vol:"vol-synthwave", labelPlay:"▶️ Play Synthwave", labelPause:"⏸️ Pause Synthwave", holder:"yt-synthwave", isPlaying: false },
-  weightless: { id:"vYIYIVmOo3Q", btn:null, vol:null, holder:"yt-weightless", isPlaying: false }
+  weightless: { id:"vYIYIVmOo3Q", btn:null, vol:null, holder:"yt-weightless", isPlaying: false },
+  powernamp: { id:"2oJqY4nhL-c", btn:null, vol:null, holder:"yt-powernamp", isPlaying: false }
 };
 
 function createPlayer(k) {
@@ -1794,7 +1795,7 @@ function playMix(list) {
 document.addEventListener("click", e => {
   const id = e.target.id;
   if (id === "stop-all") stopAll();
-  if (id === "mix-sleep") playMix([{k:'fire',vol:40}, {k:'rain',vol:60}]);
+  if (id === "mix-powernamp") playMix([{k:'powernamp',vol:100}]);
   if (id === "mix-rainy") playMix([{k:'rain',vol:70}, {k:'ocean',vol:40}]);
   if (id === "mix-reading") playMix([{k:'lofi',vol:50}, {k:'fire',vol:10}, {k:'wind',vol:10}, {k:'rain',vol:10}]);
   if (id === "mix-cozy") playMix([{k:'fire',vol:40}, {k:'rain',vol:40}, {k:'rainywindow',vol:30}]);
@@ -1822,10 +1823,11 @@ const trackAliases = {
   'lo-fi': 'lofi',
   wind: 'wind',
   synthwave: 'synthwave',
-  weightless: 'weightless'
+  weightless: 'weightless',
+  powernamp: 'powernamp'
 };
 const ambientMixes = {
-  sleep: [{k:'fire',vol:40}, {k:'rain',vol:60}],
+  powernamp: [{k:'powernamp',vol:100}],
   rainy: [{k:'rain',vol:70}, {k:'ocean',vol:40}],
   reading: [{k:'lofi',vol:50}, {k:'fire',vol:10}, {k:'wind',vol:10}, {k:'rain',vol:10}],
   cozy: [{k:'fire',vol:40}, {k:'rain',vol:40}, {k:'rainywindow',vol:30}]
