@@ -229,6 +229,10 @@ class SyncEngine @Inject constructor(
             fieldId == "ls:homer-expense-cats"              -> runCatching { pullExpenseCats() }
             fieldId == "ls:homer-recurring"                 -> runCatching { pullRecurring() }
             fieldId == "ls:homer-weekly-reviews"            -> runCatching { pullWeeklyReviews() }
+            fieldId == "ls:homer-inbox"                     -> runCatching { pullInbox() }
+            fieldId == "ls:homer-brain-dump"                -> runCatching { pullBrainDump() }
+            fieldId == "ls:homer-zen-goal"                  -> runCatching { pullZenGoal() }
+            fieldId == "ls:homer-expense-goals"             -> runCatching { pullExpenseGoals() }
             else -> Log.d("HomerSync", "applyFieldUpdate: unknown field=$fieldId")
         }
     }
@@ -1291,13 +1295,14 @@ class SyncEngine @Inject constructor(
         db.appSettingDao().set(AppSetting("homer-weekly-reviews", v))
     }
 
-    // ── Note: Realtime subscription removed ──────────────────────────────────
-    // RealtimeSyncManager was removed in favour of a simpler pull-only model:
+    // ── Realtime + periodic pull ──────────────────────────────────────────────
+    // RealtimeSyncManager subscribes to Supabase Realtime WebSocket and calls
+    // applyFieldUpdate() for instant Room updates when another device pushes.
+    // Additionally:
     //  - on startup  → start() → pullAll()
     //  - on foreground (Activity.onResume, 2-min debounce) → onForeground() → pullAll()
     //  - on network reconnect (one-shot ConnectivityManager callback) → pullAll()
     //  - background (SyncWorker every 15 min) → pullAll()
-    // Website changes therefore appear on Android within 2 min of opening the app.
 
     // ── Vault Secrets (Passwords) ─────────────────────────────────────────────
     // Website key: "homer-secrets:personal" / "homer-secrets:work"
