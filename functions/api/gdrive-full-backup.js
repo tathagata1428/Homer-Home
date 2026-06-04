@@ -204,6 +204,7 @@ export async function onRequest(context) {
     });
     const clientKeys = Object.keys(safeClientSnapshot).length;
     const totalSupabaseRows = Object.values(counts).reduce((a, b) => a + b, 0);
+    const hasCarIdb = 'homer-car-data' in safeClientSnapshot;
 
     const manifest = {
       version: 2,
@@ -257,7 +258,7 @@ export async function onRequest(context) {
     return Response.json({
       ok: true,
       backedUpAt,
-      stats: { clientKeys, totalSupabaseRows, counts },
+      stats: { clientKeys, totalSupabaseRows, counts, hasCarIdb },
       drive: parsed
     }, { headers: corsHeaders });
 
