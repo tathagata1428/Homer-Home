@@ -3593,7 +3593,7 @@ let tvWidgetCreated = false;
       '  [ACTION:COMMAND]{"op":"click","target":"Play Jazz"}[/ACTION]\n' +
       '  [ACTION:COMMAND]{"op":"set-field","target":"brain-dump","value":"Raw notes"}[/ACTION]\n' +
       '- COMMAND target values for open: notes, secrets, projects, kanban, goals.\n' +
-      '- COMMAND target values for sound-play: ocean, fire, rain, jazz, cafe, lofi, wind, synthwave.\n' +
+      '- COMMAND target values for sound-play: ocean, fire, rain, jazz, cafe, lofi, wind, synthwave, powernamp, weightless. (cafe=coding/focus music, powernamp=power nap music).\n' +
       '- COMMAND target values for sound-mix: sleep, rainy, reading, cozy.\n' +
       '- Generic COMMAND click can target a button by visible text, aria-label, or id.\n' +
       '- Generic COMMAND set-field can target an input, textarea, select, or contenteditable by placeholder, label text, name, or id.\n' +
@@ -14093,20 +14093,21 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!hasJoeyRemoteAuth()){ alert('Log in first to back up to Drive.'); return; }
     btn.disabled = true;
-    btn.textContent = '⏳ Saving full bundle...';
-    Promise.resolve(primeJoeyRedisForBackup('full-bundle-backup', { keepalive:false })).catch(function(){ return null; }).then(function(){
-      return window._homerFetchJson('/api/gdrive-backup', withSupabaseAuth({
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(withContextMode({ passphrase: pass, fullBundle:true, force:true }))
-      }));
-    }).then(function(d){
+    btn.textContent = '⏳ Collecting snapshot...';
+    // Collect full localStorage snapshot for the server to include in backup
+    var clientSnapshot = {};
+    try { for(var _i=0;_i<localStorage.length;_i++){ var _k=localStorage.key(_i); if(_k) clientSnapshot[_k]=localStorage.getItem(_k); } } catch(_){}
+    btn.textContent = '⏳ Saving full backup...';
+    window._homerFetchJson('/api/gdrive-full-backup', withSupabaseAuth({
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ passphrase: pass, clientSnapshot: clientSnapshot })
+    })).then(function(d){
       if(d && d.ok){
-        clearJoeyDriveBackupDirty();
         if(typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-drive-backup-ts');
-        scheduleJoeySyncStatusRefresh(200);
-        btn.textContent = '✅ Full backup saved!';
-        setTimeout(function(){ btn.innerHTML = '&#x1F4E6; Full Backup to Drive'; btn.disabled = false; }, 3000);
+        var stats = d.stats || {};
+        btn.textContent = '✅ Full backup saved! (' + (stats.clientKeys||0) + ' LS keys, ' + (stats.totalSupabaseRows||0) + ' DB rows)';
+        setTimeout(function(){ btn.innerHTML = '&#x1F4E6; Full Backup to Drive'; btn.disabled = false; }, 4000);
       } else {
         btn.textContent = '❌ Failed';
         alert('FULL BACKUP ERROR:\n\n' + JSON.stringify(d, null, 2).substring(0, 800));

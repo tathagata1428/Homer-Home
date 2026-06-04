@@ -1694,6 +1694,8 @@
       if(key==='homer-expenses'||key==='homer-income'||key==='homer-expense-cats'||key==='homer-expense-budgets'){
         var ep=document.getElementById('homer-expense-panel');
         if(ep&&ep.classList.contains('open')&&typeof window._homerRenderExpenses==='function')window._homerRenderExpenses();
+        // Also refresh Ledger overlay if open (sync brought in data while overlay was visible)
+        if(_ledgerOpen)refreshLedgerView();
       }
       // Notes tab: re-render sidebar list if tab is visible
       if(key==='homer-notes'){
@@ -2809,7 +2811,7 @@
       if(excluded.indexOf(cat)>=0)return false;
       if(filterEmpty&&!(spent[cat]>0))return false;
       return true;
-    });
+    }).sort(function(a,b){return(spent[b]||0)-(spent[a]||0);});
     var rows=visibleCats.map(function(cat){
       var budget=budgets[cat]||0,s=spent[cat]||0,rawPct=budget>0?s/budget*100:0,pct=Math.min(rawPct,100);
       var barCol=rawPct>=100?'#ef4444':rawPct>=90?'#f97316':rawPct>=70?'#fbbf24':'#22c55e';
@@ -3285,6 +3287,134 @@
     window._joeyExecCmd=function(cmdString){
       execCmds(parseCmds('[CMD:'+cmdString+']'));
     };
+
+    /* ── Joey personal-data awareness: inject car, expenses, habits, calendar into system prompt ── */
+    (function(){
+      var _baseJoeyWebsite = window._homerBuildJoeyWebsiteInstruction;
+      window._homerBuildJoeyWebsiteInstruction = function(){
+        var base = typeof _baseJoeyWebsite === 'function' ? _baseJoeyWebsite() : '';
+        var extra = '';
+        var today = new Date(); today.setHours(0,0,0,0);
+
+        function daysUntil(dateStr){
+          if(!dateStr) return null;
+          var d = new Date(dateStr); if(isNaN(d.getTime())) return null;
+          d.setHours(0,0,0,0);
+          return Math.round((d - today) / 86400000);
+        }
+        function expiryLabel(days, dateStr){
+          if(days===null) return 'unknown';
+          if(days<0) return '⚠️ EXPIRED ' + Math.abs(days) + ' days ago ('+dateStr+')';
+          if(days===0) return '🚨 expires TODAY ('+dateStr+')';
+          if(days<=7) return '🚨 expires in '+days+' days ('+dateStr+') — URGENT';
+          if(days<=30) return '⚠️ expires in '+days+' days ('+dateStr+') — SOON';
+          return 'valid for '+days+' more days ('+dateStr+')';
+        }
+
+        // ── Cars ──
+        try {
+          var carRaw = localStorage.getItem('homer-car');
+          if(carRaw){
+            var car = JSON.parse(carRaw);
+            var vehicles = Array.isArray(car.vehicles) ? car.vehicles : [];
+            var docs = Array.isArray(car.documents) ? car.documents : [];
+            var maint = Array.isArray(car.maintenance) ? car.maintenance : [];
+            var fuel = Array.isArray(car.fuel) ? car.fuel : [];
+            if(vehicles.length){
+              extra += '\n\n=== MY VEHICLES ===\n';
+              extra += '- Answer document expiry questions precisely using days remaining.\n';
+              extra += '- Alert the user if anything is expired or expiring within 30 days.\n';
+              vehicles.forEach(function(v){
+                extra += '\n' + v.make + ' ' + v.model + ' ' + v.year + ' | Plate: ' + (v.plate||'—') + ' | Odometer: ' + (v.odoKm||0) + ' km | Fuel: ' + (v.fuelType||'—') + '\n';
+                // Documents
+                var vDocs = docs.filter(function(d){ return d.vehicleId===v.id; });
+                vDocs.sort(function(a,b){ return (a.expiryDate||'').localeCompare(b.expiryDate||''); });
+                vDocs.forEach(function(d){
+                  var days = daysUntil(d.expiryDate);
+                  extra += '  [DOC] ' + (d.type||'') + ' — ' + (d.label||'') + ': ' + expiryLabel(days, d.expiryDate||'');
+                  if(d.provider) extra += ' | ' + d.provider;
+                  if(d.cost) extra += ' | ' + d.cost + ' RON';
+                  extra += '\n';
+                });
+                // Maintenance due
+                var vMaint = maint.filter(function(m){ return m.vehicleId===v.id; });
+                vMaint.forEach(function(m){
+                  var dDate = daysUntil(m.nextDateDue);
+                  var dOdo = m.nextOdoKm ? (m.nextOdoKm - (v.odoKm||0)) : null;
+                  var urgent = (dDate!==null && dDate<=60) || (dOdo!==null && dOdo<=3000);
+                  if(urgent || (dDate!==null && dDate<=180)){
+                    extra += '  [SERVICE] ' + (m.type||'') + ' — ' + (m.label||'');
+                    if(dDate!==null) extra += ' | due date: ' + expiryLabel(dDate, m.nextDateDue||'');
+                    if(dOdo!==null) extra += ' | due in ' + dOdo + ' km (' + m.nextOdoKm + ' km)';
+                    extra += '\n';
+                  }
+                });
+                // Last fuel
+                var vFuel = fuel.filter(function(f){ return f.vehicleId===v.id; });
+                if(vFuel.length){
+                  vFuel.sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+                  var lf = vFuel[0];
+                  extra += '  [FUEL] Last fill: ' + lf.date + ' — ' + lf.liters + 'L @ ' + lf.pricePerLiter + ' RON/L | ' + lf.odometer + ' km\n';
+                }
+              });
+            }
+          }
+        } catch(_){}
+
+        // ── Expenses / budget snapshot ──
+        try {
+          var expenses = JSON.parse(localStorage.getItem('homer-expenses')||'[]');
+          var budgets = JSON.parse(localStorage.getItem('homer-expense-budgets')||'{}');
+          if(Array.isArray(expenses) && expenses.length){
+            var now = new Date();
+            var month = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+            var monthExp = expenses.filter(function(e){ return (e.date||'').startsWith(month); });
+            var spent = {};
+            monthExp.forEach(function(e){ spent[e.cat||'other'] = (spent[e.cat||'other']||0) + (e.amount||0); });
+            var totalSpent = monthExp.reduce(function(s,e){ return s+(e.amount||0); }, 0);
+            extra += '\n\n=== EXPENSES THIS MONTH (' + month + ') ===\n';
+            extra += '- Total spent: ' + totalSpent.toFixed(0) + ' RON\n';
+            var catLines = Object.keys(spent).sort(function(a,b){ return spent[b]-spent[a]; });
+            catLines.slice(0,8).forEach(function(cat){
+              var budget = budgets[cat];
+              extra += '- ' + cat + ': ' + spent[cat].toFixed(0) + ' RON' + (budget ? ' / ' + budget + ' RON budget' : '') + '\n';
+            });
+          }
+        } catch(_){}
+
+        // ── Habits summary ──
+        try {
+          var habitsRaw = JSON.parse(localStorage.getItem('homer-habits')||'{}');
+          var habits = Array.isArray(habitsRaw.habits) ? habitsRaw.habits : [];
+          if(habits.length){
+            extra += '\n=== MY HABITS ===\n';
+            habits.slice(0,10).forEach(function(h){
+              extra += '- ' + (h.emoji||'') + ' ' + (h.name||'') + ' | freq: ' + (h.freq||'daily') + '\n';
+            });
+          }
+        } catch(_){}
+
+        // ── Upcoming calendar events ──
+        try {
+          var calKey = 'homer-cal-events:personal';
+          var calRaw = JSON.parse(localStorage.getItem(calKey)||'[]');
+          if(Array.isArray(calRaw) && calRaw.length){
+            var todayStr = today.toISOString().slice(0,10);
+            var upcoming = calRaw.filter(function(e){ return e.date >= todayStr && !e.deleted; })
+              .sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); })
+              .slice(0,8);
+            if(upcoming.length){
+              extra += '\n=== UPCOMING CALENDAR EVENTS ===\n';
+              upcoming.forEach(function(e){
+                extra += '- ' + e.date + (e.time?' '+e.time:'') + ': ' + e.title + (e.location?' @ '+e.location:'') + '\n';
+              });
+            }
+          }
+        } catch(_){}
+
+        return base + extra;
+      };
+    })();
 
     /* Teach Joey about commands by injecting a system note into the capture area
        so the user can paste it into Joey's context if needed */
