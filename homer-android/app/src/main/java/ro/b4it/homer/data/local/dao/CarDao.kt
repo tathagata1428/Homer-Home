@@ -96,9 +96,18 @@ interface CarDao {
     @Query("SELECT * FROM car_odo_logs WHERE vehicleId = :vehicleId ORDER BY date ASC")
     fun getOdoLogs(vehicleId: String): Flow<List<CarOdoLog>>
 
+    @Query("SELECT * FROM car_odo_logs ORDER BY date ASC")
+    fun getAllOdoLogs(): Flow<List<CarOdoLog>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertOdoLog(log: CarOdoLog)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertOdoLogsAll(logs: List<CarOdoLog>)
+
     @Delete
     suspend fun deleteOdoLog(log: CarOdoLog)
+
+    @Query("DELETE FROM car_odo_logs")
+    suspend fun clearAllOdoLogs()
 }

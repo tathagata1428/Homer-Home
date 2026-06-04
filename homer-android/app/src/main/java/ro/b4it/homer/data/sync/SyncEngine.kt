@@ -689,18 +689,22 @@ class SyncEngine @Inject constructor(
         val documents:   List<CarDocument>    = emptyList(),
         val maintenance: List<CarMaintenance> = emptyList(),
         val fuel:        List<CarFuelLog>     = emptyList(),
+        val odoLogs:     List<CarOdoLog>      = emptyList(),
     )
 
     private suspend fun pushCar() {
+        // Strip local file paths from documents — they are Android-internal and useless on website
+        val docs = db.carDao().getAllDocuments().first().map { it.copy(fileData = null) }
         val blob = CarBlob(
             vehicles    = db.carDao().getVehicles().first(),
-            documents   = db.carDao().getAllDocuments().first(),
+            documents   = docs,
             maintenance = db.carDao().getAllMaintenance().first(),
             fuel        = db.carDao().getAllFuelLog().first(),
+            odoLogs     = db.carDao().getAllOdoLogs().first(),
         )
         // Never push empty car data — would wipe real data on the website
         if (blob.vehicles.isEmpty() && blob.documents.isEmpty() &&
-            blob.maintenance.isEmpty() && blob.fuel.isEmpty()) return
+            blob.maintenance.isEmpty() && blob.fuel.isEmpty() && blob.odoLogs.isEmpty()) return
         syncClient.pushField("ls:homer-car", json.encodeToString(CarBlob.serializer(), blob))
     }
 
@@ -708,16 +712,18 @@ class SyncEngine @Inject constructor(
         val v = fieldValue("ls:homer-car") ?: return
         val blob = json.decodeFromString(CarBlob.serializer(), v)
         if (blob.vehicles.isEmpty() && blob.documents.isEmpty() &&
-            blob.maintenance.isEmpty() && blob.fuel.isEmpty()) return
+            blob.maintenance.isEmpty() && blob.fuel.isEmpty() && blob.odoLogs.isEmpty()) return
         // Cloud wins: clear all, upsert cloud
         db.carDao().clearAllVehicles()
         db.carDao().clearAllDocuments()
         db.carDao().clearAllMaintenance()
         db.carDao().clearAllFuelLog()
+        db.carDao().clearAllOdoLogs()
         if (blob.vehicles.isNotEmpty())    db.carDao().upsertVehicles(blob.vehicles)
         if (blob.documents.isNotEmpty())   db.carDao().upsertDocuments(blob.documents)
         if (blob.maintenance.isNotEmpty()) db.carDao().upsertMaintenanceAll(blob.maintenance)
         if (blob.fuel.isNotEmpty())        db.carDao().upsertFuelLogAll(blob.fuel)
+        if (blob.odoLogs.isNotEmpty())     db.carDao().upsertOdoLogsAll(blob.odoLogs)
     }
 
     // ── Kanban ────────────────────────────────────────────────────────────────
