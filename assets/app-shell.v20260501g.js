@@ -1265,7 +1265,7 @@ document.addEventListener('DOMContentLoaded', function(){
         if(elToday){ const d=loadToday(); if(d.mins>0){ const h=Math.floor(d.mins/60),m=d.mins%60; elToday.textContent=h>0?`${h}h ${m}m today`:`${m}m today`; } else { elToday.textContent=''; } }
       }
       function save(){
-        if(state.running){ state.endTime = Date.now() + (state.remaining * 1000); } else { state.endTime = 0; }
+        if(!state.running){ state.endTime = 0; }
         saveJSON(SKEY,state);
       }
 
@@ -1319,17 +1319,25 @@ document.addEventListener('DOMContentLoaded', function(){
 
       let tick=null;
       function start(){
-          if(tick) return; // FIX: Check interval engine instead of text state
+          if(tick) return;
           state.running=true;
+          // Set endTime only once — preserve it if already valid (e.g. loaded from another tab)
+          if(!state.endTime || state.endTime <= Date.now()){
+              state.endTime = Date.now() + (state.remaining * 1000);
+          }
           save();
           if(elNotify?.checked && 'Notification' in window && Notification.permission!=='granted'){ Notification.requestPermission(); }
           ensureAC();
+          // Poll at 500ms so we never miss a second; derive remaining from wall clock (no drift,
+          // works correctly even when multiple tabs are open simultaneously)
           tick=setInterval(()=>{
-              state.remaining--;
-              if(state.remaining<=0){ advance(false); }
-              updateTime(); updateRing(); save();
+              var left = Math.floor((state.endTime - Date.now()) / 1000);
+              if(left === state.remaining) return;
+              state.remaining = left;
+              if(state.remaining<=0){ advance(false); return; }
+              updateTime(); updateRing();
               window.dispatchEvent(new Event('pom-tick'));
-          },1000);
+          },500);
       }
       function pause(){
           state.running=false;
@@ -1370,7 +1378,7 @@ document.addEventListener('DOMContentLoaded', function(){
             sfxDoh();
           }
         }
-        updateMeta(); save(); if(state.running || (elAuto && elAuto.checked)) start();
+        updateMeta(); save(); clearInterval(tick); tick=null; if(state.running || (elAuto && elAuto.checked)) start();
       }
       function notify(title,body){
         if(!elNotify?.checked) return;
@@ -1473,6 +1481,7 @@ document.addEventListener('DOMContentLoaded', function(){
             state.mode = fresh.mode;
             state.pomodoros = fresh.pomodoros;
             state.remaining = left;
+            state.endTime = fresh.endTime;
             state.running = fresh.running;
             elMode.textContent = cap(state.mode);
             updateTime(); updateRing(); updateMeta();
@@ -1506,6 +1515,7 @@ document.addEventListener('DOMContentLoaded', function(){
             state.mode = fresh.mode;
             state.pomodoros = fresh.pomodoros;
             state.remaining = left;
+            state.endTime = fresh.endTime;
             if(!state.running){ state.running = true; start(); }
           }
         } else if(!fresh.running){
