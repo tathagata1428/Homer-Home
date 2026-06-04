@@ -3416,6 +3416,104 @@
       };
     })();
 
+    /* ── Life Goals ↔ Habits linking ── */
+    (function(){
+      var HKEY='homer-habits';
+      function getHabits(){try{var d=JSON.parse(localStorage.getItem(HKEY)||'{}');return Array.isArray(d.habits)?d.habits.filter(function(h){return!h.archived;}):[]}catch(e){return[];}}
+      function getCompletions(){try{return JSON.parse(localStorage.getItem(HKEY)||'{}').completions||{};}catch(e){return{};}}
+      function habitWeeklyDone(id){var c=getCompletions(),n=0;for(var i=0;i<7;i++){var d=new Date();d.setDate(d.getDate()-i);if(c[id+':'+d.toISOString().slice(0,10)])n++;}return n;}
+      function escH(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+      var picker=document.getElementById('lg-habits-picker');
+      var modalBg=document.getElementById('lg-modal-bg');
+      var titleInput=document.getElementById('lg-title');
+
+      function populatePicker(linkedIds){
+        if(!picker)return;
+        var habits=getHabits();
+        if(!habits.length){picker.style.display='none';return;}
+        picker.style.display='';
+        var html='<div style="font-size:.8rem;color:var(--muted);margin-bottom:6px;">🔗 Linked Habits</div>';
+        html+='<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+        habits.forEach(function(h){
+          var chk=(linkedIds&&linkedIds.indexOf(h.id)>=0)?'checked':'';
+          html+='<label style="display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:20px;border:1px solid var(--border);background:rgba(255,255,255,.05);cursor:pointer;font-size:.8rem;user-select:none;">';
+          html+='<input type="checkbox" value="'+h.id+'" '+chk+' style="accent-color:#60a5fa;cursor:pointer;"> ';
+          html+=(h.emoji||'⭐')+' '+escH(h.name)+'</label>';
+        });
+        html+='</div>';
+        picker.innerHTML=html;
+      }
+
+      // Populate picker when modal opens (with 200ms delay for async vault load in edit mode)
+      if(modalBg){
+        new MutationObserver(function(){
+          if(!modalBg.classList.contains('open'))return;
+          setTimeout(function(){
+            var title=(titleInput&&titleInput.value)||'';
+            if(!title||typeof window._homerLoadVault!=='function'){populatePicker([]);return;}
+            window._homerLoadVault().then(function(data){
+              var goal=(data.lifeGoals||[]).find(function(g){return g.title===title.trim();});
+              populatePicker(goal?(goal.linkedHabitIds||[]):[]);
+            });
+          },200);
+        }).observe(modalBg,{attributes:true,attributeFilter:['class']});
+      }
+
+      // Intercept _homerSaveVault to inject linkedHabitIds when modal is open
+      var _origSave=window._homerSaveVault;
+      if(typeof _origSave==='function'){
+        window._homerSaveVault=function(data){
+          if(modalBg&&modalBg.classList.contains('open')&&picker&&data&&Array.isArray(data.lifeGoals)){
+            var selected=Array.from(picker.querySelectorAll('input[type=checkbox]:checked')).map(function(cb){return parseInt(cb.value,10);});
+            var editTitle=(titleInput&&titleInput.value||'').trim();
+            if(editTitle){
+              // Find last goal with this title (handles both edit and new-add)
+              for(var gi=data.lifeGoals.length-1;gi>=0;gi--){
+                if(data.lifeGoals[gi].title===editTitle){data.lifeGoals[gi].linkedHabitIds=selected;break;}
+              }
+            }
+          }
+          return _origSave.call(this,data);
+        };
+      }
+
+      // After grid renders (MutationObserver), inject habit chips into cards
+      var lgGrid=document.getElementById('lg-grid');
+      if(lgGrid){
+        new MutationObserver(function(){
+          if(typeof window._homerLoadVault!=='function')return;
+          window._homerLoadVault().then(function(data){
+            var goals=data.lifeGoals||[];
+            var habits=getHabits();
+            lgGrid.querySelectorAll('.lg-card').forEach(function(card){
+              if(card.querySelector('.lg-habit-chips'))return;
+              var idx=parseInt(card.dataset.idx,10);
+              if(isNaN(idx)||!goals[idx])return;
+              var linked=(goals[idx].linkedHabitIds||[]).map(function(id){return habits.find(function(h){return h.id===id;});}).filter(Boolean);
+              if(!linked.length)return;
+              var chips=document.createElement('div');
+              chips.className='lg-habit-chips';
+              chips.style.cssText='display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;';
+              linked.forEach(function(h){
+                var done=habitWeeklyDone(h.id);
+                var pct=Math.round(done/7*100);
+                var color=pct>=70?'#4ade80':pct>=40?'#fbbf24':'#f87171';
+                var chip=document.createElement('span');
+                chip.style.cssText='display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:.72rem;background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.25);color:#93c5fd;';
+                chip.title=h.name+' — '+done+'/7 days this week';
+                chip.innerHTML=(h.emoji||'⭐')+' '+escH(h.name)+'<span style="padding:1px 5px;border-radius:8px;background:'+color+'22;color:'+color+';font-size:.68rem;font-weight:700;">'+done+'/7</span>';
+                chips.appendChild(chip);
+              });
+              // Insert before the edit/delete button row
+              var btnRow=card.querySelector('[style*="display:flex"][style*="gap:6px"]');
+              if(btnRow)card.insertBefore(chips,btnRow);else card.appendChild(chips);
+            });
+          });
+        }).observe(lgGrid,{childList:true});
+      }
+    })();
+
     /* Teach Joey about commands by injecting a system note into the capture area
        so the user can paste it into Joey's context if needed */
     window._joeyCommandRef=
