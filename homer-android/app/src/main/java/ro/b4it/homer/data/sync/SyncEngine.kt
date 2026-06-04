@@ -474,12 +474,7 @@ class SyncEngine @Inject constructor(
         val fieldVal = fieldValue("ls:homer-habits") ?: return
         val blob = json.decodeFromString(WsHabitsBlob.serializer(), fieldVal)
 
-        // Collect IDs that were locally archived (deleted) — cloud must never un-archive these
-        val locallyArchived = db.habitDao().getAllHabits().first()
-            .filter { it.archived }
-            .map { it.clientId }
-            .toSet()
-        // Permanently deleted IDs must never be re-imported from cloud
+        // Cloud wins — only permanently-deleted IDs (user-confirmed blocklist) are excluded
         val deletedIds = getDeletedHabitIds()
 
         val habits = blob.habits
@@ -497,8 +492,7 @@ class SyncEngine @Inject constructor(
                     freq      = when (val f = wh.freq) { is JsonPrimitive -> f.content; else -> "daily" },
                     target    = wh.target,
                     note      = wh.note,
-                    // Local deletion wins: if habit was archived locally, keep it archived
-                    archived  = wh.archived || clientId in locallyArchived,
+                    archived  = wh.archived,  // cloud wins: trust cloud's archived state
                     createdAt = wh.created.takeIf { it > 0 } ?: System.currentTimeMillis(),
                 )
             }
