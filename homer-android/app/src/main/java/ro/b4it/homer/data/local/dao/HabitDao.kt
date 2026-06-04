@@ -16,8 +16,17 @@ interface HabitDao {
     @Query("SELECT * FROM habits WHERE archived = 0 ORDER BY displayOrder ASC, createdAt ASC")
     fun getActiveHabits(): Flow<List<Habit>>
 
+    @Query("SELECT * FROM habits WHERE archived = 1 ORDER BY updatedAt DESC")
+    fun getArchivedHabits(): Flow<List<Habit>>
+
     @Query("SELECT * FROM habits ORDER BY displayOrder ASC, createdAt ASC")
     fun getAllHabits(): Flow<List<Habit>>
+
+    @Query("DELETE FROM habits WHERE clientId = :clientId")
+    suspend fun hardDeleteById(clientId: String)
+
+    @Query("DELETE FROM habit_completions WHERE habitClientId = :habitId")
+    suspend fun deleteCompletionsForHabit(habitId: String)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(habit: Habit)

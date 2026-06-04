@@ -414,8 +414,25 @@ class SyncEngine @Inject constructor(
         val completions: Map<String, JsonElement> = emptyMap(),
     )
 
+    private val DELETED_HABIT_IDS_KEY = "homer-habit-deleted-ids"
+
+    private suspend fun getDeletedHabitIds(): Set<String> {
+        val raw = db.appSettingDao().get(DELETED_HABIT_IDS_KEY) ?: return emptySet()
+        return try { json.decodeFromString<List<String>>(raw).toSet() } catch (_: Exception) { emptySet() }
+    }
+
+    suspend fun permanentlyDeleteHabit(habitId: String) {
+        val existing = getDeletedHabitIds().toMutableSet()
+        existing.add(habitId)
+        db.appSettingDao().set(AppSetting(DELETED_HABIT_IDS_KEY, json.encodeToString(existing.toList())))
+        db.habitDao().hardDeleteById(habitId)
+        db.habitDao().deleteCompletionsForHabit(habitId)
+        runCatching { pushHabits() }
+    }
+
     private suspend fun pushHabits() {
-        val habits = db.habitDao().getAllHabits().first()
+        val deletedIds = getDeletedHabitIds()
+        val habits = db.habitDao().getAllHabits().first().filter { it.clientId !in deletedIds }
         if (habits.isEmpty()) return   // never wipe cloud with empty local
         // Get completions from the past 90 days
         val since = run {
@@ -456,23 +473,35 @@ class SyncEngine @Inject constructor(
     private suspend fun pullHabits() {
         val fieldVal = fieldValue("ls:homer-habits") ?: return
         val blob = json.decodeFromString(WsHabitsBlob.serializer(), fieldVal)
-        val habits = blob.habits.map { wh ->
-            val clientId = wh.id.ifBlank {
-                wh.name.lowercase().replace(" ", "-") + "-" + wh.created
+
+        // Collect IDs that were locally archived (deleted) — cloud must never un-archive these
+        val locallyArchived = db.habitDao().getAllHabits().first()
+            .filter { it.archived }
+            .map { it.clientId }
+            .toSet()
+        // Permanently deleted IDs must never be re-imported from cloud
+        val deletedIds = getDeletedHabitIds()
+
+        val habits = blob.habits
+            .filter { wh -> wh.id !in deletedIds }
+            .map { wh ->
+                val clientId = wh.id.ifBlank {
+                    wh.name.lowercase().replace(" ", "-") + "-" + wh.created
+                }
+                Habit(
+                    clientId  = clientId,
+                    name      = wh.name,
+                    emoji     = wh.emoji,
+                    color     = wh.color,
+                    category  = wh.category,
+                    freq      = when (val f = wh.freq) { is JsonPrimitive -> f.content; else -> "daily" },
+                    target    = wh.target,
+                    note      = wh.note,
+                    // Local deletion wins: if habit was archived locally, keep it archived
+                    archived  = wh.archived || clientId in locallyArchived,
+                    createdAt = wh.created.takeIf { it > 0 } ?: System.currentTimeMillis(),
+                )
             }
-            Habit(
-                clientId  = clientId,
-                name      = wh.name,
-                emoji     = wh.emoji,
-                color     = wh.color,
-                category  = wh.category,
-                freq      = when (val f = wh.freq) { is JsonPrimitive -> f.content; else -> "daily" },
-                target    = wh.target,
-                note      = wh.note,
-                archived  = wh.archived,
-                createdAt = wh.created.takeIf { it > 0 } ?: System.currentTimeMillis(),
-            )
-        }
         if (habits.isEmpty()) return  // safety: don't wipe local with empty cloud
         val knownIds = habits.map { it.clientId }.toSet()
         val completions = blob.completions.mapNotNull { (key, elem) ->
@@ -487,7 +516,6 @@ class SyncEngine @Inject constructor(
             }
             if (count <= 0) null else HabitCompletion(habitClientId = habitId, date = date, count = count)
         }
-        // Cloud wins: clear local, upsert cloud
         db.habitDao().clearAll()
         db.habitDao().clearAllCompletions()
         db.habitDao().upsertAll(habits)

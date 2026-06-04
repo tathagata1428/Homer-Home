@@ -18,6 +18,7 @@ class HabitsViewModel @Inject constructor(
     private val sync: SyncEngine,
 ) : ViewModel() {
     val habits = dao.getActiveHabits()
+    val archivedHabits = dao.getArchivedHabits()
     val todayCompletions = dao.getCompletionsForDate(LocalDate.now().toString())
     val recentCompletions = dao.getCompletionsSince(LocalDate.now().minusDays(90).toString())
 
@@ -39,10 +40,26 @@ class HabitsViewModel @Inject constructor(
         }
     }
 
+    /** Soft-delete: moves to archive, still recoverable. Sync-safe (local deletion wins on pull). */
     fun deleteHabit(habit: Habit) {
         viewModelScope.launch {
             dao.upsert(habit.copy(archived = true, updatedAt = System.currentTimeMillis()))
             sync.pushHabitsNow()
+        }
+    }
+
+    /** Restore a soft-deleted habit back to active. */
+    fun restoreHabit(habit: Habit) {
+        viewModelScope.launch {
+            dao.upsert(habit.copy(archived = false, updatedAt = System.currentTimeMillis()))
+            sync.pushHabitsDebounced()
+        }
+    }
+
+    /** Permanently removes the habit — gone from DB, blocklisted so sync never restores it. */
+    fun permanentlyDeleteHabit(habit: Habit) {
+        viewModelScope.launch {
+            sync.permanentlyDeleteHabit(habit.clientId)
         }
     }
 }

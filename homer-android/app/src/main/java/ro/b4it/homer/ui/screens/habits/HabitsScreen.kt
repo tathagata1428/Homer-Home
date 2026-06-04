@@ -39,10 +39,12 @@ private fun streakDays(habitId: String, completions: List<HabitCompletion>): Int
 
 @Composable
 fun HabitsScreen(vm: HabitsViewModel = hiltViewModel()) {
-    val habits      by vm.habits.collectAsStateWithLifecycle(emptyList())
-    val completions by vm.todayCompletions.collectAsStateWithLifecycle(emptyList())
-    val recent      by vm.recentCompletions.collectAsStateWithLifecycle(emptyList())
-    var showAdd     by remember { mutableStateOf(false) }
+    val habits         by vm.habits.collectAsStateWithLifecycle(emptyList())
+    val archivedHabits by vm.archivedHabits.collectAsStateWithLifecycle(emptyList())
+    val completions    by vm.todayCompletions.collectAsStateWithLifecycle(emptyList())
+    val recent         by vm.recentCompletions.collectAsStateWithLifecycle(emptyList())
+    var showAdd        by remember { mutableStateOf(false) }
+    var showArchive    by remember { mutableStateOf(false) }
     val today = LocalDate.now().toString()
 
     val doneToday = completions.count { c -> habits.any { h -> h.clientId == c.habitClientId } }
@@ -159,6 +161,44 @@ fun HabitsScreen(vm: HabitsViewModel = hiltViewModel()) {
                 onDelete    = { vm.deleteHabit(habit) },
             )
         }
+
+        // ── Deleted (archive) section ────────────────────────────────────────
+        if (archivedHabits.isNotEmpty()) {
+            item {
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(AccentRed.copy(0.04f))
+                        .border(1.dp, AccentRed.copy(0.15f), RoundedCornerShape(10.dp))
+                        .clickable { showArchive = !showArchive }
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "DELETED  (${archivedHabits.size})",
+                        fontSize = 9.sp, letterSpacing = 1.5.sp,
+                        color = AccentRed.copy(0.7f), fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Icon(
+                        if (showArchive) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                        null, tint = AccentRed.copy(0.5f), modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
+
+        if (showArchive) {
+            items(archivedHabits) { habit ->
+                ArchivedHabitRow(
+                    habit     = habit,
+                    onRestore = { vm.restoreHabit(habit) },
+                    onDelete  = { vm.permanentlyDeleteHabit(habit) },
+                )
+            }
+        }
+
+        item { Spacer(Modifier.height(80.dp)) }
     }
 
     if (showAdd) {
@@ -414,4 +454,77 @@ fun AddHabitDialog(onAdd: (String, String, String, String, String) -> Unit, onDi
             TextButton(onClick = onDismiss) { Text("Cancel", fontSize = 10.sp, color = TextMuted) }
         },
     )
+}
+
+// ── Archived habit row (delete section) ───────────────────────────────────────
+
+@Composable
+private fun ArchivedHabitRow(
+    habit: Habit,
+    onRestore: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var confirmDelete by remember { mutableStateOf(false) }
+    val rawColor = try { Color(android.graphics.Color.parseColor(habit.color)) } catch (_: Exception) { AccentBlue }
+
+    Row(
+        Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(BgCard)
+            .border(1.dp, AccentRed.copy(0.15f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        // Emoji/initial badge (dimmed)
+        Box(
+            Modifier.size(36.dp).clip(RoundedCornerShape(8.dp))
+                .background(rawColor.copy(0.05f))
+                .border(1.dp, rawColor.copy(0.15f), RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                if (habit.emoji.isNotBlank()) habit.emoji else habit.name.take(1).uppercase(),
+                fontSize = if (habit.emoji.isNotBlank()) 15.sp else 12.sp,
+                color = rawColor.copy(0.4f),
+            )
+        }
+
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(habit.name, fontSize = 13.sp, color = TextSubtle, fontWeight = FontWeight.Medium,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(habit.freq.replaceFirstChar { it.uppercase() }, fontSize = 9.sp, color = TextSubtle.copy(0.6f))
+        }
+
+        // Restore button
+        IconButton(onClick = onRestore, Modifier.size(36.dp)) {
+            Icon(Icons.Filled.Restore, null, tint = AccentGreen.copy(0.7f), modifier = Modifier.size(18.dp))
+        }
+
+        // Delete forever button
+        IconButton(onClick = { confirmDelete = true }, Modifier.size(36.dp)) {
+            Icon(Icons.Filled.DeleteForever, null, tint = AccentRed.copy(0.7f), modifier = Modifier.size(18.dp))
+        }
+    }
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            containerColor   = BgCard,
+            title = { Text("Delete forever?", fontSize = 16.sp, color = TextPrimary) },
+            text  = { Text("\"${habit.name}\" will be permanently removed and will never come back from sync.", color = TextMuted, style = MaterialTheme.typography.bodySmall) },
+            confirmButton = {
+                Box(
+                    Modifier.clip(RoundedCornerShape(8.dp))
+                        .background(AccentRed.copy(0.1f))
+                        .border(1.dp, AccentRed.copy(0.4f), RoundedCornerShape(8.dp))
+                        .clickable { onDelete(); confirmDelete = false }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                ) { Text("Delete forever", fontSize = 12.sp, color = AccentRed, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) { Text("Cancel", color = TextMuted) }
+            },
+        )
+    }
 }
