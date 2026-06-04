@@ -19,4 +19,6 @@ data class Habit(
     val displayOrder: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
+    /** id of the linked KanbanTask, empty if none */
+    val linkedTaskId: String = "",
 )

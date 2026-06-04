@@ -7,6 +7,12 @@ import ro.b4it.homer.data.local.entity.HabitCompletion
 
 @Dao
 interface HabitDao {
+    @Query("SELECT * FROM habits WHERE clientId = :clientId LIMIT 1")
+    suspend fun getHabitById(clientId: String): Habit?
+
+    @Query("SELECT * FROM habits WHERE linkedTaskId = :taskId AND archived = 0 LIMIT 1")
+    suspend fun getHabitByTaskId(taskId: String): Habit?
+
     @Query("SELECT * FROM habits WHERE archived = 0 ORDER BY displayOrder ASC, createdAt ASC")
     fun getActiveHabits(): Flow<List<Habit>>
 

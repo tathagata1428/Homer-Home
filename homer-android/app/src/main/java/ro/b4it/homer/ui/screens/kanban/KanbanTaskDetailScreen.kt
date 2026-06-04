@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,8 +37,9 @@ fun KanbanTaskDetailScreen(
     onBack: () -> Unit,
     vm: KanbanTaskDetailViewModel = hiltViewModel(),
 ) {
-    val task  by vm.task.collectAsStateWithLifecycle()
-    val saved by vm.saved.collectAsStateWithLifecycle()
+    val task        by vm.task.collectAsStateWithLifecycle()
+    val saved       by vm.saved.collectAsStateWithLifecycle()
+    val linkedHabit by vm.linkedHabit.collectAsStateWithLifecycle()
 
     LaunchedEffect(saved) { if (saved) onBack() }
 
@@ -55,7 +57,8 @@ fun KanbanTaskDetailScreen(
     var dueDate      by remember(t.id) { mutableStateOf(t.dueDate) }
     var assignee     by remember(t.id) { mutableStateOf(t.assignee) }
     var column       by remember(t.id) { mutableStateOf(t.column) }
-    var subtaskInput by remember { mutableStateOf("") }
+    var subtaskInput    by remember { mutableStateOf("") }
+    var showHabitDialog by remember { mutableStateOf(false) }
 
     val subtasks = vm.parseSubtasks(t.subtasksJson)
 
@@ -303,6 +306,88 @@ fun KanbanTaskDetailScreen(
                 }
             }
 
+            // ── Linked Habit ──────────────────────────────────────────────────
+            Column(
+                Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(BgCard)
+                    .border(
+                        1.dp,
+                        if (linkedHabit != null) NeonPink.copy(0.35f) else BorderDefault,
+                        RoundedCornerShape(14.dp),
+                    )
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "LINKED HABIT",
+                        fontSize = 9.sp, letterSpacing = 1.5.sp,
+                        color = if (linkedHabit != null) NeonPink else TextMuted,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (linkedHabit != null) {
+                        IconButton(
+                            onClick = { vm.unlinkHabit() },
+                            modifier = Modifier.size(28.dp),
+                        ) {
+                            Icon(Icons.Filled.LinkOff, null, tint = AccentRed.copy(0.6f), modifier = Modifier.size(14.dp))
+                        }
+                    }
+                }
+
+                if (linkedHabit != null) {
+                    val lh = linkedHabit!!
+                    val rawColor = try { Color(android.graphics.Color.parseColor(lh.color)) } catch (_: Exception) { AccentBlue }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(
+                            Modifier.size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(rawColor.copy(0.1f))
+                                .border(1.dp, rawColor.copy(0.35f), RoundedCornerShape(8.dp)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                if (lh.emoji.isNotBlank()) lh.emoji else lh.name.take(1).uppercase(),
+                                fontSize = if (lh.emoji.isNotBlank()) 16.sp else 13.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = rawColor,
+                            )
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(lh.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                            Box(
+                                Modifier.clip(RoundedCornerShape(4.dp))
+                                    .background(NeonPink.copy(0.07f))
+                                    .border(1.dp, NeonPink.copy(0.2f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 5.dp, vertical = 2.dp),
+                            ) {
+                                Text(lh.freq.replaceFirstChar { it.uppercase() }, fontSize = 7.sp, color = NeonPink.copy(0.8f), fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                } else {
+                    Text(
+                        "Turn this task into a recurring habit to track it daily.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSubtle,
+                    )
+                    Box(
+                        Modifier.clip(RoundedCornerShape(10.dp))
+                            .background(NeonPink.copy(0.07f))
+                            .border(1.dp, NeonPink.copy(0.3f), RoundedCornerShape(10.dp))
+                            .clickable { showHabitDialog = true }
+                            .padding(horizontal = 14.dp, vertical = 9.dp),
+                    ) {
+                        Text("+ Create Habit", fontSize = 12.sp, color = NeonPink, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+
             // ── Reporter ──────────────────────────────────────────────────────
             if (t.reporter.isNotBlank()) {
                 Row(
@@ -317,4 +402,135 @@ fun KanbanTaskDetailScreen(
             Spacer(Modifier.height(80.dp))
         }
     }
+
+    if (showHabitDialog) {
+        CreateHabitFromTaskDialog(
+            taskName  = t.summary,
+            onCreate  = { emoji, color, freq ->
+                vm.createLinkedHabit(emoji, color, freq)
+                showHabitDialog = false
+            },
+            onDismiss = { showHabitDialog = false },
+        )
+    }
+}
+
+// ── CreateHabitFromTaskDialog ─────────────────────────────────────────────────
+
+private val HABIT_COLORS = listOf(
+    "#2860C8" to AccentBlue,
+    "#B84060" to NeonPink,
+    "#1A6E80" to NeonCyan,
+    "#7054B4" to NeonPurple,
+    "#2D7A56" to AccentGreen,
+    "#A87020" to NeonGold,
+)
+private val FREQ_OPTIONS = listOf("daily", "weekdays", "weekly")
+
+@Composable
+private fun CreateHabitFromTaskDialog(
+    taskName: String,
+    onCreate: (emoji: String, color: String, freq: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var emoji by remember { mutableStateOf("") }
+    var selectedColor by remember { mutableStateOf("#2860C8") }
+    var selectedFreq  by remember { mutableStateOf("daily") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor   = BgCard,
+        titleContentColor = TextPrimary,
+        title = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Create Habit", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Text(taskName, fontSize = 11.sp, color = NeonPink, maxLines = 2)
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                // Emoji
+                OutlinedTextField(
+                    value = emoji,
+                    onValueChange = { emoji = it.take(2) },
+                    label = { Text("Emoji (optional)", fontSize = 11.sp) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor   = NeonPink,
+                        unfocusedBorderColor = NeonPink.copy(0.3f),
+                        focusedTextColor     = TextPrimary,
+                        unfocusedTextColor   = TextPrimary,
+                        focusedLabelColor    = NeonPink,
+                        cursorColor          = NeonPink,
+                    ),
+                )
+
+                // Color
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("COLOR", fontSize = 9.sp, letterSpacing = 1.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        HABIT_COLORS.forEach { (hex, comp) ->
+                            Box(
+                                Modifier.size(28.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(comp.copy(0.15f))
+                                    .border(
+                                        if (selectedColor == hex) 2.dp else 1.dp,
+                                        if (selectedColor == hex) comp else comp.copy(0.3f),
+                                        RoundedCornerShape(6.dp),
+                                    )
+                                    .clickable { selectedColor = hex },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (selectedColor == hex) {
+                                    Box(Modifier.size(10.dp).clip(RoundedCornerShape(3.dp)).background(comp))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Frequency
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("FREQUENCY", fontSize = 9.sp, letterSpacing = 1.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FREQ_OPTIONS.forEach { freq ->
+                            val sel = selectedFreq == freq
+                            Box(
+                                Modifier.clip(RoundedCornerShape(8.dp))
+                                    .background(if (sel) NeonCyan.copy(0.12f) else Color.Transparent)
+                                    .border(1.dp, if (sel) NeonCyan else NeonCyan.copy(0.25f), RoundedCornerShape(8.dp))
+                                    .clickable { selectedFreq = freq }
+                                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                            ) {
+                                Text(
+                                    freq.replaceFirstChar { it.uppercase() },
+                                    fontSize = 10.sp,
+                                    color = if (sel) NeonCyan else TextMuted,
+                                    fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Box(
+                Modifier.clip(RoundedCornerShape(10.dp))
+                    .background(NeonPink.copy(0.12f))
+                    .border(1.dp, NeonPink.copy(0.5f), RoundedCornerShape(10.dp))
+                    .clickable { onCreate(emoji.trim(), selectedColor, selectedFreq) }
+                    .padding(horizontal = 16.dp, vertical = 9.dp),
+            ) {
+                Text("Create Habit", fontSize = 13.sp, color = NeonPink, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = TextMuted)
+            }
+        },
+    )
 }

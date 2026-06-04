@@ -240,6 +240,16 @@ fun HabitRow(
                             if (streak > 0) {
                                 Text("🔥 $streak day streak", fontSize = 10.sp, color = NeonGold, fontWeight = FontWeight.SemiBold)
                             }
+                            if (habit.linkedTaskId.isNotBlank()) {
+                                Box(
+                                    Modifier.clip(RoundedCornerShape(4.dp))
+                                        .background(NeonPink.copy(0.07f))
+                                        .border(1.dp, NeonPink.copy(0.25f), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 5.dp, vertical = 2.dp),
+                                ) {
+                                    Text("🔗 Task", fontSize = 7.sp, color = NeonPink.copy(0.85f), fontWeight = FontWeight.SemiBold)
+                                }
+                            }
                         }
                     }
 

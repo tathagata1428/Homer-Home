@@ -35,8 +35,9 @@ import ro.b4it.homer.data.local.entity.*
         CarOdoLog::class,
         // ↑ added v8
         SyncQueue::class,
+        // v9: linkedHabitId on KanbanTask, linkedTaskId on Habit
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class HomerDatabase : RoomDatabase() {

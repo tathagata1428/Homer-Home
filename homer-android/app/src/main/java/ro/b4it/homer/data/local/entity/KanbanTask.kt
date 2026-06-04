@@ -26,4 +26,6 @@ data class KanbanTask(
     val archived: Boolean = false,
     val backlog: Boolean = false,
     val updatedAt: Long = System.currentTimeMillis(),
+    /** clientId of the linked Habit, empty if none */
+    val linkedHabitId: String = "",
 )
