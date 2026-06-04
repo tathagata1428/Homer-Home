@@ -20,6 +20,7 @@ import ro.b4it.homer.data.local.dao.LifeGoalDao
 import ro.b4it.homer.data.local.dao.ReminderDao
 import ro.b4it.homer.data.local.entity.CalendarEvent
 import ro.b4it.homer.data.local.entity.CarDocument
+import ro.b4it.homer.data.local.entity.CarMaintenance
 import ro.b4it.homer.data.local.entity.KanbanTask
 import ro.b4it.homer.data.local.entity.LifeGoal
 import ro.b4it.homer.data.local.entity.Reminder
@@ -92,6 +93,11 @@ class ReminderManager @Inject constructor(
                 )
             }
 
+            // Car maintenance: 30 days and 7 days before nextDateDue
+            carDao.getAllMaintenance().first().forEach { record ->
+                scheduleCarMaintenance(record)
+            }
+
             // Car documents: 30 days and 7 days before expiry
             carDao.getAllDocuments().first().forEach { doc ->
                 scheduleCarDocumentAlarms(doc)
@@ -157,6 +163,32 @@ class ReminderManager @Inject constructor(
     }
 
     fun cancelReminder(reminderId: String) = cancelAlarm(alarmId("rem", reminderId))
+
+    fun scheduleCarMaintenance(record: CarMaintenance) {
+        if (record.nextDateDue.isBlank()) return
+        val now = System.currentTimeMillis()
+        val label = record.label.ifBlank { record.type }
+        val due = parseDateAt(record.nextDateDue, 9, 0)
+        val fire30 = due - 30 * 86_400_000L
+        val fire7  = due - 7  * 86_400_000L
+        if (fire30 > now) scheduleAlarm(
+            id     = alarmId("maint30", record.id),
+            fireAt = fire30,
+            title  = "🔧 $label due in 30 days",
+            body   = "Next service: ${record.nextDateDue}",
+        )
+        if (fire7 > now) scheduleAlarm(
+            id     = alarmId("maint7", record.id),
+            fireAt = fire7,
+            title  = "⚠️ $label due in 7 days!",
+            body   = "Next service: ${record.nextDateDue} — don't delay",
+        )
+    }
+
+    fun cancelCarMaintenance(recordId: String) {
+        cancelAlarm(alarmId("maint30", recordId))
+        cancelAlarm(alarmId("maint7",  recordId))
+    }
 
     fun scheduleCarDocument(doc: CarDocument) = scheduleCarDocumentAlarms(doc)
 

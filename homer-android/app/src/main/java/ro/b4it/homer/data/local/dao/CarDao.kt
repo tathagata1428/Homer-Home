@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import ro.b4it.homer.data.local.entity.CarDocument
 import ro.b4it.homer.data.local.entity.CarFuelLog
 import ro.b4it.homer.data.local.entity.CarMaintenance
+import ro.b4it.homer.data.local.entity.CarOdoLog
 import ro.b4it.homer.data.local.entity.CarVehicle
 
 @Dao
@@ -90,4 +91,14 @@ interface CarDao {
 
     @Query("DELETE FROM car_fuel_log")
     suspend fun clearAllFuelLog()
+
+    // ─── Odometer check-in log ──────────────────────────────────────────────────
+    @Query("SELECT * FROM car_odo_logs WHERE vehicleId = :vehicleId ORDER BY date ASC")
+    fun getOdoLogs(vehicleId: String): Flow<List<CarOdoLog>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertOdoLog(log: CarOdoLog)
+
+    @Delete
+    suspend fun deleteOdoLog(log: CarOdoLog)
 }

@@ -35,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ro.b4it.homer.data.local.entity.CarDocument
 import ro.b4it.homer.data.local.entity.CarFuelLog
 import ro.b4it.homer.data.local.entity.CarMaintenance
+import ro.b4it.homer.data.local.entity.CarOdoLog
 import ro.b4it.homer.data.local.entity.CarVehicle
 import ro.b4it.homer.ui.theme.*
 import java.io.File
@@ -127,6 +128,7 @@ fun CarScreen(onBack: () -> Unit, vm: CarViewModel = hiltViewModel()) {
     val documents      by vm.documents.collectAsStateWithLifecycle()
     val maintenance    by vm.maintenance.collectAsStateWithLifecycle()
     val fuelLog        by vm.fuelLog.collectAsStateWithLifecycle()
+    val odooLogs       by vm.odooLogs.collectAsStateWithLifecycle()
     val avgConsumption by vm.avgConsumption.collectAsStateWithLifecycle()
 
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -138,6 +140,7 @@ fun CarScreen(onBack: () -> Unit, vm: CarViewModel = hiltViewModel()) {
     var editingMaint     by remember { mutableStateOf<CarMaintenance?>(null) }
     var showAddFuel      by remember { mutableStateOf(false) }
     var editingFuel      by remember { mutableStateOf<CarFuelLog?>(null) }
+    var showLogKm        by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().background(BgPrimary)) {
 
@@ -188,7 +191,7 @@ fun CarScreen(onBack: () -> Unit, vm: CarViewModel = hiltViewModel()) {
 
                 // ── Vehicle header ────────────────────────────────────────────
                 item {
-                    VehicleHeader(vehicle = selectedVehicle!!, vehicles = vehicles, maintenance = maintenance, onSelect = vm::selectVehicle)
+                    VehicleHeader(vehicle = selectedVehicle!!, vehicles = vehicles, maintenance = maintenance, onSelect = vm::selectVehicle, onLogKm = { showLogKm = true })
                     Spacer(Modifier.height(16.dp))
                 }
 
@@ -272,11 +275,45 @@ fun CarScreen(onBack: () -> Unit, vm: CarViewModel = hiltViewModel()) {
                             FuelStatsBar(avgConsumption = avgConsumption, fuelLog = fuelLog)
                             Spacer(Modifier.height(8.dp))
                         }
-                        if (fuelLog.size >= 2) {
+                        val odoPoints = (
+                            fuelLog.filter { it.odometer > 0 && it.date.isNotBlank() }.map { it.date to it.odometer } +
+                            odooLogs.filter { it.km > 0 && it.date.isNotBlank() }.map { it.date to it.km }
+                        ).sortedBy { it.first }
+                        if (odoPoints.size >= 2) {
                             item {
-                                OdometerChart(fuelLog = fuelLog)
+                                OdometerChart(points = odoPoints)
                                 Spacer(Modifier.height(8.dp))
                             }
+                        }
+                        // ── Odo check-ins ──────────────────────────────────────
+                        if (odooLogs.isNotEmpty()) {
+                            item {
+                                Text("ODO CHECK-INS", fontSize = 9.sp, letterSpacing = 2.sp, color = NeonCyan.copy(0.7f), fontWeight = FontWeight.ExtraBold)
+                                Spacer(Modifier.height(6.dp))
+                            }
+                            items(odooLogs.sortedByDescending { it.date }, key = { it.id }) { log ->
+                                Row(
+                                    Modifier.fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(BgCard)
+                                        .border(1.dp, NeonCyan.copy(0.15f), RoundedCornerShape(10.dp))
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Text("📏", fontSize = 14.sp)
+                                    Column(Modifier.weight(1f)) {
+                                        Text("%,d km".format(log.km), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = NeonCyan)
+                                        Text(log.date, fontSize = 10.sp, color = TextSubtle)
+                                        if (log.notes.isNotBlank()) Text(log.notes, fontSize = 10.sp, color = TextMuted)
+                                    }
+                                    IconButton(onClick = { vm.deleteOdoCheckin(log) }, modifier = Modifier.size(32.dp)) {
+                                        Icon(Icons.Filled.Delete, null, tint = TextSubtle.copy(0.5f), modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                                Spacer(Modifier.height(6.dp))
+                            }
+                            item { Spacer(Modifier.height(4.dp)) }
                         }
                         item {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -356,6 +393,14 @@ fun CarScreen(onBack: () -> Unit, vm: CarViewModel = hiltViewModel()) {
             onDismiss = { showAddMaint = false; editingMaint = null },
         )
     }
+    if (showLogKm && selectedVehicle != null) {
+        OdoCheckinDialog(
+            vehicleId = selectedVehicle!!.id,
+            currentOdo = selectedVehicle!!.odoKm,
+            onSave = { km, date, notes -> vm.saveOdoCheckin(vehicleId = selectedVehicle!!.id, km = km, date = date, notes = notes) },
+            onDismiss = { showLogKm = false },
+        )
+    }
     if (showAddFuel || editingFuel != null) {
         val vehicleId = selectedVehicle?.id ?: return
         FuelDialog(
@@ -377,7 +422,7 @@ fun CarScreen(onBack: () -> Unit, vm: CarViewModel = hiltViewModel()) {
 // ─── Vehicle dashboard ────────────────────────────────────────────────────────
 
 @Composable
-private fun VehicleHeader(vehicle: CarVehicle, vehicles: List<CarVehicle>, maintenance: List<CarMaintenance>, onSelect: (String) -> Unit) {
+private fun VehicleHeader(vehicle: CarVehicle, vehicles: List<CarVehicle>, maintenance: List<CarMaintenance>, onSelect: (String) -> Unit, onLogKm: () -> Unit) {
     Column(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
@@ -479,6 +524,16 @@ private fun VehicleHeader(vehicle: CarVehicle, vehicles: List<CarVehicle>, maint
                 Text("🔢", fontSize = 12.sp)
                 Text("VIN:", fontSize = 10.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
                 Text(vehicle.vin.uppercase(), fontSize = 10.sp, color = TextMuted, letterSpacing = 0.5.sp)
+            }
+        }
+
+        // ── Quick actions ─────────────────────────────────────────────────
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(
+                onClick = onLogKm,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+            ) {
+                Text("📏  Log KM", fontSize = 11.sp, color = NeonCyan)
             }
         }
 
@@ -736,14 +791,12 @@ private fun InfoChip(text: String) {
 }
 
 @Composable
-private fun OdometerChart(fuelLog: List<CarFuelLog>) {
-    val points = fuelLog.filter { it.odometer > 0 && it.date.isNotBlank() }
-        .sortedBy { it.date }
-        .takeLast(20)
-    if (points.size < 2) return
+private fun OdometerChart(points: List<Pair<String, Int>>) {
+    val pts = points.sortedBy { it.first }.takeLast(20)
+    if (pts.size < 2) return
 
-    val minOdo = points.minOf { it.odometer }.toFloat()
-    val maxOdo = points.maxOf { it.odometer }.toFloat()
+    val minOdo = pts.minOf { it.second }.toFloat()
+    val maxOdo = pts.maxOf { it.second }.toFloat()
     val odoRange = (maxOdo - minOdo).coerceAtLeast(1f)
 
     Box(
@@ -761,7 +814,7 @@ private fun OdometerChart(fuelLog: List<CarFuelLog>) {
                 val w = size.width
                 val h = size.height
                 val padH = 12f
-                val step = w / (points.size - 1).coerceAtLeast(1)
+                val step = w / (pts.size - 1).coerceAtLeast(1)
 
                 // Grid lines
                 repeat(3) { i ->
@@ -775,16 +828,16 @@ private fun OdometerChart(fuelLog: List<CarFuelLog>) {
 
                 // Build path
                 val path = Path()
-                points.forEachIndexed { idx, entry ->
+                pts.forEachIndexed { idx, (_, km) ->
                     val x = idx * step
-                    val y = padH + (h - 2 * padH) * (1f - (entry.odometer - minOdo) / odoRange)
+                    val y = padH + (h - 2 * padH) * (1f - (km - minOdo) / odoRange)
                     if (idx == 0) path.moveTo(x, y) else path.lineTo(x, y)
                 }
 
                 // Gradient fill
                 val fillPath = Path().apply {
                     addPath(path)
-                    lineTo((points.size - 1) * step, h)
+                    lineTo((pts.size - 1) * step, h)
                     lineTo(0f, h)
                     close()
                 }
@@ -800,21 +853,69 @@ private fun OdometerChart(fuelLog: List<CarFuelLog>) {
                 drawPath(path, color = NeonCyan, style = Stroke(width = 2.5f, cap = StrokeCap.Round))
 
                 // Dots
-                points.forEachIndexed { idx, entry ->
+                pts.forEachIndexed { idx, (_, km) ->
                     val x = idx * step
-                    val y = padH + (h - 2 * padH) * (1f - (entry.odometer - minOdo) / odoRange)
+                    val y = padH + (h - 2 * padH) * (1f - (km - minOdo) / odoRange)
                     drawCircle(NeonCyan, radius = 4f, center = Offset(x, y))
                     drawCircle(BgCard, radius = 2f, center = Offset(x, y))
                 }
             }
             // X labels: first and last date
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(points.first().date, fontSize = 9.sp, color = TextSubtle)
-                Text("%,d km".format(points.last().odometer), fontSize = 9.sp, color = NeonCyan, fontWeight = FontWeight.Bold)
-                Text(points.last().date, fontSize = 9.sp, color = TextSubtle)
+                Text(pts.first().first, fontSize = 9.sp, color = TextSubtle)
+                Text("%,d km".format(pts.last().second), fontSize = 9.sp, color = NeonCyan, fontWeight = FontWeight.Bold)
+                Text(pts.last().first, fontSize = 9.sp, color = TextSubtle)
             }
         }
     }
+}
+
+@Composable
+private fun OdoCheckinDialog(
+    vehicleId: String,
+    currentOdo: Int,
+    onSave: (km: Int, date: String, notes: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var km    by remember { mutableStateOf(if (currentOdo > 0) currentOdo.toString() else "") }
+    var date  by remember { mutableStateOf(LocalDate.now().toString()) }
+    var notes by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = BgCard,
+        title = { Text("Log Odometer Reading", fontWeight = FontWeight.Bold, color = TextPrimary) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = km, onValueChange = { km = it.filter { c -> c.isDigit() } },
+                    label = { Text("Odometer (km)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true, modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = date, onValueChange = { date = it },
+                    label = { Text("Date (YYYY-MM-DD)") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = notes, onValueChange = { notes = it },
+                    label = { Text("Notes (optional)") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val kmInt = km.toIntOrNull() ?: return@TextButton
+                onSave(kmInt, date, notes)
+                onDismiss()
+            }) { Text("Save", color = NeonCyan, fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = TextMuted) }
+        },
+    )
 }
 
 @Composable

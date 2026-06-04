@@ -32,9 +32,11 @@ import ro.b4it.homer.data.local.entity.*
         CarDocument::class,
         CarMaintenance::class,
         CarFuelLog::class,
+        CarOdoLog::class,
+        // ↑ added v8
         SyncQueue::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class HomerDatabase : RoomDatabase() {

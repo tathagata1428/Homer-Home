@@ -14,6 +14,7 @@ import ro.b4it.homer.data.local.dao.CarDao
 import ro.b4it.homer.data.local.entity.CarDocument
 import ro.b4it.homer.data.local.entity.CarFuelLog
 import ro.b4it.homer.data.local.entity.CarMaintenance
+import ro.b4it.homer.data.local.entity.CarOdoLog
 import ro.b4it.homer.data.local.entity.CarVehicle
 import ro.b4it.homer.data.sync.SyncEngine
 import ro.b4it.homer.notification.ReminderManager
@@ -49,6 +50,10 @@ class CarViewModel @Inject constructor(
 
     val fuelLog: StateFlow<List<CarFuelLog>> = selectedVehicle.flatMapLatest { v ->
         if (v != null) dao.getFuelLog(v.id) else flowOf(emptyList())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val odooLogs: StateFlow<List<CarOdoLog>> = selectedVehicle.flatMapLatest { v ->
+        if (v != null) dao.getOdoLogs(v.id) else flowOf(emptyList())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Computed: average fuel consumption (L/100km) from last 5 full-tank fills
@@ -153,13 +158,13 @@ class CarViewModel @Inject constructor(
         nextDateDue: String, nextOdoKm: Int, cost: Double, workshop: String, notes: String,
     ) {
         viewModelScope.launch {
-            dao.upsertMaintenance(
-                CarMaintenance(
-                    id = id, vehicleId = vehicleId, type = type, label = label,
-                    date = date, odometer = odometer, nextDateDue = nextDateDue,
-                    nextOdoKm = nextOdoKm, cost = cost, workshop = workshop, notes = notes,
-                )
+            val record = CarMaintenance(
+                id = id, vehicleId = vehicleId, type = type, label = label,
+                date = date, odometer = odometer, nextDateDue = nextDateDue,
+                nextOdoKm = nextOdoKm, cost = cost, workshop = workshop, notes = notes,
             )
+            dao.upsertMaintenance(record)
+            reminderManager.scheduleCarMaintenance(record)
             // Auto-update vehicle odometer if this service is at a higher reading
             if (odometer > 0) {
                 val v = dao.getVehicleById(vehicleId)
@@ -170,7 +175,11 @@ class CarViewModel @Inject constructor(
     }
 
     fun deleteMaintenance(record: CarMaintenance) {
-        viewModelScope.launch { dao.deleteMaintenance(record); sync.pushCarNow() }
+        viewModelScope.launch {
+            dao.deleteMaintenance(record)
+            reminderManager.cancelCarMaintenance(record.id)
+            sync.pushCarNow()
+        }
     }
 
     fun saveFuelLog(
@@ -198,6 +207,27 @@ class CarViewModel @Inject constructor(
 
     fun deleteFuelLog(entry: CarFuelLog) {
         viewModelScope.launch { dao.deleteFuelLog(entry); sync.pushCarNow() }
+    }
+
+    fun saveOdoCheckin(
+        id: String = UUID.randomUUID().toString(),
+        vehicleId: String,
+        km: Int,
+        date: String,
+        notes: String,
+    ) {
+        viewModelScope.launch {
+            dao.upsertOdoLog(CarOdoLog(id = id, vehicleId = vehicleId, km = km, date = date, notes = notes))
+            if (km > 0) {
+                val v = dao.getVehicleById(vehicleId)
+                if (v != null && km > v.odoKm) dao.upsertVehicle(v.copy(odoKm = km, updatedAt = System.currentTimeMillis()))
+            }
+            sync.pushCarDebounced()
+        }
+    }
+
+    fun deleteOdoCheckin(log: CarOdoLog) {
+        viewModelScope.launch { dao.deleteOdoLog(log); sync.pushCarNow() }
     }
 
     /** Days remaining until expiry. Negative = already expired. */
