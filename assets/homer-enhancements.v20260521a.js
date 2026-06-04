@@ -783,7 +783,7 @@
     setTimeout(function(){
       var habits=safeJson(localStorage.getItem('homer-habits'),null);
       if(!habits||!habits.habits||!habits.habits.length)return;
-      var pending=habits.habits.filter(function(hb){return!(habits.completions||{})[hb.id+':'+today];});
+      var pending=habits.habits.filter(function(hb){return !hb.archived && !(habits.completions||{})[hb.id+':'+today];});
       if(!pending.length)return;
       localStorage.setItem(KEY,today);
       var names=pending.slice(0,3).map(function(hb){return hb.name;});
