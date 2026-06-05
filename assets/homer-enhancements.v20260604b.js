@@ -1297,9 +1297,9 @@
     function mergeCar(local,remote){
       var l=(local&&typeof local==='object'&&!Array.isArray(local))?local:{};
       var r=(remote&&typeof remote==='object'&&!Array.isArray(remote))?remote:{};
-      return{vehicles:mergeCarArr(l.vehicles,r.vehicles),documents:mergeCarArr(l.documents,r.documents),maintenance:mergeCarArr(l.maintenance,r.maintenance),fuel:mergeCarArr(l.fuel,r.fuel)};
+      return{vehicles:mergeCarArr(l.vehicles,r.vehicles),documents:mergeCarArr(l.documents,r.documents),maintenance:mergeCarArr(l.maintenance,r.maintenance),fuel:mergeCarArr(l.fuel,r.fuel),odoLogs:mergeCarArr(l.odoLogs,r.odoLogs)};
     }
-    function syncCar(){syncMergeKey('homer-car',mergeCar,{vehicles:[],documents:[],maintenance:[],fuel:[]});}
+    function syncCar(){syncMergeKey('homer-car',mergeCar,{vehicles:[],documents:[],maintenance:[],fuel:[],odoLogs:[]});}
 
     // ── Pomodoro tasks: {text,done,ts} — merge by ts; field_id=ls:pom-tasks ─
     // Android uses field_id 'ls:pom-tasks'; web localStorage key is 'pom.tasks.v1'.
@@ -1534,19 +1534,17 @@
           var _rmMode=window._homerGetVaultMode?window._homerGetVaultMode():'personal';
           var _lsKb=safeJson(localStorage.getItem('homer-kanban')||'{}',{});
           var _lsLg=safeJson(localStorage.getItem('homer-life-goals')||'[]',[]);
-          // Merge secrets: add credentials from Android that aren't in vault IDB (local wins on conflict).
+          // Merge secrets: cloud wins — remote overwrites local on same site+label (compare updatedAt).
           var _lsSec=safeJson(localStorage.getItem('homer-secrets:'+_rmMode)||'[]',[]);
           if(Array.isArray(_lsSec)&&_lsSec.length>0){
             var _rmCredMap={};
             (vault.creds||[]).forEach(function(c){_rmCredMap[(c.site||'')+'|'+(c.label||'')]=c;});
-            _lsSec.forEach(function(c){var _k=(c.site||'')+'|'+(c.label||'');if(!_rmCredMap[_k])_rmCredMap[_k]=c;});
+            _lsSec.forEach(function(c){var _k=(c.site||'')+'|'+(c.label||'');var ex=_rmCredMap[_k];if(!ex||(c.updatedAt||0)>=(ex.updatedAt||0))_rmCredMap[_k]=c;});
             vault.creds=Object.values(_rmCredMap);
           }
-          // Merge vault notes: use remote only if vault IDB has no notes yet.
-          if(!vault.notes){
-            var _lsNotes=safeJson(localStorage.getItem('homer-vault-notes:'+_rmMode)||'null',null);
-            if(typeof _lsNotes==='string'&&_lsNotes.length>0)vault.notes=_lsNotes;
-          }
+          // Merge vault notes: cloud wins — always use remote (LS) notes if they exist.
+          var _lsNotes=safeJson(localStorage.getItem('homer-vault-notes:'+_rmMode)||'null',null);
+          if(typeof _lsNotes==='string'&&_lsNotes.length>0)vault.notes=_lsNotes;
           applyMerge(
             {projects:_lsKb.projects||[],tasks:(_lsKb.tasks||[]).concat(_lsKb.goals||[])},
             Array.isArray(_lsLg)?_lsLg:[]
@@ -1710,12 +1708,13 @@
             if(Array.isArray(_lsCreds)&&_lsCreds.length>0){
               window._homerLoadVault().then(function(v){
                 if(!v)return;
-                // Merge: local vault creds win for existing entries (by site+label), add new from Android.
+                // Merge: cloud wins — remote overwrites local on same site+label (compare updatedAt).
                 var _credMap={};
                 (v.creds||[]).forEach(function(c){_credMap[(c.site||'')+'|'+(c.label||'')]=c;});
                 _lsCreds.forEach(function(c){
                   var _k=(c.site||'')+'|'+(c.label||'');
-                  if(!_credMap[_k])_credMap[_k]=c; // add new; local wins if already exists
+                  var ex=_credMap[_k];
+                  if(!ex||(c.updatedAt||0)>=(ex.updatedAt||0))_credMap[_k]=c;
                 });
                 v.creds=Object.values(_credMap);
                 window._homerSaveVault(v).catch(function(e){console.warn('[VaultSync] secrets merge',e);});
@@ -1735,7 +1734,8 @@
             var _lsNotes=safeJson(localStorage.getItem(key)||'null',null);
             if(typeof _lsNotes==='string'&&_lsNotes.length>0){
               window._homerLoadVault().then(function(v){
-                if(!v||v.notes)return; // local wins if vault already has notes
+                if(!v)return;
+                // Cloud wins — always apply remote notes (user edits push immediately, so remote is authoritative).
                 v.notes=_lsNotes;
                 window._homerSaveVault(v).catch(function(e){console.warn('[VaultSync] notes merge',e);});
               }).catch(function(e){console.warn('[VaultSync] notes load',e);});

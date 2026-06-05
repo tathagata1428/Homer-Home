@@ -1471,8 +1471,9 @@
   function mergeById(local, remote) {
     var map = {};
     local.forEach(function(x) { map[x.id] = x; });
+    // Cloud wins: remote overwrites local on same ID (>=) so equal timestamps also take remote.
     remote.forEach(function(x) {
-      if (!map[x.id] || (x.updatedAt || 0) > (map[x.id].updatedAt || 0)) map[x.id] = x;
+      if (!map[x.id] || (x.updatedAt || 0) >= (map[x.id].updatedAt || 0)) map[x.id] = x;
     });
     return Object.values(map);
   }
