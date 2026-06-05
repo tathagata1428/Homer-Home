@@ -172,6 +172,15 @@
     .db-sync-bad   { color:#f87171; }
     .db-sync-muted { color:#64748b; }
 
+    /* Car alerts */
+    .db-car-alert-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid rgba(255,255,255,.05); }
+    .db-car-alert-row:last-child { border-bottom:none; }
+    .db-car-alert-stripe { width:4px; height:32px; border-radius:2px; flex-shrink:0; }
+    .db-car-alert-info { flex:1; min-width:0; }
+    .db-car-alert-label { display:block; font-size:.87rem; font-weight:700; color:var(--text); }
+    .db-car-alert-date { display:block; font-size:.72rem; color:#64748b; margin-top:2px; }
+    .db-car-alert-badge { font-size:.72rem; font-weight:800; flex-shrink:0; }
+
     .db-empty { color:#475569; font-size:.87rem; font-style:italic; padding:4px 0; }
     .db-vault-notice { display:flex; align-items:center; gap:12px; padding:16px; background:rgba(96,165,250,.06); border:1px solid rgba(96,165,250,.15); border-radius:12px; color:var(--muted); font-size:.88rem; }
     .db-vault-notice-icon { font-size:1.4rem; flex-shrink:0; }
@@ -483,6 +492,48 @@
     }).join('');
   }
 
+  /* ── Car alerts ───────────────────────────────────────────────────── */
+  function renderCarAlerts() {
+    var wrap = document.getElementById('db-car-alerts-wrap');
+    var card = document.getElementById('db-car-alerts-card');
+    if (!wrap || !card) return;
+    var raw = safeJson(localStorage.getItem('homer-car'), null);
+    if (!raw) { card.style.display = 'none'; return; }
+
+    var todayMs = new Date(todayStr()).getTime();
+    var alerts = [];
+
+    (raw.documents || []).forEach(function (doc) {
+      if (!doc.expiryDate) return;
+      var days = Math.round((new Date(doc.expiryDate).getTime() - todayMs) / 86400000);
+      if (days <= 7) alerts.push({ label: doc.label || doc.type, date: doc.expiryDate, days: days });
+    });
+
+    (raw.maintenance || []).forEach(function (m) {
+      if (!m.nextDateDue) return;
+      var days = Math.round((new Date(m.nextDateDue).getTime() - todayMs) / 86400000);
+      if (days <= 7) alerts.push({ label: m.label || m.type, date: m.nextDateDue, days: days });
+    });
+
+    if (!alerts.length) { card.style.display = 'none'; return; }
+    alerts.sort(function (a, b) { return a.days - b.days; });
+    card.style.display = '';
+
+    wrap.innerHTML = alerts.map(function (a) {
+      var isExpired = a.days < 0;
+      var color = isExpired ? '#ef4444' : '#f59e0b';
+      var badge = isExpired ? 'EXPIRED' : (a.days === 0 ? 'Today!' : a.days + 'd left');
+      return '<div class="db-car-alert-row">' +
+        '<div class="db-car-alert-stripe" style="background:' + color + '"></div>' +
+        '<div class="db-car-alert-info">' +
+          '<span class="db-car-alert-label">🚗 ' + esc(a.label) + '</span>' +
+          '<span class="db-car-alert-date">' + esc(a.date) + '</span>' +
+        '</div>' +
+        '<span class="db-car-alert-badge" style="color:' + color + '">' + esc(badge) + '</span>' +
+        '</div>';
+    }).join('');
+  }
+
   /* ── Sync status ──────────────────────────────────────────────────── */
   function stampAge(ts) {
     if (!ts) return { text: 'Never', cls: 'db-sync-warn' };
@@ -546,6 +597,7 @@
     syncWeather();
     populateFromVault();
     renderHabits();
+    renderCarAlerts();
     updateSyncStatus();
   }
 

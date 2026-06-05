@@ -90,6 +90,34 @@ fun DailyBriefScreen(vm: DailyBriefViewModel = hiltViewModel()) {
             }
         }
 
+        // Car alerts — expired or expiring within 7 days
+        if (state.carAlerts.isNotEmpty()) {
+            item { SectionHeader("Car Alerts") }
+            state.carAlerts.forEach { alert ->
+                item {
+                    val isExpired = alert.daysLeft < 0
+                    val alertColor = if (isExpired) AccentRed else AccentAmber
+                    HomerCard {
+                        Row(Modifier.fillMaxWidth().padding(12.dp, 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.width(4.dp).height(36.dp).clip(RoundedCornerShape(2.dp)).background(alertColor))
+                            Spacer(Modifier.width(10.dp))
+                            Text("🚗", fontSize = 18.sp, modifier = Modifier.width(28.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(alert.label, style = MaterialTheme.typography.bodySmall, color = TextPrimary, fontWeight = FontWeight.SemiBold)
+                                Text(alert.expiryDate, style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                            }
+                            val badge = when {
+                                isExpired -> "EXPIRED"
+                                alert.daysLeft == 0L -> "Today!"
+                                else -> "${alert.daysLeft}d left"
+                            }
+                            Text(badge, style = MaterialTheme.typography.labelSmall, color = alertColor, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
         // In-progress Kanban tasks
         if (state.inProgressTasks.isNotEmpty()) {
             item { SectionHeader("In Progress") }
