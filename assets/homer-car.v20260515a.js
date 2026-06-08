@@ -98,8 +98,9 @@
     state.data = data;
     saveToIDB(data);                              // IDB: full data including file blobs
     var syncData = stripFileData(data);           // Sync: metadata only, no large blobs
+    try { localStorage.setItem('homer-car', JSON.stringify(syncData)); } catch(e) {}
+    try { window.dispatchEvent(new CustomEvent('homer-data-synced', {detail:{key:'homer-car'}})); } catch(e) {}
     pushToSupabase(syncData);
-    if(isBogdan()) try{ localStorage.setItem('homer-car', JSON.stringify(syncData)); }catch(e){}
   }
 
   /* ── Supabase ─────────────────────────────────────────────────────── */
@@ -1482,12 +1483,13 @@
       merged.documents = restoreFileData(merged.documents, localDocs);
       saveToIDB(merged);           // IDB: full data including blobs
       state.data = merged;
+      var syncData = stripFileData(merged);
+      try { localStorage.setItem('homer-car', JSON.stringify(syncData)); } catch(_) {}
+      try { window.dispatchEvent(new CustomEvent('homer-data-synced', {detail:{key:'homer-car'}})); } catch(_) {}
       if (merged.vehicles.length || merged.documents.length ||
           merged.maintenance.length || merged.fuel.length || merged.odoLogs.length) {
         // Push metadata-only so large file blobs don't block sync
-        var syncData = stripFileData(merged);
         pushToSupabase(syncData);
-        try { localStorage.setItem('homer-car', JSON.stringify(syncData)); } catch(_) {}
       }
       var container = document.getElementById(CONTAINER_ID);
       if (container && container.style.display !== 'none') renderTab();
