@@ -1391,11 +1391,36 @@
       if (ct && ct.style.display !== 'none') renderTab();
       // Show expiry alerts after a short delay so UI has settled
       if (data.documents.length || data.maintenance.length) setTimeout(function() { checkExpiryAlerts(data); }, 1500);
+      // Re-check LS after 3s: syncMergeKey (enhancements) may write homer-car to LS
+      // after this IDB callback runs, and the car module needs to react to it.
+      // Only applies when IDB was empty (fresh/incognito browser restore path).
+      if (!data.vehicles.length && !data.documents.length && !data.maintenance.length && !data.fuel.length) {
+        setTimeout(function() {
+          if (state.data.vehicles.length || state.data.documents.length) return; // already populated
+          var lsVal = localStorage.getItem('homer-car');
+          var lsData = lsVal ? safeJson(lsVal, null) : null;
+          if (lsData && typeof lsData === 'object' && !Array.isArray(lsData) &&
+              ((lsData.vehicles||[]).length || (lsData.documents||[]).length ||
+               (lsData.maintenance||[]).length || (lsData.fuel||[]).length)) {
+            applyRemote(lsData);
+          }
+        }, 3000);
+      }
     });
 
     // Pull from Supabase when session is ready (fires after Supabase auth)
     function applyRemote(remote) {
-      if (!remote) return;
+      if (!remote) {
+        // Supabase has no car data — if we have local IDB data, push it now so other
+        // browsers can restore. This happens when Supabase was wiped by a race condition
+        // or on the very first sync from a new device.
+        if (state.data.vehicles.length || state.data.documents.length ||
+            state.data.maintenance.length || state.data.fuel.length || (state.data.odoLogs||[]).length) {
+          pushToSupabase(stripFileData(state.data));
+          try { localStorage.setItem('homer-car', JSON.stringify(stripFileData(state.data))); } catch(_) {}
+        }
+        return;
+      }
       // Merge-wins: union local + remote by ID so no data is ever lost from either side.
       // mergeById keeps the newer updatedAt version of each item.
       var localDocs = state.data.documents || [];
