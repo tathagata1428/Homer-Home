@@ -197,6 +197,10 @@
     .car-title-bar  { width:40px; height:2px; background:linear-gradient(90deg,#60a5fa,#3b82f6); margin-top:6px; border-radius:1px; }
     .car-add-btn { display:flex; align-items:center; gap:6px; padding:9px 16px; border-radius:12px; border:none; background:linear-gradient(135deg,#3b82f6,#2563eb); color:#fff; font-size:.82rem; font-weight:700; cursor:pointer; flex-shrink:0; }
     .car-add-btn:hover { filter:brightness(1.12); }
+    .car-sync-btn { padding:7px 10px; border-radius:10px; border:1px solid rgba(96,165,250,.35); background:rgba(96,165,250,.1); color:#60a5fa; font-size:1.05rem; cursor:pointer; flex-shrink:0; margin-right:6px; transition:background .2s; }
+    .car-sync-btn:hover { background:rgba(96,165,250,.22); }
+    .car-sync-btn.syncing { animation:car-spin .9s linear infinite; }
+    @keyframes car-spin { to { transform:rotate(360deg); } }
 
     /* Vehicle dashboard card */
     .car-vehicle-card {
@@ -511,6 +515,7 @@
 
     var html = '<div class="car-header">';
     html +=   '<div><div class="car-title-main">CAR</div><div class="car-title-sub">TRACKER</div><div class="car-title-bar"></div></div>';
+    html +=   '<button class="car-sync-btn" id="car-sync-btn" title="Sync to/from cloud">☁</button>';
     html +=   '<button class="car-add-btn" id="car-add-vehicle-btn">+ Add Vehicle</button>';
     html += '</div>';
 
@@ -737,6 +742,29 @@
 
   /* ── Event wiring ────────────────────────────────────────────────── */
   function attachTabEvents(container, vehicle) {
+    // Sync button: push IDB data to Supabase + pull back
+    var syncBtn = document.getElementById('car-sync-btn');
+    if (syncBtn) syncBtn.onclick = function() {
+      syncBtn.classList.add('syncing');
+      syncBtn.disabled = true;
+      // Push current IDB data up
+      if (isBogdan() && getSbClient() && getSbUid()) {
+        pushToSupabase(stripFileData(state.data));
+        try { localStorage.setItem('homer-car', JSON.stringify(stripFileData(state.data))); } catch(_) {}
+      }
+      // Pull from Supabase
+      pullFromSupabase(function(remote) {
+        syncBtn.classList.remove('syncing');
+        syncBtn.disabled = false;
+        if (remote) {
+          applyRemote(remote);
+        } else if (state.data.vehicles.length) {
+          // Nothing in Supabase yet — we just pushed, render current data
+          renderTab();
+        }
+      });
+    };
+
     // Add vehicle button
     var addVBtn = document.getElementById('car-add-vehicle-btn');
     if (addVBtn) addVBtn.onclick = function() { state.editingVehicle = null; openVehicleModal(null); };

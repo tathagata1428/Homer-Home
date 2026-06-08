@@ -9203,6 +9203,7 @@ let tvWidgetCreated = false;
     'homer-expense-goals':      'ls:homer-expense-goals',
     'homer-expense-templates':  'ls:homer-expense-templates',
     'homer-expense-budgets':    'ls:homer-expense-budgets',
+    'homer-expense-budgets-excluded': 'ls:homer-expense-budgets-excluded',
     'homer-expense-cats':       'ls:homer-expense-cats',
     'homer-payday-day':         'ls:homer-payday-day',
     'homer-zen-goal':           'ls:homer-zen-goal',
