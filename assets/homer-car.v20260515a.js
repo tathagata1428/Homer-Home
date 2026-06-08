@@ -1300,16 +1300,31 @@
 
   function checkExpiryAlerts(data) {
     var urgent = [], warn = [];
+    // Deduplicate by (vehicleId, type): keep only the latest expiryDate per type per vehicle.
+    // Prevents stale/superseded entries from triggering false expired alerts.
+    var docMap = {};
     (data.documents || []).forEach(function(doc) {
       if (!doc.expiryDate) return;
+      var k = (doc.vehicleId || '') + ':' + (doc.type || '');
+      if (!docMap[k] || doc.expiryDate > docMap[k].expiryDate) docMap[k] = doc;
+    });
+    Object.keys(docMap).forEach(function(k) {
+      var doc = docMap[k];
       var days = daysUntil(doc.expiryDate);
       var label = doc.label || docTypeInfo(doc.type).label;
       if (days < 0)        urgent.push(label + ' EXPIRED');
       else if (days <= 7)  urgent.push(label + ': ' + days + 'd left');
       else if (days <= 30) warn.push(label + ': ' + days + 'd left');
     });
+    // Maintenance: deduplicate by (vehicleId, type), keep the record with the latest nextDateDue.
+    var maintMap = {};
     (data.maintenance || []).forEach(function(rec) {
       if (!rec.nextDateDue) return;
+      var k = (rec.vehicleId || '') + ':' + (rec.type || '');
+      if (!maintMap[k] || rec.nextDateDue > maintMap[k].nextDateDue) maintMap[k] = rec;
+    });
+    Object.keys(maintMap).forEach(function(k) {
+      var rec = maintMap[k];
       var days = daysUntil(rec.nextDateDue);
       var label = rec.label || maintTypeInfo(rec.type).label;
       if (days < 0)        urgent.push('🔧 ' + label + ' overdue');
@@ -1389,8 +1404,9 @@
       }
       var ct = document.getElementById(CONTAINER_ID);
       if (ct && ct.style.display !== 'none') renderTab();
-      // Show expiry alerts after a short delay so UI has settled
-      if (data.documents.length || data.maintenance.length) setTimeout(function() { checkExpiryAlerts(data); }, 1500);
+      // Show expiry alerts after 5s so sync has time to update state.data with current dates
+      // before alerting — prevents stale IDB data (pre-sync) from triggering false alarms.
+      setTimeout(function() { checkExpiryAlerts(state.data); }, 5000);
       // Re-check LS after 3s: syncMergeKey (enhancements) may write homer-car to LS
       // after this IDB callback runs, and the car module needs to react to it.
       // Only applies when IDB was empty (fresh/incognito browser restore path).

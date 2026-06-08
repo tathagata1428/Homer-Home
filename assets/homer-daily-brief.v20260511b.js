@@ -503,14 +503,29 @@
     var todayMs = new Date(todayStr()).getTime();
     var alerts = [];
 
+    // Deduplicate by (vehicleId, type): keep the latest expiryDate per type per vehicle.
+    // Prevents a renewed document's old expired entry from still showing as an alert.
+    var docMap = {};
     (raw.documents || []).forEach(function (doc) {
       if (!doc.expiryDate) return;
+      var k = (doc.vehicleId || '') + ':' + (doc.type || '');
+      if (!docMap[k] || doc.expiryDate > docMap[k].expiryDate) docMap[k] = doc;
+    });
+    Object.keys(docMap).forEach(function (k) {
+      var doc = docMap[k];
       var days = Math.round((new Date(doc.expiryDate).getTime() - todayMs) / 86400000);
       if (days <= 7) alerts.push({ label: doc.label || doc.type, date: doc.expiryDate, days: days });
     });
 
+    // Deduplicate maintenance by (vehicleId, type): keep the latest nextDateDue.
+    var maintMap = {};
     (raw.maintenance || []).forEach(function (m) {
       if (!m.nextDateDue) return;
+      var k = (m.vehicleId || '') + ':' + (m.type || '');
+      if (!maintMap[k] || m.nextDateDue > maintMap[k].nextDateDue) maintMap[k] = m;
+    });
+    Object.keys(maintMap).forEach(function (k) {
+      var m = maintMap[k];
       var days = Math.round((new Date(m.nextDateDue).getTime() - todayMs) / 86400000);
       if (days <= 7) alerts.push({ label: m.label || m.type, date: m.nextDateDue, days: days });
     });
@@ -763,6 +778,11 @@
     window.addEventListener('vault-goals-changed', function () {
       if (isBogdan()) setTimeout(function () { pushVaultToSupabase(true); }, 800);
       if (document.body.dataset.activeTab === 'daily-brief') populateFromVault();
+    });
+
+    // Car data synced (Realtime or local save) → refresh car alerts immediately
+    window.addEventListener('homer-data-synced', function (e) {
+      if (e && e.detail && e.detail.key === 'homer-car') renderCarAlerts();
     });
 
     // Habits / extras changed → force a full backup (vault-backup sends everything)
