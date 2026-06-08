@@ -507,7 +507,7 @@
     // Prevents a renewed document's old expired entry from still showing as an alert.
     var docMap = {};
     (raw.documents || []).forEach(function (doc) {
-      if (!doc.expiryDate) return;
+      if (!doc.expiryDate || doc.deleted) return;
       var k = (doc.vehicleId || '') + ':' + (doc.type || '');
       if (!docMap[k] || doc.expiryDate > docMap[k].expiryDate) docMap[k] = doc;
     });

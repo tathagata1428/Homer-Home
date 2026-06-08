@@ -393,7 +393,7 @@
   }
   function getDocsForVehicle() {
     var v = getSelectedVehicle(); if (!v) return [];
-    return state.data.documents.filter(function(d) { return d.vehicleId === v.id; })
+    return state.data.documents.filter(function(d) { return d.vehicleId === v.id && !d.deleted; })
       .sort(function(a, b) {
         // docs with expiry sort by date (soonest first); no-expiry docs go to end
         var ae = a.expiryDate || '9999-99-99';
@@ -403,24 +403,24 @@
   }
   function getMaintForVehicle() {
     var v = getSelectedVehicle(); if (!v) return [];
-    return state.data.maintenance.filter(function(m) { return m.vehicleId === v.id; })
+    return state.data.maintenance.filter(function(m) { return m.vehicleId === v.id && !m.deleted; })
       .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
   }
   function getFuelForVehicle() {
     var v = getSelectedVehicle(); if (!v) return [];
-    return state.data.fuel.filter(function(f) { return f.vehicleId === v.id; })
+    return state.data.fuel.filter(function(f) { return f.vehicleId === v.id && !f.deleted; })
       .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
   }
 
   function getOdoLogsForVehicle() {
     var v = getSelectedVehicle(); if (!v) return [];
-    return (state.data.odoLogs || []).filter(function(o) { return o.vehicleId === v.id; })
+    return (state.data.odoLogs || []).filter(function(o) { return o.vehicleId === v.id && !o.deleted; })
       .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
   }
 
   function calcAvgConsumption() {
     var logs = state.data.fuel.filter(function(f) {
-      return f.vehicleId === (getSelectedVehicle() || {}).id && f.fullTank && f.odometer > 0;
+      return f.vehicleId === (getSelectedVehicle() || {}).id && f.fullTank && f.odometer > 0 && !f.deleted;
     }).sort(function(a,b) { return a.odometer - b.odometer; });
     if (logs.length < 2) return null;
     var totalL = 0, totalKm = 0;
@@ -845,21 +845,24 @@
   }
 
   /* ── CRUD ────────────────────────────────────────────────────────── */
+  function softDelete(arr, id) {
+    return arr.map(function(x) { return x.id === id ? Object.assign({}, x, { deleted: true, updatedAt: Date.now() }) : x; });
+  }
   function deleteDoc(id) {
-    state.data.documents = state.data.documents.filter(function(d) { return d.id !== id; });
+    state.data.documents = softDelete(state.data.documents, id);
     save(state.data); renderTab();
   }
   function deleteMaint(id) {
-    state.data.maintenance = state.data.maintenance.filter(function(m) { return m.id !== id; });
+    state.data.maintenance = softDelete(state.data.maintenance, id);
     save(state.data); renderTab();
   }
   function deleteFuel(id) {
-    state.data.fuel = state.data.fuel.filter(function(f) { return f.id !== id; });
+    state.data.fuel = softDelete(state.data.fuel, id);
     save(state.data); renderTab();
   }
   function deleteOdoLog(id) {
     if (!state.data.odoLogs) state.data.odoLogs = [];
-    state.data.odoLogs = state.data.odoLogs.filter(function(o) { return o.id !== id; });
+    state.data.odoLogs = softDelete(state.data.odoLogs, id);
     save(state.data); renderTab();
   }
 
@@ -1103,7 +1106,7 @@
 
     if (existing) {
       document.getElementById('cd-del-btn').onclick = function() {
-        state.data.documents = state.data.documents.filter(function(dd) { return dd.id !== existing.id; });
+        state.data.documents = softDelete(state.data.documents, existing.id);
         save(state.data); overlay.remove(); renderTab();
       };
     }
@@ -1332,7 +1335,7 @@
     // Prevents stale/superseded entries from triggering false expired alerts.
     var docMap = {};
     (data.documents || []).forEach(function(doc) {
-      if (!doc.expiryDate) return;
+      if (!doc.expiryDate || doc.deleted) return;
       var k = (doc.vehicleId || '') + ':' + (doc.type || '');
       if (!docMap[k] || doc.expiryDate > docMap[k].expiryDate) docMap[k] = doc;
     });
@@ -1347,7 +1350,7 @@
     // Maintenance: deduplicate by (vehicleId, type), keep the record with the latest nextDateDue.
     var maintMap = {};
     (data.maintenance || []).forEach(function(rec) {
-      if (!rec.nextDateDue) return;
+      if (!rec.nextDateDue || rec.deleted) return;
       var k = (rec.vehicleId || '') + ':' + (rec.type || '');
       if (!maintMap[k] || rec.nextDateDue > maintMap[k].nextDateDue) maintMap[k] = rec;
     });
@@ -1540,9 +1543,9 @@
   function mergeById(local, remote) {
     var map = {};
     local.forEach(function(x) { map[x.id] = x; });
-    // Cloud wins: remote overwrites local on same ID (>=) so equal timestamps also take remote.
+    // Remote wins only when strictly newer — local wins on equal or missing timestamps.
     remote.forEach(function(x) {
-      if (!map[x.id] || (x.updatedAt || 0) >= (map[x.id].updatedAt || 0)) map[x.id] = x;
+      if (!map[x.id] || (x.updatedAt || 0) > (map[x.id].updatedAt || 0)) map[x.id] = x;
     });
     return Object.values(map);
   }
