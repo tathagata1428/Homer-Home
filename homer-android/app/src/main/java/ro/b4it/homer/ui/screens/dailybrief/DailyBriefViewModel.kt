@@ -79,12 +79,26 @@ class DailyBriefViewModel @Inject constructor(
             val todayDate = LocalDate.now()
             val carAlerts = mutableListOf<CarAlert>()
             try {
+                // Deduplicate by (vehicleId, type) — keep latest expiryDate per type per vehicle
+                val docMap = mutableMapOf<String, ro.b4it.homer.data.local.entities.CarDocument>()
                 carDao.getAllDocuments().first().filter { it.expiryDate.isNotBlank() }.forEach { doc ->
+                    val key = "${doc.vehicleId}:${doc.type}"
+                    val existing = docMap[key]
+                    if (existing == null || doc.expiryDate > existing.expiryDate) docMap[key] = doc
+                }
+                docMap.values.forEach { doc ->
                     val expiry = runCatching { LocalDate.parse(doc.expiryDate) }.getOrNull() ?: return@forEach
                     val days = ChronoUnit.DAYS.between(todayDate, expiry)
                     if (days <= 7) carAlerts.add(CarAlert(doc.label.ifBlank { doc.type }, doc.expiryDate, days))
                 }
+                // Deduplicate maintenance by (vehicleId, type) — keep latest nextDateDue
+                val maintMap = mutableMapOf<String, ro.b4it.homer.data.local.entities.CarMaintenance>()
                 carDao.getAllMaintenance().first().filter { it.nextDateDue.isNotBlank() }.forEach { m ->
+                    val key = "${m.vehicleId}:${m.type}"
+                    val existing = maintMap[key]
+                    if (existing == null || m.nextDateDue > existing.nextDateDue) maintMap[key] = m
+                }
+                maintMap.values.forEach { m ->
                     val due = runCatching { LocalDate.parse(m.nextDateDue) }.getOrNull() ?: return@forEach
                     val days = ChronoUnit.DAYS.between(todayDate, due)
                     if (days <= 7) carAlerts.add(CarAlert(m.label.ifBlank { m.type }, m.nextDateDue, days))
