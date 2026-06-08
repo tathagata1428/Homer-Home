@@ -311,16 +311,22 @@
     return (text || '').trim().split(/\s+/).filter(function (w) { return w.length > 0; }).length;
   }
 
+  // Date arithmetic using UTC noon — safe from DST and timezone offsets.
+  function utcNoon(dateStr) { return new Date(dateStr + 'T12:00:00Z'); }
+  function prevDay(dateStr) {
+    var d = utcNoon(dateStr);
+    d.setUTCDate(d.getUTCDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }
+
   function calcStreak(entries) {
     var today = todayStr();
     var dates = {};
     entries.forEach(function (e) { if (e.date && e.content) dates[e.date] = true; });
     var streak = 0;
-    var d = new Date(today + 'T00:00:00');
-    if (!dates[today]) d.setDate(d.getDate() - 1);
+    var cur = dates[today] ? today : prevDay(today);
     for (var i = 0; i < 365; i++) {
-      var ds = d.toISOString().slice(0, 10);
-      if (dates[ds]) { streak++; d.setDate(d.getDate() - 1); }
+      if (dates[cur]) { streak++; cur = prevDay(cur); }
       else break;
     }
     return streak;
@@ -332,10 +338,10 @@
     entries.forEach(function (e) { byDate[e.date] = e.mood || ''; });
     var result = [];
     for (var i = 6; i >= 0; i--) {
-      var d = new Date(today + 'T00:00:00');
-      d.setDate(d.getDate() - i);
+      var d = utcNoon(today);
+      d.setUTCDate(d.getUTCDate() - i);
       var ds = d.toISOString().slice(0, 10);
-      result.push({ date: ds, day: DAY_ABBR[d.getDay()], mood: byDate[ds] || '', isToday: ds === today });
+      result.push({ date: ds, day: DAY_ABBR[d.getUTCDay()], mood: byDate[ds] || '', isToday: ds === today });
     }
     return result;
   }
