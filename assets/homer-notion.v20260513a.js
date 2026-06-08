@@ -940,6 +940,8 @@
 
   var RT_DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+  var _editingTaskId = null;
+
   function buildRTModal() {
     var sel = function(attrs) { return '<select ' + attrs + ' style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(20,32,54,.95);color:var(--text);font-family:inherit;">'; };
     var inp = function(id, ph) { return '<input id="' + id + '" type="text" placeholder="' + ph + '" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-family:inherit;width:100%;box-sizing:border-box;">'; };
@@ -947,7 +949,7 @@
     mbg.innerHTML =
       '<div id="rt-modal">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
-          '<h3>&#128260; New Schedule</h3>' +
+          '<h3 id="rt-modal-title">&#128260; New Schedule</h3>' +
           '<button id="rt-modal-x" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1;padding:0 4px;">&times;</button>' +
         '</div>' +
         '<div class="hn-label">Quick Templates</div>' +
@@ -1010,35 +1012,88 @@
       var title = (document.getElementById('rt-title').value || '').trim();
       if (!title) { document.getElementById('rt-title').focus(); return; }
       var freq = document.getElementById('rt-freq').value;
-      var task = {
-        id: uid(), title: title, freq: freq, enabled: true, paused: false,
-        category: document.getElementById('rt-cat').value,
-        priority: document.getElementById('rt-priority').value,
-        note: (document.getElementById('rt-note').value || '').trim(),
-        lastFired: null, completions: [], created: new Date().toISOString()
-      };
-      if (freq === 'weekly') {
-        var cbs = document.querySelectorAll('.rt-day-cb:checked');
-        task.days = Array.prototype.map.call(cbs, function(cb) { return parseInt(cb.value); });
-      } else if (freq === 'monthly') {
-        task.dayOfMonth = parseInt(document.getElementById('rt-dom').value || '1');
-      } else if (freq === 'interval') {
-        task.intervalDays = parseInt(document.getElementById('rt-interval').value || '7');
+      var arr = getRT();
+      if (_editingTaskId) {
+        var idx = -1;
+        for (var j = 0; j < arr.length; j++) { if (arr[j].id === _editingTaskId) { idx = j; break; } }
+        if (idx !== -1) {
+          arr[idx] = Object.assign({}, arr[idx], {
+            title: title, freq: freq,
+            category: document.getElementById('rt-cat').value,
+            priority: document.getElementById('rt-priority').value,
+            note: (document.getElementById('rt-note').value || '').trim()
+          });
+          if (freq === 'weekly') {
+            var ecbs = document.querySelectorAll('.rt-day-cb:checked');
+            arr[idx].days = Array.prototype.map.call(ecbs, function(cb) { return parseInt(cb.value); });
+          } else if (freq === 'monthly') {
+            arr[idx].dayOfMonth = parseInt(document.getElementById('rt-dom').value || '1');
+          } else if (freq === 'interval') {
+            arr[idx].intervalDays = parseInt(document.getElementById('rt-interval').value || '7');
+          }
+          setRT(arr);
+        }
+        closeModal(); initRecurringTab(); toast('Schedule updated');
+      } else {
+        var task = {
+          id: uid(), title: title, freq: freq, enabled: true, paused: false,
+          category: document.getElementById('rt-cat').value,
+          priority: document.getElementById('rt-priority').value,
+          note: (document.getElementById('rt-note').value || '').trim(),
+          lastFired: null, completions: [], created: new Date().toISOString()
+        };
+        if (freq === 'weekly') {
+          var cbs = document.querySelectorAll('.rt-day-cb:checked');
+          task.days = Array.prototype.map.call(cbs, function(cb) { return parseInt(cb.value); });
+        } else if (freq === 'monthly') {
+          task.dayOfMonth = parseInt(document.getElementById('rt-dom').value || '1');
+        } else if (freq === 'interval') {
+          task.intervalDays = parseInt(document.getElementById('rt-interval').value || '7');
+        }
+        arr.push(task); setRT(arr);
+        document.getElementById('rt-title').value = '';
+        closeModal(); initRecurringTab(); toast('Schedule added');
       }
-      var arr = getRT(); arr.push(task); setRT(arr);
-      document.getElementById('rt-title').value = '';
-      closeModal(); initRecurringTab(); toast('Schedule added');
     };
   }
 
   function openRTModal() {
     if (!document.getElementById('rt-modal-bg')) buildRTModal();
+    _editingTaskId = null;
+    document.getElementById('rt-modal-title').textContent = '\uD83D\uDD01 New Schedule';
+    document.getElementById('rt-add').textContent = 'Add Schedule';
     document.getElementById('rt-title').value = '';
     document.getElementById('rt-freq').value = 'daily';
+    document.getElementById('rt-priority').value = '';
+    document.getElementById('rt-cat').value = '';
     document.getElementById('rt-freq-extra').innerHTML = '';
     document.getElementById('rt-note').value = '';
     document.getElementById('rt-modal-bg').classList.add('open');
     setTimeout(function() { document.getElementById('rt-title').focus(); }, 60);
+  }
+
+  function openRTEditModal(task) {
+    if (!document.getElementById('rt-modal-bg')) buildRTModal();
+    _editingTaskId = task.id;
+    document.getElementById('rt-modal-title').textContent = '\u270F\uFE0F Edit Schedule';
+    document.getElementById('rt-add').textContent = 'Save Changes';
+    document.getElementById('rt-title').value = task.title || '';
+    document.getElementById('rt-freq').value = task.freq || 'daily';
+    document.getElementById('rt-priority').value = task.priority || '';
+    document.getElementById('rt-cat').value = task.category || '';
+    document.getElementById('rt-note').value = task.note || '';
+    document.getElementById('rt-freq').dispatchEvent(new Event('change'));
+    setTimeout(function() {
+      if (task.freq === 'weekly' && task.days) {
+        task.days.forEach(function(d2) { var cb = document.querySelector('.rt-day-cb[value="' + d2 + '"]'); if (cb) cb.checked = true; });
+      } else if (task.freq === 'monthly' && task.dayOfMonth) {
+        var domEl = document.getElementById('rt-dom'); if (domEl) domEl.value = task.dayOfMonth;
+      } else if (task.freq === 'interval' && task.intervalDays) {
+        var intEl = document.getElementById('rt-interval'); if (intEl) intEl.value = task.intervalDays;
+      }
+    }, 60);
+    document.getElementById('rt-modal-bg').classList.add('open');
+    setTimeout(function() { document.getElementById('rt-title').focus(); }, 70);
   }
 
   function initRecurringTab() {
@@ -1056,13 +1111,8 @@
     var active = tasks.filter(function(t) { return t.enabled && !t.paused; });
     var actionItems = active.filter(function(t) { return calcNextDue(t) === 'Today' && t.lastFired !== today; });
     var doneToday  = tasks.filter(function(t) { return t.lastCompleted === today || (t.completions.length && t.completions[0].date === today); });
-    var upcoming   = active.filter(function(t) { var nd = calcNextDue(t); return nd !== 'Today' && nd !== 'paused' && nd !== '\u2014'; })
-      .sort(function(a, b) {
-        var parse = function(s) { var m = s.match(/\d+/); return m ? parseInt(m[0]) : 999; };
-        var na = calcNextDue(a), nb = calcNextDue(b);
-        if (na === 'Tomorrow') return -1; if (nb === 'Tomorrow') return 1;
-        return parse(na) - parse(nb);
-      });
+    var doneIds = {}; doneToday.forEach(function(t) { doneIds[t.id] = true; });
+    var tomorrowItems = active.filter(function(t) { return calcNextDue(t) === 'Tomorrow' && !doneIds[t.id]; });
     var thisMonth = today.slice(0, 7);
     var monthDone = 0;
     tasks.forEach(function(t) { monthDone += t.completions.filter(function(c) { return (c.date || '').startsWith(thisMonth); }).length; });
@@ -1100,14 +1150,15 @@
 
     // ── Needs Attention
     var attnEl = document.createElement('div'); attnEl.className = 'rt-section';
+    var attnCount = actionItems.length + tomorrowItems.length;
     var attnHd = '<div class="rt-section-hd"><h3>Needs Attention</h3>' +
-      (actionItems.length ? '<span class="rt-section-badge" style="background:rgba(251,191,36,.14);color:#fbbf24;">' + actionItems.length + '</span>' : '') +
+      (attnCount ? '<span class="rt-section-badge" style="background:rgba(251,191,36,.14);color:#fbbf24;">' + attnCount + '</span>' : '') +
       '</div>';
     var attnBody = '';
-    if (!actionItems.length && !doneToday.length) {
-      attnBody = '<div class="rt-catchup">&#127881; All caught up! Nothing due today.</div>';
+    if (!actionItems.length && !tomorrowItems.length && !doneToday.length) {
+      attnBody = '<div class="rt-catchup">&#127881; All caught up! Nothing due today or tomorrow.</div>';
     } else {
-      if (actionItems.length) {
+      if (actionItems.length || tomorrowItems.length) {
         attnBody += '<div class="rt-action-grid">';
         actionItems.forEach(function(task) {
           var overdue = isRTOverdue(task);
@@ -1137,6 +1188,27 @@
               '</div>' +
             '</div>';
         });
+        tomorrowItems.forEach(function(task) {
+          var catColor = RT_CATS[task.category] || 'var(--muted)';
+          var freqLabel = task.freq === 'interval' ? 'Every ' + (task.intervalDays || 7) + 'd' : task.freq;
+          if (task.freq === 'weekly' && task.days && task.days.length) freqLabel += ' (' + task.days.map(function(d2) { return RT_DAY_NAMES[d2]; }).join(',') + ')';
+          if (task.freq === 'monthly' && task.dayOfMonth) freqLabel += ' (day ' + task.dayOfMonth + ')';
+          var streak = computeRTStreak(task);
+          attnBody +=
+            '<div class="rt-action-card tomorrow">' +
+              '<div class="rt-ac-top">' +
+                '<div class="rt-ac-title">' + esc(task.title) + '</div>' +
+                '<span class="rt-ac-tag" style="background:rgba(96,165,250,.15);color:#60a5fa;">TOMORROW</span>' +
+              '</div>' +
+              '<div class="rt-ac-badges">' +
+                '<span class="rt-freq ' + task.freq + '">' + esc(freqLabel) + '</span>' +
+                (task.category ? '<span class="rt-cat" style="background:' + catColor + '22;color:' + catColor + ';">' + esc(task.category) + '</span>' : '') +
+                (task.priority ? '<span class="rt-priority-' + task.priority + '">' + task.priority + '</span>' : '') +
+                (streak > 1 ? '<span style="font-size:.62rem;color:#fbbf24;font-weight:800;">&#9733; ' + streak + '</span>' : '') +
+              '</div>' +
+              (task.note ? '<div class="rt-ac-note">' + esc(task.note) + '</div>' : '') +
+            '</div>';
+        });
         attnBody += '</div>';
       }
       if (doneToday.length) {
@@ -1151,21 +1223,6 @@
     attnEl.querySelectorAll('[data-done]').forEach(function(btn) { btn.onclick = function() { markRTDone(btn.dataset.done); }; });
     attnEl.querySelectorAll('[data-skip]').forEach(function(btn) { btn.onclick = function() { skipOccurrence(btn.dataset.skip); }; });
     dash.appendChild(attnEl);
-
-    // ── Coming Up
-    if (upcoming.length) {
-      var upEl = document.createElement('div'); upEl.className = 'rt-section';
-      var upHtml = '<div class="rt-section-hd"><h3>Coming Up</h3></div><div class="rt-upcoming-strip">';
-      upcoming.slice(0, 12).forEach(function(task) {
-        var catColor = RT_CATS[task.category] || 'rgba(148,163,184,.3)';
-        upHtml += '<div class="rt-up-card" style="border-color:' + catColor + '44;">' +
-          '<div class="rt-up-title">' + esc(task.title) + '</div>' +
-          '<div class="rt-up-when">' + esc(calcNextDue(task)) + '</div>' +
-        '</div>';
-      });
-      upEl.innerHTML = upHtml + '</div>';
-      dash.appendChild(upEl);
-    }
 
     // ── All Schedules (collapsible)
     var schedEl = document.createElement('div'); schedEl.className = 'rt-section';
@@ -1220,6 +1277,7 @@
             (task.lastCompleted ? '<br>Last: ' + fmtDate(task.lastCompleted) : '') +
           '</div>' +
           '<div class="rt-sched-actions">' +
+            '<button class="rt-sched-btn rt-sched-edit-btn" data-id="' + esc(task.id) + '">&#9998; Edit</button>' +
             '<button class="rt-sched-btn rt-sched-pause-btn" data-id="' + esc(task.id) + '">' + (task.paused ? 'Resume' : 'Pause') + '</button>' +
             '<button class="rt-sched-btn danger rt-sched-del-btn" data-id="' + esc(task.id) + '">&#x2715; Delete</button>' +
           '</div>' +
@@ -1228,6 +1286,12 @@
     html += '</div>';
     container.innerHTML = html;
     container.querySelector('#rt-sched-add-btn').onclick = openRTModal;
+    container.querySelectorAll('.rt-sched-edit-btn').forEach(function(btn) {
+      btn.onclick = function() {
+        var arr = getRT(), t = arr.find(function(x) { return x.id === btn.dataset.id; });
+        if (t) openRTEditModal(t);
+      };
+    });
     container.querySelectorAll('.rt-sched-pause-btn').forEach(function(btn) {
       btn.onclick = function() {
         var arr = getRT(), x = arr.find(function(t) { return t.id === btn.dataset.id; });
