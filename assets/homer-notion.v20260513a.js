@@ -1110,6 +1110,11 @@
     var today = todayStr();
     var active = tasks.filter(function(t) { return t.enabled && !t.paused; });
     var actionItems = active.filter(function(t) { return calcNextDue(t) === 'Today' && t.lastFired !== today; });
+    // Expose for Daily Brief — exact same criteria, no reimplementation
+    var tomorrowItems = active.filter(function(t) {
+      var nd = calcNextDue(t); return nd === 'Tomorrow' || nd === 'In 1 day' || nd === 'In 1d';
+    });
+    window.__homerRTDue = { today: actionItems, tomorrow: tomorrowItems };
     var doneToday  = tasks.filter(function(t) { return t.lastCompleted === today || (t.completions.length && t.completions[0].date === today); });
     var doneIds = {}; doneToday.forEach(function(t) { doneIds[t.id] = true; });
     var tomorrowItems = active.filter(function(t) { return calcNextDue(t) === 'Tomorrow' && !doneIds[t.id]; });
