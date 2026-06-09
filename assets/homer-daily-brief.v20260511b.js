@@ -71,7 +71,7 @@
   }
 
   /* deterministic project color from key/id string */
-  var PROJECT_COLORS = ['#60a5fa','#a78bfa','#34d399','#fb923c','#f472b6','#38bdf8','#facc15','#4ade80'];
+  var PROJECT_COLORS = ['#FF0066','#a78bfa','#34d399','#fb923c','#f472b6','#38bdf8','#facc15','#dd44ff'];
   function projectColor(str) {
     var h = 0, s = String(str || '');
     for (var i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
@@ -122,7 +122,7 @@
     .db-tcard-pri.medium { background:rgba(251,191,36,.12);  color:#fbbf24; }
     .db-tcard-pri.low    { background:rgba(52,211,153,.12);  color:#34d399; }
     .db-tcard-subs { font-size:.7rem; color:#64748b; }
-    .db-tcard-due  { font-size:.7rem; color:#94a3b8; }
+    .db-tcard-due  { font-size:.7rem; color:#9090b8; }
 
     /* Expand / collapse */
     .db-tcard { cursor:pointer; }
@@ -130,7 +130,7 @@
     .db-tcard.expanded .db-tcard-chevron { transform:rotate(180deg); }
     .db-tcard-body { display:none; margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,.07); }
     .db-tcard.expanded .db-tcard-body { display:block; }
-    .db-tcard-desc { font-size:.8rem; color:#94a3b8; line-height:1.5; margin-bottom:10px; white-space:pre-wrap; }
+    .db-tcard-desc { font-size:.8rem; color:#9090b8; line-height:1.5; margin-bottom:10px; white-space:pre-wrap; }
     .db-tcard-subs-list { display:flex; flex-direction:column; gap:5px; }
     .db-tcard-sub-item { display:flex; align-items:flex-start; gap:7px; font-size:.8rem; }
     .db-tcard-sub-check { flex-shrink:0; margin-top:1px; color:#34d399; }
@@ -141,7 +141,7 @@
     /* Projects / life goals / habits (unchanged from v a) */
     .db-task-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
     .db-task { display:flex; align-items:flex-start; gap:10px; padding:9px 12px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:10px; }
-    .db-task-badge { font-size:.64rem; font-weight:700; padding:2px 7px; border-radius:6px; background:rgba(96,165,250,.15); color:#60a5fa; white-space:nowrap; flex-shrink:0; margin-top:2px; }
+    .db-task-badge { font-size:.64rem; font-weight:700; padding:2px 7px; border-radius:6px; background:rgba(255,0,102,.15); color:#FF0066; white-space:nowrap; flex-shrink:0; margin-top:2px; }
     .db-task-badge.proj { background:rgba(167,139,250,.15); color:#a78bfa; }
     .db-task-title { font-size:.87rem; color:var(--text); font-weight:600; line-height:1.3; }
     .db-task-sub   { font-size:.75rem; color:#64748b; margin-top:3px; }
@@ -152,7 +152,7 @@
     .db-lg-body   { flex:1; min-width:0; }
     .db-lg-title  { font-size:.87rem; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .db-lg-bar-wrap { height:4px; background:rgba(255,255,255,.08); border-radius:2px; margin-top:6px; }
-    .db-lg-bar    { height:100%; border-radius:2px; background:linear-gradient(90deg,#60a5fa,#a78bfa); transition:width .4s; }
+    .db-lg-bar    { height:100%; border-radius:2px; background:linear-gradient(90deg,#FF0066,#a78bfa); transition:width .4s; }
     .db-lg-pct    { font-size:.7rem; color:#64748b; margin-top:4px; }
 
     .db-habit-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.05); }
@@ -182,13 +182,13 @@
     .db-car-alert-badge { font-size:.72rem; font-weight:800; flex-shrink:0; }
 
     .db-empty { color:#475569; font-size:.87rem; font-style:italic; padding:4px 0; }
-    .db-vault-notice { display:flex; align-items:center; gap:12px; padding:16px; background:rgba(96,165,250,.06); border:1px solid rgba(96,165,250,.15); border-radius:12px; color:var(--muted); font-size:.88rem; }
+    .db-vault-notice { display:flex; align-items:center; gap:12px; padding:16px; background:rgba(255,0,102,.06); border:1px solid rgba(255,0,102,.15); border-radius:12px; color:var(--muted); font-size:.88rem; }
     .db-vault-notice-icon { font-size:1.4rem; flex-shrink:0; }
 
     /* Acknowledge banner */
-    .db-ack-banner { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; background:rgba(96,165,250,.07); border:1px solid rgba(96,165,250,.22); border-radius:13px; margin-bottom:18px; flex-wrap:wrap; }
+    .db-ack-banner { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; background:rgba(255,0,102,.07); border:1px solid rgba(255,0,102,.22); border-radius:13px; margin-bottom:18px; flex-wrap:wrap; }
     .db-ack-msg { font-size:.88rem; color:var(--muted); line-height:1.5; }
-    .db-ack-btn { padding:9px 20px; border-radius:10px; border:none; background:linear-gradient(135deg,#60a5fa,#a78bfa); color:#fff; font-size:.84rem; font-weight:800; cursor:pointer; font-family:inherit; transition:opacity .15s; white-space:nowrap; flex-shrink:0; }
+    .db-ack-btn { padding:9px 20px; border-radius:10px; border:none; background:linear-gradient(135deg,#FF0066,#a78bfa); color:#fff; font-size:.84rem; font-weight:800; cursor:pointer; font-family:inherit; transition:opacity .15s; white-space:nowrap; flex-shrink:0; }
     .db-ack-btn:hover { opacity:.82; }
   `;
 
