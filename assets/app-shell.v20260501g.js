@@ -163,44 +163,6 @@
     tabBtns.forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
     window._homerShowTab = showTab;
 
-    /* ── Notion page-title headers ──────────────────────────────────── */
-    var NOTION_TAB_META = {
-      home:           { icon:'🏠', title:'Home' },
-      pomodoro:       { icon:'⏱️', title:'Pomodoro' },
-      investing:      { icon:'📈', title:'Investing' },
-      tools:          { icon:'🔧', title:'Tools' },
-      links:          { icon:'🔗', title:'My Links' },
-      news:           { icon:'📰', title:'News & Videos' },
-      vault:          { icon:'🔒', title:'Vault' },
-      notes:          { icon:'📝', title:'Notes' },
-      'daily-brief':  { icon:'📋', title:'Daily Brief' },
-      kanban:         { icon:'📌', title:'Projects' },
-      habits:         { icon:'✅', title:'Habits' },
-      car:            { icon:'🚗', title:'Car' },
-      calendar:       { icon:'📅', title:'Calendar' },
-      expenses:       { icon:'💰', title:'Expenses' },
-      reminders:      { icon:'🔔', title:'Reminders' },
-      'weekly-review':{ icon:'📊', title:'Weekly Review' },
-      goals:          { icon:'🎯', title:'Life Goals' },
-      countdown:      { icon:'⏳', title:'Countdown' },
-    };
-    /* Tabs that have their own Notion-style header — skip injection */
-    var NOTION_SKIP = new Set(['journal','tips','focuslab']);
-    function injectNotionPageHd(name) {
-      if(!name || NOTION_SKIP.has(name)) return;
-      var meta = NOTION_TAB_META[name];
-      if(!meta) return;
-      var tabEl = document.getElementById('tab-' + name);
-      if(!tabEl || tabEl.querySelector('.notion-page-hd')) return;
-      var hd = document.createElement('div');
-      hd.className = 'notion-page-hd';
-      hd.innerHTML = '<div class="notion-page-hd-icon">'+meta.icon+'</div>' +
-        '<div class="notion-page-hd-text"><div class="notion-page-hd-title">'+meta.title+'</div></div>';
-      tabEl.insertBefore(hd, tabEl.firstChild);
-    }
-    window.addEventListener('homer-tab-change', function(e){ injectNotionPageHd(e.detail&&e.detail.tab); });
-    injectNotionPageHd('home');
-
     /* DESKTOP SIDEBAR */
     (function(){
       var sidebar = document.getElementById('desktop-sidebar');
@@ -2218,7 +2180,7 @@ let tvWidgetCreated = false;
     btn.type = 'button';
     btn.textContent = e;
     btn.style.cssText = 'font-size:1.3rem;background:none;border:none;cursor:pointer;padding:6px;border-radius:8px;transition:background .15s;';
-    btn.addEventListener('mouseenter', function(){ btn.style.background='rgba(55,53,47,.08)'; });
+    btn.addEventListener('mouseenter', function(){ btn.style.background='rgba(255,255,255,.12)'; });
     btn.addEventListener('mouseleave', function(){ btn.style.background='none'; });
     btn.addEventListener('click', function(){
       inEmoji.value = fixMojibake(e);
@@ -2294,7 +2256,7 @@ let tvWidgetCreated = false;
       groups[cat].forEach(function(item){
         var lnk = item.lnk;
         var div = document.createElement('div');
-        div.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;background:rgba(55,53,47,.02);border:1px solid rgba(55,53,47,.05);margin-bottom:8px;';
+        div.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin-bottom:8px;';
 
         var showFavicon = lnk.useFavicon !== false;
         var faviconUrl = getFavicon(lnk.url);
@@ -2590,9 +2552,9 @@ let tvWidgetCreated = false;
 
   // Label definitions
   var DEFAULT_LABELS = [
-    {name:'work', color:'#7a5ab8', bg:'rgba(59,130,246,.15)'},
+    {name:'work', color:'#3b82f6', bg:'rgba(59,130,246,.15)'},
     {name:'personal', color:'#8b5cf6', bg:'rgba(139,92,246,.15)'},
-    {name:'health', color:'#2eaadc', bg:'rgba(46,170,220,.15)'},
+    {name:'health', color:'#22c55e', bg:'rgba(34,197,94,.15)'},
     {name:'learning', color:'#f59e0b', bg:'rgba(245,158,11,.15)'},
     {name:'finance', color:'#06b6d4', bg:'rgba(6,182,212,.15)'},
     {name:'urgent', color:'#ef4444', bg:'rgba(239,68,68,.15)'},
@@ -2602,8 +2564,8 @@ let tvWidgetCreated = false;
   // Color palette for custom labels
   var LABEL_COLORS = ['#f97316','#14b8a6','#a855f7','#e11d48','#84cc16','#06b6d4','#f43f5e','#8b5cf6','#eab308','#6366f1'];
   var DEFAULT_PROJECTS = [
-    {id:'organize-life', key:'ORG', name:'OrganizeLife', description:'Household systems, routines, planning, errands, and personal operating tasks.', color:'#9065b0', icon:'OL', order:0},
-    {id:'apps', key:'APP', name:'Apps', description:'Product ideas, app builds, launches, fixes, and feature delivery.', color:'#2eaadc', icon:'AP', order:1}
+    {id:'organize-life', key:'ORG', name:'OrganizeLife', description:'Household systems, routines, planning, errands, and personal operating tasks.', color:'#60a5fa', icon:'OL', order:0},
+    {id:'apps', key:'APP', name:'Apps', description:'Product ideas, app builds, launches, fixes, and feature delivery.', color:'#22c55e', icon:'AP', order:1}
   ];
   function getModeProjectDefaults(mode){
     var normalizedMode = normalizeVaultMode(mode);
@@ -2708,7 +2670,7 @@ let tvWidgetCreated = false;
       key: deriveProjectKey(raw.key || name),
       name: name,
       description: typeof raw.description === 'string' ? raw.description : (typeof raw.desc === 'string' ? raw.desc : ''),
-      color: /^#[0-9a-f]{6}$/i.test(raw.color || '') ? raw.color : '#9065b0',
+      color: /^#[0-9a-f]{6}$/i.test(raw.color || '') ? raw.color : '#60a5fa',
       icon: typeof raw.icon === 'string' ? raw.icon.trim().slice(0, 2) : '',
       order: typeof raw.order === 'number' ? raw.order : index,
       archived: !!raw.archived,
@@ -2852,7 +2814,7 @@ let tvWidgetCreated = false;
     var fields = getProjectCustomFields([project], project && project.id);
     var fieldValues = values && typeof values === 'object' ? values : {};
     if(!fields.length) return '';
-    var controlStyle = 'width:100%;padding:9px 10px;border-radius:10px;border:1px solid rgba(155,143,130,.14);background:rgba(55,53,47,.42);color:var(--text);font-size:.84rem;';
+    var controlStyle = 'width:100%;padding:9px 10px;border-radius:10px;border:1px solid rgba(148,163,184,.14);background:rgba(15,23,42,.42);color:var(--text);font-size:.84rem;';
     return fields.map(function(field){
       var value = customFieldInputValue(field, fieldValues[field.id]);
       var inputHtml = '';
@@ -2868,12 +2830,12 @@ let tvWidgetCreated = false;
       } else if(field.type === 'number'){
         inputHtml = '<input type="number" class="' + classPrefix + '-input" data-field-id="' + field.id + '" value="' + escAttr(value) + '" placeholder="' + escAttr(customFieldLabel(field)) + '" style="' + controlStyle + '">';
       } else if(field.type === 'toggle'){
-        inputHtml = '<label style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;border:1px solid rgba(155,143,130,.14);background:rgba(55,53,47,.42);"><input type="checkbox" class="' + classPrefix + '-input" data-field-id="' + field.id + '"' + (value ? ' checked' : '') + '><span>' + escHtml(customFieldLabel(field)) + '</span></label>';
+        inputHtml = '<label style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;border:1px solid rgba(148,163,184,.14);background:rgba(15,23,42,.42);"><input type="checkbox" class="' + classPrefix + '-input" data-field-id="' + field.id + '"' + (value ? ' checked' : '') + '><span>' + escHtml(customFieldLabel(field)) + '</span></label>';
       } else {
         inputHtml = '<input type="text" class="' + classPrefix + '-input" data-field-id="' + field.id + '" value="' + escAttr(value) + '" placeholder="' + escAttr(customFieldLabel(field)) + '" style="' + controlStyle + '">';
       }
       return '<div class="project-custom-field" data-field-type="' + field.type + '" style="display:flex;flex-direction:column;gap:5px;">' +
-        (field.type === 'toggle' ? '' : '<label style="font-size:.72rem;font-weight:700;color:rgba(155,143,130,.88);">' + escHtml(customFieldLabel(field)) + '</label>') +
+        (field.type === 'toggle' ? '' : '<label style="font-size:.72rem;font-weight:700;color:rgba(148,163,184,.88);">' + escHtml(customFieldLabel(field)) + '</label>') +
         inputHtml +
       '</div>';
     }).join('');
@@ -3966,7 +3928,7 @@ let tvWidgetCreated = false;
         name: name,
         description: String(projectData.description || projectData.desc || '').trim(),
         icon: String(projectData.icon || '').trim(),
-        color: /^#[0-9a-f]{6}$/i.test(projectData.color || '') ? projectData.color : '#9065b0',
+        color: /^#[0-9a-f]{6}$/i.test(projectData.color || '') ? projectData.color : '#60a5fa',
         order: projects.length
       }]));
       return persistProjectMutation(data, 'project-create', mode).then(function(){
@@ -3995,7 +3957,7 @@ let tvWidgetCreated = false;
       project.key = nextKey;
       project.description = String(projectData && (projectData.description || projectData.desc) || '').trim();
       project.icon = String(projectData && projectData.icon || '').trim();
-      project.color = /^#[0-9a-f]{6}$/i.test(projectData && projectData.color || '') ? projectData.color : (project.color || '#9065b0');
+      project.color = /^#[0-9a-f]{6}$/i.test(projectData && projectData.color || '') ? projectData.color : (project.color || '#60a5fa');
       data.projects = ensureProjects(projects);
       return persistProjectMutation(data, 'project-update', mode).then(function(){
         return { ok:true, projectId:projectId, name:nextName, key:nextKey };
@@ -4151,8 +4113,8 @@ let tvWidgetCreated = false;
     html += '<div class="project-summary-metric"><strong>' + summary.counts.overdue + '</strong><span>Overdue</span></div>';
     html += '</div>';
     html += '<div class="project-dashboard-stats">';
-    html += statCard(summary.progress, '#9065b0', 'Delivery', summary.progress + '%', 'average issue progress');
-    html += statCard(completedPct, '#2eaadc', 'Completion', summary.counts.done + '/' + summary.total, 'issues closed');
+    html += statCard(summary.progress, '#60a5fa', 'Delivery', summary.progress + '%', 'average issue progress');
+    html += statCard(completedPct, '#22c55e', 'Completion', summary.counts.done + '/' + summary.total, 'issues closed');
     html += statCard(backlogPct, '#fbbf24', 'Backlog', String(summary.counts.backlog), 'parked for later');
     html += statCard(healthPct, '#a78bfa', 'Due Health', String(summary.counts.overdue), 'overdue issues');
     html += '</div>';
@@ -4391,7 +4353,7 @@ let tvWidgetCreated = false;
     linksEmpty.style.display = links.length ? 'none' : 'block';
     links.forEach(function(l, i){
       var div = document.createElement('div');
-      div.style.cssText = 'border-radius:10px;background:rgba(55,53,47,.02);border:1px solid rgba(55,53,47,.05);margin-bottom:8px;overflow:hidden;';
+      div.style.cssText = 'border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin-bottom:8px;overflow:hidden;';
       var fav = getFavicon(l.url);
       var favHtml = fav ? '<img src="'+fav+'" style="width:18px;height:18px;border-radius:3px;flex-shrink:0;" onerror="this.style.display=\'none\'">' : '';
       var descHtml = l.desc ? '<div style="color:var(--muted);font-size:.8rem;padding:0 12px 10px;line-height:1.4;">'+escHtml(l.desc)+'</div>' : '';
@@ -4421,7 +4383,7 @@ let tvWidgetCreated = false;
     credsEmpty.style.display = creds.length ? 'none' : 'block';
     creds.forEach(function(c, i){
       var div = document.createElement('div');
-      div.style.cssText = 'border-radius:10px;background:rgba(55,53,47,.02);border:1px solid rgba(55,53,47,.05);margin-bottom:8px;overflow:hidden;';
+      div.style.cssText = 'border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin-bottom:8px;overflow:hidden;';
       // Collapsed row: just label, click to expand
       var faviconUrl = '';
       if(c.site){
@@ -4447,11 +4409,11 @@ let tvWidgetCreated = false;
           '<span style="color:var(--muted);font-size:.8rem;width:60px;flex-shrink:0;">'+f.lbl+'</span>' +
           '<code class="cred-val" style="flex:1;color:var(--accent);font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:none;">'+escHtml(f.val)+'</code>' +
           '<span class="cred-mask" style="flex:1;color:var(--muted);font-size:.85rem;">••••••</span>' +
-          '<button class="cred-toggle btn" style="padding:2px 6px;font-size:.75rem;background:none;border:1px solid rgba(55,53,47,.08);border-radius:6px;color:var(--muted);cursor:pointer;" title="Toggle">👁</button>' +
-          '<button class="cred-copy btn" style="padding:2px 6px;font-size:.75rem;background:none;border:1px solid rgba(55,53,47,.08);border-radius:6px;color:var(--muted);cursor:pointer;" data-val="'+escAttr(f.val)+'" title="Copy">📋</button>' +
+          '<button class="cred-toggle btn" style="padding:2px 6px;font-size:.75rem;background:none;border:1px solid rgba(255,255,255,.12);border-radius:6px;color:var(--muted);cursor:pointer;" title="Toggle">👁</button>' +
+          '<button class="cred-copy btn" style="padding:2px 6px;font-size:.75rem;background:none;border:1px solid rgba(255,255,255,.12);border-radius:6px;color:var(--muted);cursor:pointer;" data-val="'+escAttr(f.val)+'" title="Copy">📋</button>' +
           '</div>';
       });
-      var body = '<div class="cred-body" style="display:none;padding:0 12px 12px;border-top:1px solid rgba(55,53,47,.04);padding-top:10px;">' +
+      var body = '<div class="cred-body" style="display:none;padding:0 12px 12px;border-top:1px solid rgba(255,255,255,.06);padding-top:10px;">' +
         fields +
         '<div style="text-align:right;margin-top:6px;"><button class="vault-cred-del btn" data-idx="'+i+'" style="padding:4px 10px;font-size:.8rem;color:#ef4444;">✕ Delete</button></div>' +
         '</div>';
@@ -4526,7 +4488,7 @@ let tvWidgetCreated = false;
     container.innerHTML = '';
     files.forEach(function(f, idx){
       var el = document.createElement('div');
-      el.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;background:rgba(55,53,47,.04);font-size:.75rem;color:var(--muted);';
+      el.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;background:rgba(255,255,255,.06);font-size:.75rem;color:var(--muted);';
       var isImg = f.type && f.type.startsWith('image/');
       el.innerHTML = (isImg ? '🖼' : '📄') + ' ' + escHtml(f.name) +
         '<button style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.7rem;padding:0 2px;">✕</button>';
@@ -4635,7 +4597,7 @@ let tvWidgetCreated = false;
     if(!subs || !subs.length) return '';
     var done = subs.filter(function(s){ return s.done; }).length;
     var pct = Math.round((done/subs.length)*100);
-    var color = pct === 100 ? '#2eaadc' : 'var(--accent)';
+    var color = pct === 100 ? '#22c55e' : 'var(--accent)';
     return '<div style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:.72rem;color:var(--muted);">' +
       '<div class="k-progress" style="flex:1;"><div class="k-progress-fill" style="width:'+pct+'%;background:'+color+';"></div></div>' +
       '<span>'+done+'/'+subs.length+'</span></div>';
@@ -4948,7 +4910,7 @@ let tvWidgetCreated = false;
         html += '<div class="issue-sidebar-card"><h4>Details</h4>';
         html += '<div class="issue-field-row"><span class="issue-field-label">Status</span><span class="issue-field-value">'+(sub.done?'<span class="issue-status-badge s-done">Done</span>':'<span class="issue-status-badge s-todo">Open</span>')+'</span></div>';
         html += '<div class="issue-field-row"><span class="issue-field-label">Effort</span><span class="issue-field-value">';
-        html += '<select class="issue-edit-sub-effort" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(55,53,47,.07);background:#f9f8f6;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;">';
+        html += '<select class="issue-edit-sub-effort" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;">';
         html += '<option value=""'+(sub.effort?'':' selected')+'>None</option>';
         html += '<option value="xs"'+(sub.effort==='xs'?' selected':'')+'>XS</option>';
         html += '<option value="s"'+(sub.effort==='s'?' selected':'')+'>S (1pt)</option>';
@@ -4957,7 +4919,7 @@ let tvWidgetCreated = false;
         html += '<option value="xl"'+(sub.effort==='xl'?' selected':'')+'>XL (5pt)</option>';
         html += '</select></span></div>';
         html += '<div class="issue-field-row"><span class="issue-field-label">Due Date</span><span class="issue-field-value">';
-        html += '<input type="date" class="issue-edit-sub-due" value="'+(sub.due||'')+'" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(55,53,47,.07);background:#f9f8f6;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;max-width:150px;">';
+        html += '<input type="date" class="issue-edit-sub-due" value="'+(sub.due||'')+'" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;max-width:150px;">';
         html += '</span></div>';
         html += '</div>';
 
@@ -4971,14 +4933,14 @@ let tvWidgetCreated = false;
         html += '<div class="issue-sidebar-card"><h4>Details</h4>';
         html += '<div class="issue-field-row"><span class="issue-field-label">Status</span><span class="issue-field-value"><span class="issue-status-badge s-'+g.col+'">'+colLabels[g.col]+'</span></span></div>';
         html += '<div class="issue-field-row"><span class="issue-field-label">Project</span><span class="issue-field-value">';
-        html += '<select class="issue-edit-project" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(55,53,47,.07);background:#f9f8f6;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;max-width:160px;">';
+        html += '<select class="issue-edit-project" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;max-width:160px;">';
         projects.forEach(function(project){
           html += '<option value="'+escAttr(project.id)+'"'+(g.projectId === project.id ? ' selected' : '')+'>'+escHtml(project.name)+'</option>';
         });
         html += '</select></span></div>';
         // Priority — editable select
         html += '<div class="issue-field-row"><span class="issue-field-label">Priority</span><span class="issue-field-value">';
-        html += '<select class="issue-edit-priority" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(55,53,47,.07);background:#f9f8f6;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;">';
+        html += '<select class="issue-edit-priority" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;">';
         html += '<option value=""'+(g.priority?'':' selected')+'>None</option>';
         html += '<option value="high"'+(g.priority==='high'?' selected':'')+'>High</option>';
         html += '<option value="medium"'+(g.priority==='medium'?' selected':'')+'>Medium</option>';
@@ -4986,15 +4948,15 @@ let tvWidgetCreated = false;
         html += '</select></span></div>';
         // Due Date — editable input
         html += '<div class="issue-field-row"><span class="issue-field-label">Due Date</span><span class="issue-field-value">';
-        html += '<input type="date" class="issue-edit-due" value="'+(g.due||'')+'" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(55,53,47,.07);background:#f9f8f6;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;max-width:150px;">';
+        html += '<input type="date" class="issue-edit-due" value="'+(g.due||'')+'" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;max-width:150px;">';
         html += '</span></div>';
         // Reporter — editable input
         html += '<div class="issue-field-row"><span class="issue-field-label">Reporter</span><span class="issue-field-value">';
-        html += '<input type="text" class="issue-edit-reporter" value="'+escAttr(g.reporter||'')+'" placeholder="—" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(55,53,47,.07);background:#f9f8f6;color:var(--text);font-size:.82rem;font-weight:600;width:100%;max-width:150px;">';
+        html += '<input type="text" class="issue-edit-reporter" value="'+escAttr(g.reporter||'')+'" placeholder="—" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;width:100%;max-width:150px;">';
         html += '</span></div>';
         // Assignee — editable input
         html += '<div class="issue-field-row"><span class="issue-field-label">Assignee</span><span class="issue-field-value">';
-        html += '<input type="text" class="issue-edit-assignee" value="'+escAttr(g.assignee||'')+'" placeholder="—" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(55,53,47,.07);background:#f9f8f6;color:var(--text);font-size:.82rem;font-weight:600;width:100%;max-width:150px;">';
+        html += '<input type="text" class="issue-edit-assignee" value="'+escAttr(g.assignee||'')+'" placeholder="—" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.82rem;font-weight:600;width:100%;max-width:150px;">';
         html += '</span></div>';
         html += '</div>';
 
@@ -5007,7 +4969,7 @@ let tvWidgetCreated = false;
           html += '<span class="issue-label-chip'+(on?' on':'')+'" data-label="'+escAttr(lbl.name)+'" style="font-size:.7rem;padding:3px 9px;border-radius:6px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:opacity .12s;user-select:none;background:'+lbl.bg+';color:'+lbl.color+';border:1.5px solid '+(on?'rgba(255,255,255,.45)':'transparent')+';opacity:'+(on?'1':'.35')+';">'+escHtml(lbl.name)+'</span>';
         });
         html += '</div>';
-        html += '<div style="display:flex;gap:4px;"><input type="text" class="issue-label-new" placeholder="New label..." style="flex:1;padding:4px 8px;border-radius:6px;border:1px solid rgba(55,53,47,.07);background:#f9f8f6;color:var(--text);font-size:.75rem;"><button class="issue-label-add" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(144,101,176,.25);background:none;color:#9065b0;cursor:pointer;font-size:.7rem;font-weight:700;">+</button></div>';
+        html += '<div style="display:flex;gap:4px;"><input type="text" class="issue-label-new" placeholder="New label..." style="flex:1;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.75rem;"><button class="issue-label-add" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(96,165,250,.25);background:none;color:#60a5fa;cursor:pointer;font-size:.7rem;font-weight:700;">+</button></div>';
         html += '</div>';
 
         // Effort points
@@ -5024,7 +4986,7 @@ let tvWidgetCreated = false;
         html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
         ['todo','progress','pending','backlog','done'].forEach(function(col){
           var active = g.col === col;
-          html += '<button class="issue-move-btn" data-to="'+col+'" style="padding:6px 12px;border-radius:8px;border:1px solid '+(active?'var(--accent)':'rgba(55,53,47,.09)')+';background:'+(active?'rgba(144,101,176,.1)':'none')+';color:'+(active?'var(--accent)':'var(--muted)')+';cursor:pointer;font-size:.78rem;font-weight:700;transition:all .15s;">'+colLabels[col]+'</button>';
+          html += '<button class="issue-move-btn" data-to="'+col+'" style="padding:6px 12px;border-radius:8px;border:1px solid '+(active?'var(--accent)':'rgba(255,255,255,.15)')+';background:'+(active?'rgba(96,165,250,.1)':'none')+';color:'+(active?'var(--accent)':'var(--muted)')+';cursor:pointer;font-size:.78rem;font-weight:700;transition:all .15s;">'+colLabels[col]+'</button>';
         });
         html += '</div></div>';
 
@@ -5587,8 +5549,8 @@ let tvWidgetCreated = false;
 
       var statusBadge = '';
       if(g.col==='pending') statusBadge = '<span style="font-size:.6rem;padding:1px 6px;border-radius:5px;background:rgba(139,92,246,.15);color:#a78bfa;font-weight:700;">PENDING</span>';
-      if(g.col==='done' && g.completedAt) statusBadge = '<span style="font-size:.6rem;padding:1px 6px;border-radius:5px;background:rgba(46,170,220,.15);color:#2eaadc;font-weight:700;">Done '+new Date(g.completedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</span>';
-      if(g.col==='backlog') statusBadge = '<span style="font-size:.6rem;padding:1px 6px;border-radius:5px;background:rgba(155,143,130,.16);color:#9b8f82;font-weight:700;">BACKLOG</span>';
+      if(g.col==='done' && g.completedAt) statusBadge = '<span style="font-size:.6rem;padding:1px 6px;border-radius:5px;background:rgba(34,197,94,.15);color:#22c55e;font-weight:700;">Done '+new Date(g.completedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</span>';
+      if(g.col==='backlog') statusBadge = '<span style="font-size:.6rem;padding:1px 6px;border-radius:5px;background:rgba(148,163,184,.16);color:#cbd5e1;font-weight:700;">BACKLOG</span>';
 
       var headerRow = '<div class="k-header">' + idBadge +
         '<button class="k-cal-btn" data-gi="'+i+'" title="Add to Outlook Calendar" style="background:none;border:none;color:#0078d4;cursor:pointer;font-size:.8rem;padding:0 2px;display:inline-flex;align-items:center;opacity:.6;transition:opacity .15s;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>' +
@@ -5691,15 +5653,15 @@ let tvWidgetCreated = false;
 
       card.innerHTML = titleRow + labelsHtml + peopleHtml + collapsedExtra +
         '<div class="k-body">' +
-          '<input class="k-field k-summary" value="'+escAttr(g.summary||'')+'" placeholder="Summary" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(55,53,47,.07);background:#f9f8f6;color:var(--text);font-size:.95rem;font-weight:700;margin-bottom:8px;">' +
+          '<input class="k-field k-summary" value="'+escAttr(g.summary||'')+'" placeholder="Summary" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.95rem;font-weight:700;margin-bottom:8px;">' +
           '<textarea class="k-field k-notes" placeholder="Description..." rows="3">'+escHtml(g.notes||'')+'</textarea>' +
           labelEditorHtml +
           '<div style="display:flex;gap:6px;margin-top:8px;">' +
-            '<div style="flex:1;"><label style="font-size:.68rem;color:var(--muted);">Reporter</label><input class="k-field k-reporter" value="'+escAttr(g.reporter||'')+'" placeholder="Reporter" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(55,53,47,.07);background:#f9f8f6;color:var(--text);font-size:.8rem;margin-top:2px;"></div>' +
-            '<div style="flex:1;"><label style="font-size:.68rem;color:var(--muted);">Assignee</label><input class="k-field k-assignee" value="'+escAttr(g.assignee||'')+'" placeholder="Assignee" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(55,53,47,.07);background:#f9f8f6;color:var(--text);font-size:.8rem;margin-top:2px;"></div>' +
+            '<div style="flex:1;"><label style="font-size:.68rem;color:var(--muted);">Reporter</label><input class="k-field k-reporter" value="'+escAttr(g.reporter||'')+'" placeholder="Reporter" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.8rem;margin-top:2px;"></div>' +
+            '<div style="flex:1;"><label style="font-size:.68rem;color:var(--muted);">Assignee</label><input class="k-field k-assignee" value="'+escAttr(g.assignee||'')+'" placeholder="Assignee" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.8rem;margin-top:2px;"></div>' +
           '</div>' +
           (project && project.customFields && project.customFields.length
-            ? '<div style="margin-top:10px;"><div style="font-size:.72rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:rgba(155,143,130,.88);margin-bottom:6px;">Project Fields</div><div class="k-custom-fields" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;">' + renderCustomFieldInputsHtml(project, g.customFields || {}, 'k-cf') + '</div></div>'
+            ? '<div style="margin-top:10px;"><div style="font-size:.72rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:rgba(148,163,184,.88);margin-bottom:6px;">Project Fields</div><div class="k-custom-fields" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;">' + renderCustomFieldInputsHtml(project, g.customFields || {}, 'k-cf') + '</div></div>'
             : '') +
           '<div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-top:10px;">Attachments</div>' +
           goalAttachHtml +
@@ -6327,7 +6289,7 @@ let tvWidgetCreated = false;
         projectKeyInput.dataset.manual = '1';
         projectDescInput.value = displayProject.description || project.description || '';
         projectIconInput.value = displayProject.icon || project.icon || '';
-        projectColorInput.value = displayProject.color || project.color || '#9065b0';
+        projectColorInput.value = displayProject.color || project.color || '#60a5fa';
         projectModalBg.classList.add('open');
         setTimeout(function(){ projectNameInput.focus(); }, 80);
       });
@@ -6339,7 +6301,7 @@ let tvWidgetCreated = false;
     projectKeyInput.dataset.manual = '';
     projectDescInput.value = '';
     projectIconInput.value = '';
-    projectColorInput.value = '#9065b0';
+    projectColorInput.value = '#60a5fa';
     projectModalBg.classList.add('open');
     setTimeout(function(){ projectNameInput.focus(); }, 80);
   }
@@ -6353,21 +6315,21 @@ let tvWidgetCreated = false;
     var list = normalizeProjectFields(fields || []);
     var compact = window.innerWidth <= 720;
     if(!list.length){
-      projectFieldsList.innerHTML = '<div style="padding:12px;border-radius:12px;border:1px dashed rgba(155,143,130,.2);background:rgba(55,53,47,.42);color:var(--muted);font-size:.82rem;">No custom fields yet. Add status-like metadata such as squad, estimate, target release, customer, or QA signoff.</div>';
+      projectFieldsList.innerHTML = '<div style="padding:12px;border-radius:12px;border:1px dashed rgba(148,163,184,.2);background:rgba(15,23,42,.42);color:var(--muted);font-size:.82rem;">No custom fields yet. Add status-like metadata such as squad, estimate, target release, customer, or QA signoff.</div>';
       return;
     }
     projectFieldsList.innerHTML = list.map(function(field){
       var optionsValue = (field.options || []).join(', ');
-      return '<div class="project-field-row" data-field-id="' + field.id + '" style="padding:12px;border-radius:14px;border:1px solid rgba(155,143,130,.18);background:rgba(55,53,47,.48);display:grid;grid-template-columns:' + (compact ? '1fr' : '1.5fr .9fr 1.4fr auto') + ';gap:8px;align-items:center;">' +
-        '<input class="project-field-name" type="text" value="' + escAttr(field.name) + '" placeholder="Field name" style="width:100%;padding:9px 10px;border-radius:10px;border:1px solid rgba(155,143,130,.14);background:rgba(55,53,47,.55);color:var(--text);">' +
-        '<select class="project-field-type" style="width:100%;padding:9px 10px;border-radius:10px;border:1px solid rgba(155,143,130,.14);background:rgba(55,53,47,.55);color:var(--text);">' +
+      return '<div class="project-field-row" data-field-id="' + field.id + '" style="padding:12px;border-radius:14px;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.48);display:grid;grid-template-columns:' + (compact ? '1fr' : '1.5fr .9fr 1.4fr auto') + ';gap:8px;align-items:center;">' +
+        '<input class="project-field-name" type="text" value="' + escAttr(field.name) + '" placeholder="Field name" style="width:100%;padding:9px 10px;border-radius:10px;border:1px solid rgba(148,163,184,.14);background:rgba(2,6,23,.55);color:var(--text);">' +
+        '<select class="project-field-type" style="width:100%;padding:9px 10px;border-radius:10px;border:1px solid rgba(148,163,184,.14);background:rgba(2,6,23,.55);color:var(--text);">' +
           '<option value="text"' + (field.type === 'text' ? ' selected' : '') + '>Text</option>' +
           '<option value="number"' + (field.type === 'number' ? ' selected' : '') + '>Number</option>' +
           '<option value="date"' + (field.type === 'date' ? ' selected' : '') + '>Date</option>' +
           '<option value="select"' + (field.type === 'select' ? ' selected' : '') + '>Select</option>' +
           '<option value="toggle"' + (field.type === 'toggle' ? ' selected' : '') + '>Toggle</option>' +
         '</select>' +
-        '<input class="project-field-options" type="text" value="' + escAttr(optionsValue) + '" placeholder="Options, comma separated" style="width:100%;padding:9px 10px;border-radius:10px;border:1px solid rgba(155,143,130,.14);background:rgba(55,53,47,.55);color:var(--text);' + (field.type === 'select' ? '' : 'opacity:.55;') + '"' + (field.type === 'select' ? '' : ' disabled') + '>' +
+        '<input class="project-field-options" type="text" value="' + escAttr(optionsValue) + '" placeholder="Options, comma separated" style="width:100%;padding:9px 10px;border-radius:10px;border:1px solid rgba(148,163,184,.14);background:rgba(2,6,23,.55);color:var(--text);' + (field.type === 'select' ? '' : 'opacity:.55;') + '"' + (field.type === 'select' ? '' : ' disabled') + '>' +
         '<button type="button" class="project-field-remove" style="padding:9px 12px;border-radius:10px;border:1px solid rgba(239,68,68,.24);background:rgba(127,29,29,.18);color:#fca5a5;cursor:pointer;">Remove</button>' +
       '</div>';
     }).join('');
@@ -6463,7 +6425,7 @@ let tvWidgetCreated = false;
       key: projectKeyInput.value || name,
       description: projectDescInput.value.trim(),
       icon: projectIconInput.value.trim(),
-      color: projectColorInput.value || '#9065b0'
+      color: projectColorInput.value || '#60a5fa'
     };
     var submitPromise = activeProjectModalId
       ? updateProjectEntry(activeProjectModalId, projectPayload)
@@ -6994,7 +6956,7 @@ let tvWidgetCreated = false;
     deadline: {label:'Deadline', color:'#ef4444', bg:'rgba(239,68,68,.15)'},
     reminder: {label:'Reminder', color:'#f59e0b', bg:'rgba(245,158,11,.15)'},
     personal: {label:'Personal', color:'#a78bfa', bg:'rgba(167,139,250,.15)'},
-    work:     {label:'Work',     color:'#7a5ab8', bg:'rgba(59,130,246,.15)'}
+    work:     {label:'Work',     color:'#3b82f6', bg:'rgba(59,130,246,.15)'}
   };
 
   function pCls(p){
@@ -7008,17 +6970,17 @@ let tvWidgetCreated = false;
   function pColor(p){
     if(p==='high') return '#ef4444';
     if(p==='medium') return '#fbbf24';
-    if(p==='low') return '#2eaadc';
-    if(p==='ext') return '#7a5ab8';
+    if(p==='low') return '#22c55e';
+    if(p==='ext') return '#3b82f6';
     if(p==='custom') return '#a78bfa';
     if(p==='reminder') return '#ff0066';
     if(CAL_CATEGORIES[p]) return CAL_CATEGORIES[p].color;
-    return '#9b8f82';
+    return '#94a3b8';
   }
   var colLbl = {todo:'To Do', progress:'In Progress', pending:'Pending', backlog:'Backlog', done:'Done', reminder:'Reminder', custom:'Event'};
 
   // Generate consistent color for a label name (hash-based)
-  var _labelPalette = ['#ef4444','#f97316','#f59e0b','#2eaadc','#14b8a6','#0ea5e9','#7a5ab8','#6366f1','#8b5cf6','#a855f7','#ec4899','#f43f5e'];
+  var _labelPalette = ['#ef4444','#f97316','#f59e0b','#22c55e','#14b8a6','#0ea5e9','#3b82f6','#6366f1','#8b5cf6','#a855f7','#ec4899','#f43f5e'];
   function calLabelColor(name){
     var h = 0;
     for(var i=0;i<name.length;i++) h = ((h<<5)-h)+name.charCodeAt(i);
@@ -7651,7 +7613,7 @@ let tvWidgetCreated = false;
     }
     if(item.location) h += '<span>&#128205; ' + esc(item.location) + '</span>';
     if(item.status){
-      var statusColors = {CONFIRMED:'#2eaadc',TENTATIVE:'#fbbf24',CANCELLED:'#ef4444'};
+      var statusColors = {CONFIRMED:'#22c55e',TENTATIVE:'#fbbf24',CANCELLED:'#ef4444'};
       h += '<span style="color:' + (statusColors[item.status] || 'var(--muted)') + '">' + esc(item.status.charAt(0).toUpperCase() + item.status.slice(1).toLowerCase()) + '</span>';
     }
     if(item.col && colLbl[item.col]) h += '<span>&#9679; ' + colLbl[item.col] + '</span>';
@@ -7717,7 +7679,7 @@ let tvWidgetCreated = false;
 
     // URL
     if(item.url){
-      h += '<div style="margin-top:8px;"><a href="' + esc(item.url) + '" target="_blank" style="color:#9065b0;font-size:.78rem;text-decoration:none;word-break:break-all;">&#128279; Open link</a></div>';
+      h += '<div style="margin-top:8px;"><a href="' + esc(item.url) + '" target="_blank" style="color:#60a5fa;font-size:.78rem;text-decoration:none;word-break:break-all;">&#128279; Open link</a></div>';
     }
 
     // Action buttons
@@ -7832,7 +7794,7 @@ let tvWidgetCreated = false;
     h += '<div class="cal-pop-date">' + lbl + '</div>';
     items.forEach(function(it, idx){
       var hasCat = it.type === 'custom' && it.category && CAL_CATEGORIES[it.category];
-      var dotColor = it.type === 'outlook' ? '#7a5ab8' : hasCat ? CAL_CATEGORIES[it.category].color : it.type === 'custom' ? '#a78bfa' : pColor(it.priority);
+      var dotColor = it.type === 'outlook' ? '#3b82f6' : hasCat ? CAL_CATEGORIES[it.category].color : it.type === 'custom' ? '#a78bfa' : pColor(it.priority);
       var badgeClass = it.type === 'outlook' ? 's-ext' : hasCat ? 's-cat-'+it.category : it.type === 'custom' ? 's-custom' : 's-' + it.col;
       var badgeLabel = it.type === 'outlook' ? 'Outlook' : hasCat ? CAL_CATEGORIES[it.category].label : it.type === 'custom' ? 'Event' : (colLbl[it.col] || '');
       var timeStr = '';
@@ -7860,7 +7822,7 @@ let tvWidgetCreated = false;
       h += '</div>';
       h += '</div>';
     });
-    h += '<div style="text-align:center;margin-top:8px;padding-top:8px;border-top:1px solid rgba(55,53,47,.04);">';
+    h += '<div style="text-align:center;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);">';
     h += '<button class="cal-add-btn" style="position:static;width:auto;height:auto;border-radius:8px;padding:5px 14px;font-size:.78rem;display:inline-flex;align-items:center;gap:4px;">+ Add Event</button>';
     h += '</div>';
     pop.innerHTML = h;
@@ -7873,7 +7835,7 @@ let tvWidgetCreated = false;
 
     pop.querySelector('.cal-pop-close').addEventListener('click', closePop);
     pop.querySelectorAll('.cal-pop-item').forEach(function(el){
-      el.addEventListener('mouseenter', function(){ this.style.background = 'rgba(55,53,47,.04)'; });
+      el.addEventListener('mouseenter', function(){ this.style.background = 'rgba(255,255,255,.06)'; });
       el.addEventListener('mouseleave', function(){ this.style.background = 'transparent'; });
       el.addEventListener('click', function(e){
         e.stopPropagation();
@@ -7984,7 +7946,7 @@ let tvWidgetCreated = false;
 
     var today = new Date();
     var isToday = (viewYear === today.getFullYear() && viewMonth === today.getMonth() && viewDay === today.getDate());
-    calDayTitle.style.color = isToday ? '#9065b0' : 'var(--text)';
+    calDayTitle.style.color = isToday ? '#60a5fa' : 'var(--text)';
 
     var items = dueMap[key] || [];
     calDayAgenda.innerHTML = '';
@@ -8051,7 +8013,7 @@ let tvWidgetCreated = false;
       }
       if(it.icsPriority && it.icsPriority > 0){
         var pLabel = it.icsPriority <= 4 ? 'High' : it.icsPriority === 5 ? 'Medium' : 'Low';
-        h += '<span style="color:' + (it.icsPriority <= 4 ? '#ef4444' : it.icsPriority === 5 ? '#fbbf24' : '#2eaadc') + '">&#9650; ' + pLabel + '</span>';
+        h += '<span style="color:' + (it.icsPriority <= 4 ? '#ef4444' : it.icsPriority === 5 ? '#fbbf24' : '#22c55e') + '">&#9650; ' + pLabel + '</span>';
       }
       if(it.classification === 'PRIVATE') h += '<span style="color:#ec4899">&#128274; Private</span>';
       h += '</div>';
@@ -8369,7 +8331,7 @@ let tvWidgetCreated = false;
           if(!vidId) continue;
 
           var card = document.createElement('div');
-          card.style.cssText = 'flex:0 0 320px;scroll-snap-align:start;border-radius:12px;overflow:hidden;background:rgba(55,53,47,.02);border:1px solid rgba(55,53,47,.05);';
+          card.style.cssText = 'flex:0 0 320px;scroll-snap-align:start;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);';
           card.innerHTML =
             '<div style="position:relative;cursor:pointer;" class="yt-thumb-wrap" data-vid="'+vidId+'">' +
               '<img src="https://img.youtube.com/vi/'+vidId+'/mqdefault.jpg" alt="" style="width:100%;display:block;aspect-ratio:16/9;object-fit:cover;">' +
@@ -8909,19 +8871,19 @@ let tvWidgetCreated = false;
       if(!entries.length){ listEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:16px;font-size:.85rem;">No backups found</div>'; return; }
       entries.forEach(function(e){
         var card = document.createElement('div');
-        card.style.cssText = 'padding:10px 12px;border-radius:10px;background:rgba(55,53,47,.02);border:1px solid rgba(55,53,47,.05);';
+        card.style.cssText = 'padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);';
         var name = e.username || 'Unknown';
         var shortKey = e.key.length > 18 ? e.key.substring(0,18) + '...' : e.key;
         card.innerHTML =
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
             '<div style="min-width:0;">' +
               '<div style="font-weight:800;font-size:.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escH(name) + '</div>' +
-              '<div style="font-size:.7rem;color:rgba(55,53,47,.13);font-family:monospace;margin-top:2px;">' + escH(shortKey) + '</div>' +
+              '<div style="font-size:.7rem;color:rgba(255,255,255,.25);font-family:monospace;margin-top:2px;">' + escH(shortKey) + '</div>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
               '<span style="font-size:.72rem;color:var(--muted);white-space:nowrap;">' + e.items + ' items &middot; ' + formatSize(e.size) + '</span>' +
-              '<button class="admin-restore-btn" data-key="' + escH(e.key) + '" data-name="' + escH(name) + '" style="background:none;border:1px solid rgba(46,170,220,.25);border-radius:6px;padding:3px 8px;color:#2eaadc;cursor:pointer;font-size:.7rem;font-weight:700;">Restore</button>' +
-              '<button class="admin-inspect-btn" data-key="' + escH(e.key) + '" style="background:none;border:1px solid rgba(144,101,176,.25);border-radius:6px;padding:3px 8px;color:#9065b0;cursor:pointer;font-size:.7rem;font-weight:700;">View</button>' +
+              '<button class="admin-restore-btn" data-key="' + escH(e.key) + '" data-name="' + escH(name) + '" style="background:none;border:1px solid rgba(34,197,94,.25);border-radius:6px;padding:3px 8px;color:#22c55e;cursor:pointer;font-size:.7rem;font-weight:700;">Restore</button>' +
+              '<button class="admin-inspect-btn" data-key="' + escH(e.key) + '" style="background:none;border:1px solid rgba(96,165,250,.25);border-radius:6px;padding:3px 8px;color:#60a5fa;cursor:pointer;font-size:.7rem;font-weight:700;">View</button>' +
               '<button class="admin-del-btn" data-key="' + escH(e.key) + '" data-name="' + escH(name) + '" style="background:none;border:1px solid rgba(239,68,68,.25);border-radius:6px;padding:3px 8px;color:#ef4444;cursor:pointer;font-size:.7rem;font-weight:700;">Del</button>' +
             '</div>' +
           '</div>';
@@ -8953,18 +8915,18 @@ let tvWidgetCreated = false;
       if(!entries.length){ listEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:16px;font-size:.85rem;">No backups found</div>'; return; }
       entries.forEach(function(e){
         var card = document.createElement('div');
-        card.style.cssText = 'padding:10px 12px;border-radius:10px;background:rgba(55,53,47,.02);border:1px solid rgba(55,53,47,.05);';
+        card.style.cssText = 'padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);';
         var name = e.username || 'Unknown';
         var shortKey = e.key.length > 18 ? e.key.substring(0,18) + '...' : e.key;
         card.innerHTML =
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
             '<div style="min-width:0;">' +
               '<div style="font-weight:800;font-size:.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escH(name) + '</div>' +
-              '<div style="font-size:.7rem;color:rgba(55,53,47,.13);font-family:monospace;margin-top:2px;">' + escH(shortKey) + '</div>' +
+              '<div style="font-size:.7rem;color:rgba(255,255,255,.25);font-family:monospace;margin-top:2px;">' + escH(shortKey) + '</div>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
               '<span style="font-size:.72rem;color:var(--muted);white-space:nowrap;">' + e.items + ' items &middot; ' + formatSize(e.size) + '</span>' +
-              '<button class="admin-inspect-btn" data-key="' + escH(e.key) + '" style="background:none;border:1px solid rgba(144,101,176,.25);border-radius:6px;padding:3px 8px;color:#9065b0;cursor:pointer;font-size:.7rem;font-weight:700;">View</button>' +
+              '<button class="admin-inspect-btn" data-key="' + escH(e.key) + '" style="background:none;border:1px solid rgba(96,165,250,.25);border-radius:6px;padding:3px 8px;color:#60a5fa;cursor:pointer;font-size:.7rem;font-weight:700;">View</button>' +
               '<button class="admin-del-btn" data-key="' + escH(e.key) + '" data-name="' + escH(name) + '" style="background:none;border:1px solid rgba(239,68,68,.25);border-radius:6px;padding:3px 8px;color:#ef4444;cursor:pointer;font-size:.7rem;font-weight:700;">Del</button>' +
             '</div>' +
           '</div>';
@@ -9051,7 +9013,7 @@ let tvWidgetCreated = false;
     if(tab === 'backups'){
       backupsView.style.display = 'block';
       usersView.style.display = 'none';
-      backupsTab.style.background = 'linear-gradient(135deg,var(--accent),#0077aa)';
+      backupsTab.style.background = 'linear-gradient(135deg,var(--accent),#16a34a)';
       backupsTab.style.color = '#fff';
       backupsTab.classList.remove('ghost');
       usersTab.style.background = 'transparent';
@@ -9060,7 +9022,7 @@ let tvWidgetCreated = false;
     } else {
       backupsView.style.display = 'none';
       usersView.style.display = 'block';
-      usersTab.style.background = 'linear-gradient(135deg,var(--accent),#0077aa)';
+      usersTab.style.background = 'linear-gradient(135deg,var(--accent),#16a34a)';
       usersTab.style.color = '#fff';
       usersTab.classList.remove('ghost');
       backupsTab.style.background = 'transparent';
@@ -9083,7 +9045,7 @@ let tvWidgetCreated = false;
       if(!d.users.length){ usersListEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:16px;font-size:.85rem;">No users found</div>'; return; }
       d.users.forEach(function(u){
         var card = document.createElement('div');
-        card.style.cssText = 'padding:10px 12px;border-radius:10px;background:rgba(55,53,47,.02);border:1px solid rgba(55,53,47,.05);';
+        card.style.cssText = 'padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);';
         var perms = [];
         if(u.permissions.vault) perms.push('Vault');
         if(u.permissions.joey) perms.push('Joey');
@@ -9092,10 +9054,10 @@ let tvWidgetCreated = false;
             '<div style="min-width:0;">' +
               '<div style="font-weight:800;font-size:.9rem;color:var(--text);">' + escH(u.username) + '</div>' +
               '<div style="font-size:.75rem;color:var(--muted);margin-top:2px;">' + escH(u.email) + '</div>' +
-              '<div style="font-size:.7rem;color:rgba(55,53,47,.18);margin-top:4px;">' + (perms.length ? perms.join(' &middot; ') : 'No permissions') + '</div>' +
+              '<div style="font-size:.7rem;color:rgba(255,255,255,.35);margin-top:4px;">' + (perms.length ? perms.join(' &middot; ') : 'No permissions') + '</div>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
-              '<button class="admin-user-edit-btn" data-user="' + escH(u.username) + '" style="background:none;border:1px solid rgba(144,101,176,.25);border-radius:6px;padding:3px 8px;color:#9065b0;cursor:pointer;font-size:.7rem;font-weight:700;">Edit</button>' +
+              '<button class="admin-user-edit-btn" data-user="' + escH(u.username) + '" style="background:none;border:1px solid rgba(96,165,250,.25);border-radius:6px;padding:3px 8px;color:#60a5fa;cursor:pointer;font-size:.7rem;font-weight:700;">Edit</button>' +
               '<button class="admin-user-del-btn" data-user="' + escH(u.username) + '" style="background:none;border:1px solid rgba(239,68,68,.25);border-radius:6px;padding:3px 8px;color:#ef4444;cursor:pointer;font-size:.7rem;font-weight:700;">Del</button>' +
             '</div>' +
           '</div>';
@@ -10097,8 +10059,8 @@ let tvWidgetCreated = false;
     requestSyncFieldLabelUpdate();
   }
   function renderHealthCard(label, ts, detail, accent){
-    var tone = accent || '#9065b0';
-    return '<div style="padding:10px 12px;border-radius:12px;border:1px solid rgba(155,143,130,.18);background:linear-gradient(180deg,rgba(55,53,47,.88),rgba(55,53,47,.92));min-height:78px;">' +
+    var tone = accent || '#60a5fa';
+    return '<div style="padding:10px 12px;border-radius:12px;border:1px solid rgba(148,163,184,.18);background:linear-gradient(180deg,rgba(15,23,42,.88),rgba(2,6,23,.92));min-height:78px;">' +
       '<div style="font-size:.68rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:' + tone + ';margin-bottom:6px;">' + label + '</div>' +
       '<div style="font-size:.84rem;font-weight:700;color:var(--text);margin-bottom:4px;">' + formatBackupStamp(ts) + '</div>' +
       '<div style="font-size:.72rem;color:var(--muted);line-height:1.45;">' + detail + '</div>' +
@@ -10111,10 +10073,10 @@ let tvWidgetCreated = false;
     var backupCount = localStorage.getItem('homer-backup-keys') || '0';
     backupHealthEl.innerHTML =
       renderHealthCard('Local Vault Save', localStorage.getItem(BACKUP_LOCAL_SAVE_TS_KEY), 'Latest encrypted save on this device.', '#38bdf8') +
-      renderHealthCard('Cloud Snapshot', localStorage.getItem('homer-backup-ts'), backupCount + ' keys stored in cloud snapshot. Source: ' + source + '.', '#9065b0') +
+      renderHealthCard('Cloud Snapshot', localStorage.getItem('homer-backup-ts'), backupCount + ' keys stored in cloud snapshot. Source: ' + source + '.', '#60a5fa') +
       renderHealthCard('Joey Memory (Supabase)', localStorage.getItem(BACKUP_JOEY_TS_KEY), 'Agent chat, memory, and file index backup.', '#f59e0b') +
       renderHealthCard('Joey Drive Context', localStorage.getItem(BACKUP_DRIVE_TS_KEY), 'Long-term Joey context export to Drive.', '#a78bfa') +
-      renderHealthCard('Emergency Drive Snapshot', localStorage.getItem(BACKUP_EMERGENCY_DRIVE_TS_KEY), 'Standalone whole-app snapshot for emergency recovery.', '#2eaadc') +
+      renderHealthCard('Emergency Drive Snapshot', localStorage.getItem(BACKUP_EMERGENCY_DRIVE_TS_KEY), 'Standalone whole-app snapshot for emergency recovery.', '#22c55e') +
       renderHealthCard('Last Restore', localStorage.getItem(BACKUP_LAST_RESTORE_TS_KEY), 'Most recent recovery source: ' + restoreSource + '.', '#f87171');
     safeUpdateVaultSyncBadge();
   }
@@ -10422,9 +10384,9 @@ let tvWidgetCreated = false;
     }).sort();
     var overlay = document.createElement('div');
     overlay.id = 'fab-backup-inspector';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:10040;background:rgba(55,53,47,.78);display:flex;align-items:center;justify-content:center;padding:18px;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10040;background:rgba(2,6,23,.78);display:flex;align-items:center;justify-content:center;padding:18px;';
     var panel = document.createElement('div');
-    panel.style.cssText = 'width:min(1080px,96vw);max-height:88vh;overflow:auto;border-radius:18px;border:1px solid rgba(155,143,130,.24);background:#07111f;box-shadow:0 25px 70px rgba(0,0,0,.45);padding:18px;';
+    panel.style.cssText = 'width:min(1080px,96vw);max-height:88vh;overflow:auto;border-radius:18px;border:1px solid rgba(148,163,184,.24);background:#07111f;box-shadow:0 25px 70px rgba(0,0,0,.45);padding:18px;';
     var lines = [
       'Captured: ' + formatBackupStamp(meta && meta.ts),
       'Source: ' + safeEscHtml(String((meta && meta.source) || 'unknown')),
@@ -10437,19 +10399,19 @@ let tvWidgetCreated = false;
     panel.innerHTML =
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">' +
         '<div><div style="font-size:1rem;font-weight:800;color:#f8fafc;">' + safeEscHtml(title) + '</div><div style="font-size:.78rem;color:var(--muted);margin-top:4px;">' + lines.join(' | ') + '</div></div>' +
-        '<button type="button" style="padding:8px 12px;border-radius:10px;border:none;background:#ffffff;color:#fff;cursor:pointer;">Close</button>' +
+        '<button type="button" style="padding:8px 12px;border-radius:10px;border:none;background:#1e293b;color:#fff;cursor:pointer;">Close</button>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
-        '<div style="padding:12px;border-radius:14px;border:1px solid rgba(155,143,130,.18);background:rgba(55,53,47,.72);">' +
-          '<div style="font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#c5a8e0;margin-bottom:8px;">Manifest</div>' +
+        '<div style="padding:12px;border-radius:14px;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.72);">' +
+          '<div style="font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#93c5fd;margin-bottom:8px;">Manifest</div>' +
           '<pre style="margin:0;white-space:pre-wrap;word-break:break-word;color:#dbeafe;font-size:.78rem;line-height:1.5;">' + safeEscHtml(JSON.stringify(manifest, null, 2)) + '</pre>' +
         '</div>' +
-        '<div style="padding:12px;border-radius:14px;border:1px solid rgba(155,143,130,.18);background:rgba(55,53,47,.72);">' +
+        '<div style="padding:12px;border-radius:14px;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.72);">' +
           '<div style="font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#fbbf24;margin-bottom:8px;">Integrity</div>' +
           '<pre style="margin:0;white-space:pre-wrap;word-break:break-word;color:#e2e8f0;font-size:.78rem;line-height:1.5;">' + safeEscHtml(JSON.stringify(integrity, null, 2)) + '</pre>' +
         '</div>' +
       '</div>' +
-      '<div style="margin-top:12px;padding:12px;border-radius:14px;border:1px solid rgba(155,143,130,.18);background:rgba(55,53,47,.72);">' +
+      '<div style="margin-top:12px;padding:12px;border-radius:14px;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.72);">' +
         '<div style="font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#fbbf24;margin-bottom:8px;">Snapshot Keys</div>' +
         '<pre style="margin:0;white-space:pre-wrap;word-break:break-word;color:#e2e8f0;font-size:.78rem;line-height:1.5;">' + safeEscHtml(keys.join('\n')) + '</pre>' +
         '</div>' +
@@ -11074,10 +11036,10 @@ let tvWidgetCreated = false;
           var date = new Date(v.ts);
           var timeStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
           var sizeKB = v.size ? (v.size / 1024).toFixed(1) + ' KB' : '';
-          h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(55,53,47,.02);font-size:.75rem;">';
+          h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.75rem;">';
           h += '<div><span style="color:var(--text);font-weight:700;">' + timeStr + '</span>';
           h += ' <span style="color:var(--muted);font-size:.68rem;">' + (v.keyCount || '?') + ' keys' + (sizeKB ? ' / ' + sizeKB : '') + '</span></div>';
-          h += '<button class="fab-restore-version" data-ts="' + v.ts + '" style="background:none;border:1px solid rgba(144,101,176,.25);border-radius:6px;padding:2px 8px;color:#9065b0;cursor:pointer;font-size:.68rem;font-weight:700;">Restore</button>';
+          h += '<button class="fab-restore-version" data-ts="' + v.ts + '" style="background:none;border:1px solid rgba(96,165,250,.25);border-radius:6px;padding:2px 8px;color:#60a5fa;cursor:pointer;font-size:.68rem;font-weight:700;">Restore</button>';
           h += '</div>';
         });
         versionsList.innerHTML = h;
@@ -11177,12 +11139,12 @@ let tvWidgetCreated = false;
           var date = new Date(v.ts);
           var timeStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
           var sizeKB = v.size ? (v.size / 1024).toFixed(1) + ' KB' : '';
-          h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(55,53,47,.02);font-size:.75rem;">';
+          h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.75rem;">';
           h += '<div><span style="color:var(--text);font-weight:700;">' + timeStr + '</span>';
           h += ' <span style="color:var(--muted);font-size:.68rem;">' + (v.keyCount || '?') + ' keys' + (sizeKB ? ' / ' + sizeKB : '') + '</span></div>';
           h += '<div style="display:flex;gap:6px;">';
-          h += '<button class="fab-inspect-version" data-ts="' + v.ts + '" style="background:none;border:1px solid rgba(155,143,130,.22);border-radius:6px;padding:2px 8px;color:#9b8f82;cursor:pointer;font-size:.68rem;font-weight:700;">Inspect</button>';
-          h += '<button class="fab-restore-version" data-ts="' + v.ts + '" style="background:none;border:1px solid rgba(144,101,176,.25);border-radius:6px;padding:2px 8px;color:#9065b0;cursor:pointer;font-size:.68rem;font-weight:700;">Restore</button>';
+          h += '<button class="fab-inspect-version" data-ts="' + v.ts + '" style="background:none;border:1px solid rgba(148,163,184,.22);border-radius:6px;padding:2px 8px;color:#cbd5e1;cursor:pointer;font-size:.68rem;font-weight:700;">Inspect</button>';
+          h += '<button class="fab-restore-version" data-ts="' + v.ts + '" style="background:none;border:1px solid rgba(96,165,250,.25);border-radius:6px;padding:2px 8px;color:#60a5fa;cursor:pointer;font-size:.68rem;font-weight:700;">Restore</button>';
           h += '</div>';
           h += '</div>';
         });
@@ -14631,26 +14593,26 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var names = Object.keys(files || {}).sort();
     var modal = document.createElement('div');
     modal.id = 'oc-context-files-modal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(55,53,47,.78);z-index:10030;display:flex;align-items:center;justify-content:center;padding:18px;';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,.78);z-index:10030;display:flex;align-items:center;justify-content:center;padding:18px;';
     var panel = document.createElement('div');
-    panel.style.cssText = 'width:min(1100px,96vw);height:min(86vh,900px);background:#07111f;border:1px solid rgba(155,143,130,.28);border-radius:18px;box-shadow:0 25px 70px rgba(0,0,0,.45);display:grid;grid-template-columns:260px 1fr;overflow:hidden;';
+    panel.style.cssText = 'width:min(1100px,96vw);height:min(86vh,900px);background:#07111f;border:1px solid rgba(148,163,184,.28);border-radius:18px;box-shadow:0 25px 70px rgba(0,0,0,.45);display:grid;grid-template-columns:260px 1fr;overflow:hidden;';
     var sidebar = document.createElement('div');
-    sidebar.style.cssText = 'border-right:1px solid rgba(155,143,130,.18);padding:16px;overflow:auto;background:linear-gradient(180deg,rgba(55,53,47,.96),rgba(55,53,47,.96));';
+    sidebar.style.cssText = 'border-right:1px solid rgba(148,163,184,.18);padding:16px;overflow:auto;background:linear-gradient(180deg,rgba(15,23,42,.96),rgba(2,6,23,.96));';
     var content = document.createElement('div');
     content.style.cssText = 'padding:18px;overflow:auto;color:#e5eefb;';
     var title = document.createElement('div');
     title.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;color:#f8fafc;font-weight:800;';
-    title.innerHTML = '<span>Canonical Context Files</span><button type="button" style="padding:6px 10px;border-radius:10px;border:none;background:#ffffff;color:#fff;cursor:pointer;">Close</button>';
+    title.innerHTML = '<span>Canonical Context Files</span><button type="button" style="padding:6px 10px;border-radius:10px;border:none;background:#1e293b;color:#fff;cursor:pointer;">Close</button>';
     title.querySelector('button').addEventListener('click', function(){ modal.remove(); });
     sidebar.appendChild(title);
     names.forEach(function(name, idx){
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = name;
-      btn.style.cssText = 'display:block;width:100%;text-align:left;margin:0 0 8px;padding:10px 12px;border-radius:12px;border:1px solid rgba(155,143,130,.16);background:rgba(55,53,47,.78);color:#dbeafe;cursor:pointer;font-weight:700;';
+      btn.style.cssText = 'display:block;width:100%;text-align:left;margin:0 0 8px;padding:10px 12px;border-radius:12px;border:1px solid rgba(148,163,184,.16);background:rgba(15,23,42,.78);color:#dbeafe;cursor:pointer;font-weight:700;';
       btn.addEventListener('click', function(){
-        content.innerHTML = '<div style="font-size:1rem;font-weight:800;margin-bottom:10px;color:#f8fafc;">' + escHtml(name) + '</div><pre style="white-space:pre-wrap;word-break:break-word;background:rgba(55,53,47,.72);border-radius:14px;padding:16px;border:1px solid rgba(155,143,130,.18);line-height:1.5;font-size:.87rem;">' + escHtml(files[name] || '') + '</pre>';
-        Array.from(sidebar.querySelectorAll('button')).forEach(function(el){ if(el !== title.querySelector('button')) el.style.background = 'rgba(55,53,47,.78)'; });
+        content.innerHTML = '<div style="font-size:1rem;font-weight:800;margin-bottom:10px;color:#f8fafc;">' + escHtml(name) + '</div><pre style="white-space:pre-wrap;word-break:break-word;background:rgba(15,23,42,.72);border-radius:14px;padding:16px;border:1px solid rgba(148,163,184,.18);line-height:1.5;font-size:.87rem;">' + escHtml(files[name] || '') + '</pre>';
+        Array.from(sidebar.querySelectorAll('button')).forEach(function(el){ if(el !== title.querySelector('button')) el.style.background = 'rgba(15,23,42,.78)'; });
         btn.style.background = 'rgba(37,99,235,.35)';
       });
       sidebar.appendChild(btn);
@@ -16572,7 +16534,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
             try{ hd = JSON.parse(localStorage.getItem(HKEY) || '{"habits":[],"completions":{}}'); }catch(e){ hd = {habits:[],completions:{}}; }
             if(!Array.isArray(hd.habits)) hd.habits = [];
             if(!hd.completions) hd.completions = {};
-            var HABIT_COLORS = ['#34d399','#9065b0','#f87171','#fbbf24','#a78bfa','#fb7185','#38bdf8','#7acde8'];
+            var HABIT_COLORS = ['#34d399','#60a5fa','#f87171','#fbbf24','#a78bfa','#fb7185','#38bdf8','#4ade80'];
             var habitFreq = habitData.freq || 'daily';
             var newHabit = {
               id: Date.now(),
@@ -16975,7 +16937,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(notifications.length){
       var toast = document.createElement('div');
       toast.className = 'oc-msg bot';
-      toast.style.cssText = 'background:rgba(46,170,220,.1);border:1px solid rgba(46,170,220,.25);font-size:.78rem;color:#7acde8;text-align:center;max-width:100%;';
+      toast.style.cssText = 'background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);font-size:.78rem;color:#4ade80;text-align:center;max-width:100%;';
       toast.innerHTML = notifications.map(function(n){ return '&#10003; ' + escHtml(n); }).join('<br>');
       messagesEl.appendChild(toast);
       scrollMessagesToBottom(false);
@@ -16998,9 +16960,9 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var kind = tone || 'success';
     var styles = {
       success: {
-        background: 'rgba(46,170,220,.1)',
-        border: '1px solid rgba(46,170,220,.25)',
-        color: '#7acde8',
+        background: 'rgba(34,197,94,.1)',
+        border: '1px solid rgba(34,197,94,.25)',
+        color: '#4ade80',
         prefix: '\u2713 '
       },
       warn: {
@@ -17334,7 +17296,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
         systemPrompt += jSection;
       }catch(_){}
     })();
-    systemPrompt += '\n\n=== PROJECT ACTIONS ===\n- If the user explicitly asks to create, rename, edit, archive, restore, or delete a project, append a PROJECT action.\n- PROJECT create format: [ACTION:PROJECT]{\"op\":\"create\",\"name\":\"Project Name\",\"description\":\"Optional description\",\"icon\":\"rocket\",\"color\":\"#9065b0\"}[/ACTION]\n- PROJECT update format: [ACTION:PROJECT]{\"op\":\"update\",\"project\":\"Apps\",\"name\":\"Apps Platform\",\"description\":\"Shared product work\",\"icon\":\"AP\",\"color\":\"#34d399\"}[/ACTION]\n- PROJECT archive format: [ACTION:PROJECT]{\"op\":\"archive\",\"project\":\"Apps\"}[/ACTION]\n- PROJECT restore format: [ACTION:PROJECT]{\"op\":\"restore\",\"project\":\"Apps\"}[/ACTION]\n- PROJECT delete format: [ACTION:PROJECT]{\"op\":\"delete\",\"project\":\"Apps\"}[/ACTION]\n- Use \"project\" to identify the existing project for any non-create action.\n- Never delete a project that still has issues.\n- Never place new tasks into archived projects.';
+    systemPrompt += '\n\n=== PROJECT ACTIONS ===\n- If the user explicitly asks to create, rename, edit, archive, restore, or delete a project, append a PROJECT action.\n- PROJECT create format: [ACTION:PROJECT]{\"op\":\"create\",\"name\":\"Project Name\",\"description\":\"Optional description\",\"icon\":\"rocket\",\"color\":\"#60a5fa\"}[/ACTION]\n- PROJECT update format: [ACTION:PROJECT]{\"op\":\"update\",\"project\":\"Apps\",\"name\":\"Apps Platform\",\"description\":\"Shared product work\",\"icon\":\"AP\",\"color\":\"#34d399\"}[/ACTION]\n- PROJECT archive format: [ACTION:PROJECT]{\"op\":\"archive\",\"project\":\"Apps\"}[/ACTION]\n- PROJECT restore format: [ACTION:PROJECT]{\"op\":\"restore\",\"project\":\"Apps\"}[/ACTION]\n- PROJECT delete format: [ACTION:PROJECT]{\"op\":\"delete\",\"project\":\"Apps\"}[/ACTION]\n- Use \"project\" to identify the existing project for any non-create action.\n- Never delete a project that still has issues.\n- Never place new tasks into archived projects.';
     systemPrompt += '\n\n=== MODE ISOLATION ===\n- Personal and Work are separate memory domains.\n- Never reveal, summarize, hint at, or rely on information from the other mode.\n- If the user asks for something that belongs to the other mode, tell them to switch modes.\n- "Use full context" means full context for the current mode only.';
     systemPrompt += '\n- All vault mutations are mode-bound. In Personal mode, create and update only Personal vault items and Personal Drive backup. In Work mode, create and update only Work vault items and Work Drive backup. Never write across modes.';
     systemPrompt += '\n\n=== CANONICAL FILES ===\n- Mode-specific context lives in AgentContext.md, Today.md, OpenLoops.md, Projects.md, Areas.md, Resources.md, People.md, Wins.md, Lessons.md, WeeklyReview.md, Decisions.md, PinnedContext.md, Archive.md, FilesIndex.md, Quotes.md when saved quotes exist, and Uploads/*.md for the current mode only.\n- FilesIndex.md lists remembered uploaded files and also names extra custom context files for this mode.\n- Do not assume a context file is missing just because it is not an uploaded file or because it is not under Uploads/.\n- Do not conclude that Quotes.md is missing only because it is not mentioned in the remembered uploads section of FilesIndex.md.\n- Quotes.md is an accumulating reference file containing quotes saved from Home and quotes Joey saved via memory actions; use it for recall, advice framing, and preference shaping when relevant.\n- Quote entries must be stored in canonical form: blockquote contains only the quote text wrapped in quotation marks, Author line contains only the speaker name, Saved line contains only the ISO timestamp.\n- Never store prefixes like "Quote:" inside the quote body, and never leave the author inside the quoted text when it can be separated.\n- Uploads/*.md contains extracted text for previously processed files when relevant to this mode.\n- Prefer REMEMBER with categories win, lesson, resource, decision, pin, archive, or quote when the user explicitly asks to save something.\n- If the user says "save this as a win", store category "win".\n- If the user says "save this as a lesson", store category "lesson".\n- If the user says "save this as a resource" or "keep this note", store category "resource".\n- If the user says "save this quote", "remember this quote", or asks you to keep a line for later advice, store category "quote".\n- If the user says "pin this" or "always remember this", store category "pin" with pinned:true.\n- If the user asks for deeper recall, tell them they can say "use full context".';
@@ -17770,7 +17732,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   var fMilestones = document.getElementById('lg-milestones');
   var fSubmit = document.getElementById('lg-submit');
   var editIdx = -1; // -1 = creating new
-  var CATS = {health:{icon:'💪',color:'#2eaadc'},finance:{icon:'💰',color:'#fbbf24'},career:{icon:'🏢',color:'#9065b0'},personal:{icon:'🌟',color:'#a78bfa'},education:{icon:'📚',color:'#f59e0b'},travel:{icon:'✈️',color:'#06b6d4'},creative:{icon:'🎨',color:'#ec4899'},relationship:{icon:'❤️',color:'#ef4444'}};
+  var CATS = {health:{icon:'💪',color:'#22c55e'},finance:{icon:'💰',color:'#fbbf24'},career:{icon:'🏢',color:'#60a5fa'},personal:{icon:'🌟',color:'#a78bfa'},education:{icon:'📚',color:'#f59e0b'},travel:{icon:'✈️',color:'#06b6d4'},creative:{icon:'🎨',color:'#ec4899'},relationship:{icon:'❤️',color:'#ef4444'}};
 
   function isWorkGoalsMode(){
     return typeof window._homerGetVaultMode === 'function' && window._homerGetVaultMode() === 'work';
@@ -17950,8 +17912,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       return '<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="'+r+'" class="ring-bg"/><circle cx="24" cy="24" r="'+r+'" class="ring-fg" stroke="'+color+'" stroke-dasharray="'+c+'" stroke-dashoffset="'+off+'"/></svg><span class="ring-label">'+pct+'%</span>';
     }
     statsRow.innerHTML =
-      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(total?Math.round(completed/total*100):0,'#2eaadc')+'</div><div class="goals-stat-info"><h3>Achieved</h3><div class="stat-value">'+completed+'/'+total+'</div><div class="stat-sub">'+getGoalsCopy().completedSub+'</div></div></div>'+
-      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(avgProgress,'#9065b0')+'</div><div class="goals-stat-info"><h3>Avg Progress</h3><div class="stat-value">'+avgProgress+'%</div><div class="stat-sub">across all goals</div></div></div>'+
+      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(total?Math.round(completed/total*100):0,'#22c55e')+'</div><div class="goals-stat-info"><h3>Achieved</h3><div class="stat-value">'+completed+'/'+total+'</div><div class="stat-sub">'+getGoalsCopy().completedSub+'</div></div></div>'+
+      '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(avgProgress,'#60a5fa')+'</div><div class="goals-stat-info"><h3>Avg Progress</h3><div class="stat-value">'+avgProgress+'%</div><div class="stat-sub">across all goals</div></div></div>'+
       '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(msPct,'#fbbf24')+'</div><div class="goals-stat-info"><h3>Milestones</h3><div class="stat-value">'+doneMs+'/'+totalMs+'</div><div class="stat-sub">steps completed</div></div></div>'+
       '<div class="goals-stat-card"><div class="goals-stat-ring">'+ring(100,'#a78bfa')+'</div><div class="goals-stat-info"><h3>'+getGoalsCopy().totalLabel+'</h3><div class="stat-value">'+total+'</div><div class="stat-sub">'+getGoalsCopy().totalSub+'</div></div></div>';
   }
@@ -17981,7 +17943,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       }
       if(g.targetDate) html += '<div class="lg-card-date">Target: '+new Date(g.targetDate).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+'</div>';
       html += '<div style="display:flex;gap:6px;margin-top:10px;">';
-      html += '<button class="lg-edit-btn" data-idx="'+idx+'" style="flex:1;padding:6px;border-radius:8px;border:1px solid rgba(55,53,47,.08);background:none;color:var(--muted);cursor:pointer;font-size:.75rem;font-weight:700;">Edit</button>';
+      html += '<button class="lg-edit-btn" data-idx="'+idx+'" style="flex:1;padding:6px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:none;color:var(--muted);cursor:pointer;font-size:.75rem;font-weight:700;">Edit</button>';
       html += '<button class="lg-del-btn" data-idx="'+idx+'" style="padding:6px 10px;border-radius:8px;border:1px solid rgba(239,68,68,.2);background:none;color:#ef4444;cursor:pointer;font-size:.75rem;font-weight:700;">Delete</button>';
       html += '</div></div>';
     });
