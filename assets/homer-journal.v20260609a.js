@@ -29,7 +29,7 @@
       flex-direction: column;
       min-height: calc(100vh - 140px);
     }
-    .jn-page { display:flex; flex-direction:column; flex:1; min-height:calc(100vh - 140px); }
+    .jn-page { display:flex; flex-direction:column; flex:1; min-height:calc(100vh - 140px); background:#0f172a; }
 
     /* ── Database header ─────────────────────────────────────────────*/
     .jn-db-header { display:flex; align-items:flex-start; gap:12px; padding:22px 20px 14px; }
