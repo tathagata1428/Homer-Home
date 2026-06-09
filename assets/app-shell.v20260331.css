@@ -151,49 +151,63 @@
       body.sb-collapsed .shell{width:min(1200px,calc(100vw - 100px));}
     }
 
-    /* HERO */
+    /* ── Notion page header ────────────────────────────────────────── */
     .hero{
-      position:relative; border-radius:12px; padding:28px 22px; margin-bottom:16px; overflow:hidden;
-      border:1px solid rgba(55,53,47,.09);
-      background: #ffffff;
-      box-shadow: 0 1px 3px rgba(55,53,47,.06), 0 4px 12px rgba(55,53,47,.04);
+      position:relative; background:transparent; border:none; box-shadow:none;
+      border-radius:0; padding:36px 0 12px; margin-bottom:0; overflow:visible;
     }
+    .hero-page-icon{ font-size:3rem; line-height:1; margin-bottom:10px; display:block; }
     .title{
-      margin:0 0 6px; font-weight:800; font-size:clamp(1.8rem,5.4vw,2.8rem); letter-spacing:-.02em; line-height:1.1;
-      display:flex; align-items:center; gap:14px; flex-wrap:wrap;
-      color: #37352f;
-      background: none; -webkit-background-clip: unset; background-clip: unset;
+      margin:0 0 4px; font-weight:700; font-size:clamp(1.75rem,4vw,2.5rem);
+      letter-spacing:-.02em; line-height:1.1;
+      display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+      color:#37352f; background:none; -webkit-background-clip:unset; background-clip:unset;
     }
     .title-badge{
-      padding:5px 10px; border-radius:6px; font-weight:700; font-size:.85rem; color:#fff; border:none;
-      background: #2eaadc; box-shadow: none;
+      padding:2px 8px; border-radius:3px; font-weight:600; font-size:.75rem;
+      color:rgba(55,53,47,.65); border:none;
+      background:rgba(55,53,47,.06);
     }
-    .subtitle{ margin:6px 0 0; color:var(--muted); font-size:clamp(.95rem, 2.2vw, 1.05rem) }
+    .subtitle{ margin:4px 0 0; color:var(--muted); font-size:.9rem; }
 
-    /* Tabs */
-    .tabs{display:flex; gap:8px; margin:16px 0 18px; flex-wrap:wrap}
+    /* ── Notion view selector (tabs) ────────────────────────────────── */
+    .tabs{
+      display:flex; gap:0; margin:16px 0 0; flex-wrap:nowrap; overflow-x:auto;
+      border-bottom:1px solid rgba(55,53,47,.09);
+      scrollbar-width:none; -ms-overflow-style:none;
+    }
+    .tabs::-webkit-scrollbar{ display:none; }
     .tab-btn{
-      border:1px solid rgba(55,53,47,.14); background:#ffffff; color:rgba(55,53,47,.65);
-      padding:7px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-size:.85rem;
-      box-shadow: 0 1px 2px rgba(55,53,47,.06);
-      transition:border-color .12s, background .12s, color .12s;
+      border:none; border-bottom:2px solid transparent; background:none; color:rgba(55,53,47,.5);
+      padding:8px 14px; margin-bottom:-1px; border-radius:0; cursor:pointer; font-weight:500;
+      font-size:.84rem; white-space:nowrap;
+      transition:color .12s, border-color .12s, background .1s;
       -webkit-tap-highlight-color:transparent;
+      flex-shrink:0;
     }
-    .tab-btn:hover{ border-color:rgba(55,53,47,.22); background:#f9f8f6; color:#37352f; }
-    .tab-btn:active{ transform:translateY(1px); }
+    .tab-btn:hover{ color:#37352f; background:rgba(55,53,47,.04); }
+    .tab-btn:active{ }
     .tab-btn.active{
-      background:#37352f; border-color:#37352f; color:#ffffff;
-      box-shadow:0 2px 6px rgba(55,53,47,.2);
+      color:#37352f; border-bottom-color:#37352f; font-weight:600;
+      background:none; box-shadow:none;
     }
 
+    /* ── Notion content area ────────────────────────────────────────── */
+    .tab.card{
+      background:transparent !important; border:none !important;
+      box-shadow:none !important; border-radius:0 !important;
+      padding:20px 0 !important;
+    }
+
+    /* ── Notion block (inner card) ──────────────────────────────────── */
     .card{
-      background: var(--card-a);
-      border:1px solid var(--border); border-radius:var(--radius);
-      box-shadow:var(--shadow); padding:22px;
+      background:#fff; border:1px solid rgba(55,53,47,.09);
+      border-radius:4px; box-shadow:none; padding:20px;
     }
+    .card:hover{ border-color:rgba(55,53,47,.14); }
 
-    /* Grid */
-    .grid{display:grid; gap:20px; grid-template-columns:repeat(12,1fr)}
+    /* ── Grid ───────────────────────────────────────────────────────── */
+    .grid{display:grid; gap:12px; grid-template-columns:repeat(12,1fr)}
     .span-12{grid-column:span 12}
     .span-6{grid-column:span 6}
     .span-4{grid-column:span 4}
@@ -207,14 +221,10 @@
       align-items:flex-end;
       justify-content:space-between;
       gap:16px;
-      padding:22px 24px;
-      border-radius:24px;
-      border:1px solid rgba(55,53,47,.05);
-      background:
-        radial-gradient(560px 220px at 0% 0%, rgba(46,170,220,.14), transparent 62%),
-        radial-gradient(460px 220px at 100% 0%, rgba(144,101,176,.16), transparent 60%),
-        linear-gradient(180deg, rgba(55,53,47,.04), rgba(255,255,255,.025));
-      box-shadow: inset 0 1px 0 rgba(55,53,47,.02);
+      padding:16px 0 20px;
+      border-radius:0;
+      border:none; border-bottom:1px solid rgba(55,53,47,.09);
+      background:transparent;
     }
     .focuslab-hero-copy{
       max-width:720px;
@@ -223,11 +233,11 @@
     }
     .focuslab-kicker,
     .focus-card-kicker{
-      font-size:.72rem;
-      font-weight:900;
-      letter-spacing:.16em;
+      font-size:.65rem;
+      font-weight:700;
+      letter-spacing:.1em;
       text-transform:uppercase;
-      color:rgba(226,232,240,.72);
+      color:rgba(55,53,47,.45);
     }
     .focuslab-title{
       margin:0;
@@ -344,13 +354,22 @@
     .wx-temp{font-size:1.8rem;font-weight:900}
 
     /* Section */
-    h2.section{margin:0 0 8px;font-size:.95rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+    h2.section{
+      margin:0 0 10px; font-size:.65rem; font-weight:700;
+      letter-spacing:.1em; text-transform:uppercase; color:rgba(55,53,47,.45);
+      display:flex; align-items:center; gap:6px;
+    }
+    h2.section::after{ content:''; flex:1; height:1px; background:rgba(55,53,47,.07); }
 
-    /* Quotes */
-    blockquote{margin:10px 0 8px;font-size:clamp(1.2rem,2.5vw + .5rem,2rem);font-weight:900}
-    blockquote::before, blockquote::after{content:"\201C"; color:var(--accent)}
-    blockquote::after{content:"\201D"}
-    .author{color:var(--muted);font-style:italic}
+    /* Quotes — Notion callout style */
+    blockquote{
+      margin:12px 0 8px; padding:14px 16px;
+      background:rgba(46,170,220,.06); border-left:3px solid #2eaadc;
+      border-radius:0 4px 4px 0;
+      font-size:clamp(1rem,2vw,1.35rem); font-weight:700; color:#37352f; line-height:1.4;
+    }
+    blockquote::before, blockquote::after{ content:''; }
+    .author{color:var(--muted);font-style:italic;font-size:.85rem}
     .row{display:flex; flex-wrap:wrap; gap:12px; margin-top:16px}
     .btn, a.btn{
       border:1px solid rgba(55,53,47,.14); background:#ffffff; color:var(--text);
@@ -445,9 +464,9 @@
       position:relative; width:var(--ring-size); height:var(--ring-size); border-radius:50%;
       /* thicker ring: 76% hole = 24% thickness */
       background:
-        radial-gradient(closest-side, #f7f6f3 76%, transparent 77%),
-        conic-gradient(var(--accent) var(--pom-progress,0%), rgba(55,53,47,.10) 0);
-      box-shadow: 0 20px 60px rgba(46,170,220,.15), 0 0 0 1px var(--border) inset;
+        radial-gradient(closest-side, #ffffff 76%, transparent 77%),
+        conic-gradient(var(--accent) var(--pom-progress,0%), rgba(55,53,47,.08) 0);
+      box-shadow: 0 4px 20px rgba(55,53,47,.08);
       display:grid; place-items:center;
       margin-top: 16px;
     }
@@ -3339,7 +3358,7 @@
    correct colour from the very first painted frame. On Android PWA with
    viewport-fit:cover the status-bar area is transparent and shows the html
    element background — this must match theme_color (#0a1220) exactly. */
-html{background-color:#0a1220;}
+html{background-color:#f7f6f3;}
 
 /* ══ MOBILE NATIVE-FEEL TWEAKS ══ */
 @media (hover:none) and (pointer:coarse){
@@ -3351,4 +3370,85 @@ html{background-color:#0a1220;}
   section.tab.card{-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;}
   /* Larger minimum tap targets on mobile nav */
   .mnav-btn{min-height:52px;}
+}
+
+/* ══════════════════ NOTION FULL REDESIGN GLOBALS ══════════════════ */
+
+/* ── Notion page title for each tab ─────────────────────────────────
+   Each tab gets a page-title header injected via JS (or via ::before on
+   desktop). On mobile the page icon + title uses the same hero style. */
+.notion-page-hd{
+  display:flex; align-items:center; gap:10px;
+  padding:24px 0 14px; margin-bottom:16px;
+  border-bottom:1px solid rgba(55,53,47,.09);
+}
+.notion-page-hd-icon{ font-size:1.6rem; line-height:1; flex-shrink:0; }
+.notion-page-hd-text{ flex:1; min-width:0; }
+.notion-page-hd-title{
+  font-size:1.35rem; font-weight:700; color:#37352f;
+  margin:0 0 2px; letter-spacing:-.015em; line-height:1.2;
+}
+.notion-page-hd-meta{
+  font-size:.72rem; color:rgba(55,53,47,.40);
+  display:flex; align-items:center; gap:6px;
+}
+.notion-page-hd-actions{ display:flex; gap:6px; flex-shrink:0; }
+
+/* ── Notion block row (used by notes, links, tasks, etc.) ────────────*/
+.notion-row{
+  display:flex; align-items:center; gap:10px;
+  padding:7px 10px; border-radius:4px;
+  cursor:pointer; transition:background .08s;
+  color:#37352f; text-decoration:none;
+}
+.notion-row:hover{ background:rgba(55,53,47,.04); }
+.notion-row-icon{ font-size:1rem; flex-shrink:0; width:20px; text-align:center; }
+.notion-row-title{ flex:1; font-size:.88rem; font-weight:500; color:#37352f; }
+.notion-row-meta{ font-size:.72rem; color:rgba(55,53,47,.40); white-space:nowrap; }
+
+/* ── Notion property chip ────────────────────────────────────────────*/
+.notion-chip{
+  display:inline-flex; align-items:center; gap:3px;
+  padding:2px 7px; border-radius:3px;
+  font-size:.68rem; font-weight:500;
+  background:rgba(55,53,47,.06); color:rgba(55,53,47,.65);
+}
+.notion-chip.blue{ background:rgba(46,170,220,.1); color:#0077aa; }
+.notion-chip.purple{ background:rgba(144,101,176,.1); color:#6c4c9a; }
+.notion-chip.green{ background:rgba(50,170,100,.1); color:#256a40; }
+.notion-chip.red{ background:rgba(220,50,50,.1); color:#a02020; }
+
+/* ── Global Notion inputs ────────────────────────────────────────────*/
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="url"],
+textarea,
+select{
+  font-family:inherit; font-size:.85rem; color:#37352f;
+  background:#fff; border:1px solid rgba(55,53,47,.18);
+  border-radius:4px; padding:6px 10px;
+  transition:border-color .12s, box-shadow .12s;
+}
+input:focus,textarea:focus,select:focus{
+  outline:none; border-color:rgba(55,53,47,.4);
+  box-shadow:0 0 0 2px rgba(55,53,47,.06);
+}
+
+/* ── Notion divider ──────────────────────────────────────────────────*/
+.notion-divider{ height:1px; background:rgba(55,53,47,.09); margin:12px 0; }
+
+/* ── Remove heavy tab-level card shadows (inherited from .card) ──────*/
+section.tab{ border-radius:0 !important; }
+
+/* ── Pomodoro timer card — Notion block ──────────────────────────────*/
+.pom-timer.card{ border-radius:8px; }
+
+/* ── Mobile: hero compact ────────────────────────────────────────────*/
+@media(max-width:900px){
+  .hero{ padding:20px 0 8px; }
+  .hero-page-icon{ font-size:2.2rem; }
+  .title{ font-size:clamp(1.4rem,5vw,1.9rem); }
 }

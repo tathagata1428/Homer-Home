@@ -163,6 +163,44 @@
     tabBtns.forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
     window._homerShowTab = showTab;
 
+    /* ── Notion page-title headers ──────────────────────────────────── */
+    var NOTION_TAB_META = {
+      home:           { icon:'🏠', title:'Home' },
+      pomodoro:       { icon:'⏱️', title:'Pomodoro' },
+      investing:      { icon:'📈', title:'Investing' },
+      tools:          { icon:'🔧', title:'Tools' },
+      links:          { icon:'🔗', title:'My Links' },
+      news:           { icon:'📰', title:'News & Videos' },
+      vault:          { icon:'🔒', title:'Vault' },
+      notes:          { icon:'📝', title:'Notes' },
+      'daily-brief':  { icon:'📋', title:'Daily Brief' },
+      kanban:         { icon:'📌', title:'Projects' },
+      habits:         { icon:'✅', title:'Habits' },
+      car:            { icon:'🚗', title:'Car' },
+      calendar:       { icon:'📅', title:'Calendar' },
+      expenses:       { icon:'💰', title:'Expenses' },
+      reminders:      { icon:'🔔', title:'Reminders' },
+      'weekly-review':{ icon:'📊', title:'Weekly Review' },
+      goals:          { icon:'🎯', title:'Life Goals' },
+      countdown:      { icon:'⏳', title:'Countdown' },
+    };
+    /* Tabs that have their own Notion-style header — skip injection */
+    var NOTION_SKIP = new Set(['journal','tips','focuslab']);
+    function injectNotionPageHd(name) {
+      if(!name || NOTION_SKIP.has(name)) return;
+      var meta = NOTION_TAB_META[name];
+      if(!meta) return;
+      var tabEl = document.getElementById('tab-' + name);
+      if(!tabEl || tabEl.querySelector('.notion-page-hd')) return;
+      var hd = document.createElement('div');
+      hd.className = 'notion-page-hd';
+      hd.innerHTML = '<div class="notion-page-hd-icon">'+meta.icon+'</div>' +
+        '<div class="notion-page-hd-text"><div class="notion-page-hd-title">'+meta.title+'</div></div>';
+      tabEl.insertBefore(hd, tabEl.firstChild);
+    }
+    window.addEventListener('homer-tab-change', function(e){ injectNotionPageHd(e.detail&&e.detail.tab); });
+    injectNotionPageHd('home');
+
     /* DESKTOP SIDEBAR */
     (function(){
       var sidebar = document.getElementById('desktop-sidebar');
