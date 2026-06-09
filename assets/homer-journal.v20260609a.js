@@ -1,7 +1,7 @@
 /* ====================================================================
  * Homer Journal  v20260609a
  * Changes from v20260608a:
- *  - Complete Notion-style UI redesign (light theme, clean typography)
+ *  - Dark navy theme (matches website), full-height layout, footer added
  *  - Database list view: page rows with icon + title + properties
  *  - Document-style editor with properties panel
  *  - All data / sync / import / AI logic preserved unchanged
@@ -20,13 +20,16 @@
     /* ── Tab container ───────────────────────────────────────────────*/
     #tab-journal {
       padding: 0 !important;
-      background: transparent !important;
-      border-radius: 12px;
+      background: linear-gradient(180deg,#0f172a,#050b16) !important;
+      border-radius: var(--radius,16px);
       overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif;
       color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      min-height: calc(100vh - 140px);
     }
-    .jn-page { min-height: 400px; }
+    .jn-page { display:flex; flex-direction:column; flex:1; min-height:calc(100vh - 140px); }
 
     /* ── Database header ─────────────────────────────────────────────*/
     .jn-db-header { display:flex; align-items:flex-start; gap:12px; padding:22px 20px 14px; }
@@ -71,7 +74,12 @@
     .jn-callout-loading { font-size:.8rem; color:rgba(148,163,184,.35); font-style:italic; }
 
     /* ── Database list ───────────────────────────────────────────────*/
-    .jn-db-list { padding:6px 0 16px; }
+    .jn-db-list { padding:6px 0 16px; flex:1; }
+
+    /* ── Footer ──────────────────────────────────────────────────────*/
+    .jn-footer { text-align:center; font-size:.78rem; color:rgba(148,163,184,.28); padding:14px 20px 18px; border-top:1px solid rgba(255,255,255,.06); margin-top:auto; }
+    .jn-footer a { color:#60a5fa; text-decoration:none; font-weight:600; }
+    .jn-footer a:hover { text-decoration:underline; }
     .jn-group-hd { display:flex; align-items:center; gap:5px; padding:12px 20px 3px; }
     .jn-group-hd svg { color:rgba(34,197,94,.4); flex-shrink:0; }
     .jn-group-hd-text { font-size:.68rem; font-weight:700; color:rgba(34,197,94,.65); text-transform:uppercase; letter-spacing:.1em; }
@@ -112,7 +120,7 @@
     #jn-editor-page { display:flex; flex-direction:column; width:100%; max-width:720px; margin:0 auto; min-height:100%; }
 
     /* Top bar */
-    .jn-ed-topbar { display:flex; align-items:center; gap:6px; padding:8px 16px; border-bottom:1px solid rgba(255,255,255,.07); position:sticky; top:0; background:rgba(8,0,26,.96); backdrop-filter:blur(8px); z-index:10; }
+    .jn-ed-topbar { display:flex; align-items:center; gap:6px; padding:8px 16px; border-bottom:1px solid rgba(255,255,255,.07); position:sticky; top:0; background:rgba(15,23,42,.96); backdrop-filter:blur(8px); z-index:10; }
     .jn-ed-back { background:none; border:none; color:rgba(148,163,184,.45); font-size:.78rem; cursor:pointer; padding:5px 8px; border-radius:4px; font-family:inherit; display:flex; align-items:center; gap:4px; }
     .jn-ed-back:hover { background:rgba(255,255,255,.06); color:#e5e7eb; }
     .jn-ed-breadcrumb { font-size:.75rem; color:rgba(148,163,184,.3); flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -793,6 +801,7 @@
       + listHtml
       + '<div class="jn-new-row" id="jn-new-row-bt"><div class="jn-new-row-icon">+</div><span>New entry</span></div>'
       + '</div>'
+      + '<div class="jn-footer">Created with &#10084;&#65039; by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a><span style="font-size:0.7em;opacity:0.5;margin-left:5px;">v13.4 (Seb)</span></div>'
       + '</div>';
 
     document.getElementById('jn-new-btn').addEventListener('click', function () { openEditor(null); });
