@@ -34,6 +34,13 @@
   .wr-energy-row{display:flex;gap:6px;flex-wrap:wrap;}
   .wr-energy-btn{flex:1;min-width:80px;padding:7px 4px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:none;color:var(--muted);cursor:pointer;font-size:.78rem;font-weight:700;transition:all .15s;text-align:center;}
   .wr-energy-btn.active{background:rgba(96,165,250,.18);border-color:#60a5fa;color:#60a5fa;}
+  #wr-stats{display:none;flex-wrap:wrap;gap:8px;margin-bottom:16px;padding:14px 16px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:12px;}
+  .wr-stat-item{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);}
+  .wr-stat-icon{font-size:.95rem;line-height:1;flex-shrink:0;}
+  .wr-stat-val{font-size:.95rem;font-weight:800;line-height:1;}
+  .wr-stat-lbl{font-size:.72rem;color:var(--muted);line-height:1;}
+  .wr-stats-hd{width:100%;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:#475569;margin-bottom:2px;}
+  .sb-result.active{background:rgba(96,165,250,.1);border-color:rgba(96,165,250,.3);}
 
   /* ── Notes — Notion-style ───────────────────────────────────────────── */
   .notes-layout{display:grid;grid-template-columns:240px 1fr;min-height:560px;border:1px solid rgba(255,255,255,.07);border-radius:16px;overflow:hidden;background:rgba(255,255,255,.01);}
@@ -1362,18 +1369,66 @@
   var wrEl = null, wrEnergy = 3;
   function buildWR() {
     var el = document.createElement('div'); el.id = 'wr-overlay';
-    var energyBtns = [1,2,3,4,5].map(function (n) { var lbl = ['','Drained','Low','Okay','Good','Energized'][n]; return '<button class="wr-energy-btn' + (n===3?' active':'') + '" data-e="' + n + '">' + n + ' — ' + lbl + '</button>'; }).join('');
-    el.innerHTML = '<div id="wr-box"><div class="hn-modal-head" style="margin-bottom:6px;"><h3>&#128196; Weekly Review</h3><button class="hn-close-btn" id="wr-x">&times;</button></div><div class="wr-label">Energy / Mood This Week</div><div class="wr-energy-row">' + energyBtns + '</div><div class="wr-label">Top Win</div><textarea id="wr-win" class="hn-field hn-textarea" placeholder="What went well?"></textarea><div class="wr-label">What Didn\'t Work</div><textarea id="wr-block" class="hn-field hn-textarea" placeholder="What held you back?"></textarea><div class="wr-label">Next Week Focus</div><textarea id="wr-next" class="hn-field hn-textarea" placeholder="#1 priority next week?"></textarea><div class="wr-label">Free Notes</div><textarea id="wr-free" class="hn-field hn-textarea" placeholder="Anything else..."></textarea><div class="hn-actions" style="margin-top:16px;"><button id="wr-cancel" class="btn ghost">Cancel</button><button id="wr-save" class="btn primary">Save Review</button></div></div>';
+    var energyBtns = [1,2,3,4,5].map(function (n) { var lbl = ['','Drained','Low','Okay','Good','Energized'][n]; return '<button class="wr-energy-btn' + (n===3?' active':'') + '" data-e="' + n + '">' + n + ' \u2014 ' + lbl + '</button>'; }).join('');
+    el.innerHTML = '<div id="wr-box"><div class="hn-modal-head" style="margin-bottom:6px;"><h3>&#128196; Weekly Review</h3><button class="hn-close-btn" id="wr-x">&times;</button></div><div id="wr-stats"></div><div class="wr-label">Energy / Mood This Week</div><div class="wr-energy-row">' + energyBtns + '</div><div class="wr-label">Top Win</div><textarea id="wr-win" class="hn-field hn-textarea" placeholder="What went well?"></textarea><div class="wr-label">What Didn\'t Work</div><textarea id="wr-block" class="hn-field hn-textarea" placeholder="What held you back?"></textarea><div class="wr-label">Next Week Focus</div><textarea id="wr-next" class="hn-field hn-textarea" placeholder="#1 priority next week?"></textarea><div class="wr-label">Free Notes</div><textarea id="wr-free" class="hn-field hn-textarea" placeholder="Anything else..."></textarea><div class="hn-actions" style="margin-top:16px;"><button id="wr-cancel" class="btn ghost">Cancel</button><button id="wr-save" class="btn primary">Save Review</button></div></div>';
     document.body.appendChild(el);
     el.querySelectorAll('.wr-energy-btn').forEach(function (b) { b.onclick = function () { wrEnergy = parseInt(b.dataset.e); el.querySelectorAll('.wr-energy-btn').forEach(function (x) { x.classList.remove('active'); }); b.classList.add('active'); }; });
     el.querySelector('#wr-x').onclick = hideWR; el.querySelector('#wr-cancel').onclick = hideWR; el.querySelector('#wr-save').onclick = saveWR;
     el.addEventListener('click', function (e) { if (e.target === el) hideWR(); });
     return el;
   }
+  function computeWRStats() {
+    var stats = [];
+    var now = new Date(), ago7 = new Date(now); ago7.setDate(ago7.getDate() - 7);
+    var ago7Str = ago7.toISOString().slice(0, 10);
+    // Habits: 7-day avg rate + best streak
+    var hd = getHabitsData();
+    if (hd.habits.length) {
+      var rates = hd.habits.map(function (h) { return calcCompletionRate(h, hd.completions, 7); });
+      var avg = Math.round(rates.reduce(function (s, r) { return s + r; }, 0) / rates.length);
+      var bestStreak = hd.habits.reduce(function (m, h) { return Math.max(m, calcStreak(h, hd.completions)); }, 0);
+      stats.push({ icon: '\uD83D\uDD25', value: avg + '%', label: 'habit rate', color: '#34d399' });
+      if (bestStreak > 0) stats.push({ icon: '\u26A1', value: bestStreak + 'd', label: 'best streak', color: '#fbbf24' });
+    }
+    // Focus sessions + time in past 7 days
+    var sessions = (ls('homer-sessions') || []).filter(function (s) { return (s.date || '') >= ago7Str; });
+    if (sessions.length) {
+      var totalMin = sessions.reduce(function (s, x) { return s + (x.duration || 25); }, 0);
+      var hrs = Math.floor(totalMin / 60), rem = totalMin % 60;
+      stats.push({ icon: '\uD83C\uDFAF', value: sessions.length + '', label: 'focus sessions', color: '#a78bfa' });
+      stats.push({ icon: '\u23F1\uFE0F', value: (hrs ? hrs + 'h ' : '') + (rem ? rem + 'm' : hrs + 'h'), label: 'focus time', color: '#60a5fa' });
+    }
+    // Journal entries this week
+    var jCount = (ls('homer-journal') || []).filter(function (e) { return !e.deleted && (e.date || '') >= ago7Str; }).length;
+    if (jCount) stats.push({ icon: '\uD83D\uDCD6', value: jCount + '', label: jCount === 1 ? 'journal entry' : 'journal entries', color: '#fb923c' });
+    // Expenses this week: total + top category
+    var weekExp = (ls('homer-expenses') || []).filter(function (e) { return (e.date || '') >= ago7Str; });
+    if (weekExp.length) {
+      var total = weekExp.reduce(function (s, e) { return s + parseFloat(e.amount || 0); }, 0);
+      var catTotals = {};
+      weekExp.forEach(function (e) { var c = e.cat || e.category || 'other'; catTotals[c] = (catTotals[c] || 0) + parseFloat(e.amount || 0); });
+      var topCat = Object.keys(catTotals).sort(function (a, b) { return catTotals[b] - catTotals[a]; })[0] || '';
+      stats.push({ icon: '\uD83D\uDCB0', value: Math.round(total) + '', label: 'spent' + (topCat ? ' \u00b7 top: ' + topCat : ''), color: '#f87171' });
+    }
+    return stats;
+  }
   function showWR() {
     if (!wrEl) wrEl = buildWR();
     ['#wr-win','#wr-block','#wr-next','#wr-free'].forEach(function (s) { wrEl.querySelector(s).value = ''; });
     wrEnergy = 3; wrEl.querySelectorAll('.wr-energy-btn').forEach(function (b) { b.classList.toggle('active', parseInt(b.dataset.e) === 3); });
+    // Populate auto-stats
+    var statsEl = wrEl.querySelector('#wr-stats');
+    if (statsEl) {
+      var stats = computeWRStats();
+      if (stats.length) {
+        statsEl.style.display = 'flex';
+        statsEl.innerHTML = '<div class="wr-stats-hd">Last 7 days</div>' + stats.map(function (s) {
+          return '<div class="wr-stat-item"><span class="wr-stat-icon">' + s.icon + '</span><span class="wr-stat-val" style="color:' + s.color + ';">' + esc(s.value) + '</span><span class="wr-stat-lbl">' + esc(s.label) + '</span></div>';
+        }).join('');
+      } else {
+        statsEl.style.display = 'none';
+      }
+    }
     wrEl.style.display = 'flex';
   }
   function hideWR() { if (wrEl) wrEl.style.display = 'none'; }
@@ -1390,34 +1445,64 @@
   }
 
   // ── Second Brain Search ───────────────────────────────────────────────
-  var sbEl2 = null;
+  var sbEl2 = null, _sbResults = [], _sbActiveIdx = -1;
+  function _sbSetActive(i) {
+    _sbActiveIdx = i;
+    var items = document.querySelectorAll('#sb-results .sb-result');
+    items.forEach(function (el, idx) { el.classList.toggle('active', idx === i); });
+    if (i >= 0 && items[i]) items[i].scrollIntoView({ block: 'nearest' });
+  }
   function buildSB() {
     var el = document.createElement('div'); el.id = 'sb-overlay';
-    el.innerHTML = '<div id="sb-box"><div id="sb-input-wrap"><svg viewBox="0 0 24 24" style="width:17px;height:17px;flex-shrink:0;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="sb-input" type="text" placeholder="Search notes, inbox, tasks, expenses, habits..." autocomplete="off"><kbd style="font-size:.7rem;color:var(--muted);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);padding:3px 7px;border-radius:6px;flex-shrink:0;">ESC</kbd></div><div id="sb-results"><p style="text-align:center;color:var(--muted);padding:28px 0;font-size:.88rem;">Type to search&hellip;</p></div></div>';
+    el.innerHTML = '<div id="sb-box"><div id="sb-input-wrap"><svg viewBox="0 0 24 24" style="width:17px;height:17px;flex-shrink:0;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="sb-input" type="text" placeholder="Search notes, journal, links, quotes, tasks, kanban..." autocomplete="off"><kbd style="font-size:.7rem;color:var(--muted);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);padding:3px 7px;border-radius:6px;flex-shrink:0;">ESC</kbd></div><div id="sb-results"><p style="text-align:center;color:var(--muted);padding:28px 0;font-size:.88rem;">Type to search&hellip;</p></div></div>';
     document.body.appendChild(el);
-    el.querySelector('#sb-input').addEventListener('input', function () { doSearch(this.value.trim().toLowerCase()); });
+    el.querySelector('#sb-input').addEventListener('input', function () { _sbActiveIdx = -1; doSearch(this.value.trim().toLowerCase()); });
     el.addEventListener('click', function (e) { if (e.target === el) hideSB(); });
-    el.querySelector('#sb-input').addEventListener('keydown', function (e) { if (e.key === 'Escape') hideSB(); });
+    el.querySelector('#sb-input').addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); _sbSetActive(Math.min(_sbActiveIdx + 1, _sbResults.length - 1)); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); _sbSetActive(Math.max(_sbActiveIdx - 1, 0)); }
+      else if (e.key === 'Enter' && _sbActiveIdx >= 0 && _sbResults[_sbActiveIdx]) { _sbResults[_sbActiveIdx].act(); }
+      else if (e.key === 'Escape') hideSB();
+    });
     return el;
   }
   function showSB() {
     if (!sbEl2) sbEl2 = buildSB(); sbEl2.style.display = 'flex';
+    _sbResults = []; _sbActiveIdx = -1;
     sbEl2.querySelector('#sb-input').value = ''; sbEl2.querySelector('#sb-results').innerHTML = '<p style="text-align:center;color:var(--muted);padding:28px 0;font-size:.88rem;">Type to search&hellip;</p>';
     setTimeout(function () { sbEl2.querySelector('#sb-input').focus(); }, 50);
   }
   function hideSB() { if (sbEl2) sbEl2.style.display = 'none'; }
   function doSearch(q) {
     var res = document.getElementById('sb-results'); if (!res) return;
-    if (q.length < 2) { res.innerHTML = '<p style="text-align:center;color:var(--muted);padding:28px 0;font-size:.88rem;">Type at least 2 chars&hellip;</p>'; return; }
-    var results = [], colors = { Note: '#60a5fa', Inbox: '#34d399', Task: '#fbbf24', Expense: '#f87171', Habit: '#a78bfa', Recurring: '#34d399' };
+    if (q.length < 2) { res.innerHTML = '<p style="text-align:center;color:var(--muted);padding:28px 0;font-size:.88rem;">Type at least 2 chars&hellip;</p>'; _sbResults = []; return; }
+    var results = [];
+    var colors = { Note:'#60a5fa', Inbox:'#a78bfa', Task:'#fbbf24', 'Pom Task':'#f87171', Kanban:'#34d399', Expense:'#f87171', Habit:'#34d399', Recurring:'#38bdf8', Journal:'#fb923c', Link:'#60a5fa', Quote:'#facc15' };
+    // Notes
     getNotes().forEach(function (n) { if ((n.title + ' ' + n.content).toLowerCase().includes(q)) results.push({ type: 'Note', title: n.title, snip: (n.content || '').slice(0, 80), act: function () { if (window._homerShowTab) window._homerShowTab('notes'); setTimeout(function () { openNote(n.id); }, 150); hideSB(); } }); });
+    // Journal entries
+    (ls('homer-journal') || []).filter(function (e) { return !e.deleted; }).forEach(function (e) { var text = e.content || e.text || ''; if (text.toLowerCase().includes(q)) results.push({ type: 'Journal', title: 'Journal \u2014 ' + (e.date || ''), snip: text.slice(0, 80), act: function () { if (window._homerShowTab) window._homerShowTab('journal'); hideSB(); } }); });
+    // Saved quotes
+    (ls('motivator.savedQuotes.v1') || []).forEach(function (sq) { var text = sq.q || sq.text || sq.quote || ''; var author = sq.a || sq.author || ''; if ((text + ' ' + author).toLowerCase().includes(q)) results.push({ type: 'Quote', title: '\u201c' + text.slice(0, 60) + '\u201d', snip: author ? '\u2014 ' + author : '', act: hideSB }); });
+    // Links
+    (ls('homer-links') || []).forEach(function (lk) { if (lk && ((lk.name || '') + ' ' + (lk.url || '') + ' ' + (lk.cat || '')).toLowerCase().includes(q)) results.push({ type: 'Link', title: lk.name || lk.url, snip: lk.url || '', act: function () { if (window._homerShowTab) window._homerShowTab('links'); hideSB(); } }); });
+    // Kanban tasks
+    var kanban = ls('homer-kanban') || {}; (kanban.tasks || []).forEach(function (t) { if (t && (t.summary || '').toLowerCase().includes(q)) { var colLabel = { todo: 'Todo', progress: 'In Progress', done: 'Done' }[t.col || 'todo'] || (t.col || ''); results.push({ type: 'Kanban', title: t.summary, snip: colLabel, act: function () { if (window._homerShowTab) window._homerShowTab('vault'); setTimeout(function () { var b = document.getElementById('vd-open-kanban'); if (b) b.click(); }, 250); hideSB(); } }); } });
+    // Pomodoro tasks
+    (ls('pom.tasks.v1') || []).forEach(function (t) { if (t && (t.text || '').toLowerCase().includes(q)) results.push({ type: 'Pom Task', title: t.text, snip: t.done ? 'Done' : 'Open', act: function () { if (window._homerShowTab) window._homerShowTab('pomodoro'); hideSB(); } }); });
+    // Inbox
     (ls('homer-inbox') || []).forEach(function (item) { if (item && (item.text + ' ' + (item.note || '')).toLowerCase().includes(q)) results.push({ type: 'Inbox', title: item.text, snip: item.note || '', act: hideSB }); });
-    (ls('homer-task-list') || []).forEach(function (t) { if (t && (t.text || '').toLowerCase().includes(q)) results.push({ type: 'Task', title: t.text, snip: t.done ? 'Completed' : 'Open', act: hideSB }); });
-    (ls('homer-expenses') || []).forEach(function (e) { if (!e) return; var desc = e.desc || e.description || ''; var cat = e.cat || e.category || ''; if ((desc + ' ' + cat).toLowerCase().includes(q)) results.push({ type: 'Expense', title: desc || 'Expense', snip: cat + (e.amount ? ' · ' + e.amount : ''), act: hideSB }); });
+    // Capture tasks
+    (ls('homer-task-list') || []).forEach(function (t) { if (t && (t.text || '').toLowerCase().includes(q)) results.push({ type: 'Task', title: t.text, snip: t.done ? 'Done' : 'Open', act: hideSB }); });
+    // Expenses
+    (ls('homer-expenses') || []).forEach(function (e) { if (!e) return; var desc = e.desc || e.description || ''; var cat = e.cat || e.category || ''; if ((desc + ' ' + cat).toLowerCase().includes(q)) results.push({ type: 'Expense', title: desc || 'Expense', snip: cat + (e.amount ? ' \u00b7 ' + e.amount : ''), act: hideSB }); });
+    // Habits
     var hd = getHabitsData(); hd.habits.forEach(function (h) { if ((h.name || '').toLowerCase().includes(q)) results.push({ type: 'Habit', title: h.name, snip: 'Streak: ' + calcStreak(h, hd.completions), act: hideSB }); });
-    getRT().forEach(function (t) { if ((t.title || '').toLowerCase().includes(q)) results.push({ type: 'Recurring', title: t.title, snip: t.freq + (t.category ? ' · ' + t.category : ''), act: function () { if (window._homerShowTab) window._homerShowTab('recurring'); hideSB(); } }); });
+    // Recurring tasks
+    getRT().forEach(function (t) { if ((t.title || '').toLowerCase().includes(q)) results.push({ type: 'Recurring', title: t.title, snip: t.freq + (t.category ? ' \u00b7 ' + t.category : ''), act: function () { if (window._homerShowTab) window._homerShowTab('recurring'); hideSB(); } }); });
+    _sbResults = results;
     if (!results.length) { res.innerHTML = '<p style="text-align:center;color:var(--muted);padding:28px 0;font-size:.88rem;">No results for &ldquo;' + esc(q) + '&rdquo;</p>'; return; }
-    var html = results.slice(0, 20).map(function (r, i) { return '<div class="sb-result" data-i="' + i + '"><div class="sb-result-type" style="color:' + (colors[r.type] || 'var(--muted)') + ';">' + r.type + '</div><div class="sb-result-title">' + esc(r.title || '') + '</div>' + (r.snip ? '<div class="sb-result-snip">' + esc(r.snip) + '</div>' : '') + '</div>'; }).join('');
+    var html = results.slice(0, 25).map(function (r, i) { return '<div class="sb-result" data-i="' + i + '"><div class="sb-result-type" style="color:' + (colors[r.type] || 'var(--muted)') + ';">' + r.type + '</div><div class="sb-result-title">' + esc(r.title || '') + '</div>' + (r.snip ? '<div class="sb-result-snip">' + esc(r.snip) + '</div>' : '') + '</div>'; }).join('');
     res.innerHTML = html;
     res.querySelectorAll('.sb-result').forEach(function (el, i) { el.onclick = results[i].act; });
   }
@@ -1492,6 +1577,7 @@
     if (e.altKey && e.key === 'n') { e.preventDefault(); showQC('inbox'); }
     if (e.altKey && e.key === 'd') { e.preventDefault(); if (window._homerShowTab) window._homerShowTab('daily-brief'); }
     if (e.ctrlKey && e.key === 'k') { e.preventDefault(); showSB(); }
+    if (e.ctrlKey && e.key === ' ') { e.preventDefault(); showQC('inbox'); }
     if (e.key === 'Escape') { hideSB(); hideQC(); hideWR(); hideSN(); }
   });
 
