@@ -550,6 +550,111 @@
     }).join('');
   }
 
+  /* ── Recurring Tasks ──────────────────────────────────────────────── */
+  function daysBetweenDates(a, b) {
+    return Math.round((new Date(b) - new Date(a)) / 86400000);
+  }
+
+  // Returns numeric days until next occurrence (0=today, 1=tomorrow, negative=overdue)
+  function rtDaysUntil(task) {
+    var t = todayStr();
+    if (!task.enabled || task.paused) return null;
+    if (task.freq === 'daily') {
+      if (!task.lastFired || task.lastFired !== t) return 0;
+      return 1;
+    }
+    if (task.freq === 'weekly') {
+      if (!task.lastFired) return 0;
+      var days = (task.days && task.days.length) ? task.days : [1];
+      var nowDay = new Date().getDay();
+      var daysUntil = days.map(function(d) { var diff = (d - nowDay + 7) % 7; return diff === 0 ? 7 : diff; });
+      var min = Math.min.apply(null, daysUntil);
+      var elapsed = daysBetweenDates(task.lastFired, t);
+      if (elapsed >= 7) return 0;
+      return min;
+    }
+    if (task.freq === 'monthly') {
+      if (!task.lastFired) return 0;
+      var lf = new Date(task.lastFired), now = new Date(t);
+      if (now.getMonth() !== lf.getMonth() || now.getFullYear() !== lf.getFullYear()) return 0;
+      var nextMonth = new Date(lf.getFullYear(), lf.getMonth() + 1, task.dayOfMonth || 1);
+      return daysBetweenDates(t, nextMonth.toISOString().slice(0, 10));
+    }
+    if (task.freq === 'interval') {
+      if (!task.lastFired) return 0;
+      var remaining = (task.intervalDays || 7) - daysBetweenDates(task.lastFired, t);
+      return remaining <= 0 ? 0 : remaining;
+    }
+    return null;
+  }
+
+  function renderRecurringTasks() {
+    var wrap = document.getElementById('db-recurring-wrap');
+    var card = document.getElementById('db-recurring-card');
+    if (!wrap || !card) return;
+
+    var tasks = safeJson(localStorage.getItem('homer-recurring'), null) || [];
+    var due = [];  // due today or overdue (days <= 0)
+    var tomorrow = [];  // due tomorrow
+
+    tasks.forEach(function(task) {
+      var d = rtDaysUntil(task);
+      if (d === null) return;
+      if (d <= 0) due.push(task);
+      else if (d === 1) tomorrow.push(task);
+    });
+
+    // Browser notification for tasks due tomorrow — once per day
+    var notifyKey = 'homer-recurring-notified-' + todayStr();
+    if (tomorrow.length && !localStorage.getItem(notifyKey) && 'Notification' in window) {
+      localStorage.setItem(notifyKey, '1');
+      if (Notification.permission === 'granted') {
+        tomorrow.forEach(function(task) {
+          var n = new Notification('📅 Tomorrow: ' + task.title, { body: 'Recurring task due tomorrow' });
+          setTimeout(function() { n.close(); }, 8000);
+        });
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(function(p) {
+          if (p === 'granted') {
+            tomorrow.forEach(function(task) {
+              var n = new Notification('📅 Tomorrow: ' + task.title, { body: 'Recurring task due tomorrow' });
+              setTimeout(function() { n.close(); }, 8000);
+            });
+          }
+        });
+      }
+    }
+
+    if (!due.length && !tomorrow.length) { card.style.display = 'none'; return; }
+    card.style.display = '';
+
+    var rows = '';
+    due.forEach(function(task) {
+      var overdue = rtDaysUntil(task) < 0;
+      var color = overdue ? '#ef4444' : '#34d399';
+      var badge = overdue ? 'Overdue' : 'Due today';
+      rows += '<div class="db-car-alert-row">' +
+        '<div class="db-car-alert-stripe" style="background:' + color + '"></div>' +
+        '<div class="db-car-alert-info">' +
+          '<span class="db-car-alert-label">🔁 ' + esc(task.title) + '</span>' +
+          '<span class="db-car-alert-date">' + esc(task.freq) + (task.category ? ' · ' + task.category : '') + '</span>' +
+        '</div>' +
+        '<span class="db-car-alert-badge" style="color:' + color + '">' + badge + '</span>' +
+        '</div>';
+    });
+    tomorrow.forEach(function(task) {
+      rows += '<div class="db-car-alert-row">' +
+        '<div class="db-car-alert-stripe" style="background:#f59e0b"></div>' +
+        '<div class="db-car-alert-info">' +
+          '<span class="db-car-alert-label">🔁 ' + esc(task.title) + '</span>' +
+          '<span class="db-car-alert-date">' + esc(task.freq) + (task.category ? ' · ' + task.category : '') + '</span>' +
+        '</div>' +
+        '<span class="db-car-alert-badge" style="color:#f59e0b">Tomorrow</span>' +
+        '</div>';
+    });
+    wrap.innerHTML = rows;
+  }
+
   /* ── Sync status ──────────────────────────────────────────────────── */
   function stampAge(ts) {
     if (!ts) return { text: 'Never', cls: 'db-sync-warn' };
@@ -614,6 +719,7 @@
     populateFromVault();
     renderHabits();
     renderCarAlerts();
+    renderRecurringTasks();
     updateSyncStatus();
   }
 
@@ -784,6 +890,7 @@
     // Car data synced (Realtime or local save) → refresh car alerts immediately
     window.addEventListener('homer-data-synced', function (e) {
       if (e && e.detail && e.detail.key === 'homer-car') renderCarAlerts();
+      if (e && e.detail && e.detail.key === 'homer-recurring') renderRecurringTasks();
     });
 
     // Habits / extras changed → force a full backup (vault-backup sends everything)
