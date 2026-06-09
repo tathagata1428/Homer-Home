@@ -71,7 +71,7 @@
   }
 
   /* deterministic project color from key/id string */
-  var PROJECT_COLORS = ['#60a5fa','#a78bfa','#34d399','#fb923c','#f472b6','#38bdf8','#facc15','#4ade80'];
+  var PROJECT_COLORS = ['#9065b0','#a78bfa','#34d399','#fb923c','#f472b6','#38bdf8','#facc15','#7acde8'];
   function projectColor(str) {
     var h = 0, s = String(str || '');
     for (var i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
@@ -90,13 +90,13 @@
     .db-header-left h2 { font-size:1.35rem; font-weight:900; color:var(--text); margin:0 0 4px; }
     .db-header-left p  { font-size:.85rem; color:var(--muted); margin:0; }
 
-    .db-refresh-btn { padding:8px 16px; border-radius:10px; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.05); color:var(--muted); font-size:.82rem; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
-    .db-refresh-btn:hover { background:rgba(255,255,255,.1); color:var(--text); }
+    .db-refresh-btn { padding:8px 16px; border-radius:10px; border:1px solid rgba(55,53,47,.09); background:rgba(55,53,47,.03); color:var(--muted); font-size:.82rem; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
+    .db-refresh-btn:hover { background:rgba(55,53,47,.07); color:var(--text); }
 
     .db-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:16px; margin-top:16px; }
     .db-grid.full-width { grid-template-columns:1fr; }
 
-    .db-card { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:20px; }
+    .db-card { background:rgba(55,53,47,.02); border:1px solid rgba(55,53,47,.05); border-radius:16px; padding:20px; }
     .db-card-title { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#64748b; margin-bottom:14px; }
 
     /* Weather */
@@ -109,8 +109,8 @@
 
     /* ── Creative task cards ── */
     .db-tasks-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-top:4px; }
-    .db-tcard { position:relative; border-radius:12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); padding:14px 14px 12px 18px; overflow:hidden; transition:border-color .15s; }
-    .db-tcard:hover { border-color:rgba(255,255,255,.18); }
+    .db-tcard { position:relative; border-radius:12px; background:rgba(55,53,47,.02); border:1px solid rgba(55,53,47,.05); padding:14px 14px 12px 18px; overflow:hidden; transition:border-color .15s; }
+    .db-tcard:hover { border-color:rgba(55,53,47,.10); }
     .db-tcard-stripe { position:absolute; left:0; top:0; bottom:0; width:4px; border-radius:12px 0 0 12px; }
     .db-tcard-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:6px; }
     .db-tcard-title { font-size:.9rem; font-weight:700; color:var(--text); line-height:1.35; flex:1; min-width:0; }
@@ -122,40 +122,40 @@
     .db-tcard-pri.medium { background:rgba(251,191,36,.12);  color:#fbbf24; }
     .db-tcard-pri.low    { background:rgba(52,211,153,.12);  color:#34d399; }
     .db-tcard-subs { font-size:.7rem; color:#64748b; }
-    .db-tcard-due  { font-size:.7rem; color:#94a3b8; }
+    .db-tcard-due  { font-size:.7rem; color:#9b8f82; }
 
     /* Expand / collapse */
     .db-tcard { cursor:pointer; }
     .db-tcard-chevron { font-size:.7rem; color:#475569; margin-left:auto; flex-shrink:0; transition:transform .2s; }
     .db-tcard.expanded .db-tcard-chevron { transform:rotate(180deg); }
-    .db-tcard-body { display:none; margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,.07); }
+    .db-tcard-body { display:none; margin-top:10px; padding-top:10px; border-top:1px solid rgba(55,53,47,.05); }
     .db-tcard.expanded .db-tcard-body { display:block; }
-    .db-tcard-desc { font-size:.8rem; color:#94a3b8; line-height:1.5; margin-bottom:10px; white-space:pre-wrap; }
+    .db-tcard-desc { font-size:.8rem; color:#9b8f82; line-height:1.5; margin-bottom:10px; white-space:pre-wrap; }
     .db-tcard-subs-list { display:flex; flex-direction:column; gap:5px; }
     .db-tcard-sub-item { display:flex; align-items:flex-start; gap:7px; font-size:.8rem; }
     .db-tcard-sub-check { flex-shrink:0; margin-top:1px; color:#34d399; }
     .db-tcard-sub-check.pending { color:#475569; }
-    .db-tcard-sub-text { color:#cbd5e1; line-height:1.4; }
+    .db-tcard-sub-text { color:#9b8f82; line-height:1.4; }
     .db-tcard-sub-text.done-text { text-decoration:line-through; color:#475569; }
 
     /* Projects / life goals / habits (unchanged from v a) */
     .db-task-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
-    .db-task { display:flex; align-items:flex-start; gap:10px; padding:9px 12px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:10px; }
-    .db-task-badge { font-size:.64rem; font-weight:700; padding:2px 7px; border-radius:6px; background:rgba(96,165,250,.15); color:#60a5fa; white-space:nowrap; flex-shrink:0; margin-top:2px; }
+    .db-task { display:flex; align-items:flex-start; gap:10px; padding:9px 12px; background:rgba(55,53,47,.02); border:1px solid rgba(55,53,47,.04); border-radius:10px; }
+    .db-task-badge { font-size:.64rem; font-weight:700; padding:2px 7px; border-radius:6px; background:rgba(144,101,176,.15); color:#9065b0; white-space:nowrap; flex-shrink:0; margin-top:2px; }
     .db-task-badge.proj { background:rgba(167,139,250,.15); color:#a78bfa; }
     .db-task-title { font-size:.87rem; color:var(--text); font-weight:600; line-height:1.3; }
     .db-task-sub   { font-size:.75rem; color:#64748b; margin-top:3px; }
 
-    .db-life-goal { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:10px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); margin-bottom:8px; }
+    .db-life-goal { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:10px; background:rgba(55,53,47,.02); border:1px solid rgba(55,53,47,.04); margin-bottom:8px; }
     .db-life-goal:last-child { margin-bottom:0; }
     .db-lg-icon   { font-size:1.4rem; flex-shrink:0; }
     .db-lg-body   { flex:1; min-width:0; }
     .db-lg-title  { font-size:.87rem; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .db-lg-bar-wrap { height:4px; background:rgba(255,255,255,.08); border-radius:2px; margin-top:6px; }
-    .db-lg-bar    { height:100%; border-radius:2px; background:linear-gradient(90deg,#60a5fa,#a78bfa); transition:width .4s; }
+    .db-lg-bar-wrap { height:4px; background:rgba(55,53,47,.05); border-radius:2px; margin-top:6px; }
+    .db-lg-bar    { height:100%; border-radius:2px; background:linear-gradient(90deg,#9065b0,#a78bfa); transition:width .4s; }
     .db-lg-pct    { font-size:.7rem; color:#64748b; margin-top:4px; }
 
-    .db-habit-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.05); }
+    .db-habit-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid rgba(55,53,47,.03); }
     .db-habit-row:last-child { border-bottom:none; }
     .db-habit-icon { font-size:1.15rem; width:26px; text-align:center; flex-shrink:0; }
     .db-habit-name { flex:1; font-size:.87rem; color:var(--text); }
@@ -173,7 +173,7 @@
     .db-sync-muted { color:#64748b; }
 
     /* Car alerts */
-    .db-car-alert-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid rgba(255,255,255,.05); }
+    .db-car-alert-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid rgba(55,53,47,.03); }
     .db-car-alert-row:last-child { border-bottom:none; }
     .db-car-alert-stripe { width:4px; height:32px; border-radius:2px; flex-shrink:0; }
     .db-car-alert-info { flex:1; min-width:0; }
@@ -182,13 +182,13 @@
     .db-car-alert-badge { font-size:.72rem; font-weight:800; flex-shrink:0; }
 
     .db-empty { color:#475569; font-size:.87rem; font-style:italic; padding:4px 0; }
-    .db-vault-notice { display:flex; align-items:center; gap:12px; padding:16px; background:rgba(96,165,250,.06); border:1px solid rgba(96,165,250,.15); border-radius:12px; color:var(--muted); font-size:.88rem; }
+    .db-vault-notice { display:flex; align-items:center; gap:12px; padding:16px; background:rgba(144,101,176,.06); border:1px solid rgba(144,101,176,.15); border-radius:12px; color:var(--muted); font-size:.88rem; }
     .db-vault-notice-icon { font-size:1.4rem; flex-shrink:0; }
 
     /* Acknowledge banner */
-    .db-ack-banner { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; background:rgba(96,165,250,.07); border:1px solid rgba(96,165,250,.22); border-radius:13px; margin-bottom:18px; flex-wrap:wrap; }
+    .db-ack-banner { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; background:rgba(144,101,176,.07); border:1px solid rgba(144,101,176,.22); border-radius:13px; margin-bottom:18px; flex-wrap:wrap; }
     .db-ack-msg { font-size:.88rem; color:var(--muted); line-height:1.5; }
-    .db-ack-btn { padding:9px 20px; border-radius:10px; border:none; background:linear-gradient(135deg,#60a5fa,#a78bfa); color:#fff; font-size:.84rem; font-weight:800; cursor:pointer; font-family:inherit; transition:opacity .15s; white-space:nowrap; flex-shrink:0; }
+    .db-ack-btn { padding:9px 20px; border-radius:10px; border:none; background:linear-gradient(135deg,#9065b0,#a78bfa); color:#fff; font-size:.84rem; font-weight:800; cursor:pointer; font-family:inherit; transition:opacity .15s; white-space:nowrap; flex-shrink:0; }
     .db-ack-btn:hover { opacity:.82; }
   `;
 
