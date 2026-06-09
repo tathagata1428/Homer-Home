@@ -330,7 +330,7 @@
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
             <h3 style="margin:0;">&#128240; Market News</h3>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-              <select id="news-country" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);font-weight:700;cursor:pointer;">
+              <select id="news-country" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;">
                 <option value="us">United States</option>
                 <option value="ro" selected>Romania</option>
                 <option value="uk">United Kingdom</option>
@@ -338,7 +338,7 @@
                 <option value="fr">France</option>
                 <option value="eu">European Union</option>
               </select>
-              <select id="news-source" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);font-weight:700;cursor:pointer;">
+              <select id="news-source" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;">
               </select>
               <button id="news-refresh" class="btn secondary" style="padding:8px 14px;font-size:.85rem;">Refresh</button>
             </div>
@@ -447,14 +447,14 @@
     padding: 20px 14px 16px;
     border-radius: 18px;
     border: 1px solid rgba(255,255,255,.1);
-    background: linear-gradient(160deg, rgba(13,0,32,.97), rgba(2,6,23,.99));
+    background: linear-gradient(160deg, rgba(15,23,42,.97), rgba(2,6,23,.99));
     box-shadow: 0 2px 12px rgba(0,0,0,.35);
     transition: border-color .18s, box-shadow .18s, transform .15s;
     -webkit-tap-highlight-color: transparent;
   }
   .sound-card:hover {
-    border-color: rgba(255,0,102,.4);
-    box-shadow: 0 8px 32px rgba(255,0,102,.13), 0 2px 8px rgba(0,0,0,.45);
+    border-color: rgba(96,165,250,.4);
+    box-shadow: 0 8px 32px rgba(96,165,250,.13), 0 2px 8px rgba(0,0,0,.45);
     transform: translateY(-2px);
   }
   .sound-card:active { transform: translateY(0); }
@@ -478,7 +478,7 @@
   .sound-btn {
     display: flex; align-items: center; justify-content: center; gap: 6px;
     width: 100%; min-height: 42px; padding: 10px 12px;
-    border-radius: 12px; border: 1px solid rgba(255,0,102,.15); cursor: pointer;
+    border-radius: 12px; border: 1px solid rgba(96,165,250,.15); cursor: pointer;
     font-size: .84rem; font-weight: 700; letter-spacing: .02em;
     background: linear-gradient(160deg, #1e3a5f, #162040);
     color: #93c5fd;
@@ -492,7 +492,7 @@
   }
   .sound-btn:hover {
     background: linear-gradient(160deg, #234878, #1a2c56);
-    border-color: rgba(255,0,102,.3);
+    border-color: rgba(96,165,250,.3);
     box-shadow:
       0 6px 20px rgba(0,0,0,.6),
       0 1px 0 rgba(255,255,255,.09) inset,
@@ -504,14 +504,14 @@
   }
   .sound-btn.playing {
     background: linear-gradient(160deg, #1d4ed8, #1e3eaf);
-    color: #fff; border-color: rgba(255,0,102,.35);
+    color: #fff; border-color: rgba(96,165,250,.35);
     box-shadow:
       0 4px 18px rgba(37,99,235,.5),
       0 1px 0 rgba(255,255,255,.14) inset,
       0 -2px 0 rgba(0,0,0,.3) inset;
   }
   .sound-btn.playing:hover {
-    background: linear-gradient(160deg, #CC0055, #1d4ed8);
+    background: linear-gradient(160deg, #2563eb, #1d4ed8);
     box-shadow:
       0 6px 24px rgba(37,99,235,.6),
       0 1px 0 rgba(255,255,255,.16) inset,
@@ -532,7 +532,7 @@
     display: inline-flex; align-items: center; gap: 7px;
     padding: 10px 18px; min-height: 42px;
     border-radius: 12px; border: 1px solid rgba(148,163,184,.2);
-    background: linear-gradient(135deg, rgba(30,41,59,.92), rgba(13,0,32,.97));
+    background: linear-gradient(135deg, rgba(30,41,59,.92), rgba(15,23,42,.97));
     color: var(--text); font-size: .84rem; font-weight: 700; cursor: pointer;
     box-shadow:
       0 3px 12px rgba(0,0,0,.45),
@@ -543,7 +543,7 @@
     user-select: none;
   }
   .mix-btn:hover {
-    border-color: rgba(255,0,102,.4);
+    border-color: rgba(96,165,250,.4);
     background: linear-gradient(135deg, rgba(36,50,76,.96), rgba(20,30,55,.99));
     box-shadow:
       0 5px 18px rgba(0,0,0,.52),
@@ -696,15 +696,15 @@
 
   <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;align-items:flex-end;">
     <div style="position:relative;">
-      <button id="link-emoji-btn" type="button" style="width:52px;height:46px;padding:0;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);font-size:1.4rem;cursor:pointer;line-height:46px;text-align:center;" title="Pick emoji">&#128279;</button>
+      <button id="link-emoji-btn" type="button" style="width:52px;height:46px;padding:0;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-size:1.4rem;cursor:pointer;line-height:46px;text-align:center;" title="Pick emoji">&#128279;</button>
       <input id="link-emoji" type="hidden" value="">
-      <div id="emoji-picker" style="display:none;position:absolute;top:52px;left:0;z-index:100;background:#180030;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:10px;width:280px;box-shadow:0 12px 40px rgba(0,0,0,.6);">
+      <div id="emoji-picker" style="display:none;position:absolute;top:52px;left:0;z-index:100;background:#1e293b;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:10px;width:280px;box-shadow:0 12px 40px rgba(0,0,0,.6);">
         <div id="emoji-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;max-height:200px;overflow-y:auto;"></div>
       </div>
     </div>
-    <input id="link-name" type="text" placeholder="Name" style="flex:1;min-width:120px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);font-weight:700;">
-    <input id="link-url" type="url" placeholder="https://..." style="flex:2;min-width:180px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);">
-    <input id="link-cat" type="text" placeholder="Category" list="link-cat-list" style="flex:1;min-width:110px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);font-weight:700;">
+    <input id="link-name" type="text" placeholder="Name" style="flex:1;min-width:120px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;">
+    <input id="link-url" type="url" placeholder="https://..." style="flex:2;min-width:180px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
+    <input id="link-cat" type="text" placeholder="Category" list="link-cat-list" style="flex:1;min-width:110px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;">
     <datalist id="link-cat-list"></datalist>
     <button id="link-add" class="btn primary" style="padding:10px 18px;">+ Add</button>
   </div>
@@ -724,11 +724,11 @@
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
       <h3 style="margin:0;">Latest News</h3>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <select id="news-tab-region" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);font-weight:700;cursor:pointer;">
+        <select id="news-tab-region" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;">
           <option value="ro">Romania</option>
           <option value="int">International</option>
         </select>
-        <select id="news-tab-source" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);font-weight:700;cursor:pointer;max-width:220px;">
+        <select id="news-tab-source" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;max-width:220px;">
         </select>
         <button id="news-tab-refresh" class="btn secondary" style="padding:8px 14px;font-size:.85rem;">Refresh</button>
       </div>
@@ -743,11 +743,11 @@
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
       <h3 style="margin:0;">Video Channels</h3>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <select id="yt-region" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);font-weight:700;cursor:pointer;">
+        <select id="yt-region" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;">
           <option value="ro">Romania</option>
           <option value="int">International</option>
         </select>
-        <select id="yt-channel" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);font-weight:700;cursor:pointer;max-width:220px;">
+        <select id="yt-channel" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;cursor:pointer;max-width:220px;">
         </select>
         <button id="yt-load" class="btn secondary" style="padding:8px 14px;font-size:.85rem;">Load</button>
       </div>
@@ -765,8 +765,8 @@
 
   <!-- Lock Screen -->
   <div id="vault-lock" style="display:flex;align-items:center;justify-content:center;min-height:340px;padding:40px 20px;">
-    <div style="width:min(420px,100%);text-align:center;padding:28px 24px;border-radius:22px;background:linear-gradient(180deg,rgba(13,0,32,.96),rgba(2,6,23,.94));border:1px solid rgba(148,163,184,.18);box-shadow:0 24px 60px rgba(2,6,23,.42);">
-      <div style="width:72px;height:72px;margin:0 auto 20px;border-radius:50%;background:linear-gradient(135deg,rgba(255,0,102,.15),rgba(139,92,246,.15));border:1px solid rgba(255,0,102,.2);display:grid;place-items:center;font-size:2rem;">&#128274;</div>
+    <div style="width:min(420px,100%);text-align:center;padding:28px 24px;border-radius:22px;background:linear-gradient(180deg,rgba(15,23,42,.96),rgba(2,6,23,.94));border:1px solid rgba(148,163,184,.18);box-shadow:0 24px 60px rgba(2,6,23,.42);">
+      <div style="width:72px;height:72px;margin:0 auto 20px;border-radius:50%;background:linear-gradient(135deg,rgba(96,165,250,.15),rgba(139,92,246,.15));border:1px solid rgba(96,165,250,.2);display:grid;place-items:center;font-size:2rem;">&#128274;</div>
       <h3 id="vault-lock-label" style="margin:0 0 6px;font-size:1.15rem;font-weight:800;color:var(--text);">Unlock Vault</h3>
       <p style="color:var(--muted);font-size:.88rem;margin:0 0 24px;">Enter your account credentials to access encrypted data</p>
 
@@ -1045,9 +1045,9 @@
     </div>
     <div id="kanban" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
       <div class="kanban-col" data-col="todo">
-        <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(255,0,102,.15);color:#FF0066;text-align:center;margin-bottom:10px;">To Do</div>
+        <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(96,165,250,.15);color:#60a5fa;text-align:center;margin-bottom:10px;">To Do</div>
         <div class="kanban-items" data-col="todo" style="min-height:60px;"></div>
-        <button id="goal-add-btn" style="width:100%;padding:9px;border-radius:10px;border:1px dashed rgba(255,0,102,.3);background:none;color:#FF0066;cursor:pointer;font-size:.85rem;font-weight:700;margin-top:6px;transition:background .15s;">+ New Task</button>
+        <button id="goal-add-btn" style="width:100%;padding:9px;border-radius:10px;border:1px dashed rgba(96,165,250,.3);background:none;color:#60a5fa;cursor:pointer;font-size:.85rem;font-weight:700;margin-top:6px;transition:background .15s;">+ New Task</button>
       </div>
       <div class="kanban-col" data-col="progress">
         <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(251,191,36,.15);color:#fbbf24;text-align:center;margin-bottom:10px;">In Progress</div>
@@ -1058,7 +1058,7 @@
         <div class="kanban-items" data-col="pending" style="min-height:60px;"></div>
       </div>
       <div class="kanban-col" data-col="done">
-        <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(204,0,255,.15);color:#CC00FF;text-align:center;margin-bottom:10px;">Done</div>
+        <div style="font-weight:800;font-size:.85rem;padding:8px 10px;border-radius:8px;background:rgba(34,197,94,.15);color:#22c55e;text-align:center;margin-bottom:10px;">Done</div>
         <div class="kanban-items" data-col="done" style="min-height:60px;"></div>
       </div>
     </div>
@@ -1089,8 +1089,8 @@
       <div style="font-size:.8rem;color:var(--muted);margin-bottom:6px;">Labels</div>
       <div id="goal-labels-wrap" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
       <div style="display:flex;gap:6px;margin-top:6px;">
-        <input id="goal-custom-label" type="text" placeholder="Custom label..." style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#100020;color:var(--text);font-size:.8rem;">
-        <button id="goal-custom-label-add" type="button" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(255,0,102,.3);background:none;color:#FF0066;cursor:pointer;font-size:.78rem;font-weight:700;">+ Add</button>
+        <input id="goal-custom-label" type="text" placeholder="Custom label..." style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#0b1220;color:var(--text);font-size:.8rem;">
+        <button id="goal-custom-label-add" type="button" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(96,165,250,.3);background:none;color:#60a5fa;cursor:pointer;font-size:.78rem;font-weight:700;">+ Add</button>
       </div>
     </div>
     <div id="goal-custom-fields-wrap" style="display:none;margin-bottom:10px;">
@@ -1122,10 +1122,10 @@
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
       <input id="project-icon" type="text" maxlength="2" placeholder="PR" style="width:72px;padding:10px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-size:1.25rem;text-align:center;">
       <label style="flex:1;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--muted);font-size:.85rem;">Accent color
-        <input id="project-color" type="color" value="#FF0066" style="width:34px;height:34px;border:none;background:none;padding:0;cursor:pointer;">
+        <input id="project-color" type="color" value="#60a5fa" style="width:34px;height:34px;border:none;background:none;padding:0;cursor:pointer;">
       </label>
     </div>
-    <div style="padding:10px 12px;border-radius:10px;border:1px solid rgba(148,163,184,.16);background:rgba(13,0,32,.52);color:var(--muted);font-size:.8rem;line-height:1.45;margin-bottom:14px;">
+    <div style="padding:10px 12px;border-radius:10px;border:1px solid rgba(148,163,184,.16);background:rgba(15,23,42,.52);color:var(--muted);font-size:.8rem;line-height:1.45;margin-bottom:14px;">
       After creation you can add Jira-style custom fields for this project.
     </div>
     <button id="project-submit" class="btn primary" style="width:100%;padding:10px;font-size:.95rem;">Create Project</button>
@@ -1176,9 +1176,9 @@
     <div class="card" style="padding:18px;margin-bottom:18px;">
       <h3 style="margin:0 0 12px;">&#128279; Secret Links</h3>
       <form style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;" onsubmit="return false;">
-        <input id="vault-link-name" type="text" placeholder="Name" style="flex:1;min-width:120px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);font-weight:700;">
-        <input id="vault-link-url" type="url" placeholder="https://..." style="flex:2;min-width:180px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);">
-        <textarea id="vault-link-desc" placeholder="Description (optional)" rows="1" style="flex-basis:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);font-family:inherit;font-size:.9rem;resize:vertical;"></textarea>
+        <input id="vault-link-name" type="text" placeholder="Name" style="flex:1;min-width:120px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;">
+        <input id="vault-link-url" type="url" placeholder="https://..." style="flex:2;min-width:180px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
+        <textarea id="vault-link-desc" placeholder="Description (optional)" rows="1" style="flex-basis:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-family:inherit;font-size:.9rem;resize:vertical;"></textarea>
         <button id="vault-link-add" class="btn primary" style="padding:10px 18px;">+ Add</button>
       </form>
       <div id="vault-links-list"></div>
@@ -1188,14 +1188,14 @@
     <div class="card" style="padding:18px;">
       <h3 style="margin:0 0 12px;">&#128274; Passwords</h3>
       <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-        <input id="vault-cred-label" type="text" placeholder="Label (e.g. Gmail)" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);font-weight:700;">
-        <input id="vault-cred-site" type="text" placeholder="Site URL" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);">
-        <input id="vault-cred-user" type="text" placeholder="Username" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);">
+        <input id="vault-cred-label" type="text" placeholder="Label (e.g. Gmail)" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-weight:700;">
+        <input id="vault-cred-site" type="text" placeholder="Site URL" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
+        <input id="vault-cred-user" type="text" placeholder="Username" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
         <div style="flex:1;min-width:100px;position:relative;">
-          <input id="vault-cred-pass" type="password" placeholder="Password" style="width:100%;padding:10px 38px 10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);">
+          <input id="vault-cred-pass" type="password" placeholder="Password" style="width:100%;padding:10px 38px 10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);">
           <button type="button" class="pw-toggle" aria-label="Show password" title="Show password" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';var l=i.type==='password'?'Show password':'Hide password';this.setAttribute('aria-label',l);this.title=l;" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;padding:2px;">&#128065;</button>
         </div>
-        <textarea id="vault-cred-details" placeholder="Details / notes..." rows="2" style="flex-basis:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);font-family:inherit;font-size:.9rem;resize:vertical;"></textarea>
+        <textarea id="vault-cred-details" placeholder="Details / notes..." rows="2" style="flex-basis:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-family:inherit;font-size:.9rem;resize:vertical;"></textarea>
         <button id="vault-cred-add" class="btn primary" style="padding:10px 18px;">+ Add</button>
       </div>
       <div id="vault-creds-list"></div>
@@ -1216,7 +1216,7 @@
       </div>
     </div>
     <div id="vault-notes-wrap">
-      <textarea id="vault-notes" placeholder="Write your private notes here..." style="width:100%;min-height:60vh;padding:16px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:#100020;color:var(--text);font-size:1rem;resize:vertical;font-family:inherit;line-height:1.6;"></textarea>
+      <textarea id="vault-notes" placeholder="Write your private notes here..." style="width:100%;min-height:60vh;padding:16px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:var(--text);font-size:1rem;resize:vertical;font-family:inherit;line-height:1.6;"></textarea>
     </div>
   </div>
 </div>
@@ -1480,11 +1480,11 @@
 
     <!-- Status card -->
     <div style="background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;">
-      <div id="fab-status-dot" style="width:40px;height:40px;border-radius:12px;background:rgba(204,0,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#CC00FF" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+      <div id="fab-status-dot" style="width:40px;height:40px;border-radius:12px;background:rgba(34,197,94,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
       </div>
       <div style="flex:1;min-width:0;">
-        <p id="fab-sync-info" style="margin:0 0 2px;font-size:.85rem;font-weight:600;color:var(--text);">Syncing as <strong id="fab-sync-user" style="color:#CC00FF;"></strong></p>
+        <p id="fab-sync-info" style="margin:0 0 2px;font-size:.85rem;font-weight:600;color:var(--text);">Syncing as <strong id="fab-sync-user" style="color:#22c55e;"></strong></p>
         <p id="fab-sync-warn" style="margin:0;font-size:.8rem;color:#f59e0b;display:none;">No account — create one in Account to enable sync.</p>
         <div id="fab-status" style="font-size:.78rem;color:var(--muted);margin-top:2px;min-height:.9em;"></div>
       </div>
@@ -1536,7 +1536,7 @@
     <div id="fab-versions" style="background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:14px 16px;margin-bottom:10px;display:none;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
         <div style="font-size:.6rem;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);">BACKUP HISTORY</div>
-        <button id="fab-versions-toggle" style="background:none;border:none;color:#FF0066;font-size:.75rem;cursor:pointer;font-weight:700;padding:0;">Show</button>
+        <button id="fab-versions-toggle" style="background:none;border:none;color:#60a5fa;font-size:.75rem;cursor:pointer;font-weight:700;padding:0;">Show</button>
       </div>
       <div id="fab-versions-list" style="display:none;max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
     </div>

@@ -20,14 +20,14 @@
     .vh-wrap { }
     .vh-tabs { display:flex; gap:4px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,.08); margin-bottom:20px; }
     .vh-tab { padding:8px 22px; border-radius:10px; border:1px solid transparent; background:none; color:#64748b; font-size:.88rem; font-weight:700; cursor:pointer; transition:all .15s; font-family:inherit; }
-    .vh-tab.active { background:rgba(59,130,246,.15); border-color:rgba(59,130,246,.3); color:#FF0066; }
+    .vh-tab.active { background:rgba(59,130,246,.15); border-color:rgba(59,130,246,.3); color:#60a5fa; }
     .vh-tab:hover:not(.active) { background:rgba(255,255,255,.05); color:#cbd5e1; }
 
     /* Today */
     .vh-today-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; gap:16px; flex-wrap:wrap; padding:20px 24px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.07); border-radius:18px; }
     .vh-date { font-size:.72rem; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; }
-    .vh-greeting-text { font-size:1.5rem; font-weight:900; color:#f0f0ff; line-height:1.2; }
-    .vh-motiv { font-size:.88rem; color:#9090b8; margin-top:8px; }
+    .vh-greeting-text { font-size:1.5rem; font-weight:900; color:#e5e7eb; line-height:1.2; }
+    .vh-motiv { font-size:.88rem; color:#94a3b8; margin-top:8px; }
     .vh-ring-wrap { text-align:center; flex-shrink:0; }
     .vh-pct-label { font-size:.72rem; color:#64748b; margin-top:4px; font-weight:700; }
 
@@ -40,15 +40,15 @@
     .vh-card-color-strip { position:absolute; left:0; top:0; bottom:0; width:4px; }
     .vh-card-icon { font-size:1.6rem; flex-shrink:0; }
     .vh-card-body { flex:1; min-width:0; }
-    .vh-card-name { font-size:.92rem; font-weight:700; color:#f0f0ff; margin-bottom:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .vh-card-done .vh-card-name { color:#9090b8; text-decoration:line-through; text-decoration-color:rgba(52,211,153,.5); }
+    .vh-card-name { font-size:.92rem; font-weight:700; color:#e5e7eb; margin-bottom:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .vh-card-done .vh-card-name { color:#94a3b8; text-decoration:line-through; text-decoration-color:rgba(52,211,153,.5); }
     .vh-card-meta { display:flex; align-items:center; gap:6px; margin-bottom:7px; flex-wrap:wrap; }
-    .vh-cat-pill { font-size:.68rem; padding:2px 8px; border-radius:20px; background:rgba(255,255,255,.08); color:#9090b8; font-weight:600; }
+    .vh-cat-pill { font-size:.68rem; padding:2px 8px; border-radius:20px; background:rgba(255,255,255,.08); color:#94a3b8; font-weight:600; }
     .vh-streak-pill { font-size:.68rem; padding:2px 8px; border-radius:20px; background:rgba(251,191,36,.12); color:#fbbf24; font-weight:700; }
     .vh-dots { display:flex; gap:3px; }
     .vh-dot { width:9px; height:9px; border-radius:3px; background:rgba(255,255,255,.08); flex-shrink:0; }
     .vh-dot.done { background:#34d399; }
-    .vh-dot.today { outline:2px solid #FF0066; outline-offset:1px; }
+    .vh-dot.today { outline:2px solid #60a5fa; outline-offset:1px; }
     .vh-dot.skip { background:rgba(255,255,255,.03); }
     .vh-card-action { flex-shrink:0; margin-left:4px; }
     .vh-check { width:38px; height:38px; border-radius:11px; border:2px solid rgba(255,255,255,.2); background:none; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1.1rem; font-weight:900; color:#fff; transition:all .2s; font-family:inherit; }
@@ -58,7 +58,7 @@
 
     /* Counter */
     .vh-counter { display:flex; align-items:center; gap:8px; }
-    .vh-cnt-btn { width:30px; height:30px; border-radius:9px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:#f0f0ff; font-size:1.1rem; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s; line-height:1; font-family:inherit; }
+    .vh-cnt-btn { width:30px; height:30px; border-radius:9px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:#e5e7eb; font-size:1.1rem; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s; line-height:1; font-family:inherit; }
     .vh-cnt-btn:hover { background:rgba(255,255,255,.13); }
     .vh-cnt-val { font-size:.85rem; font-weight:800; min-width:38px; text-align:center; }
 
@@ -72,20 +72,20 @@
     /* Empty */
     .vh-empty { text-align:center; padding:60px 20px; }
     .vh-empty-today { text-align:center; padding:30px; color:#64748b; font-size:.88rem; background:rgba(255,255,255,.03); border-radius:12px; border:1px dashed rgba(255,255,255,.1); }
-    .vh-all-done { text-align:center; padding:32px 20px; background:linear-gradient(135deg,rgba(52,211,153,.08),rgba(255,0,102,.08)); border:1px solid rgba(52,211,153,.2); border-radius:18px; margin-top:16px; }
+    .vh-all-done { text-align:center; padding:32px 20px; background:linear-gradient(135deg,rgba(52,211,153,.08),rgba(96,165,250,.08)); border:1px solid rgba(52,211,153,.2); border-radius:18px; margin-top:16px; }
     .vh-all-done-icon { font-size:3rem; margin-bottom:10px; }
     .vh-all-done-title { font-size:1.1rem; font-weight:800; color:#34d399; margin-bottom:6px; }
     .vh-all-done-sub { font-size:.85rem; color:#64748b; }
 
     /* Buttons */
-    .vh-btn-primary { padding:10px 24px; border-radius:12px; border:none; background:#FF3380; color:#fff; font-size:.88rem; font-weight:700; cursor:pointer; transition:background .2s; font-family:inherit; }
-    .vh-btn-primary:hover { background:#CC0055; }
-    .vh-btn-ghost { padding:10px 20px; border-radius:12px; border:1px solid rgba(255,255,255,.15); background:none; color:#9090b8; font-size:.88rem; font-weight:600; cursor:pointer; transition:all .15s; font-family:inherit; }
-    .vh-btn-ghost:hover { background:rgba(255,255,255,.06); color:#f0f0ff; }
+    .vh-btn-primary { padding:10px 24px; border-radius:12px; border:none; background:#3b82f6; color:#fff; font-size:.88rem; font-weight:700; cursor:pointer; transition:background .2s; font-family:inherit; }
+    .vh-btn-primary:hover { background:#2563eb; }
+    .vh-btn-ghost { padding:10px 20px; border-radius:12px; border:1px solid rgba(255,255,255,.15); background:none; color:#94a3b8; font-size:.88rem; font-weight:600; cursor:pointer; transition:all .15s; font-family:inherit; }
+    .vh-btn-ghost:hover { background:rgba(255,255,255,.06); color:#e5e7eb; }
 
     /* Stats */
     .vh-stats-top { display:flex; align-items:center; gap:12px; margin-bottom:24px; flex-wrap:wrap; }
-    .vh-select { padding:9px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.15); background:#100020; color:#f0f0ff; font-size:.88rem; outline:none; font-family:inherit; min-width:200px; cursor:pointer; }
+    .vh-select { padding:9px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.15); background:#0b1220; color:#e5e7eb; font-size:.88rem; outline:none; font-family:inherit; min-width:200px; cursor:pointer; }
     .vh-stat-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:4px; }
     .vh-stat-card { padding:18px 12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); border-radius:16px; text-align:center; }
     .vh-stat-val { font-size:1.6rem; font-weight:900; margin-bottom:4px; line-height:1; }
@@ -100,7 +100,7 @@
     .vh-hm-week { display:flex; flex-direction:column; gap:2px; }
     .vh-hm-cell { width:13px; height:13px; border-radius:2px; background:rgba(255,255,255,.06); cursor:default; display:block; flex-shrink:0; transition:transform .1s; }
     .vh-hm-cell:hover { transform:scale(1.4); z-index:1; position:relative; }
-    .vh-hm-cell.today { outline:1.5px solid #FF0066; outline-offset:1px; }
+    .vh-hm-cell.today { outline:1.5px solid #60a5fa; outline-offset:1px; }
     .vh-hm-cell.skip { background:rgba(255,255,255,.02); }
     .vh-hm-cell.future { background:rgba(255,255,255,.02); cursor:default; }
     .vh-hm-legend { display:flex; align-items:center; gap:4px; margin-top:10px; }
@@ -111,7 +111,7 @@
     .vh-wp-bar-wrap { height:56px; display:flex; align-items:flex-end; width:100%; }
     .vh-wp-bar { width:100%; border-radius:4px 4px 0 0; min-height:3px; transition:height .5s ease; }
     .vh-wp-label { font-size:.65rem; color:#64748b; font-weight:700; }
-    .vh-wp-pct { font-size:.6rem; color:#9090b8; }
+    .vh-wp-pct { font-size:.6rem; color:#94a3b8; }
 
     /* Manage */
     .vh-manage-head { margin-bottom:20px; }
@@ -121,44 +121,44 @@
     .vh-mr-strip { position:absolute; left:0; top:0; bottom:0; width:4px; }
     .vh-mr-icon { font-size:1.2rem; }
     .vh-mr-info { flex:1; min-width:0; }
-    .vh-mr-name { font-size:.88rem; font-weight:700; color:#f0f0ff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .vh-mr-name { font-size:.88rem; font-weight:700; color:#e5e7eb; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .vh-mr-meta { font-size:.72rem; color:#64748b; margin-top:2px; }
     .vh-mr-actions { display:flex; gap:4px; flex-shrink:0; }
     .vh-mr-btn { width:32px; height:32px; border-radius:9px; border:1px solid rgba(255,255,255,.1); background:none; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:.9rem; transition:background .15s; font-family:inherit; }
     .vh-mr-btn:hover { background:rgba(255,255,255,.09); }
     .vh-mr-btn.del:hover { background:rgba(248,113,113,.15); border-color:rgba(248,113,113,.3); }
     .vh-archived-toggle { padding:13px 0; cursor:pointer; color:#64748b; font-size:.82rem; font-weight:700; display:flex; align-items:center; gap:8px; border-top:1px solid rgba(255,255,255,.06); margin-top:18px; user-select:none; }
-    .vh-archived-toggle:hover { color:#9090b8; }
+    .vh-archived-toggle:hover { color:#94a3b8; }
     .vh-archived-list { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
 
     /* Form */
     .vh-form { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); border-radius:18px; padding:22px; margin-bottom:22px; }
-    .vh-form-title { font-size:1rem; font-weight:800; color:#f0f0ff; margin-bottom:20px; }
+    .vh-form-title { font-size:1rem; font-weight:800; color:#e5e7eb; margin-bottom:20px; }
     .vh-form-row { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:16px; }
     .vh-form-group { display:flex; flex-direction:column; gap:7px; flex:1; min-width:140px; }
-    .vh-form-label { font-size:.72rem; font-weight:700; color:#9090b8; text-transform:uppercase; letter-spacing:.5px; }
+    .vh-form-label { font-size:.72rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.5px; }
     .vh-form-hint { text-transform:none; font-weight:400; color:#64748b; letter-spacing:0; }
-    .vh-input { padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:#100020; color:#f0f0ff; font-size:.88rem; outline:none; font-family:inherit; transition:border-color .2s; box-sizing:border-box; width:100%; }
-    .vh-input:focus { border-color:#FF3380; }
+    .vh-input { padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:#0b1220; color:#e5e7eb; font-size:.88rem; outline:none; font-family:inherit; transition:border-color .2s; box-sizing:border-box; width:100%; }
+    .vh-input:focus { border-color:#3b82f6; }
     .vh-emoji-grid { display:flex; flex-wrap:wrap; gap:5px; }
     .vh-emoji-btn { width:34px; height:34px; border-radius:9px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04); cursor:pointer; font-size:1rem; display:flex; align-items:center; justify-content:center; transition:all .15s; font-family:inherit; }
     .vh-emoji-btn:hover { background:rgba(255,255,255,.1); transform:scale(1.12); }
-    .vh-emoji-btn.active { border-color:#FF3380; background:rgba(59,130,246,.18); }
+    .vh-emoji-btn.active { border-color:#3b82f6; background:rgba(59,130,246,.18); }
     .vh-emoji-input { margin-top:6px; }
     .vh-color-row { display:flex; gap:9px; flex-wrap:wrap; }
     .vh-color-btn { width:30px; height:30px; border-radius:50%; border:2px solid transparent; cursor:pointer; transition:all .15s; flex-shrink:0; }
     .vh-color-btn:hover { transform:scale(1.15); }
     .vh-color-btn.active { border-color:#fff; box-shadow:0 0 0 3px rgba(255,255,255,.25); }
     .vh-freq-row { display:flex; gap:20px; }
-    .vh-freq-opt { display:flex; align-items:center; gap:7px; cursor:pointer; font-size:.85rem; color:#f0f0ff; font-family:inherit; }
+    .vh-freq-opt { display:flex; align-items:center; gap:7px; cursor:pointer; font-size:.85rem; color:#e5e7eb; font-family:inherit; }
     .vh-freq-days { display:flex; gap:7px; flex-wrap:wrap; margin-top:2px; }
     .vh-freq-days.hidden { display:none; }
     .vh-day-btn { cursor:pointer; }
     .vh-day-btn input { display:none; }
-    .vh-day-btn span { display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:9px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.04); font-size:.78rem; font-weight:700; color:#9090b8; cursor:pointer; transition:all .15s; }
-    .vh-day-btn.active span { background:rgba(59,130,246,.2); border-color:#FF3380; color:#FF0066; }
+    .vh-day-btn span { display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:9px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.04); font-size:.78rem; font-weight:700; color:#94a3b8; cursor:pointer; transition:all .15s; }
+    .vh-day-btn.active span { background:rgba(59,130,246,.2); border-color:#3b82f6; color:#60a5fa; }
     .vh-target-row { display:flex; align-items:center; gap:12px; }
-    .vh-target-val { font-size:1.1rem; font-weight:800; color:#f0f0ff; min-width:28px; text-align:center; }
+    .vh-target-val { font-size:1.1rem; font-weight:800; color:#e5e7eb; min-width:28px; text-align:center; }
     .vh-form-actions { display:flex; gap:10px; justify-content:flex-end; padding-top:4px; }
 
     @media(max-width:600px) {
@@ -182,7 +182,7 @@
 
   /* ── Constants ──────────────────────────────────────────────────────── */
   var KEY = 'homer-habits';
-  var COLORS = ['#34d399','#FF0066','#f87171','#fbbf24','#a78bfa','#fb7185','#38bdf8','#dd44ff'];
+  var COLORS = ['#34d399','#60a5fa','#f87171','#fbbf24','#a78bfa','#fb7185','#38bdf8','#4ade80'];
   var CATS = ['health','fitness','learning','mindfulness','work','social','creative','other'];
   var CAT_EMOJI = { health:'❤️', fitness:'💪', learning:'📚', mindfulness:'🧘', work:'💼', social:'👥', creative:'🎨', other:'⭐' };
   var DEFAULT_EMOJIS = ['🏃','💧','📚','🧘','💪','🥗','😴','☀️','🎯','✍️','🎵','🌿','💊','🧠','🚶','🏋️','🥤','🍎','🧹','💻','📖','🎸','🌞','🛌','🧘'];
@@ -383,7 +383,7 @@
     if (!active.length) {
       return '<div class="vh-empty">' +
         '<div style="font-size:3rem;margin-bottom:16px">🌱</div>' +
-        '<h3 style="color:#f0f0ff;margin:0 0 8px;font-weight:900">No habits yet</h3>' +
+        '<h3 style="color:#e5e7eb;margin:0 0 8px;font-weight:900">No habits yet</h3>' +
         '<p style="color:#64748b;margin:0 0 22px;font-size:.9rem">Add your first habit to get started</p>' +
         '<button class="vh-btn-primary" id="vh-goto-manage">+ Add First Habit</button>' +
       '</div>';
@@ -410,7 +410,7 @@
 
     var r = 36, circ = 2 * Math.PI * r;
     var dash = (pct / 100) * circ;
-    var ringColor = allDone ? '#34d399' : '#FF3380';
+    var ringColor = allDone ? '#34d399' : '#3b82f6';
 
     var ringHtml = '<svg width="90" height="90" viewBox="0 0 100 100">' +
       '<circle cx="50" cy="50" r="' + r + '" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="8"/>' +
@@ -419,7 +419,7 @@
       ' stroke-dasharray="' + circ.toFixed(1) + '"' +
       ' stroke-dashoffset="' + (circ - dash).toFixed(1) + '"' +
       ' transform="rotate(-90 50 50)" style="transition:stroke-dashoffset .6s ease"/>' +
-      '<text x="50" y="46" text-anchor="middle" fill="#f0f0ff" font-size="20" font-weight="900" font-family="inherit">' + doneCount + '</text>' +
+      '<text x="50" y="46" text-anchor="middle" fill="#e5e7eb" font-size="20" font-weight="900" font-family="inherit">' + doneCount + '</text>' +
       '<text x="50" y="62" text-anchor="middle" fill="#64748b" font-size="10" font-family="inherit">of ' + total + '</text>' +
     '</svg>';
 
@@ -449,7 +449,7 @@
       notTodayHtml = '<div class="vh-section-label" style="margin-top:22px">Not scheduled today</div>' +
         '<div class="vh-not-today">' +
         notToday.map(function(h) {
-          return '<span class="vh-skip-chip" style="border-color:' + (h.color || '#280050') + '">' +
+          return '<span class="vh-skip-chip" style="border-color:' + (h.color || '#334155') + '">' +
             (h.emoji || '⭐') + ' ' + esc(h.name) + '</span>';
         }).join('') +
         '</div>';
@@ -467,7 +467,7 @@
     var cnt = getDone(completions, h.id, today);
     var target = getTarget(h);
     var s = calcStreak(completions, h);
-    var color = h.color || '#FF3380';
+    var color = h.color || '#3b82f6';
 
     // 7-day dots
     var dots = '';
@@ -484,7 +484,7 @@
     if (target > 1) {
       actionHtml = '<div class="vh-counter">' +
         '<button class="vh-cnt-btn" data-action="dec" data-id="' + h.id + '">&#8722;</button>' +
-        '<span class="vh-cnt-val" style="color:' + (done ? color : '#9090b8') + '">' + cnt + '/' + target + '</span>' +
+        '<span class="vh-cnt-val" style="color:' + (done ? color : '#94a3b8') + '">' + cnt + '/' + target + '</span>' +
         '<button class="vh-cnt-btn" data-action="inc" data-id="' + h.id + '">+</button>' +
       '</div>';
     } else {
@@ -522,7 +522,7 @@
       _statsId = active[0].id;
     }
     var h = active.find(function(h) { return String(h.id) === String(_statsId); });
-    var color = h.color || '#FF3380';
+    var color = h.color || '#3b82f6';
     var target = getTarget(h);
 
     var s = calcStreak(d.completions, h);
@@ -541,7 +541,7 @@
       '<div class="vh-stat-card"><div class="vh-stat-val" style="color:' + color + '">&#x1F525; ' + s + '</div><div class="vh-stat-lbl">Current streak</div></div>' +
       '<div class="vh-stat-card"><div class="vh-stat-val" style="color:#fbbf24">&#11088; ' + bs + '</div><div class="vh-stat-lbl">Best streak</div></div>' +
       '<div class="vh-stat-card"><div class="vh-stat-val" style="color:#34d399">' + rate30 + '%</div><div class="vh-stat-lbl">Last 30 days</div></div>' +
-      '<div class="vh-stat-card"><div class="vh-stat-val" style="color:#FF0066">' + total + '</div><div class="vh-stat-lbl">Total done</div></div>' +
+      '<div class="vh-stat-card"><div class="vh-stat-val" style="color:#60a5fa">' + total + '</div><div class="vh-stat-lbl">Total done</div></div>' +
     '</div>';
 
     var heatmap = buildHeatmap(d.completions, h, color, target);
@@ -608,7 +608,7 @@
               // semi-transparent partial
               style = 'background:' + color + ';opacity:.35;';
             }
-            if (cell.isToday) style += 'outline:1.5px solid #FF0066;outline-offset:1px;';
+            if (cell.isToday) style += 'outline:1.5px solid #60a5fa;outline-offset:1px;';
             return '<span class="vh-hm-cell' +
               (cell.isToday ? ' today' : '') +
               (!cell.scheduled ? ' skip' : '') +
@@ -694,7 +694,7 @@
   }
 
   function buildManageRow(h, isArch) {
-    var color = h.color || '#FF3380';
+    var color = h.color || '#3b82f6';
     return '<div class="vh-manage-row' + (isArch ? ' archived' : '') + '">' +
       '<div class="vh-mr-strip" style="background:' + color + '"></div>' +
       '<div class="vh-mr-icon">' + (h.emoji || '⭐') + '</div>' +

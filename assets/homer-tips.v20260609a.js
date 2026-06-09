@@ -13,89 +13,89 @@
     /* ── Tab container ───────────────────────────────────────────────*/
     #tab-tips {
       padding: 0 !important;
-      background: transparent !important;
+      background: #f7f6f3 !important;
       border-radius: 12px;
       overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif;
-      color: #f0f0ff;
+      color: #37352f;
     }
     .tips-page { max-width: 680px; margin: 0 auto; padding: 0 0 40px; }
 
     /* ── Hero header ─────────────────────────────────────────────────*/
     .tips-hero { padding: 28px 24px 20px; }
     .tips-hero-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-    .tips-hero-icon { font-size: 2rem; line-height: 1; flex-shrink: 0; }
+    .tips-hero-icon { font-size: 2rem; line-height: 1; }
     .tips-hero-text { flex: 1; }
-    .tips-hero-title { font-size: 1.4rem; font-weight: 700; color: #f0f0ff; letter-spacing: -.01em; margin: 0 0 3px; }
-    .tips-hero-sub { font-size: .8rem; color: rgba(240,240,255,.45); line-height: 1.5; }
-    .tips-version-badge { font-size: .65rem; color: rgba(240,240,255,.35); background: rgba(204,0,255,.08); border: 1px solid rgba(204,0,255,.15); border-radius: 20px; padding: 3px 9px; white-space: nowrap; align-self: flex-start; margin-top: 4px; }
+    .tips-hero-title { font-size: 1.4rem; font-weight: 700; color: #37352f; letter-spacing: -.01em; margin: 0 0 3px; }
+    .tips-hero-sub { font-size: .8rem; color: rgba(55,53,47,.45); line-height: 1.5; }
+    .tips-version-badge { font-size: .65rem; color: rgba(55,53,47,.35); background: rgba(55,53,47,.06); border-radius: 20px; padding: 3px 9px; white-space: nowrap; align-self: flex-start; margin-top: 4px; }
 
     /* ── Search ──────────────────────────────────────────────────────*/
     .tips-search-wrap { padding: 0 24px 16px; }
-    .tips-search-box { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,.04); border: 1px solid rgba(204,0,255,.2); border-radius: 8px; padding: 8px 12px; }
-    .tips-search-icon { color: rgba(240,240,255,.3); font-size: .85rem; flex-shrink: 0; }
-    #tips-search-input { border: none; outline: none; background: none; font-size: .85rem; color: #f0f0ff; flex: 1; font-family: inherit; min-width: 0; }
-    #tips-search-input::placeholder { color: rgba(240,240,255,.25); }
-    .tips-search-clear { background: none; border: none; color: rgba(240,240,255,.3); cursor: pointer; font-size: .8rem; padding: 1px 4px; border-radius: 3px; display: none; line-height: 1; }
-    .tips-search-clear:hover { background: rgba(255,255,255,.06); color: #f0f0ff; }
+    .tips-search-box { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid rgba(55,53,47,.1); border-radius: 8px; padding: 8px 12px; box-shadow: 0 1px 3px rgba(55,53,47,.05); }
+    .tips-search-icon { color: rgba(55,53,47,.3); font-size: .85rem; flex-shrink: 0; }
+    #tips-search-input { border: none; outline: none; background: none; font-size: .85rem; color: #37352f; flex: 1; font-family: inherit; min-width: 0; }
+    #tips-search-input::placeholder { color: rgba(55,53,47,.28); }
+    .tips-search-clear { background: none; border: none; color: rgba(55,53,47,.3); cursor: pointer; font-size: .8rem; padding: 1px 4px; border-radius: 3px; display: none; line-height: 1; }
+    .tips-search-clear:hover { background: rgba(55,53,47,.06); color: #37352f; }
     .tips-search-clear.visible { display: block; }
 
     /* ── Section divider ─────────────────────────────────────────────*/
     .tips-section { padding: 0 24px 20px; }
-    .tips-section-hd { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,.07); }
-    .tips-section-hd svg { color: rgba(240,240,255,.35); flex-shrink: 0; }
-    .tips-section-title { font-size: .8rem; font-weight: 700; color: rgba(240,240,255,.45); text-transform: uppercase; letter-spacing: .08em; flex: 1; }
-    .tips-section-count { font-size: .65rem; color: rgba(240,240,255,.3); background: rgba(204,0,255,.08); border-radius: 10px; padding: 1px 7px; }
+    .tips-section-hd { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(55,53,47,.07); }
+    .tips-section-hd svg { color: rgba(55,53,47,.35); flex-shrink: 0; }
+    .tips-section-title { font-size: .8rem; font-weight: 700; color: rgba(55,53,47,.55); text-transform: uppercase; letter-spacing: .08em; flex: 1; }
+    .tips-section-count { font-size: .65rem; color: rgba(55,53,47,.3); background: rgba(55,53,47,.06); border-radius: 10px; padding: 1px 7px; }
 
     /* ── Keyboard shortcuts ──────────────────────────────────────────*/
     .tips-shortcuts-list { display: flex; flex-direction: column; gap: 1px; }
-    .tips-shortcut-row { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 6px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); transition: background .08s; }
-    .tips-shortcut-row:hover { background: rgba(204,0,255,.06); border-color: rgba(204,0,255,.18); }
+    .tips-shortcut-row { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 6px; background: #fff; border: 1px solid rgba(55,53,47,.07); transition: background .08s; }
+    .tips-shortcut-row:hover { background: #fff; border-color: rgba(55,53,47,.12); }
     .tips-shortcut-row.hidden { display: none; }
     .tips-keys { display: flex; align-items: center; gap: 3px; flex-shrink: 0; min-width: 130px; }
-    .tips-key { display: inline-flex; align-items: center; justify-content: center; padding: 2px 7px; background: rgba(204,0,255,.10); border: 1px solid rgba(204,0,255,.3); border-bottom-width: 2px; border-radius: 4px; font-size: .7rem; font-weight: 600; color: #CC00FF; white-space: nowrap; letter-spacing: .01em; }
-    .tips-key-sep { font-size: .65rem; color: rgba(240,240,255,.3); padding: 0 1px; }
+    .tips-key { display: inline-flex; align-items: center; justify-content: center; padding: 2px 7px; background: #f7f6f3; border: 1px solid rgba(55,53,47,.18); border-bottom-width: 2px; border-radius: 4px; font-size: .7rem; font-weight: 600; color: #37352f; white-space: nowrap; letter-spacing: .01em; }
+    .tips-key-sep { font-size: .65rem; color: rgba(55,53,47,.3); padding: 0 1px; }
     .tips-shortcut-main { flex: 1; min-width: 0; }
-    .tips-shortcut-action { font-size: .82rem; font-weight: 600; color: #f0f0ff; margin-bottom: 1px; }
-    .tips-shortcut-desc { font-size: .72rem; color: rgba(240,240,255,.45); }
+    .tips-shortcut-action { font-size: .82rem; font-weight: 600; color: #37352f; margin-bottom: 1px; }
+    .tips-shortcut-desc { font-size: .72rem; color: rgba(55,53,47,.45); }
 
     /* ── Feature cards ───────────────────────────────────────────────*/
     .tips-features-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     @media (max-width: 480px) { .tips-features-grid { grid-template-columns: 1fr; } }
-    .tips-feat-card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 8px; padding: 12px 14px; cursor: pointer; transition: box-shadow .12s, border-color .12s, background .12s; position: relative; }
-    .tips-feat-card:hover { background: rgba(204,0,255,.06); border-color: rgba(204,0,255,.2); box-shadow: 0 4px 16px rgba(204,0,255,.1); }
+    .tips-feat-card { background: #fff; border: 1px solid rgba(55,53,47,.07); border-radius: 8px; padding: 12px 14px; cursor: pointer; transition: box-shadow .12s, border-color .12s; position: relative; }
+    .tips-feat-card:hover { box-shadow: 0 2px 8px rgba(55,53,47,.08); border-color: rgba(55,53,47,.14); }
     .tips-feat-card.hidden { display: none; }
     .tips-feat-card.no-nav { cursor: default; }
     .tips-feat-top { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 5px; }
     .tips-feat-icon { font-size: 1.3rem; line-height: 1; flex-shrink: 0; }
-    .tips-feat-name { font-size: .82rem; font-weight: 700; color: #f0f0ff; flex: 1; line-height: 1.3; }
-    .tips-feat-new { font-size: .55rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #CC00FF; background: rgba(204,0,255,.12); border-radius: 3px; padding: 1px 5px; vertical-align: middle; margin-left: 4px; }
-    .tips-feat-desc { font-size: .74rem; color: rgba(240,240,255,.45); line-height: 1.5; }
-    .tips-feat-goto { position: absolute; bottom: 10px; right: 11px; font-size: .65rem; color: rgba(240,240,255,.2); }
-    .tips-feat-card:hover .tips-feat-goto { color: #CC00FF; }
+    .tips-feat-name { font-size: .82rem; font-weight: 700; color: #37352f; flex: 1; line-height: 1.3; }
+    .tips-feat-new { font-size: .55rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #2eaadc; background: rgba(46,170,220,.1); border-radius: 3px; padding: 1px 5px; vertical-align: middle; margin-left: 4px; }
+    .tips-feat-desc { font-size: .74rem; color: rgba(55,53,47,.48); line-height: 1.5; }
+    .tips-feat-goto { position: absolute; bottom: 10px; right: 11px; font-size: .65rem; color: rgba(55,53,47,.25); }
+    .tips-feat-card:hover .tips-feat-goto { color: #2eaadc; }
 
     /* ── How-To accordion ────────────────────────────────────────────*/
     .tips-howto-list { display: flex; flex-direction: column; gap: 4px; }
-    .tips-howto-item { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); border-radius: 8px; overflow: hidden; }
+    .tips-howto-item { background: #fff; border: 1px solid rgba(55,53,47,.07); border-radius: 8px; overflow: hidden; }
     .tips-howto-item.hidden { display: none; }
     .tips-howto-header { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; user-select: none; transition: background .08s; }
-    .tips-howto-header:hover { background: rgba(204,0,255,.06); }
-    .tips-howto-chevron { font-size: .75rem; color: rgba(240,240,255,.35); transition: transform .2s; flex-shrink: 0; }
+    .tips-howto-header:hover { background: rgba(55,53,47,.02); }
+    .tips-howto-chevron { font-size: .75rem; color: rgba(55,53,47,.35); transition: transform .2s; flex-shrink: 0; }
     .tips-howto-item.open .tips-howto-chevron { transform: rotate(90deg); }
-    .tips-howto-hd-text { flex: 1; font-size: .83rem; font-weight: 600; color: #f0f0ff; }
+    .tips-howto-hd-text { flex: 1; font-size: .83rem; font-weight: 600; color: #37352f; }
     .tips-howto-body { max-height: 0; overflow: hidden; transition: max-height .25s ease; }
     .tips-howto-item.open .tips-howto-body { max-height: 600px; }
-    .tips-howto-steps { padding: 0 16px 14px 16px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid rgba(255,255,255,.06); padding-top: 12px; margin: 0 2px; }
+    .tips-howto-steps { padding: 0 16px 14px 16px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid rgba(55,53,47,.05); padding-top: 12px; margin: 0 2px; }
     .tips-howto-step { display: flex; align-items: flex-start; gap: 10px; }
-    .tips-step-num { width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg,#CC00FF,#FF0066); color: #fff; font-size: .65rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
-    .tips-step-text { font-size: .8rem; color: rgba(240,240,255,.65); line-height: 1.55; flex: 1; }
-    .tips-step-text code { background: rgba(204,0,255,.1); border-radius: 3px; padding: 1px 5px; font-size: .78rem; font-family: "SF Mono", "Fira Mono", monospace; color: #CC00FF; }
+    .tips-step-num { width: 20px; height: 20px; border-radius: 50%; background: #2eaadc; color: #fff; font-size: .65rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    .tips-step-text { font-size: .8rem; color: rgba(55,53,47,.7); line-height: 1.55; flex: 1; }
+    .tips-step-text code { background: rgba(55,53,47,.06); border-radius: 3px; padding: 1px 5px; font-size: .78rem; font-family: "SF Mono", "Fira Mono", monospace; color: #37352f; }
 
     /* ── No results ──────────────────────────────────────────────────*/
     .tips-no-results { text-align: center; padding: 32px 20px; display: none; }
     .tips-no-results.visible { display: block; }
     .tips-no-results-icon { font-size: 1.8rem; margin-bottom: 8px; }
-    .tips-no-results-text { font-size: .82rem; color: rgba(240,240,255,.35); }
+    .tips-no-results-text { font-size: .82rem; color: rgba(55,53,47,.4); }
 
     /* ── Section hidden when all items hidden ─────────────────────────*/
     .tips-section.all-hidden { display: none; }
