@@ -869,10 +869,24 @@
       return 'In ' + min + ' day' + (min === 1 ? '' : 's');
     }
     if (task.freq === 'monthly') {
-      if (!task.lastFired) return 'Today';
-      var lf = new Date(task.lastFired), now3 = new Date();
-      if (now3.getMonth() !== lf.getMonth() || now3.getFullYear() !== lf.getFullYear()) return 'Today';
-      return 'Next month';
+      var dom = task.dayOfMonth || 1;
+      var nowDate = new Date(t);
+      var target;
+      if (task.lastFired) {
+        var lf2 = new Date(task.lastFired);
+        // If already fired this month on or after the due day, next occurrence is next month
+        if (lf2.getFullYear() === nowDate.getFullYear() && lf2.getMonth() === nowDate.getMonth() && lf2.getDate() >= dom) {
+          target = new Date(nowDate.getFullYear(), nowDate.getMonth() + 1, dom);
+        } else {
+          target = new Date(nowDate.getFullYear(), nowDate.getMonth(), dom);
+        }
+      } else {
+        target = new Date(nowDate.getFullYear(), nowDate.getMonth(), dom);
+      }
+      var daysLeft = Math.round((target - nowDate) / 86400000);
+      if (daysLeft <= 0) return 'Today';
+      if (daysLeft === 1) return 'In 1 day';
+      return 'In ' + daysLeft + 'd';
     }
     if (task.freq === 'interval') {
       if (!task.lastFired) return 'Today';
@@ -893,8 +907,10 @@
     if (task.freq === 'daily')    return daysBetween(task.lastFired, t) >= 2;
     if (task.freq === 'weekly')   return daysBetween(task.lastFired, t) >= 14;
     if (task.freq === 'monthly') {
-      var lf = new Date(task.lastFired), now = new Date(t);
-      return (now.getFullYear() - lf.getFullYear()) * 12 + (now.getMonth() - lf.getMonth()) >= 2;
+      var dom2 = task.dayOfMonth || 1;
+      var lf3 = new Date(task.lastFired), now2 = new Date(t);
+      var monthsDiff = (now2.getFullYear() - lf3.getFullYear()) * 12 + (now2.getMonth() - lf3.getMonth());
+      return monthsDiff > 1 || (monthsDiff === 1 && now2.getDate() > dom2);
     }
     if (task.freq === 'interval') return daysBetween(task.lastFired, t) >= (task.intervalDays || 7) * 2;
     return false;
