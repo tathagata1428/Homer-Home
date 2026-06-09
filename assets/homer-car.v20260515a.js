@@ -98,6 +98,7 @@
     state.data = data;
     saveToIDB(data);                              // IDB: full data including file blobs
     var syncData = stripFileData(data);           // Sync: metadata only, no large blobs
+    window.__homerCarData = syncData;             // expose for daily brief (bypasses stale LS)
     try { localStorage.setItem('homer-car', JSON.stringify(syncData)); } catch(e) {}
     try { window.dispatchEvent(new CustomEvent('homer-data-synced', {detail:{key:'homer-car'}})); } catch(e) {}
     pushToSupabase(syncData);
@@ -1429,6 +1430,7 @@
           odoLogs:     mergeById(data.odoLogs||[], (_existing.odoLogs)||[]),
         } : data;
         var _toSyncStripped = stripFileData(_toSync);
+        window.__homerCarData = _toSyncStripped;
         try { localStorage.setItem('homer-car', JSON.stringify(_toSyncStripped)); } catch(_) {}
         // Push directly to Supabase in case supabase:session already fired before IDB loaded
         // (race condition: applyRemote would have seen empty state.data and pushed empty arrays).
@@ -1484,6 +1486,7 @@
       saveToIDB(merged);           // IDB: full data including blobs
       state.data = merged;
       var syncData = stripFileData(merged);
+      window.__homerCarData = syncData;
       try { localStorage.setItem('homer-car', JSON.stringify(syncData)); } catch(_) {}
       try { window.dispatchEvent(new CustomEvent('homer-data-synced', {detail:{key:'homer-car'}})); } catch(_) {}
       if (merged.vehicles.length || merged.documents.length ||

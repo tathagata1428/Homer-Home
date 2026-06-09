@@ -497,7 +497,8 @@
     var wrap = document.getElementById('db-car-alerts-wrap');
     var card = document.getElementById('db-car-alerts-card');
     if (!wrap || !card) return;
-    var raw = safeJson(localStorage.getItem('homer-car'), null);
+    // Prefer in-memory state exposed by car module (always fresh, bypasses stale LS from CF poll)
+    var raw = window.__homerCarData || safeJson(localStorage.getItem('homer-car'), null);
     if (!raw) { card.style.display = 'none'; return; }
 
     var todayMs = new Date(todayStr()).getTime();
