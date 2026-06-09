@@ -1495,25 +1495,25 @@
             client.from('field_state').upsert(
               {field_id:'ls:homer-kanban',value:JSON.stringify(mergedKanban),user_id:uid,kind:'json',client_ts:tsK,client_seq:0,device_id:'web',server_ts:tsK,updated_at:new Date(tsK).toISOString()},
               {onConflict:'user_id,field_id'})
-              .catch(function(e){console.warn('[HomerSync] vaultSync kanban push',e);});
+              .then(null,function(e){console.warn('[HomerSync] vaultSync kanban push',e);});
             var tsLG=Date.now();
             client.from('field_state').upsert(
               {field_id:'ls:homer-life-goals',value:JSON.stringify(mergedLg),user_id:uid,kind:'json',client_ts:tsLG,client_seq:0,device_id:'web',server_ts:tsLG,updated_at:new Date(tsLG).toISOString()},
               {onConflict:'user_id,field_id'})
-              .catch(function(e){console.warn('[HomerSync] vaultSync life-goals push',e);});
+              .then(null,function(e){console.warn('[HomerSync] vaultSync life-goals push',e);});
             var tsN=Date.now();
             if(typeof vault.notes==='string'){
               client.from('field_state').upsert(
                 {field_id:'ls:homer-vault-notes:'+_vaultMode,value:JSON.stringify(vault.notes),user_id:uid,kind:'json',client_ts:tsN,client_seq:0,device_id:'web',server_ts:tsN,updated_at:new Date(tsN).toISOString()},
                 {onConflict:'user_id,field_id'})
-                .catch(function(e){console.warn('[HomerSync] vaultSync notes push',e);});
+                .then(null,function(e){console.warn('[HomerSync] vaultSync notes push',e);});
             }
             if(Array.isArray(vault.creds)&&vault.creds.length>0){
               var tsC=Date.now();
               client.from('field_state').upsert(
                 {field_id:'ls:homer-secrets:'+_vaultMode,value:JSON.stringify(vault.creds),user_id:uid,kind:'json',client_ts:tsC,client_seq:0,device_id:'web',server_ts:tsC,updated_at:new Date(tsC).toISOString()},
                 {onConflict:'user_id,field_id'})
-                .catch(function(e){console.warn('[HomerSync] vaultSync creds push',e);});
+                .then(null,function(e){console.warn('[HomerSync] vaultSync creds push',e);});
             }
           }
           // In local-push mode: IDB is already correct from the user's own save.
