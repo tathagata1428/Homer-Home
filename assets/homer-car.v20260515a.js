@@ -1459,7 +1459,14 @@
     });
 
     // Pull from Supabase when session is ready (fires after Supabase auth)
+    var _applyRemoteLock = false;
     function applyRemote(remote) {
+      if (_applyRemoteLock) return;
+      _applyRemoteLock = true;
+      _doApplyRemote(remote);
+      _applyRemoteLock = false;
+    }
+    function _doApplyRemote(remote) {
       if (!remote) {
         // Supabase has no car data — if we have local IDB data, push it now so other
         // browsers can restore. This happens when Supabase was wiped by a race condition
