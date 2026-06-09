@@ -22,11 +22,12 @@ export async function onRequest(context) {
   const gatewayUrl   = isNemotron
     ? String(env.NEMOCLAW_GATEWAY_URL   || process.env.NEMOCLAW_GATEWAY_URL   || env.OC_GATEWAY_URL || process.env.OC_GATEWAY_URL || '').trim()
     : String(env.OC_GATEWAY_URL         || process.env.OC_GATEWAY_URL         || '').trim();
+  // For nemotron (Ollama), token is optional — Ollama accepts any Bearer value
   const gatewayToken = isNemotron
-    ? String(env.NEMOCLAW_GATEWAY_TOKEN || process.env.NEMOCLAW_GATEWAY_TOKEN || env.OC_GATEWAY_TOKEN || process.env.OC_GATEWAY_TOKEN || '').trim()
+    ? String(env.NEMOCLAW_GATEWAY_TOKEN || process.env.NEMOCLAW_GATEWAY_TOKEN || 'none').trim()
     : String(env.OC_GATEWAY_TOKEN       || process.env.OC_GATEWAY_TOKEN       || '').trim();
 
-  if (!gatewayUrl || !gatewayToken) {
+  if (!gatewayUrl || (!isNemotron && !gatewayToken)) {
     return Response.json({ error: 'AI gateway not configured' }, { status: 503, headers: cors });
   }
 
