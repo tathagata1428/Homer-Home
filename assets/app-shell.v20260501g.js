@@ -1250,6 +1250,8 @@ document.addEventListener('DOMContentLoaded', function(){
       }
       elSetFocus.value=settings.focus; elSetShort.value=settings.short; elSetLong.value=settings.long;
       elMode.textContent=cap(state.mode); updateTime(); updateRing(); updateMeta();
+      // Auto-resume timer if it was running before the page refresh
+      if(state.running){ start(); }
 
       function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
       function durFor(mode){ return (mode==='focus'?settings.focus:mode==='short'?settings.short:settings.long)*60; }
