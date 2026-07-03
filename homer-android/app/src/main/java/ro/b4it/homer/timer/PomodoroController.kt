@@ -88,14 +88,17 @@ class PomodoroController @Inject constructor(
         timerJob = scope.launch {
             while (_state.value.secsLeft > 0 && _state.value.running) {
                 delay(1_000)
-                val cur        = _state.value
-                val newSecs    = cur.secsLeft - 1
-                val newElapsed = if (cur.phase == PomodoroPhase.FOCUS)
-                    cur.elapsedFocusSecs + 1 else cur.elapsedFocusSecs
-                _state.update { it.copy(secsLeft = newSecs, elapsedFocusSecs = newElapsed) }
-                updateServiceNotif("${cur.phase.label} %02d:%02d".format(newSecs / 60, newSecs % 60))
+                if (!_state.value.running) break  // caught a pause/skip that arrived after delay() returned
+                _state.update { s ->
+                    s.copy(
+                        secsLeft      = s.secsLeft - 1,
+                        elapsedFocusSecs = if (s.phase == PomodoroPhase.FOCUS) s.elapsedFocusSecs + 1 else s.elapsedFocusSecs,
+                    )
+                }
+                val s = _state.value
+                updateServiceNotif("${s.phase.label} %02d:%02d".format(s.secsLeft / 60, s.secsLeft % 60))
             }
-            if (_state.value.secsLeft == 0) onPhaseEnd()
+            if (_state.value.secsLeft == 0 && _state.value.running) onPhaseEnd()
         }
     }
 

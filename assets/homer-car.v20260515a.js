@@ -1432,9 +1432,8 @@
         var _toSyncStripped = stripFileData(_toSync);
         window.__homerCarData = _toSyncStripped;
         try { localStorage.setItem('homer-car', JSON.stringify(_toSyncStripped)); } catch(_) {}
-        // Push directly to Supabase in case supabase:session already fired before IDB loaded
-        // (race condition: applyRemote would have seen empty state.data and pushed empty arrays).
-        pushToSupabase(_toSyncStripped);
+        // NOTE: do NOT push to Supabase here — session handler does pull-then-merge-push,
+        // which correctly reconciles with any cloud deletions (e.g. vehicle deleted on Android).
       }
       var ct = document.getElementById(CONTAINER_ID);
       if (ct && ct.style.display !== 'none') renderTab();
@@ -1478,11 +1477,17 @@
         }
         return;
       }
-      // Merge-wins: union local + remote by ID so no data is ever lost from either side.
-      // mergeById keeps the newer updatedAt version of each item.
+      // Vehicles: remote is authoritative for which vehicles EXIST (cloud-wins for deletes).
+      // Only keep local vehicles that also appear in remote — prevents a deleted vehicle
+      // from being resurrected by the union-merge when remote no longer includes it.
+      // updatedAt still wins for the content of each shared vehicle.
+      // If remote.vehicles is empty, fall back to union (first sync / remote not yet seeded).
+      var _rvIds = new Set((remote.vehicles||[]).map(function(v){return v.id;}));
       var localDocs = state.data.documents || [];
       var merged = {
-        vehicles:    mergeById(state.data.vehicles    || [], remote.vehicles    || []),
+        vehicles: (remote.vehicles && remote.vehicles.length > 0)
+          ? mergeById(remote.vehicles, (state.data.vehicles||[]).filter(function(v){ return _rvIds.has(v.id); }))
+          : mergeById(state.data.vehicles||[], remote.vehicles||[]),
         documents:   mergeById(localDocs,                    remote.documents   || []),
         maintenance: mergeById(state.data.maintenance || [], remote.maintenance || []),
         fuel:        mergeById(state.data.fuel        || [], remote.fuel        || []),
@@ -1507,16 +1512,11 @@
 
     window.addEventListener('supabase:session', function(e) {
       if (!e.detail || !isBogdan()) return;
-      // Push local IDB data now that the Supabase JS client is authenticated.
-      // loadFromIDB runs before session is ready, so pushToSupabase silently no-ops there.
-      // This ensures data from the main browser reaches Supabase for other browsers to pull.
-      if (state.data.vehicles.length || state.data.documents.length ||
-          state.data.maintenance.length || state.data.fuel.length || (state.data.odoLogs||[]).length) {
-        var _sync = stripFileData(state.data);
-        pushToSupabase(_sync);
-        // Also update localStorage so the CF Pages path has it too
-        try { localStorage.setItem('homer-car', JSON.stringify(_sync)); } catch(_) {}
-      }
+      // Pull-first: applyRemote handles both cases —
+      //   remote=null  → push local (first sync / Supabase wiped)
+      //   remote=data  → merge-intersection + push (respects cloud deletions)
+      // Pushing local BEFORE pulling caused vehicle resurrection: stale IDB data
+      // (with a deleted vehicle) overwrote the Android-pushed cloud state.
       pullFromSupabase(applyRemote);
     });
 

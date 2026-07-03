@@ -1333,6 +1333,7 @@ document.addEventListener('DOMContentLoaded', function(){
           // Poll at 500ms so we never miss a second; derive remaining from wall clock (no drift,
           // works correctly even when multiple tabs are open simultaneously)
           tick=setInterval(()=>{
+              if(!tick) return; // guard: stale queued callback after clearInterval (prevents double-advance race with visibilitychange)
               var left = Math.floor((state.endTime - Date.now()) / 1000);
               if(left === state.remaining) return;
               state.remaining = left;
@@ -1422,9 +1423,8 @@ document.addEventListener('DOMContentLoaded', function(){
         list.forEach((t,i)=>{
           const li=document.createElement('li');
           li.className = t.done?'done':'';
-          li.innerHTML= `<input type="checkbox" data-i="${i}" ${t.done?'checked':''}>
-            <span style="flex:1">${t.text}</span>
-            <button class="btn ghost" data-act="del" data-i="${i}">Delete</button>`;
+          li.innerHTML= `<input type="checkbox" data-i="${i}" ${t.done?'checked':''}><span style="flex:1"></span><button class="btn ghost" data-act="del" data-i="${i}">Delete</button>`;
+          li.querySelector('span').textContent = t.text;
           taskList.appendChild(li);
         });
         window.dispatchEvent(new Event('tasks-changed'));
@@ -1665,7 +1665,7 @@ function fmtMMSS(totalSeconds){ const s=Math.max(0,Math.floor(totalSeconds)); co
       if(done.length===0) doneCard.style.display='none';
       else{
         doneCard.style.display='block';
-        done.forEach(t=>{ const row=document.createElement('div'); row.className='done-item'; row.innerHTML=`<span>${t.text}</span><span class="pill">${new Date(t.ts||Date.now()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>`; doneList.appendChild(row); });
+        done.forEach(t=>{ const row=document.createElement('div'); row.className='done-item'; row.innerHTML=`<span></span><span class="pill">${new Date(t.ts||Date.now()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>`; row.querySelector('span').textContent=t.text; doneList.appendChild(row); });
       }
     }
 
@@ -1705,7 +1705,7 @@ const tracks = {
   fire:  { id:"UgHKb_7884o", btn:"btn-fire",  vol:"vol-fire",  labelPlay:"▶️ Play Fireplace", labelPause:"⏸️ Pause Fireplace", holder:"yt-fire", isPlaying: false },
   rain:  { id:"mPZkdNFkNps", btn:"btn-rain",  vol:"vol-rain",  labelPlay:"▶️ Play Rain", labelPause:"⏸️ Pause Rain", holder:"yt-rain", isPlaying: false },
   rainywindow: { id:"Dx5qFachd3A", btn:"btn-rainywindow", vol:"vol-rainywindow", labelPlay:"▶️ Play Jazz", labelPause:"⏸️ Pause Jazz", holder:"yt-rainywindow", isPlaying: false },
-  cafe:  { id:"dH04H2oMEUg", btn:"btn-cafe",  vol:"vol-cafe",  labelPlay:"▶️ Play Music for Coding", labelPause:"⏸️ Pause Music for Coding", holder:"yt-cafe", isPlaying: false },
+  cafe:  { id:"XOYI25xdrlg", btn:"btn-cafe",  vol:"vol-cafe",  labelPlay:"▶️ Play Music for Coding", labelPause:"⏸️ Pause Music for Coding", holder:"yt-cafe", isPlaying: false },
   lofi:  { id:"1Tl2FtV06qo", btn:"btn-lofi",  vol:"vol-lofi",  labelPlay:"▶️ Play Lo-Fi", labelPause:"⏸️ Pause Lo-Fi", holder:"yt-lofi", isPlaying: false },
   wind: { id:"sGkh1W5cbH4", btn:"btn-wind", vol:"vol-wind", labelPlay:"▶️ Play Wind", labelPause:"⏸️ Pause Wind", holder:"yt-wind", isPlaying: false },
   synthwave: { id:"4xDzrJKXOOY", btn:"btn-synthwave", vol:"vol-synthwave", labelPlay:"▶️ Play Synthwave", labelPause:"⏸️ Pause Synthwave", holder:"yt-synthwave", isPlaying: false },
