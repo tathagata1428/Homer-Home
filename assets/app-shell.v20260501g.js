@@ -1248,6 +1248,8 @@ document.addEventListener('DOMContentLoaded', function(){
         var _left=Math.floor((state.endTime - Date.now())/1000);
         if(_left > 0){ state.remaining = _left; } else { state.remaining = 0; }
       }
+      // If timer ended while page was away (remaining stuck at 0), reset to full duration
+      if(!state.running && state.remaining <= 0){ state.remaining = durFor(state.mode); }
       elSetFocus.value=settings.focus; elSetShort.value=settings.short; elSetLong.value=settings.long;
       elMode.textContent=cap(state.mode); updateTime(); updateRing(); updateMeta();
       // Auto-resume timer if it was running before the page refresh
@@ -1365,6 +1367,17 @@ document.addEventListener('DOMContentLoaded', function(){
       }
 
       function advance(isSkip = false){
+        // Multi-tab dedup: if another tab already advanced within 900ms, stop our tick and let
+        // the storage event sync our state — prevents double-sound and double-count
+        if(!isSkip){
+          var _advNow = Date.now();
+          var _lastAdv = parseInt(localStorage.getItem('pom.adv.ts') || '0', 10);
+          if(_advNow - _lastAdv < 900){
+            clearInterval(tick); tick = null;
+            return;
+          }
+          localStorage.setItem('pom.adv.ts', String(_advNow));
+        }
         if(state.mode==='focus'){
           state.pomodoros++;
           if(!isSkip) addFocusTime(settings.focus);
@@ -9185,7 +9198,7 @@ let tvWidgetCreated = false;
     'homer-oc-config-work':     'ls:homer-oc-config-work',
     'pom.settings.v1':          'ls:pom-settings',
     'pom.tasks.v1':             'ls:pom-tasks',
-    'pom.state.v1':             'ls:pom-state',
+    // pom.state.v1 intentionally excluded — timer state is local-only; sync would overwrite it with stale endTime/remaining from other devices
     'homer-links':              'ls:homer-links',
     'homer-cal-ics':            'ls:homer-cal-ics',
     'homer-cal-events':         'ls:homer-cal-events',
