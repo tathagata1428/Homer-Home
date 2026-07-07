@@ -1339,7 +1339,13 @@ document.addEventListener('DOMContentLoaded', function(){
               var left = Math.floor((state.endTime - Date.now()) / 1000);
               if(left === state.remaining) return;
               state.remaining = left;
-              if(state.remaining<=0){ advance(false); return; }
+              if(state.remaining<=0){
+                  // Multi-tab dedup: only the first tab to fire claims the advance
+                  var _tNow=Date.now(), _tLast=parseInt(localStorage.getItem('pom.adv.ts')||'0',10);
+                  if(_tNow-_tLast<900){ clearInterval(tick); tick=null; return; }
+                  localStorage.setItem('pom.adv.ts',String(_tNow));
+                  advance(false); return;
+              }
               updateTime(); updateRing();
               window.dispatchEvent(new Event('pom-tick'));
           },500);
@@ -1367,17 +1373,6 @@ document.addEventListener('DOMContentLoaded', function(){
       }
 
       function advance(isSkip = false){
-        // Multi-tab dedup: if another tab already advanced within 900ms, stop our tick and let
-        // the storage event sync our state — prevents double-sound and double-count
-        if(!isSkip){
-          var _advNow = Date.now();
-          var _lastAdv = parseInt(localStorage.getItem('pom.adv.ts') || '0', 10);
-          if(_advNow - _lastAdv < 900){
-            clearInterval(tick); tick = null;
-            return;
-          }
-          localStorage.setItem('pom.adv.ts', String(_advNow));
-        }
         if(state.mode==='focus'){
           state.pomodoros++;
           if(!isSkip) addFocusTime(settings.focus);
