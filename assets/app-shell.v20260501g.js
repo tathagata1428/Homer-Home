@@ -1218,7 +1218,7 @@ function renderQuote(q) {
 
 document.addEventListener('DOMContentLoaded', function(){
       const PKEY='pom.settings.v1', TKEY='pom.tasks.v1', SKEY='pom.state.v1', DKEY='pom.today.v1';
-      const DEFAULTS={focus:25,short:5,long:15,longEvery:4};
+      const DEFAULTS={focus:25,short:5,long:25,longEvery:4};
       const elTime=document.getElementById('pom-time');
       const elRing=document.getElementById('pom-ring');
       const elMode=document.getElementById('pom-mode');
@@ -1241,11 +1241,11 @@ document.addEventListener('DOMContentLoaded', function(){
       function loadJSON(k,def){ try{ var v=JSON.parse(localStorage.getItem(k)||JSON.stringify(def)); return (v!==null&&typeof v==='object')?v:def; }catch{return def;} }
       function saveJSON(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
 
-      const settings=loadJSON(PKEY,{focus:25, short:5, long:15, longEvery:4});
+      const settings=loadJSON(PKEY,{focus:25, short:5, long:25, longEvery:4});
       // Sanitize: clamp all durations to ≥1 min in case a backup restored corrupted values (e.g. 0)
       settings.focus    = Math.max(1, parseInt(settings.focus)    || 25);
       settings.short    = Math.max(1, parseInt(settings.short)    || 5);
-      settings.long     = Math.max(1, parseInt(settings.long)     || 15);
+      settings.long     = Math.max(1, parseInt(settings.long)     || 25);
       settings.longEvery= Math.max(1, parseInt(settings.longEvery)|| 4);
       const state=loadJSON(SKEY,{mode:'focus', remaining:settings.focus*60, running:false, pomodoros:0, endTime:0});
       // Cross-device sync: recalculate remaining from absolute endTime
