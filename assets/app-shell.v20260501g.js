@@ -1238,7 +1238,7 @@ document.addEventListener('DOMContentLoaded', function(){
       const btnReset=document.getElementById('pom-reset');
       const btnSkip=document.getElementById('pom-skip');
 
-      function loadJSON(k,def){ try{ return JSON.parse(localStorage.getItem(k)||JSON.stringify(def)); }catch{return def;} }
+      function loadJSON(k,def){ try{ var v=JSON.parse(localStorage.getItem(k)||JSON.stringify(def)); return (v!==null&&typeof v==='object')?v:def; }catch{return def;} }
       function saveJSON(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
 
       const settings=loadJSON(PKEY,{focus:25, short:5, long:15, longEvery:4});
@@ -1341,8 +1341,9 @@ document.addEventListener('DOMContentLoaded', function(){
               state.remaining = left;
               if(state.remaining<=0){
                   // Multi-tab dedup: only the first tab to fire claims the advance
+                  // FIX: guard against clock drift (_tLast in future → diff is negative → falsely < 900)
                   var _tNow=Date.now(), _tLast=parseInt(localStorage.getItem('pom.adv.ts')||'0',10);
-                  if(_tNow-_tLast<900){ clearInterval(tick); tick=null; return; }
+                  if(_tLast>0 && _tNow>=_tLast && _tNow-_tLast<900){ clearInterval(tick); tick=null; return; }
                   localStorage.setItem('pom.adv.ts',String(_tNow));
                   advance(false); return;
               }
@@ -1404,7 +1405,11 @@ document.addEventListener('DOMContentLoaded', function(){
       }
 
       // Safe JS Event listeners that rely on CSS for the visual pop
-      btnStart.addEventListener('click',start);
+      // FIX: if remaining≤0 (stuck/expired), advance directly instead of creating a tick
+      // that immediately hits the dedup guard, which leaves the timer frozen at 00:00
+      btnStart.addEventListener('click', function(){
+          if(state.remaining<=0){ state.running=true; advance(false); } else { start(); }
+      });
       btnPause.addEventListener('click',pause);
       btnReset.addEventListener('click',reset);
       btnSkip.addEventListener('click',skip);
