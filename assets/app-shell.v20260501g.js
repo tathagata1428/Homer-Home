@@ -9187,7 +9187,10 @@ let tvWidgetCreated = false;
     BACKUP_LOCAL_SAVE_TS_KEY, BACKUP_DB_TS_KEY, BACKUP_JOEY_TS_KEY, BACKUP_DRIVE_TS_KEY, BACKUP_EMERGENCY_DRIVE_TS_KEY,
     BACKUP_LAST_RESTORE_TS_KEY, BACKUP_LAST_RESTORE_SOURCE_KEY
   ];
-  var LOCAL_ONLY_BACKUP_KEYS = ['homer-pre-restore-backup', 'homer-pre-restore-ts', 'homer-field-sync-version', 'homer-sync-device-id', 'homer-quotes-seen'];
+  var LOCAL_ONLY_BACKUP_KEYS = ['homer-pre-restore-backup', 'homer-pre-restore-ts', 'homer-field-sync-version', 'homer-sync-device-id', 'homer-quotes-seen',
+    // pom.state.v1 must never be restored from backup — it contains running/endTime state
+    // that causes the timer to appear stuck at 00:00 on any device that restores
+    'pom.state.v1', 'pom.adv.ts', 'pom.today.v1'];
   var LOCAL_ONLY_BACKUP_PREFIXES = ['homer-oc-chat-cache:', 'homer-oc-chat-cleared:'];
   var BACKUP_LOCALSTORAGE_KEYS = LS_KEYS.slice();
   // Include auth identity keys so they sync to mobile devices (no credentials, just username + permissions)
