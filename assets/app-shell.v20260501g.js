@@ -1242,6 +1242,11 @@ document.addEventListener('DOMContentLoaded', function(){
       function saveJSON(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
 
       const settings=loadJSON(PKEY,{focus:25, short:5, long:15, longEvery:4});
+      // Sanitize: clamp all durations to ≥1 min in case a backup restored corrupted values (e.g. 0)
+      settings.focus    = Math.max(1, parseInt(settings.focus)    || 25);
+      settings.short    = Math.max(1, parseInt(settings.short)    || 5);
+      settings.long     = Math.max(1, parseInt(settings.long)     || 15);
+      settings.longEvery= Math.max(1, parseInt(settings.longEvery)|| 4);
       const state=loadJSON(SKEY,{mode:'focus', remaining:settings.focus*60, running:false, pomodoros:0, endTime:0});
       // Cross-device sync: recalculate remaining from absolute endTime
       if(state.running && state.endTime){
@@ -9150,7 +9155,9 @@ let tvWidgetCreated = false;
   var vaultMirrorRefreshAt = 0;
   var LS_KEYS = [
     'motivator.savedQuotes.v1',
-    'pom.settings.v1', 'pom.tasks.v1', 'pom.state.v1',
+    'pom.settings.v1', 'pom.tasks.v1',
+    // pom.state.v1 intentionally excluded from backup — timer state is ephemeral;
+    // restoring it causes the timer to appear stuck at 00:00 with stale running/endTime values
     'homer-brain-dump', 'homer-links', 'homer-zen-goal',
     'homer-vault-mode', 'homer-oc-mode', 'homer-oc-provider',
     'homer-cal-ics', 'homer-cal-events', 'homer-heartbeats',
@@ -10526,7 +10533,7 @@ let tvWidgetCreated = false;
   // Keys that represent real user data (not auth/sync metadata)
   var DATA_KEYS = [
     'motivator.savedQuotes.v1',
-    'pom.settings.v1', 'pom.tasks.v1', 'pom.state.v1',
+    'pom.settings.v1', 'pom.tasks.v1',
     'homer-brain-dump', 'homer-links', 'homer-zen-goal',
     'homer-cal-events', 'homer-cal-ics',
     'homer-cal-events:personal', 'homer-cal-events:work',
