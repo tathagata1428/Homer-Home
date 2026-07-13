@@ -1253,8 +1253,10 @@ document.addEventListener('DOMContentLoaded', function(){
         var _left=Math.floor((state.endTime - Date.now())/1000);
         if(_left > 0){ state.remaining = _left; } else { state.remaining = 0; }
       }
-      // If timer ended while page was away (remaining stuck at 0), reset to full duration
-      if(!state.running && state.remaining <= 0){ state.remaining = durFor(state.mode); }
+      // If timer ended while page was away (remaining stuck at 0), reset to full duration.
+      // Covers both running=false (stopped) and running=true (expired while tab was closed/reloading).
+      // Without this, start() is called with remaining=0, saving bad state that persists across reloads.
+      if(state.remaining <= 0){ state.remaining = durFor(state.mode); state.running = false; state.endTime = 0; }
       elSetFocus.value=settings.focus; elSetShort.value=settings.short; elSetLong.value=settings.long;
       elMode.textContent=cap(state.mode); updateTime(); updateRing(); updateMeta();
       // Auto-resume timer if it was running before the page refresh
