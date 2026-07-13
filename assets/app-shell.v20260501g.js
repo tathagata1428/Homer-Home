@@ -9578,6 +9578,9 @@ let tvWidgetCreated = false;
   }
   function applySyncedFieldValue(fieldId, value, opts){
     opts = opts || {};
+    // Guard: never apply synced values for local-only keys (e.g. pom.state.v1 may exist
+    // in Supabase field_state from an old code version — must never overwrite local timer state)
+    if(LOCAL_ONLY_BACKUP_KEYS.indexOf(fieldId) >= 0) return;
     var nextValue = String(value == null ? '' : value);
     var focusLabConfig = getFocusLabSyncConfig(fieldId);
     if(focusLabConfig){
