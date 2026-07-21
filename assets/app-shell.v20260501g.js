@@ -1218,7 +1218,7 @@ function renderQuote(q) {
 
 document.addEventListener('DOMContentLoaded', function(){
       const PKEY='pom.settings.v1', TKEY='pom.tasks.v1', SKEY='pom.state.v1', DKEY='pom.today.v1';
-      const DEFAULTS={focus:25,short:5,long:25,longEvery:4};
+      const DEFAULTS={focus:25,short:5,long:25,longEvery:4,auto:false};
       const elTime=document.getElementById('pom-time');
       const elRing=document.getElementById('pom-ring');
       const elMode=document.getElementById('pom-mode');
@@ -1247,6 +1247,7 @@ document.addEventListener('DOMContentLoaded', function(){
       settings.short    = Math.max(1, parseInt(settings.short)    || 5);
       settings.long     = Math.max(1, parseInt(settings.long)     || 25);
       settings.longEvery= Math.max(1, parseInt(settings.longEvery)|| 4);
+      settings.auto     = !!settings.auto;
       const state=loadJSON(SKEY,{mode:'focus', remaining:settings.focus*60, running:false, pomodoros:0, endTime:0});
       // Cross-device sync: recalculate remaining from absolute endTime
       if(state.running && state.endTime){
@@ -1258,6 +1259,7 @@ document.addEventListener('DOMContentLoaded', function(){
       // Without this, start() is called with remaining=0, saving bad state that persists across reloads.
       if(state.remaining <= 0){ state.remaining = durFor(state.mode); state.running = false; state.endTime = 0; }
       elSetFocus.value=settings.focus; elSetShort.value=settings.short; elSetLong.value=settings.long;
+      if(elAuto) elAuto.checked = settings.auto;
       elMode.textContent=cap(state.mode); updateTime(); updateRing(); updateMeta();
       // Auto-resume timer if it was running before the page refresh
       if(state.running){ start(); }
@@ -1370,6 +1372,7 @@ document.addEventListener('DOMContentLoaded', function(){
           pause();
           Object.assign(settings, DEFAULTS);
           elSetFocus.value=settings.focus; elSetShort.value=settings.short; elSetLong.value=settings.long;
+          if(elAuto) elAuto.checked = settings.auto;
           saveJSON(PKEY, settings);
           state.pomodoros = 0;
           setMode('focus');
@@ -1397,7 +1400,7 @@ document.addEventListener('DOMContentLoaded', function(){
             sfxDoh();
           }
         }
-        updateMeta(); save(); clearInterval(tick); tick=null; if(state.running || (elAuto && elAuto.checked)) start();
+        updateMeta(); save(); clearInterval(tick); tick=null; if(state.running || settings.auto) start();
       }
       function notify(title,body){
         if(!elNotify?.checked) return;
@@ -1430,6 +1433,7 @@ document.addEventListener('DOMContentLoaded', function(){
           if(!state.running){ state.remaining=durFor(state.mode); updateTime(); updateRing(); save(); }
         });
       });
+      if(elAuto) elAuto.addEventListener('change',function(){ settings.auto=elAuto.checked; saveJSON(PKEY,settings); });
 
       /* Tasks */
       const taskInput=document.getElementById('task-input');
