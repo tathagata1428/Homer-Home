@@ -1503,14 +1503,17 @@ document.addEventListener('DOMContentLoaded', function(){
             state.remaining = 0;
             if(tick){ clearInterval(tick); tick=null; }
             advance(false);
-          } else if(left !== state.remaining || fresh.mode !== state.mode){
-            state.mode = fresh.mode;
-            state.pomodoros = fresh.pomodoros;
-            state.remaining = left;
-            state.endTime = fresh.endTime;
-            state.running = fresh.running;
-            elMode.textContent = cap(state.mode);
-            updateTime(); updateRing(); updateMeta();
+          } else {
+            if(left !== state.remaining || fresh.mode !== state.mode){
+              state.mode = fresh.mode;
+              state.pomodoros = fresh.pomodoros;
+              state.remaining = left;
+              state.endTime = fresh.endTime;
+              state.running = fresh.running;
+              elMode.textContent = cap(state.mode);
+              updateTime(); updateRing(); updateMeta();
+            }
+            // iOS catch-all: restart tick if iOS background-throttling killed the interval
             if(state.running && !tick) start();
           }
         } else if(!fresh.running && state.running){
@@ -1528,6 +1531,22 @@ document.addEventListener('DOMContentLoaded', function(){
           elMode.textContent = cap(state.mode);
           updateTime(); updateRing(); updateMeta();
         }
+      });
+
+      // iOS PWA: pageshow fires on bfcache restore when visibilitychange is skipped
+      window.addEventListener('pageshow', function(){
+        if(!state.running) return;
+        var fresh = loadJSON(SKEY, null);
+        if(fresh && fresh.running && fresh.endTime){
+          var left = Math.floor((fresh.endTime - Date.now()) / 1000);
+          if(left <= 0){ if(tick){clearInterval(tick);tick=null;} advance(false); }
+          else { state.remaining = left; state.endTime = fresh.endTime; if(!tick) start(); }
+        } else if(!tick) { start(); }
+      });
+
+      // iOS catch-all: window focus fires reliably in PWA home-screen mode
+      window.addEventListener('focus', function(){
+        if(state.running && !tick) start();
       });
 
       // Listen for storage changes from other tabs on same device
@@ -9194,9 +9213,8 @@ let tvWidgetCreated = false;
     BACKUP_LAST_RESTORE_TS_KEY, BACKUP_LAST_RESTORE_SOURCE_KEY
   ];
   var LOCAL_ONLY_BACKUP_KEYS = ['homer-pre-restore-backup', 'homer-pre-restore-ts', 'homer-field-sync-version', 'homer-sync-device-id', 'homer-quotes-seen',
-    // pom.state.v1 must never be restored from backup — it contains running/endTime state
-    // that causes the timer to appear stuck at 00:00 on any device that restores
-    'pom.state.v1', 'pom.adv.ts', 'pom.today.v1'];
+    // pom.state.v1/settings.v1 are per-device — never restore from backup (state causes stuck timer, settings are local preference)
+    'pom.state.v1', 'pom.settings.v1', 'pom.adv.ts', 'pom.today.v1'];
   var LOCAL_ONLY_BACKUP_PREFIXES = ['homer-oc-chat-cache:', 'homer-oc-chat-cleared:'];
   var BACKUP_LOCALSTORAGE_KEYS = LS_KEYS.slice();
   // Include auth identity keys so they sync to mobile devices (no credentials, just username + permissions)
@@ -9212,9 +9230,9 @@ let tvWidgetCreated = false;
     'homer-oc-provider':        'ls:homer-oc-provider',
     'homer-oc-config-personal': 'ls:homer-oc-config-personal',
     'homer-oc-config-work':     'ls:homer-oc-config-work',
-    'pom.settings.v1':          'ls:pom-settings',
     'pom.tasks.v1':             'ls:pom-tasks',
-    // pom.state.v1 intentionally excluded — timer state is local-only; sync would overwrite it with stale endTime/remaining from other devices
+    // pom.settings.v1 excluded — clock settings (focus/break durations) are per-device
+    // pom.state.v1 excluded — timer running state is local-only; sync would overwrite with stale endTime/remaining
     'homer-links':              'ls:homer-links',
     'homer-cal-ics':            'ls:homer-cal-ics',
     'homer-cal-events':         'ls:homer-cal-events',
