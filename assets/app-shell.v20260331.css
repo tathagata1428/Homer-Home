@@ -2526,7 +2526,7 @@
       .site-footer{display:none!important;}
 
       /* Body: edge-to-edge, reserve safe areas for notch/Dynamic Island + bottom nav */
-      :root{--tb:50px;--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);--sal:env(safe-area-inset-left,0px);--sar:env(safe-area-inset-right,0px);--mobile-nav-clearance:calc(var(--tb) + var(--sab) + 6px);--mobile-overlay-clearance:calc(var(--tb) + var(--sab) + 108px);}
+      :root{--tb:50px;--sat:env(safe-area-inset-top,0px);--sab:min(env(safe-area-inset-bottom,0px),44px);--sal:env(safe-area-inset-left,0px);--sar:env(safe-area-inset-right,0px);--mobile-nav-clearance:calc(var(--tb) + var(--sab) + 6px);--mobile-overlay-clearance:calc(var(--tb) + var(--sab) + 108px);}
       html,body{min-height:var(--app-vh);height:var(--app-vh);}
       body{
         display:block;

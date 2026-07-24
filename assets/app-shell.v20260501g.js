@@ -13400,6 +13400,18 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var height = vv ? vv.height : window.innerHeight;
     var keyboardDelta = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
     document.documentElement.style.setProperty('--app-vh', height + 'px');
+    // iOS PWA cold-start fix: env(safe-area-inset-bottom) in the CSS :root variable
+    // may hold the Safari browser-toolbar-inclusive value (~83px) instead of the
+    // standalone home-indicator-only value (~34px). Probe it via a live DOM element
+    // (offsetHeight forces a synchronous env() re-evaluation) and override --sab.
+    try {
+      var _p = document.createElement('div');
+      _p.style.cssText = 'position:fixed;bottom:0;left:-9999px;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden;';
+      document.documentElement.appendChild(_p);
+      var _sab = Math.min(_p.offsetHeight, 44); // cap: home indicator ≤44px; Safari toolbar can report ~83px
+      _p.parentNode.removeChild(_p);
+      document.documentElement.style.setProperty('--sab', _sab + 'px');
+    } catch(e) {}
     document.body.classList.toggle('mobile-keyboard-open', keyboardDelta > 120);
     if(panelOpen) scrollMessagesToBottom(true);
   }
@@ -13571,6 +13583,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     window.visualViewport.addEventListener('resize', updateMobileViewport);
     window.visualViewport.addEventListener('scroll', updateMobileViewport);
   }
+  // PWA home-screen launch: pageshow fires after the OS has set up the standalone viewport
+  window.addEventListener('pageshow', function(){ setTimeout(updateMobileViewport, 200); });
   document.addEventListener('focusin', function(e){
     if(!isMobileShell()) return;
     var t = e.target;
