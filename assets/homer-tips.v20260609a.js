@@ -121,14 +121,14 @@
     { icon: '&#128468;', name: 'Journal + AI', desc: 'Write daily entries and get AI reflection: themes, insight, and affirmation.', tab: 'journal', isNew: false },
     { icon: '&#128197;', name: 'Weekly Review', desc: 'Auto-populated stats every week: habit rate, focus hours, journal streak, spend.', tab: null, action: 'wr', isNew: true },
     { icon: '&#128260;', name: 'Recurring Tasks', desc: 'Tasks that auto-reset on your schedule. Appears in Daily Brief when due.', tab: 'recurring', isNew: false },
-    { icon: '&#128276;', name: 'Smart Reminders', desc: 'Browser notifications for tasks and car document expiry (30 days + 7 days).', tab: 'reminders', isNew: false },
+    { icon: '&#128276;', name: 'Smart Reminders', desc: 'Browser notifications for tasks and car document expiry (30 days + 7 days).', tab: 'tools', isNew: false },
     { icon: '&#128665;', name: 'Car Tracker', desc: 'Document expiry, maintenance history, fuel logs, odometer tracking, cloud sync.', tab: 'vault', isNew: false },
     { icon: '&#128193;', name: 'Vault', desc: 'AES-encrypted notes, credentials, Kanban board, and life goals. Unlocked locally.', tab: 'vault', isNew: false },
-    { icon: '&#127919;', name: 'Focus / Pomodoro', desc: 'Timer with task list, session history, and phase-end sound cues.', tab: 'focus', isNew: false },
-    { icon: '&#128200;', name: 'Expenses & Budget', desc: 'Track income and expenses with category budgets and monthly trends.', tab: 'budget', isNew: false },
-    { icon: '&#9989;', name: 'Habits', desc: 'Daily / weekday / weekly habits with streak tracking and completion calendar.', tab: 'habits', isNew: false },
-    { icon: '&#129504;', name: 'Joey AI', desc: 'Context-aware assistant with access to your journal, habits, and memories.', tab: 'joey', isNew: false },
-    { icon: '&#128260;', name: 'Real-time Sync', desc: 'Changes sync instantly across devices via Supabase Realtime WebSocket.', tab: 'sync', isNew: false },
+    { icon: '&#127919;', name: 'Focus / Pomodoro', desc: 'Timer with task list, session history, and phase-end sound cues.', tab: 'pomodoro', isNew: false },
+    { icon: '&#128200;', name: 'Expenses & Budget', desc: 'Track income and expenses with category budgets and monthly trends.', tab: null, action: 'budget', isNew: false },
+    { icon: '&#9989;', name: 'Habits', desc: 'Daily / weekday / weekly habits with streak tracking and completion calendar.', tab: null, action: 'habits', isNew: false },
+    { icon: '&#129504;', name: 'Joey AI', desc: 'Context-aware assistant with access to your journal, habits, and memories.', tab: null, action: 'joey', isNew: false },
+    { icon: '&#128260;', name: 'Real-time Sync', desc: 'Changes sync instantly across devices via Supabase Realtime WebSocket.', tab: 'vault', isNew: false },
   ];
 
   var HOWTOS = [
@@ -310,7 +310,7 @@
       + '<div class="tips-hero-title">Tips &amp; Shortcuts</div>'
       + '<div class="tips-hero-sub">Everything Homer can do &mdash; keyboard shortcuts, feature guide, and step-by-step how-tos.</div>'
       + '</div>'
-      + '<div class="tips-version-badge">Homer v13</div>'
+      + '<div class="tips-version-badge">Homer v14.6</div>'
       + '</div>'
       + '</div>'
 
@@ -388,6 +388,9 @@
         if (action === 'sb' && window.showSB) { window.showSB(); return; }
         if (action === 'qc' && window.showQC) { window.showQC('inbox'); return; }
         if (action === 'wr' && window.showWR) { window.showWR(); return; }
+        if (action === 'budget') { var ef = document.getElementById('homer-expense-fab'); if (ef) ef.click(); return; }
+        if (action === 'habits') { var hf = document.getElementById('homer-habits-fab'); if (hf) hf.click(); return; }
+        if (action === 'joey' && typeof window._homerToggleJoeyPanel === 'function') { window._homerToggleJoeyPanel(); return; }
         if (tabTarget && typeof window._homerShowTab === 'function') {
           window._homerShowTab(tabTarget);
         }

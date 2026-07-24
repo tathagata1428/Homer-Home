@@ -13549,6 +13549,9 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   applyDesktopWindowState();
   setUnreadCount(0);
   updateMobileViewport();
+  // iOS PWA fix: re-run after layout stabilises — safe-area insets may be 0 on cold start
+  setTimeout(function(){ updateMobileViewport(); }, 400);
+  setTimeout(function(){ updateMobileViewport(); }, 1500);
   window.addEventListener('resize', function(){
     updateMobileViewport();
     if(!isMobileShell() && panel.classList.contains('oc-customized') && desktopWindowState.bounds){
