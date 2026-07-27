@@ -800,14 +800,40 @@
       color:#fff;
       margin-bottom:12px;
     }
-    .breathing-circle .breath-count{
-      font-size:1.55rem;
+    .b-ring-wrap{
+      position:relative;
+      display:grid;
+      place-items:center;
+    }
+    .b-ring-svg{
+      position:absolute;
+      width:166px; height:166px;
+      transform:rotate(-90deg);
+      pointer-events:none;
+      overflow:visible;
+    }
+    .b-ring-track{
+      fill:none;
+      stroke:rgba(255,255,255,.08);
+      stroke-width:3;
+    }
+    .b-ring-arc{
+      fill:none;
+      stroke:#60a5fa;
+      stroke-width:3;
+      stroke-linecap:round;
+    }
+    .b-phase-timer{
+      text-align:center;
+      font-size:2.2rem;
       font-weight:900;
-      line-height:1;
-      opacity:.9;
       font-variant-numeric:tabular-nums;
-      min-height:1.55rem;
-      letter-spacing:-.02em;
+      letter-spacing:-.04em;
+      line-height:1;
+      min-height:2.2rem;
+      margin:6px 0 0;
+      color:#fff;
+      transition:color .4s;
     }
     .breathing-circle .breath-inner{
       display:grid;

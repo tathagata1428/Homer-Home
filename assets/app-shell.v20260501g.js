@@ -1114,9 +1114,11 @@ function renderQuote(q) {
             { label:"Exhale", className:"b-exhale", glyph:"↓" },
             { label:"Hold", className:"b-hold-out", glyph:". . .", isHold:true }
         ];
+        const PHASE_COLORS = { 'b-inhale':'#4ade80','b-hold-in':'#fbbf24','b-exhale':'#60a5fa','b-hold-out':'#fbbf24' };
+        const ARC_CIRC = 2 * Math.PI * 66; // ≈414.7
         function renderBreathingContent(label, glyph, opts){
             var options = opts || {};
-            boxCircle.innerHTML = '<div class="breath-inner"><span class="breath-label">' + label + '</span><span class="breath-glyph">' + glyph + '</span><span class="breath-count" id="b-count"></span></div>';
+            boxCircle.innerHTML = '<div class="breath-inner"><span class="breath-label">' + label + '</span><span class="breath-glyph">' + glyph + '</span></div>';
             boxCircle.classList.toggle('is-hold', !!options.isHold);
         }
         const bStepEls = document.querySelectorAll('#breath-steps .bstep');
@@ -1124,17 +1126,35 @@ function renderQuote(q) {
             bStepEls.forEach(function(el){ el.classList.toggle('active', parseInt(el.dataset.step) === activeIdx); });
         }
         let bCurrentPhase = -1, bCountTimer = null;
-        function startPhaseCountdown(){
+        function startPhaseCountdown(phase){
             if(bCountTimer) clearInterval(bCountTimer);
             var secs = Math.round(BREATH_PHASE_MS / 1000);
-            var el = document.getElementById('b-count');
-            if(el) el.textContent = secs;
+            var timerEl = document.getElementById('b-phase-timer');
+            var arcEl   = document.getElementById('b-ring-arc');
+            var color = PHASE_COLORS[phase.className] || '#fff';
+            if(timerEl){ timerEl.textContent = secs; timerEl.style.color = color; }
+            if(arcEl){
+                arcEl.style.stroke = color;
+                arcEl.style.strokeDasharray = ARC_CIRC;
+                arcEl.style.strokeDashoffset = 0;
+                arcEl.style.transition = 'none';
+                void arcEl.getBoundingClientRect();
+                arcEl.style.transition = 'stroke-dashoffset ' + BREATH_PHASE_MS + 'ms linear';
+                arcEl.style.strokeDashoffset = ARC_CIRC;
+            }
             bCountTimer = setInterval(function(){
                 secs--;
-                var e = document.getElementById('b-count');
-                if(e) e.textContent = secs > 0 ? secs : '';
+                var t = document.getElementById('b-phase-timer');
+                if(t) t.textContent = secs > 0 ? secs : '';
                 if(secs <= 0){ clearInterval(bCountTimer); bCountTimer = null; }
             }, 1000);
+        }
+        function stopPhaseCountdown(){
+            if(bCountTimer){ clearInterval(bCountTimer); bCountTimer = null; }
+            var timerEl = document.getElementById('b-phase-timer');
+            var arcEl   = document.getElementById('b-ring-arc');
+            if(timerEl) timerEl.textContent = '';
+            if(arcEl){ arcEl.style.transition = 'none'; arcEl.style.strokeDashoffset = 0; }
         }
         function applyBreathingPhase(phase, phaseIndex){
             bCurrentPhase = typeof phaseIndex === 'number' ? phaseIndex : bCurrentPhase;
@@ -1144,12 +1164,12 @@ function renderQuote(q) {
             void boxCircle.offsetWidth;
             boxCircle.classList.add(phase.className);
             updateBreathSteps(bCurrentPhase);
-            startPhaseCountdown();
+            startPhaseCountdown(phase);
         }
         btnBox.addEventListener("click", () => {
             if(bInterval) {
                 clearInterval(bInterval); bInterval = null;
-                if(bCountTimer){ clearInterval(bCountTimer); bCountTimer = null; }
+                stopPhaseCountdown();
                 btnBox.textContent = "Start Breathing";
                 boxCircle.className = "breathing-circle";
                 renderBreathingContent("Ready", "•");
