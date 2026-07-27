@@ -1115,7 +1115,6 @@ function renderQuote(q) {
             { label:"Hold", className:"b-hold-out", glyph:". . .", isHold:true }
         ];
         const PHASE_COLORS = { 'b-inhale':'#4ade80','b-hold-in':'#fbbf24','b-exhale':'#60a5fa','b-hold-out':'#fbbf24' };
-        const ARC_CIRC = 2 * Math.PI * 66; // ≈414.7
         function renderBreathingContent(label, glyph, opts){
             var options = opts || {};
             boxCircle.innerHTML = '<div class="breath-inner"><span class="breath-label">' + label + '</span><span class="breath-glyph">' + glyph + '</span></div>';
@@ -1130,18 +1129,8 @@ function renderQuote(q) {
             if(bCountTimer) clearInterval(bCountTimer);
             var secs = Math.round(BREATH_PHASE_MS / 1000);
             var timerEl = document.getElementById('b-phase-timer');
-            var arcEl   = document.getElementById('b-ring-arc');
             var color = PHASE_COLORS[phase.className] || '#fff';
             if(timerEl){ timerEl.textContent = secs; timerEl.style.color = color; }
-            if(arcEl){
-                arcEl.style.stroke = color;
-                arcEl.style.strokeDasharray = ARC_CIRC;
-                arcEl.style.strokeDashoffset = 0;
-                arcEl.style.transition = 'none';
-                void arcEl.getBoundingClientRect();
-                arcEl.style.transition = 'stroke-dashoffset ' + BREATH_PHASE_MS + 'ms linear';
-                arcEl.style.strokeDashoffset = ARC_CIRC;
-            }
             bCountTimer = setInterval(function(){
                 secs--;
                 var t = document.getElementById('b-phase-timer');
@@ -1152,9 +1141,7 @@ function renderQuote(q) {
         function stopPhaseCountdown(){
             if(bCountTimer){ clearInterval(bCountTimer); bCountTimer = null; }
             var timerEl = document.getElementById('b-phase-timer');
-            var arcEl   = document.getElementById('b-ring-arc');
             if(timerEl) timerEl.textContent = '';
-            if(arcEl){ arcEl.style.transition = 'none'; arcEl.style.strokeDashoffset = 0; }
         }
         function applyBreathingPhase(phase, phaseIndex){
             bCurrentPhase = typeof phaseIndex === 'number' ? phaseIndex : bCurrentPhase;
@@ -1206,22 +1193,11 @@ function renderQuote(q) {
             }
             var _agentBCountTimer = null;
             var _ACOLORS = {'b-inhale':'#4ade80','b-hold-in':'#fbbf24','b-exhale':'#60a5fa','b-hold-out':'#fbbf24'};
-            var _ACIRC = 2 * Math.PI * 66;
             function agentUpdateUI(phase, idx){
                 var color = _ACOLORS[phase.className] || '#fff';
                 var timerEl = document.getElementById('b-phase-timer');
-                var arcEl   = document.getElementById('b-ring-arc');
                 var stepEls = document.querySelectorAll('#breath-steps .bstep');
                 if(timerEl){ timerEl.textContent = 4; timerEl.style.color = color; }
-                if(arcEl){
-                    arcEl.style.stroke = color;
-                    arcEl.style.strokeDasharray = _ACIRC;
-                    arcEl.style.strokeDashoffset = 0;
-                    arcEl.style.transition = 'none';
-                    void arcEl.getBoundingClientRect();
-                    arcEl.style.transition = 'stroke-dashoffset 4000ms linear';
-                    arcEl.style.strokeDashoffset = _ACIRC;
-                }
                 stepEls.forEach(function(el){ el.classList.toggle('active', parseInt(el.dataset.step) === idx); });
                 if(_agentBCountTimer) clearInterval(_agentBCountTimer);
                 var s = 4;
@@ -1235,10 +1211,8 @@ function renderQuote(q) {
             function agentResetUI(){
                 if(_agentBCountTimer){ clearInterval(_agentBCountTimer); _agentBCountTimer = null; }
                 var timerEl = document.getElementById('b-phase-timer');
-                var arcEl   = document.getElementById('b-ring-arc');
                 var stepEls = document.querySelectorAll('#breath-steps .bstep');
                 if(timerEl) timerEl.textContent = '';
-                if(arcEl){ arcEl.style.transition = 'none'; arcEl.style.strokeDashoffset = _ACIRC; }
                 stepEls.forEach(function(el){ el.classList.remove('active'); });
             }
             function applyAgentBreathingPhase(phase, phaseIndex){

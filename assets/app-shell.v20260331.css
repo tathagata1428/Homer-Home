@@ -800,32 +800,6 @@
       color:#fff;
       margin-bottom:12px;
     }
-    .b-ring-wrap{
-      position:relative;
-      width:166px; height:166px;
-      display:grid;
-      place-items:center;
-    }
-    .b-ring-svg{
-      position:absolute;
-      inset:0;
-      width:100%; height:100%;
-      transform:rotate(-90deg);
-      pointer-events:none;
-    }
-    .b-ring-track{
-      fill:none;
-      stroke:rgba(255,255,255,.08);
-      stroke-width:3;
-    }
-    .b-ring-arc{
-      fill:none;
-      stroke:#60a5fa;
-      stroke-width:3;
-      stroke-linecap:round;
-      stroke-dasharray:414.7;
-      stroke-dashoffset:414.7;
-    }
     .b-phase-timer{
       text-align:center;
       font-size:2.2rem;
