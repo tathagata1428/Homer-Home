@@ -1204,6 +1204,43 @@ function renderQuote(q) {
                 boxCircle.innerHTML = '<div class="breath-inner"><span class="breath-label">' + label + '</span><span class="breath-glyph">' + glyph + '</span></div>';
                 boxCircle.classList.toggle('is-hold', !!options.isHold);
             }
+            var _agentBCountTimer = null;
+            var _ACOLORS = {'b-inhale':'#4ade80','b-hold-in':'#fbbf24','b-exhale':'#60a5fa','b-hold-out':'#fbbf24'};
+            var _ACIRC = 2 * Math.PI * 66;
+            function agentUpdateUI(phase, idx){
+                var color = _ACOLORS[phase.className] || '#fff';
+                var timerEl = document.getElementById('b-phase-timer');
+                var arcEl   = document.getElementById('b-ring-arc');
+                var stepEls = document.querySelectorAll('#breath-steps .bstep');
+                if(timerEl){ timerEl.textContent = 4; timerEl.style.color = color; }
+                if(arcEl){
+                    arcEl.style.stroke = color;
+                    arcEl.style.strokeDasharray = _ACIRC;
+                    arcEl.style.strokeDashoffset = 0;
+                    arcEl.style.transition = 'none';
+                    void arcEl.getBoundingClientRect();
+                    arcEl.style.transition = 'stroke-dashoffset 4000ms linear';
+                    arcEl.style.strokeDashoffset = _ACIRC;
+                }
+                stepEls.forEach(function(el){ el.classList.toggle('active', parseInt(el.dataset.step) === idx); });
+                if(_agentBCountTimer) clearInterval(_agentBCountTimer);
+                var s = 4;
+                _agentBCountTimer = setInterval(function(){
+                    s--;
+                    var t = document.getElementById('b-phase-timer');
+                    if(t) t.textContent = s > 0 ? s : '';
+                    if(s <= 0){ clearInterval(_agentBCountTimer); _agentBCountTimer = null; }
+                }, 1000);
+            }
+            function agentResetUI(){
+                if(_agentBCountTimer){ clearInterval(_agentBCountTimer); _agentBCountTimer = null; }
+                var timerEl = document.getElementById('b-phase-timer');
+                var arcEl   = document.getElementById('b-ring-arc');
+                var stepEls = document.querySelectorAll('#breath-steps .bstep');
+                if(timerEl) timerEl.textContent = '';
+                if(arcEl){ arcEl.style.transition = 'none'; arcEl.style.strokeDashoffset = _ACIRC; }
+                stepEls.forEach(function(el){ el.classList.remove('active'); });
+            }
             function applyAgentBreathingPhase(phase, phaseIndex){
                 agentBreathPhase = typeof phaseIndex === 'number' ? phaseIndex : agentBreathPhase;
                 boxCircle.className = "breathing-circle";
@@ -1211,6 +1248,7 @@ function renderQuote(q) {
                 boxCircle.style.setProperty('--breath-duration', '4000ms');
                 void boxCircle.offsetWidth;
                 boxCircle.classList.add(phase.className);
+                agentUpdateUI(phase, agentBreathPhase);
             }
             function stopBreathing(){
                 if(bInterval) {
@@ -1218,6 +1256,7 @@ function renderQuote(q) {
                     bInterval = null;
                 }
                 agentBreathPhase = -1;
+                agentResetUI();
                 cleanBtn.textContent = "Start Breathing";
                 boxCircle.className = "breathing-circle";
                 renderAgentBreathingContent("Ready", "•");
