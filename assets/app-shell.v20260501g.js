@@ -972,26 +972,55 @@ function renderQuote(q) {
 
     /* 5. FOCUS LAB LOGIC */
 
-    // Focus Dot (Trataka) Logic - FIXED
+    // Focus Dot (Trataka) Logic
     const btnFocusDot = document.getElementById("btn-focus-dot");
     const focusOverlay = document.getElementById("focus-overlay");
 
     if(btnFocusDot && focusOverlay) {
-      btnFocusDot.addEventListener("click", () => {
-        focusOverlay.style.display = "grid";
-        // Try fullscreen
-        if(document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen().catch(e => console.log(e));
-        }
-      });
+      let _focusCountdown = null;
 
-      focusOverlay.addEventListener("click", () => {
-        focusOverlay.style.display = "none";
-        // Exit fullscreen
-        if(document.exitFullscreen) {
-            document.exitFullscreen().catch(e => console.log(e));
+      function openTrataka() {
+        const timerEl = document.getElementById("focus-timer");
+        const hintEl  = document.getElementById("focus-hint");
+        const guideEl = document.getElementById("focus-guidance");
+
+        focusOverlay.style.display = "grid";
+        if(timerEl) timerEl.textContent = "0:30";
+        if(hintEl)  hintEl.classList.remove("fade-out");
+        if(guideEl) guideEl.classList.remove("fade-out");
+
+        // Fade guidance after 3s, hint after 5s
+        setTimeout(() => { if(guideEl) guideEl.classList.add("fade-out"); }, 3000);
+        setTimeout(() => { if(hintEl)  hintEl.classList.add("fade-out");  }, 5000);
+
+        // 30s countdown
+        let secs = 30;
+        clearInterval(_focusCountdown);
+        _focusCountdown = setInterval(() => {
+          secs--;
+          if(timerEl) timerEl.textContent = "0:" + String(secs).padStart(2, "0");
+          if(secs <= 0) {
+            clearInterval(_focusCountdown);
+            if(timerEl) timerEl.textContent = "";
+            setTimeout(closeTrataka, 1000);
+          }
+        }, 1000);
+
+        if(document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen().catch(e => console.log(e));
         }
-      });
+      }
+
+      function closeTrataka() {
+        clearInterval(_focusCountdown);
+        focusOverlay.style.display = "none";
+        if(document.exitFullscreen) {
+          document.exitFullscreen().catch(e => console.log(e));
+        }
+      }
+
+      btnFocusDot.addEventListener("click", openTrataka);
+      focusOverlay.addEventListener("click", closeTrataka);
     }
 
     // Zen Mode Logic - FIXED
@@ -1087,10 +1116,26 @@ function renderQuote(q) {
         ];
         function renderBreathingContent(label, glyph, opts){
             var options = opts || {};
-            boxCircle.innerHTML = '<div class="breath-inner"><span class="breath-label">' + label + '</span><span class="breath-glyph">' + glyph + '</span></div>';
+            boxCircle.innerHTML = '<div class="breath-inner"><span class="breath-label">' + label + '</span><span class="breath-glyph">' + glyph + '</span><span class="breath-count" id="b-count"></span></div>';
             boxCircle.classList.toggle('is-hold', !!options.isHold);
         }
-        let bCurrentPhase = -1;
+        const bStepEls = document.querySelectorAll('#breath-steps .bstep');
+        function updateBreathSteps(activeIdx){
+            bStepEls.forEach(function(el){ el.classList.toggle('active', parseInt(el.dataset.step) === activeIdx); });
+        }
+        let bCurrentPhase = -1, bCountTimer = null;
+        function startPhaseCountdown(){
+            if(bCountTimer) clearInterval(bCountTimer);
+            var secs = Math.round(BREATH_PHASE_MS / 1000);
+            var el = document.getElementById('b-count');
+            if(el) el.textContent = secs;
+            bCountTimer = setInterval(function(){
+                secs--;
+                var e = document.getElementById('b-count');
+                if(e) e.textContent = secs > 0 ? secs : '';
+                if(secs <= 0){ clearInterval(bCountTimer); bCountTimer = null; }
+            }, 1000);
+        }
         function applyBreathingPhase(phase, phaseIndex){
             bCurrentPhase = typeof phaseIndex === 'number' ? phaseIndex : bCurrentPhase;
             boxCircle.className = "breathing-circle";
@@ -1098,18 +1143,22 @@ function renderQuote(q) {
             boxCircle.style.setProperty('--breath-duration', BREATH_PHASE_MS + 'ms');
             void boxCircle.offsetWidth;
             boxCircle.classList.add(phase.className);
+            updateBreathSteps(bCurrentPhase);
+            startPhaseCountdown();
         }
         btnBox.addEventListener("click", () => {
             if(bInterval) {
                 clearInterval(bInterval); bInterval = null;
+                if(bCountTimer){ clearInterval(bCountTimer); bCountTimer = null; }
                 btnBox.textContent = "Start Breathing";
                 boxCircle.className = "breathing-circle";
                 renderBreathingContent("Ready", "•");
+                updateBreathSteps(-1);
             } else {
                 btnBox.textContent = "Stop";
                 bStep = 0;
                 const cycle = () => {
-                    applyBreathingPhase(BREATH_PHASES[bStep]);
+                    applyBreathingPhase(BREATH_PHASES[bStep], bStep);
                     bStep = (bStep + 1) % 4;
                 };
                 cycle();
@@ -11498,7 +11547,7 @@ let tvWidgetCreated = false;
     'homer-sync-pass', 'homer-sync-auto', 'homer-auth-hash',
     'homer-auth-user', 'homer-user-permissions',
     LEADER_KEY, LEADER_HB_KEY, FIELD_SYNC_CURSOR_KEY, FIELD_SYNC_DEVICE_KEY,
-    'motivator.savedQuotes.v1', 'motivator.savedQuotes.pendingSync'
+    'motivator.savedQuotes.pendingSync'
   ];
   localStorage.setItem = function(key, value){
     origSetItem(key, value);
@@ -13408,8 +13457,14 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       var _p = document.createElement('div');
       _p.style.cssText = 'position:fixed;bottom:0;left:-9999px;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden;';
       document.documentElement.appendChild(_p);
-      var _sab = Math.min(_p.offsetHeight, 44); // cap: home indicator ≤44px; Safari toolbar can report ~83px
+      var _sab = _p.offsetHeight;
       _p.parentNode.removeChild(_p);
+      // Chrome for iOS PWA may report 0 even though there IS a home indicator; Safari toolbar
+      // cold-start can report ~83px. Clamp: accept 10–44px, otherwise fall back to 34px.
+      if(_sab < 10 || _sab > 44){
+        var _isStandalone = (window.navigator.standalone === true) || window.matchMedia('(display-mode:standalone)').matches;
+        _sab = _isStandalone ? 34 : Math.min(_sab, 44);
+      }
       document.documentElement.style.setProperty('--sab', _sab + 'px');
     } catch(e) {}
     document.body.classList.toggle('mobile-keyboard-open', keyboardDelta > 120);
