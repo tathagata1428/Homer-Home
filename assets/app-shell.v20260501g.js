@@ -13662,10 +13662,9 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
   });
   window.addEventListener('orientationchange', function(){
-    setTimeout(function(){
-      updateMobileViewport();
-      applyDesktopWindowState();
-    }, 80);
+    [80, 250, 500, 1000, 1800].forEach(function(ms){
+      setTimeout(function(){ updateMobileViewport(); applyDesktopWindowState(); }, ms);
+    });
   });
   if(window.visualViewport){
     window.visualViewport.addEventListener('resize', updateMobileViewport);
