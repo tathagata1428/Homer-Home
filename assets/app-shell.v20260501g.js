@@ -1002,7 +1002,7 @@ function renderQuote(q) {
           if(secs <= 0) {
             clearInterval(_focusCountdown);
             if(timerEl) timerEl.textContent = "";
-            setTimeout(closeTrataka, 1000);
+            setTimeout(() => { focusOverlay.style.display = "none"; }, 1000);
           }
         }, 1000);
 
