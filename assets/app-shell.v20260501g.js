@@ -1468,7 +1468,15 @@ document.addEventListener('DOMContentLoaded', function(){
       function advance(isSkip = false){
         if(state.mode==='focus'){
           state.pomodoros++;
-          if(!isSkip) addFocusTime(settings.focus);
+          if(!isSkip) {
+            addFocusTime(settings.focus);
+            try {
+              var _ses = JSON.parse(localStorage.getItem('homer-sessions') || '[]');
+              var _task = getOpenTasks()[0] ? getOpenTasks()[0].text : '';
+              _ses.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,7), accomplished: '', notes: '', task: _task, date: new Date().toISOString(), count: state.pomodoros, duration: settings.focus });
+              localStorage.setItem('homer-sessions', JSON.stringify(_ses));
+            } catch(_e) {}
+          }
           const n=state.pomodoros % settings.longEvery;
           setMode(n===0?'long':'short');
           if(!isSkip) {
