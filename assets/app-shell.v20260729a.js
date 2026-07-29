@@ -1602,8 +1602,8 @@ document.addEventListener('DOMContentLoaded', function(){
               elMode.textContent = cap(state.mode);
               updateTime(); updateRing(); updateMeta();
             }
-            // iOS catch-all: restart tick if iOS background-throttling killed the interval
-            if(state.running && !tick) start();
+            // Always force-restart tick on visibility restore — iOS suspends the interval but leaves tick non-null
+            if(state.running){ clearInterval(tick); tick=null; start(); }
           }
         } else if(!fresh.running && state.running){
           state.mode = fresh.mode;
@@ -1629,7 +1629,7 @@ document.addEventListener('DOMContentLoaded', function(){
         if(fresh && fresh.running && fresh.endTime){
           var left = Math.floor((fresh.endTime - Date.now()) / 1000);
           if(left <= 0){ if(tick){clearInterval(tick);tick=null;} advance(false); }
-          else { state.remaining = left; state.endTime = fresh.endTime; if(!tick) start(); }
+          else { state.remaining = left; state.endTime = fresh.endTime; clearInterval(tick); tick=null; start(); }
         } else if(!tick) { start(); }
       });
 
