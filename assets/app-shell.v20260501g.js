@@ -1589,7 +1589,6 @@ document.addEventListener('DOMContentLoaded', function(){
           if(left <= 0){
             state.mode = fresh.mode;
             state.pomodoros = fresh.pomodoros;
-            state.running = false;
             state.remaining = 0;
             if(tick){ clearInterval(tick); tick=null; }
             advance(false);
