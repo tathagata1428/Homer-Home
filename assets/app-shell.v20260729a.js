@@ -1331,20 +1331,19 @@ document.addEventListener('DOMContentLoaded', function(){
       settings.longEvery= Math.max(1, parseInt(settings.longEvery)|| 4);
       settings.auto     = !!settings.auto;
       const state=loadJSON(SKEY,{mode:'focus', remaining:settings.focus*60, running:false, pomodoros:0, endTime:0});
-      // Cross-device sync: recalculate remaining from absolute endTime
+      // Recalculate remaining from absolute endTime (handles tab restore/reload)
+      var _advanceOnLoad = false;
       if(state.running && state.endTime){
         var _left=Math.floor((state.endTime - Date.now())/1000);
-        if(_left > 0){ state.remaining = _left; } else { state.remaining = 0; }
+        if(_left > 0){ state.remaining = _left; } else { state.remaining = 0; _advanceOnLoad = true; }
       }
-      // If timer ended while page was away (remaining stuck at 0), reset to full duration.
-      // Covers both running=false (stopped) and running=true (expired while tab was closed/reloading).
-      // Without this, start() is called with remaining=0, saving bad state that persists across reloads.
-      if(state.remaining <= 0){ state.remaining = durFor(state.mode); state.running = false; state.endTime = 0; }
+      // Reset display only when not needing to advance (timer wasn't running, or ran out without endTime)
+      if(!_advanceOnLoad && state.remaining <= 0){ state.remaining = durFor(state.mode); state.running = false; state.endTime = 0; }
       elSetFocus.value=settings.focus; elSetShort.value=settings.short; elSetLong.value=settings.long;
       if(elAuto) elAuto.checked = settings.auto;
       elMode.textContent=cap(state.mode); updateTime(); updateRing(); updateMeta();
-      // Auto-resume timer if it was running before the page refresh
-      if(state.running){ start(); }
+      // Auto-resume: advance phase if timer expired during reload, else resume if still running
+      if(_advanceOnLoad){ advance(false); } else if(state.running){ start(); }
 
       function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
       function durFor(mode){ return (mode==='focus'?settings.focus:mode==='short'?settings.short:settings.long)*60; }
@@ -1633,9 +1632,19 @@ document.addEventListener('DOMContentLoaded', function(){
         } else if(!tick) { start(); }
       });
 
-      // iOS catch-all: window focus fires reliably in PWA home-screen mode
+      // Chrome/iOS: window focus fires on minimize-restore and PWA home-screen resume
       window.addEventListener('focus', function(){
-        if(state.running && !tick) start();
+        var fresh = loadJSON(SKEY, null);
+        if(!fresh || !fresh.running || !fresh.endTime) return;
+        var left = Math.floor((fresh.endTime - Date.now()) / 1000);
+        if(left <= 0){
+          state.mode = fresh.mode; state.pomodoros = fresh.pomodoros; state.remaining = 0;
+          if(tick){ clearInterval(tick); tick=null; }
+          advance(false);
+        } else {
+          state.mode = fresh.mode; state.pomodoros = fresh.pomodoros; state.remaining = left; state.endTime = fresh.endTime;
+          clearInterval(tick); tick=null; start();
+        }
       });
 
       // Listen for storage changes from other tabs on same device
