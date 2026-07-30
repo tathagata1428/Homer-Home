@@ -3077,14 +3077,6 @@ let tvWidgetCreated = false;
         lockLabel.textContent = 'Create Vault';
         unlockBtn.textContent = 'Create Vault';
       }
-      // Auto-unlock for all logged-in users: account login is the vault gate.
-      // Bogdan uses account password; other users get a fixed system key so the
-      // vault auto-creates and auto-unlocks without a separate password.
-      if(!localStorage.getItem(VAULT_REMEMBER_KEY)){
-        var _autoVaultPw = String(acctUser||'').toLowerCase()==='bogdan'
-          ? atob('cWF6MTIzcGwu') : 'homer';
-        try{ localStorage.setItem(VAULT_REMEMBER_KEY, _autoVaultPw); }catch(_e){}
-      }
       // Remember-me: restore checkbox state and auto-unlock if password is saved
       var savedPw = localStorage.getItem(VAULT_REMEMBER_KEY);
       if(savedPw){
@@ -8645,7 +8637,7 @@ let tvWidgetCreated = false;
     if(typeof window.supabaseSignIn === 'function'){
       return tryHashFallback().then(function(localPayload){
         // Local password OK — now establish Supabase session with Supabase credentials (separate from local password)
-        return window.supabaseSignIn(email, atob('cWF6MTIzcGwu')).then(function(result){
+        return window.supabaseSignIn(email, pass).then(function(result){
           var payload = Object.assign({}, localPayload, {
             session: result && result.session ? result.session : null,
             userData: result && result.user ? result.user : null

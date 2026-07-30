@@ -1,8 +1,11 @@
 {
   "name": "homer-home",
+  "version": "2.2.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "check": "node scripts/validate-static.mjs",
+    "build": "npm run check",
     "deploy": "npx wrangler pages deploy ."
   },
   "dependencies": {

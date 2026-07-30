@@ -23,8 +23,8 @@ android {
         applicationId = "com.homer.com"
         minSdk = 26
         targetSdk = 35
-        versionCode = 33
-        versionName = "2.1.6-20260609"
+        versionCode = 34
+        versionName = "2.2.0-20260730"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -60,7 +60,7 @@ android {
         buildConfigField("String", "SUPABASE_SYNC_EMAIL",
             "\"${localProps["SUPABASE_SYNC_EMAIL"] ?: "bogdan.radu@b4it.ro"}\"")
         buildConfigField("String", "SUPABASE_SYNC_PASSWORD",
-            "\"${localProps["SUPABASE_SYNC_PASSWORD"] ?: "qaz123pl."}\"")
+            "\"${localProps["SUPABASE_SYNC_PASSWORD"] ?: ""}\"")
 
     }
 

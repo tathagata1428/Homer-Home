@@ -126,6 +126,11 @@
 
     /* 1. TABS */
     const tabBtns = [...document.querySelectorAll('.tab-btn')];
+    tabBtns.forEach(function(button){
+      button.setAttribute('role', 'tab');
+      button.setAttribute('aria-selected', button.classList.contains('active') ? 'true' : 'false');
+      button.setAttribute('tabindex', button.classList.contains('active') ? '0' : '-1');
+    });
     const tabs = {
       home: document.getElementById('tab-home'),
       pomodoro: document.getElementById('tab-pomodoro'),
@@ -149,9 +154,18 @@
         return;
       }
       Object.entries(tabs).forEach(([k, el]) => {
-        if(el) el.style.display = (k === name) ? 'block' : 'none';
+        if(el) {
+          var isActive = k === name;
+          el.style.display = isActive ? 'block' : 'none';
+          el.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+        }
       });
-      tabBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+      tabBtns.forEach(b => {
+        var isActive = b.dataset.tab === name;
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        b.setAttribute('tabindex', isActive ? '0' : '-1');
+      });
 
       // FIXED: Only initialize the chart AFTER the display is set to block
       if(name === 'investing') {
@@ -174,6 +188,10 @@
       if(localStorage.getItem('homer-sb-collapsed') === '1'){
         sidebar.classList.add('collapsed');
         document.body.classList.add('sb-collapsed');
+        if(toggleBtn){
+          toggleBtn.setAttribute('aria-expanded', 'false');
+          toggleBtn.setAttribute('aria-label', 'Expand sidebar');
+        }
       }
 
       // Tab switching from sidebar
@@ -191,7 +209,12 @@
       var origShowTab = showTab;
       showTab = function(name){
         origShowTab(name);
-        items.forEach(function(i){i.classList.toggle('active', i.dataset.tab === name);});
+        items.forEach(function(i){
+          var isActive = i.dataset.tab === name;
+          i.classList.toggle('active', isActive);
+          if(isActive) i.setAttribute('aria-current', 'page');
+          else i.removeAttribute('aria-current');
+        });
       };
 
       // Collapse toggle
@@ -199,7 +222,10 @@
         toggleBtn.addEventListener('click', function(){
           sidebar.classList.toggle('collapsed');
           document.body.classList.toggle('sb-collapsed');
-          localStorage.setItem('homer-sb-collapsed', sidebar.classList.contains('collapsed') ? '1' : '0');
+          var collapsed = sidebar.classList.contains('collapsed');
+          toggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+          toggleBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+          localStorage.setItem('homer-sb-collapsed', collapsed ? '1' : '0');
         });
       }
     })();
@@ -3085,14 +3111,6 @@ let tvWidgetCreated = false;
       if(isNew){
         lockLabel.textContent = 'Create Vault';
         unlockBtn.textContent = 'Create Vault';
-      }
-      // Auto-unlock for all logged-in users: account login is the vault gate.
-      // Bogdan uses account password; other users get a fixed system key so the
-      // vault auto-creates and auto-unlocks without a separate password.
-      if(!localStorage.getItem(VAULT_REMEMBER_KEY)){
-        var _autoVaultPw = String(acctUser||'').toLowerCase()==='bogdan'
-          ? atob('cWF6MTIzcGwu') : 'homer';
-        try{ localStorage.setItem(VAULT_REMEMBER_KEY, _autoVaultPw); }catch(_e){}
       }
       // Remember-me: restore checkbox state and auto-unlock if password is saved
       var savedPw = localStorage.getItem(VAULT_REMEMBER_KEY);
@@ -8654,7 +8672,7 @@ let tvWidgetCreated = false;
     if(typeof window.supabaseSignIn === 'function'){
       return tryHashFallback().then(function(localPayload){
         // Local password OK — now establish Supabase session with Supabase credentials (separate from local password)
-        return window.supabaseSignIn(email, atob('cWF6MTIzcGwu')).then(function(result){
+        return window.supabaseSignIn(email, pass).then(function(result){
           var payload = Object.assign({}, localPayload, {
             session: result && result.session ? result.session : null,
             userData: result && result.user ? result.user : null

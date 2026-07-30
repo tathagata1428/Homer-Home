@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Homer</title>
+  <meta name="description" content="A private command center for focus, planning, habits, notes, and the daily things that matter.">
 
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192">
@@ -12,7 +13,7 @@
   <link rel="canonical" href="https://homer-home.vercel.app/">
   <meta property="og:url" content="https://homer-home.vercel.app/">
 
-  <meta name="theme-color" content="#0a1220">
+  <meta name="theme-color" content="#0b0e13">
   <meta name="color-scheme" content="dark">
   <meta name="application-name" content="Homer">
   <meta name="mobile-web-app-capable" content="yes">
@@ -24,22 +25,24 @@
   <!-- Critical: set html background before external CSS loads so the Android
        PWA status-bar area (which shows the html element behind the transparent
        overlay) matches theme_color from frame zero — prevents the black-bar flash. -->
-  <style>html,body{background:#07111f;overscroll-behavior:none}</style>
+  <style>html,body{background:#0b0e13;overscroll-behavior:none}</style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="/assets/app-shell.v20260331.css?v=20260727a">
+  <link rel="stylesheet" href="/assets/homer-ui.v20260730.css?v=20260730a">
 </head>
 <body>
+<a class="skip-link" href="#tab-home">Skip to dashboard</a>
 
 <!-- Desktop Sidebar -->
-<aside id="desktop-sidebar">
+<aside id="desktop-sidebar" aria-label="Primary navigation">
   <div class="sb-brand">
     <div class="sb-brand-icon">H</div>
     <span>Homer</span>
   </div>
   <div class="sb-section-title">Navigation</div>
-  <button class="sb-item active" data-tab="home">
+  <button class="sb-item active" data-tab="home" aria-current="page">
     <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
     <span class="sb-label">Home</span>
   </button>
@@ -80,7 +83,7 @@
     <span class="sb-label">Daily Brief</span>
   </button>
   <div class="sb-spacer"></div>
-  <button class="sb-toggle" id="sb-toggle-btn">
+  <button class="sb-toggle" id="sb-toggle-btn" aria-label="Collapse sidebar" aria-expanded="true">
     <svg viewBox="0 0 24 24"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
     <span class="sb-label">Collapse</span>
   </button>
@@ -107,11 +110,11 @@
   <div class="shell">
     <header class="hero">
       <div class="title">Homer <span id="greeting" class="title-badge">Hello</span></div>
-      <div class="subtitle">&ldquo;Trying is the first step towards failure.&rdquo; &mdash; Homer Simpson</div>
+      <div class="subtitle">Your day, your focus, and the things worth remembering&mdash;all in one calm place.</div>
     </header>
 
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="home">Home</button>
+    <div class="tabs" role="tablist" aria-label="App sections">
+      <button class="tab-btn active" data-tab="home" role="tab" aria-selected="true">Home</button>
       <button class="tab-btn" data-tab="pomodoro">Pomodoro</button>
       <button class="tab-btn" data-tab="focuslab">Focus Lab</button>
       <button class="tab-btn" data-tab="investing">Investing</button>
@@ -125,6 +128,49 @@
 
     <section id="tab-home" class="tab card">
       <div class="grid">
+        <div class="span-12 card launchpad" id="home-launchpad">
+          <div class="launchpad-head">
+            <div>
+              <div class="product-kicker" id="launchpad-date">Today</div>
+              <h1 class="launchpad-title">What matters today?</h1>
+            </div>
+            <div class="context-switcher" role="group" aria-label="Dashboard context">
+              <button type="button" data-context="personal">Home</button>
+              <button type="button" data-context="work">Work</button>
+              <button type="button" data-context="deep">Deep focus</button>
+              <button type="button" data-context="car">Car</button>
+            </div>
+          </div>
+
+          <div class="launchpad-layout">
+            <div class="daily-focus">
+              <label for="daily-focus-input">Main focus</label>
+              <div class="daily-focus-row">
+                <input id="daily-focus-input" type="text" maxlength="140" placeholder="One outcome that would make today count">
+                <button type="button" class="btn primary" id="daily-focus-save">Set focus</button>
+              </div>
+              <div class="focus-suggestion" id="focus-suggestion" aria-live="polite"></div>
+            </div>
+            <div class="today-stats" aria-label="Today at a glance">
+              <div><strong id="lp-focus-mins">0</strong><span>focus min</span></div>
+              <div><strong id="lp-open-tasks">0</strong><span>open tasks</span></div>
+              <div><strong id="lp-habits">0/0</strong><span>habits</span></div>
+              <div><strong id="lp-inbox-count">0</strong><span>inbox</span></div>
+            </div>
+          </div>
+
+          <div class="energy-planner">
+            <span>Energy</span>
+            <div class="energy-options" role="group" aria-label="Current energy">
+              <button type="button" data-energy="low">Low</button>
+              <button type="button" data-energy="steady">Steady</button>
+              <button type="button" data-energy="high">High</button>
+            </div>
+            <p id="energy-advice">Choose your energy and Homer will suggest a sensible next task.</p>
+            <button type="button" class="text-action" id="start-suggested-task">Start suggestion</button>
+          </div>
+        </div>
+
         <div class="span-6 card">
           <h2 class="section">Clock</h2>
           <div class="clock">
@@ -192,6 +238,46 @@
         <div class="span-12 card" id="home-done-card" style="display:none">
           <h2 class="section">Recently Completed</h2>
           <div class="done-list" id="home-done-list"></div>
+        </div>
+
+        <div class="card home-inbox-card">
+          <div class="product-card-head">
+            <div>
+              <div class="product-kicker">Capture</div>
+              <h2>Inbox</h2>
+            </div>
+            <button type="button" class="shortcut-hint" id="open-command-palette" aria-label="Open command palette">Ctrl K</button>
+          </div>
+          <div class="capture-row">
+            <input id="universal-capture-input" type="text" maxlength="280" placeholder="Task, note, reminder, or idea">
+            <button type="button" class="btn primary" id="universal-capture-add">Add</button>
+          </div>
+          <div class="capture-meta">
+            <span>Homer sorts it locally. No message leaves this device.</span>
+            <button type="button" class="text-action" id="clear-processed-inbox">Clear processed</button>
+          </div>
+          <div class="inbox-list" id="universal-inbox-list" aria-live="polite"></div>
+        </div>
+
+        <div class="card weekly-rewind-card">
+          <div class="product-card-head">
+            <div>
+              <div class="product-kicker">Last 7 days</div>
+              <h2>Weekly rewind</h2>
+            </div>
+            <button type="button" class="text-action" id="copy-weekly-rewind">Copy</button>
+          </div>
+          <div class="rewind-score" id="rewind-score">A quiet week is still a week.</div>
+          <div class="rewind-grid">
+            <div><strong id="rw-tasks">0</strong><span>tasks finished</span></div>
+            <div><strong id="rw-focus">0m</strong><span>focus logged</span></div>
+            <div><strong id="rw-habits">0</strong><span>habit check-ins</span></div>
+            <div><strong id="rw-captures">0</strong><span>items captured</span></div>
+          </div>
+          <div class="rewind-note">
+            <label for="weekly-win">A win worth remembering</label>
+            <textarea id="weekly-win" rows="2" maxlength="240" placeholder="What worked this week?"></textarea>
+          </div>
         </div>
       </div>
     </section>
@@ -1631,6 +1717,19 @@
 <!-- Fullscreen Issue View (outside all cards to avoid backdrop-filter containing block) -->
 <div id="issue-overlay" class="issue-overlay"></div>
 
+<div id="command-palette" class="command-palette" role="dialog" aria-modal="true" aria-labelledby="command-palette-title" hidden>
+  <div class="command-palette-panel">
+    <div class="command-search">
+      <span aria-hidden="true">/</span>
+      <input id="command-palette-input" type="text" autocomplete="off" placeholder="Go somewhere or add something">
+      <kbd>Esc</kbd>
+    </div>
+    <div class="command-palette-label" id="command-palette-title">Commands</div>
+    <div id="command-palette-results" class="command-results"></div>
+    <div class="command-palette-footer"><span>↑↓ move</span><span>Enter select</span><span>Ctrl K open</span></div>
+  </div>
+</div>
+
 <div id="mobile-overlay-dock" aria-label="Mobile app navigation">
   <button type="button" class="modock-btn" id="mobile-overlay-back">
     <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/><path d="M21 12H9"/></svg>
@@ -1703,7 +1802,7 @@
 </div>
 <input type="file" id="receipt-camera-input" accept="image/*" capture="environment" style="display:none">
 
-    <script src="/assets/app-shell.v20260729a.js?v=20260729c"></script>
+    <script src="/assets/app-shell.v20260729a.js?v=20260730a"></script>
     <script src="/assets/homer-features.v20260502a.js?v=20260603a"></script>
     <script src="/assets/homer-enhancements.v20260605a.js?v=20260609a"></script>
     <script src="/assets/homer-habits.v20260508a.js?v=20260522b"></script>
@@ -1714,6 +1813,7 @@
     <script src="/assets/homer-tips.v20260609a.js?v=20260724a"></script>
     <script src="/assets/homer-car.v20260515a.js?v=20260609a"></script>
     <script src="/assets/homer-gdrive-fullbackup.v20260604a.js?v=20260604a"></script>
+    <script src="/assets/homer-productivity.v20260730.js?v=20260730a"></script>
 
 <!-- ── Supabase client (loaded after app bundle so window globals are ready) ── -->
 <script src="/api/config?format=js"></script>
@@ -1734,22 +1834,11 @@
   window.__supabase = client;
 
   // ── Restore existing session ──────────────────────────────
-  var SB_AUTO_EMAIL = 'bogdan.radu@b4it.ro';
-  var SB_AUTO_PASS  = atob('cWF6MTIzcGwu'); // qaz123pl.
   client.auth.getSession().then(function (result) {
     var session = result && result.data && result.data.session;
     if (session) {
       window.__sbSession = session;
       window.dispatchEvent(new CustomEvent('supabase:session', { detail: session }));
-    } else if (localStorage.getItem('homer-auth-user') === 'bogdan') {
-      // No valid session but user is bogdan — auto re-sign-in silently
-      client.auth.signInWithPassword({ email: SB_AUTO_EMAIL, password: SB_AUTO_PASS })
-        .then(function(r) {
-          if (r.data && r.data.session) {
-            window.__sbSession = r.data.session;
-            window.dispatchEvent(new CustomEvent('supabase:session', { detail: r.data.session }));
-          }
-        }).catch(function(){});
     }
   });
 
