@@ -6784,18 +6784,11 @@ let tvWidgetCreated = false;
           unlock();
         }).catch(function(){
           var legacyPasswords = getReservedVaultLegacyPasswords(user);
-          // Helper: called when ALL passwords fail — reset vault for logged-in users
-          // so account login remains the only gate (data is backed up in Supabase).
+          // Authentication failures must leave the encrypted vault untouched.
           function vaultResetForLoggedIn(){
             var loggedIn = !!localStorage.getItem('homer-auth-user');
             if(!loggedIn){ showError('Vault password could not unlock existing data.'); return; }
-            // Clear the old hash and data; recreate with current derived password.
-            Promise.all([idb.del(HASH_KEY), idb.del(DATA_KEY)]).then(function(){
-              isNew = true;
-              unlockBtn.textContent = 'Create Vault';
-              lockLabel.textContent = 'Create Vault';
-              setTimeout(function(){ unlockBtn.click(); }, 50);
-            }).catch(function(){ showError('Vault password could not unlock existing data.'); });
+            showError('Vault password did not match. Your existing vault was not changed. Check the password or open Recovery.');
           }
           if(!legacyPasswords.length){ vaultResetForLoggedIn(); return; }
           var tryLegacy = function(index){
@@ -6816,6 +6809,38 @@ let tvWidgetCreated = false;
   vaultUserInput.addEventListener('keydown', function(e){ if(e.key==='Enter') unlockBtn.click(); });
   pwInput.addEventListener('keydown', function(e){ if(e.key==='Enter') unlockBtn.click(); });
 
+  var kanbanMirrorRecoveryInFlight = false;
+  function recoverKanbanFromMirrorIfEmpty(){
+    if(!window._homerVaultUnlocked || kanbanMirrorRecoveryInFlight) return Promise.resolve({ok:false, reason:'locked-or-busy'});
+    var raw = localStorage.getItem('homer-kanban');
+    if(!raw) return Promise.resolve({ok:false, reason:'no-mirror'});
+    var mirror;
+    try{ mirror = JSON.parse(raw); }catch(_e){ return Promise.resolve({ok:false, reason:'invalid-mirror'}); }
+    var mirrorGoals = mirror && Array.isArray(mirror.goals) ? mirror.goals : [];
+    var mirrorProjects = mirror && Array.isArray(mirror.projects) ? mirror.projects : [];
+    if(!mirrorGoals.length) return Promise.resolve({ok:false, reason:'empty-mirror'});
+    kanbanMirrorRecoveryInFlight = true;
+    return loadVaultForMode(currentVaultMode).then(function(data){
+      if(Array.isArray(data.goals) && data.goals.length) return {ok:false, reason:'vault-not-empty'};
+      data.goals = mirrorGoals;
+      if(mirrorProjects.length) data.projects = mirrorProjects;
+      return saveVaultForMode(currentVaultMode, data).then(function(){
+        renderVault();
+        if(vaultStatusLine) vaultStatusLine.textContent = '🔓 ' + modeLabel(currentVaultMode) + ' vault recovered from synced Kanban';
+        try{ window.dispatchEvent(new CustomEvent('homer-kanban-recovered', {detail:{mode:currentVaultMode, goals:mirrorGoals.length}})); }catch(_e){}
+        return {ok:true, recovered:mirrorGoals.length};
+      });
+    }).catch(function(err){
+      return {ok:false, reason:err && err.message ? err.message : 'recovery-failed'};
+    }).finally(function(){
+      kanbanMirrorRecoveryInFlight = false;
+    });
+  }
+  window._homerRecoverKanbanFromMirror = recoverKanbanFromMirrorIfEmpty;
+  window.addEventListener('homer-data-synced', function(e){
+    if(e && e.detail && e.detail.key === 'homer-kanban') recoverKanbanFromMirrorIfEmpty();
+  });
+
   function unlock(){
     if(_pendingRememberPw){ try{ localStorage.setItem(VAULT_REMEMBER_KEY, _pendingRememberPw); }catch(_e){} }
     _pendingRememberPw = null;
@@ -6826,6 +6851,9 @@ let tvWidgetCreated = false;
     renderVault();
     updateVaultSyncBadge();
     window.dispatchEvent(new Event('homer-vault-state'));
+    recoverKanbanFromMirrorIfEmpty();
+    setTimeout(recoverKanbanFromMirrorIfEmpty, 1500);
+    setTimeout(recoverKanbanFromMirrorIfEmpty, 5000);
     // Silently restore any cloud-only attachments from R2
     restoreAttachmentsFromR2().then(function(){ renderVault(); }).catch(function(){});
   }
