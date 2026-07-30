@@ -23,8 +23,8 @@ android {
         applicationId = "com.homer.com"
         minSdk = 26
         targetSdk = 35
-        versionCode = 35
-        versionName = "2.2.1-20260730"
+        versionCode = 36
+        versionName = "2.2.2-20260730"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
