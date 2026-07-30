@@ -801,7 +801,7 @@
       + listHtml
       + '<div class="jn-new-row" id="jn-new-row-bt"><div class="jn-new-row-icon">+</div><span>New entry</span></div>'
       + '</div>'
-      + '<div class="jn-footer">Homer Journal <span style="font-size:0.78em;opacity:0.55;margin-left:5px;">v2.2.2</span></div>'
+      + '<div class="jn-footer">Homer Journal <span style="font-size:0.78em;opacity:0.55;margin-left:5px;">v2.2.3</span></div>'
       + '</div>';
 
     document.getElementById('jn-new-btn').addEventListener('click', function () { openEditor(null); });
