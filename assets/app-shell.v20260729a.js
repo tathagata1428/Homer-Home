@@ -126,11 +126,6 @@
 
     /* 1. TABS */
     const tabBtns = [...document.querySelectorAll('.tab-btn')];
-    tabBtns.forEach(function(button){
-      button.setAttribute('role', 'tab');
-      button.setAttribute('aria-selected', button.classList.contains('active') ? 'true' : 'false');
-      button.setAttribute('tabindex', button.classList.contains('active') ? '0' : '-1');
-    });
     const tabs = {
       home: document.getElementById('tab-home'),
       pomodoro: document.getElementById('tab-pomodoro'),
@@ -154,18 +149,9 @@
         return;
       }
       Object.entries(tabs).forEach(([k, el]) => {
-        if(el) {
-          var isActive = k === name;
-          el.style.display = isActive ? 'block' : 'none';
-          el.setAttribute('aria-hidden', isActive ? 'false' : 'true');
-        }
+        if(el) el.style.display = (k === name) ? 'block' : 'none';
       });
-      tabBtns.forEach(b => {
-        var isActive = b.dataset.tab === name;
-        b.classList.toggle('active', isActive);
-        b.setAttribute('aria-selected', isActive ? 'true' : 'false');
-        b.setAttribute('tabindex', isActive ? '0' : '-1');
-      });
+      tabBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === name));
 
       // FIXED: Only initialize the chart AFTER the display is set to block
       if(name === 'investing') {
@@ -188,10 +174,6 @@
       if(localStorage.getItem('homer-sb-collapsed') === '1'){
         sidebar.classList.add('collapsed');
         document.body.classList.add('sb-collapsed');
-        if(toggleBtn){
-          toggleBtn.setAttribute('aria-expanded', 'false');
-          toggleBtn.setAttribute('aria-label', 'Expand sidebar');
-        }
       }
 
       // Tab switching from sidebar
@@ -209,12 +191,7 @@
       var origShowTab = showTab;
       showTab = function(name){
         origShowTab(name);
-        items.forEach(function(i){
-          var isActive = i.dataset.tab === name;
-          i.classList.toggle('active', isActive);
-          if(isActive) i.setAttribute('aria-current', 'page');
-          else i.removeAttribute('aria-current');
-        });
+        items.forEach(function(i){i.classList.toggle('active', i.dataset.tab === name);});
       };
 
       // Collapse toggle
@@ -222,10 +199,7 @@
         toggleBtn.addEventListener('click', function(){
           sidebar.classList.toggle('collapsed');
           document.body.classList.toggle('sb-collapsed');
-          var collapsed = sidebar.classList.contains('collapsed');
-          toggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-          toggleBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-          localStorage.setItem('homer-sb-collapsed', collapsed ? '1' : '0');
+          localStorage.setItem('homer-sb-collapsed', sidebar.classList.contains('collapsed') ? '1' : '0');
         });
       }
     })();

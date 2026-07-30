@@ -2,9 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
   <title>Homer</title>
-  <meta name="description" content="A private command center for focus, planning, habits, notes, and the daily things that matter.">
 
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192">
@@ -34,13 +33,13 @@
 <body>
 
 <!-- Desktop Sidebar -->
-<aside id="desktop-sidebar" aria-label="Primary navigation">
+<aside id="desktop-sidebar">
   <div class="sb-brand">
     <div class="sb-brand-icon">H</div>
     <span>Homer</span>
   </div>
   <div class="sb-section-title">Navigation</div>
-  <button class="sb-item active" data-tab="home" aria-current="page">
+  <button class="sb-item active" data-tab="home">
     <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
     <span class="sb-label">Home</span>
   </button>
@@ -81,7 +80,7 @@
     <span class="sb-label">Daily Brief</span>
   </button>
   <div class="sb-spacer"></div>
-  <button class="sb-toggle" id="sb-toggle-btn" aria-label="Collapse sidebar" aria-expanded="true">
+  <button class="sb-toggle" id="sb-toggle-btn">
     <svg viewBox="0 0 24 24"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
     <span class="sb-label">Collapse</span>
   </button>
@@ -111,8 +110,8 @@
       <div class="subtitle">&ldquo;Trying is the first step towards failure.&rdquo; &mdash; Homer Simpson</div>
     </header>
 
-    <div class="tabs" role="tablist" aria-label="App sections">
-      <button class="tab-btn active" data-tab="home" role="tab" aria-selected="true">Home</button>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="home">Home</button>
       <button class="tab-btn" data-tab="pomodoro">Pomodoro</button>
       <button class="tab-btn" data-tab="focuslab">Focus Lab</button>
       <button class="tab-btn" data-tab="investing">Investing</button>
@@ -194,7 +193,6 @@
           <h2 class="section">Recently Completed</h2>
           <div class="done-list" id="home-done-list"></div>
         </div>
-
       </div>
     </section>
 
@@ -1244,8 +1242,8 @@
 </div>
 
     <footer class="site-footer">
-      <span>Homer</span>
-      <span style="font-size:0.78em; opacity:0.55; margin-left:6px;">v2.2.4</span>
+      Created with &#10084;&#65039; by <a href="https://github.com/tathagata1428/" target="_blank" rel="noopener">Bogdan Radu</a>
+      <span style="font-size:0.7em; opacity:0.4; margin-left:6px;">v2.2.5</span>
     </footer>
   </div>
 
@@ -1711,7 +1709,7 @@
     <script src="/assets/homer-habits.v20260508a.js?v=20260522b"></script>
     <script src="/assets/homer-daily-brief.v20260511b.js?v=20260609c"></script>
     <script src="/assets/homer-notion.v20260513a.js?v=20260609c"></script>
-    <script src="/assets/homer-journal.v20260609a.js?v=20260730c"></script>
+    <script src="/assets/homer-journal.v20260609a.js?v=20260730d"></script>
     <script src="/assets/homer-countdown.v20260520a.js?v=20260522a"></script>
     <script src="/assets/homer-tips.v20260609a.js?v=20260724a"></script>
     <script src="/assets/homer-car.v20260515a.js?v=20260609a"></script>
