@@ -92,6 +92,11 @@
   .an-filter-bar{display:flex;gap:8px;align-items:center;margin-bottom:18px;flex-wrap:wrap;}
   .an-range-btn{padding:6px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.12);background:none;color:var(--muted);cursor:pointer;font-size:.8rem;font-weight:700;transition:all .15s;}
   .an-range-btn.active{background:rgba(96,165,250,.18);border-color:#60a5fa;color:#60a5fa;}
+  .an-today-row{display:flex;align-items:center;gap:0;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 20px;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+  .an-today-item{display:flex;flex-direction:column;align-items:center;flex:1;min-width:80px;}
+  .an-today-val{font-size:1.4rem;font-weight:900;color:var(--text);line-height:1.1;}
+  .an-today-lbl{font-size:.7rem;color:var(--muted);margin-top:3px;white-space:nowrap;}
+  .an-today-sep{width:1px;height:36px;background:rgba(255,255,255,.08);flex-shrink:0;}
   .an-summary-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px;}
   .an-summary-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 16px;position:relative;overflow:hidden;}
   .an-summary-card.spend{border-color:rgba(251,191,36,.2);}
@@ -284,7 +289,13 @@
     };
   }
   function calcStreak(habit, completions) {
-    var d = new Date(), streak = 0, target = (habit.target && habit.target > 1) ? habit.target : 1;
+    var target = (habit.target && habit.target > 1) ? habit.target : 1;
+    var d = new Date();
+    // Don't penalise "today not done yet" — if today is incomplete, start counting from yesterday
+    var todayKey = d.toISOString().slice(0, 10);
+    var todayVal = completions[habit.id + ':' + todayKey];
+    if ((todayVal === true ? 1 : (Number(todayVal) || 0)) < target) d.setDate(d.getDate() - 1);
+    var streak = 0;
     for (var i = 0; i < 366; i++) {
       var k = d.toISOString().slice(0, 10);
       var v = completions[habit.id + ':' + k];
@@ -660,10 +671,27 @@
     for (var li = 0; li <= 4; li++) hmHtml += '<div class="hm-cell" data-v="' + li + '" style="width:10px;height:10px;"></div>';
     hmHtml += ' More</div>';
 
-    // ─── Focus sessions bar (last 14 days) ────────────────────────────
+    // ─── Focus sessions bar (respects range selector) ─────────────────
     var focusDays = [];
-    for (var fi = 13; fi >= 0; fi--) { var fd = new Date(); fd.setDate(fd.getDate() - fi); focusDays.push({ key: fd.toISOString().slice(0, 10), lbl: ['Su','Mo','Tu','We','Th','Fr','Sa'][fd.getDay()], count: 0 }); }
-    sessions.forEach(function (s) { var key = (s.date || '').slice(0, 10); var fd2 = focusDays.find(function (d2) { return d2.key === key; }); if (fd2) fd2.count++; });
+    if (anRange <= 30) {
+      // Daily bars for 7 or 30 day range
+      for (var fi = anRange - 1; fi >= 0; fi--) { var fd = new Date(); fd.setDate(fd.getDate() - fi); focusDays.push({ key: fd.toISOString().slice(0, 10), lbl: ['Su','Mo','Tu','We','Th','Fr','Sa'][fd.getDay()], count: 0 }); }
+      sessions.forEach(function (s) { var key = (s.date || '').slice(0, 10); var fd2 = focusDays.find(function (d2) { return d2.key === key; }); if (fd2) fd2.count++; });
+    } else {
+      // Weekly bars for 90-day range (13 weeks)
+      for (var wi = 12; wi >= 0; wi--) {
+        var wStart = new Date(); wStart.setDate(wStart.getDate() - wi * 7 - 6);
+        var wEnd = new Date(); wEnd.setDate(wEnd.getDate() - wi * 7);
+        var wKey = wStart.toISOString().slice(0, 10);
+        var wLbl = wStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        focusDays.push({ key: wKey, endKey: wEnd.toISOString().slice(0, 10), lbl: wLbl, count: 0, isWeek: true });
+      }
+      sessions.forEach(function (s) {
+        var key = (s.date || '').slice(0, 10);
+        var fd2 = focusDays.find(function (d2) { return key >= d2.key && key <= d2.endKey; });
+        if (fd2) fd2.count++;
+      });
+    }
     var maxF = Math.max.apply(null, focusDays.map(function (d2) { return d2.count; })) || 1;
     var avgFocusPerDay = anRange > 0 ? Math.round(totalFocusMin / anRange) : 0;
     var avgFocusLabel = avgFocusPerDay >= 60 ? Math.floor(avgFocusPerDay/60)+'h '+(avgFocusPerDay%60?avgFocusPerDay%60+'m':'') : avgFocusPerDay+'m';
@@ -700,18 +728,21 @@
           return '<div class="bar-col"><div class="bar-val">' + (m.total > 0 ? Math.round(m.total) : '') + '</div><div class="bar-fill" style="height:' + Math.max(pct, m.total ? 8 : 3) + 'px;"></div><div class="bar-lbl">' + m.lbl + '</div></div>';
         }).join('') + '</div>';
 
-    // ─── Categories + MoM delta ────────────────────────────────────────
-    var curMoKey = new Date().toISOString().slice(0, 7), prevMoKey = (function () { var d2 = new Date(); d2.setMonth(d2.getMonth() - 1); return d2.toISOString().slice(0, 7); })();
+    // ─── Categories breakdown (uses selected date range) ──────────────
+    var curMoKey = new Date().toISOString().slice(0, 7);
     var curMoCats = {}, prevMoCats = {};
-    expenses.forEach(function (e) {
+    rangeExpenses.forEach(function (e) {
       var c = e.cat || e.category || 'other';
-      if ((e.date || '').slice(0, 7) === curMoKey) curMoCats[c] = (curMoCats[c] || 0) + parseFloat(e.amount || 0);
-      if ((e.date || '').slice(0, 7) === prevMoKey) prevMoCats[c] = (prevMoCats[c] || 0) + parseFloat(e.amount || 0);
+      curMoCats[c] = (curMoCats[c] || 0) + parseFloat(e.amount || 0);
+    });
+    expenses.filter(function (e) { return (e.date || '') >= prevStart && (e.date || '') < rangeStart; }).forEach(function (e) {
+      var c = e.cat || e.category || 'other';
+      prevMoCats[c] = (prevMoCats[c] || 0) + parseFloat(e.amount || 0);
     });
     var catEntries = Object.keys(curMoCats).map(function (k) { return [k, curMoCats[k]]; }).sort(function (a, b) { return b[1] - a[1]; });
     var catTotal = catEntries.reduce(function (s, e) { return s + e[1]; }, 0) || 1;
     var catHtml = catEntries.length
-      ? '<p class="an-card-sub">Spending breakdown this month. Arrows show change vs last month.</p>' +
+      ? '<p class="an-card-sub">Spending breakdown for the last ' + anRange + ' days. Arrows show change vs prior period.</p>' +
         catEntries.map(function (e) {
           var cat = e[0], amt = e[1];
           var pct = Math.round((amt / catTotal) * 100);
@@ -793,6 +824,23 @@
         }).join('') + '</div>'
       : '<p style="color:var(--muted);font-size:.84rem;">No weekly reviews yet. Use Notes → Weekly Review.</p>';
 
+    // ─── Today at a Glance ────────────────────────────────────────────
+    var todayStr2 = new Date().toISOString().slice(0, 10);
+    var habitsToday = habits.length ? habits.filter(function(h){
+      var target = (h.target && h.target > 1) ? h.target : 1;
+      var v = completions[h.id + ':' + todayStr2];
+      return (v === true ? 1 : (Number(v) || 0)) >= target;
+    }).length : 0;
+    var sessionsToday = sessions.filter(function(s){ return (s.date||'').slice(0,10) === todayStr2; }).length;
+    var spendToday = expenses.filter(function(e){ return (e.date||'').slice(0,10) === todayStr2; }).reduce(function(s,e){ return s+parseFloat(e.amount||0); }, 0);
+    var focusMinToday = sessionsToday * 25;
+    var todayHtml =
+      '<div class="an-today-item"><div class="an-today-val">' + habitsToday + '/' + habits.length + '</div><div class="an-today-lbl">✅ Habits done today</div></div>' +
+      '<div class="an-today-sep"></div>' +
+      '<div class="an-today-item"><div class="an-today-val">' + (focusMinToday >= 60 ? Math.floor(focusMinToday/60)+'h'+(focusMinToday%60?focusMinToday%60+'m':'') : focusMinToday+'m') + '</div><div class="an-today-lbl">⏱️ Focus time today</div></div>' +
+      '<div class="an-today-sep"></div>' +
+      '<div class="an-today-item"><div class="an-today-val">' + (spendToday > 0 ? Math.round(spendToday) : '—') + '</div><div class="an-today-lbl">💰 Spent today</div></div>';
+
     // ─── Render ───────────────────────────────────────────────────────
     tab.innerHTML =
       '<h2 class="section">Analytics</h2>' +
@@ -801,6 +849,7 @@
         '<span style="flex:1;"></span>' +
         '<button id="an-csv-btn" class="notes-tb-btn">&#11015; Export CSV</button>' +
       '</div>' +
+      '<div class="an-today-row">' + todayHtml + '</div>' +
       '<div class="an-summary-row">' + summaryHtml + '</div>' +
       '<div class="an-grid">' +
         '<div class="an-card"><h4>Habit Streaks &amp; Completion</h4>' + streakHtml + '</div>' +
@@ -809,7 +858,7 @@
         '<div class="an-card"><h4>Focus Sessions</h4>' + focusBarHtml + '</div>' +
         '<div class="an-card"><h4>Weekly Energy Trend</h4>' + energyHtml + '</div>' +
         '<div class="an-card"><h4>' + (hasIncome ? 'Income vs Expenses' : 'Monthly Spend') + '</h4>' + barHtml + '</div>' +
-        '<div class="an-card"><h4>This Month by Category</h4>' + catHtml + '</div>' +
+        '<div class="an-card"><h4>Spending by Category <span style="font-weight:400;opacity:.6">(' + anRange + 'd)</span></h4>' + catHtml + '</div>' +
         '<div class="an-card an-card-full"><h4>Budget Tracker <span style="font-weight:400;opacity:.6">' + curMoKey + ' &mdash; Total: ' + Math.round(curMonthTotal) + '</span></h4>' + budgetHtml + '</div>' +
       '</div>';
 
