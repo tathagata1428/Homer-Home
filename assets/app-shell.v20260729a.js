@@ -1297,7 +1297,7 @@ function renderQuote(q) {
 
 document.addEventListener('DOMContentLoaded', function(){
       const PKEY='pom.settings.v1', TKEY='pom.tasks.v1', SKEY='pom.state.v1', DKEY='pom.today.v1';
-      const DEFAULTS={focus:25,short:5,long:25,longEvery:4,auto:false};
+      const DEFAULTS={focus:25,short:5,long:25,longEvery:4,auto:true};
       const elTime=document.getElementById('pom-time');
       const elRing=document.getElementById('pom-ring');
       const elMode=document.getElementById('pom-mode');
@@ -1320,13 +1320,14 @@ document.addEventListener('DOMContentLoaded', function(){
       function loadJSON(k,def){ try{ var v=JSON.parse(localStorage.getItem(k)||JSON.stringify(def)); return (v!==null&&typeof v==='object')?v:def; }catch{return def;} }
       function saveJSON(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
 
-      const settings=loadJSON(PKEY,{focus:25, short:5, long:25, longEvery:4});
+      const settings=loadJSON(PKEY,{focus:25, short:5, long:25, longEvery:4, auto:true});
       // Sanitize: clamp all durations to ≥1 min in case a backup restored corrupted values (e.g. 0)
       settings.focus    = Math.max(1, parseInt(settings.focus)    || 25);
       settings.short    = Math.max(1, parseInt(settings.short)    || 5);
       settings.long     = Math.max(1, parseInt(settings.long)     || 25);
       settings.longEvery= Math.max(1, parseInt(settings.longEvery)|| 4);
-      settings.auto     = !!settings.auto;
+      // Default auto=true; only false if user explicitly disabled it
+      settings.auto     = (settings.auto === false) ? false : true;
       const state=loadJSON(SKEY,{mode:'focus', remaining:settings.focus*60, running:false, pomodoros:0, endTime:0});
       // Recalculate remaining from absolute endTime so display is accurate after a refresh
       if(state.running && state.endTime){
@@ -1337,7 +1338,7 @@ document.addEventListener('DOMContentLoaded', function(){
       elSetFocus.value=settings.focus; elSetShort.value=settings.short; elSetLong.value=settings.long;
       if(elAuto) elAuto.checked = settings.auto;
       elMode.textContent=cap(state.mode); updateTime(); updateRing(); updateMeta();
-      let ac; let audioUnlocked=false; let tick=null; // all let vars before start() — avoids TDZ ReferenceError
+      var ac=null; var audioUnlocked=false; var tick=null; // var (not let) — no TDZ, safe to call start() before sequential decl
       if(state.running){ start(); }
 
       function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
@@ -1427,7 +1428,7 @@ document.addEventListener('DOMContentLoaded', function(){
                   var _tNow=Date.now(), _tLast=parseInt(localStorage.getItem('pom.adv.ts')||'0',10);
                   if(_tLast>0 && _tNow>=_tLast && _tNow-_tLast<900){ clearInterval(tick); tick=null; return; }
                   localStorage.setItem('pom.adv.ts',String(_tNow));
-                  advance(false); return;
+                  try{ advance(false); }catch(_e){ clearInterval(tick); tick=null; } return;
               }
               updateTime(); updateRing();
               window.dispatchEvent(new Event('pom-tick'));
