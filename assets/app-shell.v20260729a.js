@@ -1337,7 +1337,7 @@ document.addEventListener('DOMContentLoaded', function(){
       elSetFocus.value=settings.focus; elSetShort.value=settings.short; elSetLong.value=settings.long;
       if(elAuto) elAuto.checked = settings.auto;
       elMode.textContent=cap(state.mode); updateTime(); updateRing(); updateMeta();
-      let tick=null; // declare before start() to avoid TDZ ReferenceError
+      let ac; let audioUnlocked=false; let tick=null; // all let vars before start() — avoids TDZ ReferenceError
       if(state.running){ start(); }
 
       function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
@@ -1358,8 +1358,6 @@ document.addEventListener('DOMContentLoaded', function(){
         saveJSON(SKEY,state);
       }
 
-      let ac;
-      let audioUnlocked = false;
       function ensureAC(){
         if(!audioUnlocked) return null;
         if(!ac){ ac = new (window.AudioContext||window.webkitAudioContext)(); }
