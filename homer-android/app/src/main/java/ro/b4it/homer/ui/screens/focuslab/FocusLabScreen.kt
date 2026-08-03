@@ -99,8 +99,8 @@ fun FocusLabScreen(vm: FocusLabViewModel = hiltViewModel()) {
         LabCard(
             emoji    = "👁️",
             title    = "Focus Dot",
-            subtitle = "Trataka — 30 second gaze exercise",
-            why      = "Ancient yogic concentration technique. 30 seconds of fixed gaze activates your prefrontal cortex, calms mental chatter, and switches your brain into single-point attention mode.",
+            subtitle = "Trataka — open-ended gaze exercise",
+            why      = "Ancient yogic concentration technique. Fixed-point gaze activates your prefrontal cortex, calms mental chatter, and switches your brain into single-point attention mode. Stay as long as you need — tap to exit.",
             accent   = NeonPurple,
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
@@ -345,11 +345,12 @@ fun BreathingCircle(active: Boolean) {
 
 @Composable
 fun FocusDotOverlay(onExit: () -> Unit) {
-    var secsLeft by remember { mutableStateOf(30) }
+    var secsElapsed by remember { mutableStateOf(0) }
     LaunchedEffect(Unit) {
-        while (secsLeft > 0) { kotlinx.coroutines.delay(1_000); secsLeft-- }
-        onExit()
+        while (true) { kotlinx.coroutines.delay(1_000); secsElapsed++ }
     }
+    val mins = secsElapsed / 60
+    val secs = secsElapsed % 60
     val pulse by rememberInfiniteTransition(label = "pulse").animateFloat(
         initialValue = 0.85f, targetValue = 1.15f,
         animationSpec = infiniteRepeatable(tween(900, easing = EaseInOutSine), RepeatMode.Reverse),
@@ -373,7 +374,7 @@ fun FocusDotOverlay(onExit: () -> Unit) {
                     fontSize = 13.sp, color = Color.White.copy(0.3f),
                     fontWeight = FontWeight.Medium, letterSpacing = 0.5.sp,
                 )
-                Text("${secsLeft}s  •  tap to exit", fontSize = 11.sp, color = Color.White.copy(0.2f))
+                Text("%02d:%02d  •  tap to exit".format(mins, secs), fontSize = 11.sp, color = Color.White.copy(0.2f))
             }
         }
     }
