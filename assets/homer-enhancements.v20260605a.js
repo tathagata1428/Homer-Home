@@ -1089,19 +1089,32 @@
     // ── Habits merge sync ────────────────────────────────────────────────
     // Newer modification always wins (max of archivedAt, updatedAt, created).
     // archivedAt is set by soft-delete so deletions propagate across devices.
+    // localTs = timestamp when the user last saved habits locally; remote-only items
+    // older than localTs are skipped — this prevents deleted habits from resurrecting.
     function habitTs(h){return Math.max(h.archivedAt||0,h.updatedAt||0,h.created||0);}
-    function mergeHabitsData(local,remote){
+    function mergeHabitsData(local,remote,localTs){
       var lH=local&&Array.isArray(local.habits)?local.habits:[];
       var rH=remote&&Array.isArray(remote.habits)?remote.habits:[];
       var lC=(local&&typeof local.completions==='object'&&local.completions)||{};
       var rC=(remote&&typeof remote.completions==='object'&&remote.completions)||{};
       var byId={};
-      lH.concat(rH).forEach(function(h){
+      // Local first — establishes the survivor set after user edits/deletes.
+      lH.forEach(function(h){if(h&&h.id!=null)byId[String(h.id)]=h;});
+      // Remote: update existing items (newer wins), but only ADD missing items if
+      // they are newer than our last local save — if localTs >= rTs the user deleted
+      // it after the remote version was last touched, so local deletion wins.
+      rH.forEach(function(h){
         if(!h||h.id==null)return;
-        var ex=byId[h.id];
-        if(!ex){byId[h.id]=h;return;}
-        // Cloud wins: remote overwrites local on conflict; ties go to remote
-        if(habitTs(h)>=habitTs(ex))byId[h.id]=h;
+        var k=String(h.id);
+        var rTs=habitTs(h);
+        if(byId[k]){
+          // Both have it — newer wins; ties go to remote (cloud authoritative for updates)
+          if(rTs>=habitTs(byId[k]))byId[k]=h;
+        }else{
+          // Remote-only item: only restore if it is newer than our last local save.
+          // If localTs >= rTs the user deleted the habit after remote last touched it → skip.
+          if(rTs>(localTs||0))byId[k]=h;
+        }
       });
       var mergedH=Object.keys(byId).map(function(k){return byId[k];});
       mergedH.sort(function(a,b){return(a.id||0)-(b.id||0);});
@@ -1130,7 +1143,7 @@
           }
           if(!localRaw&&!remoteParsed){showBadge('Synced \u2713','synced');return;}
           var remote=remoteParsed||{habits:[],completions:{}};
-          var merged=mergeHabitsData(local,remote);
+          var merged=mergeHabitsData(local,remote,getLocalTs(key)||0);
           var mergedStr=JSON.stringify(merged);
           if(mergedStr!==localRaw){
             nativeSetItem(key,mergedStr);
@@ -1201,7 +1214,8 @@
           // so without this guard we would stomp good Supabase data with an empty payload.
           if(!localRaw&&!remoteParsed){showBadge('Synced \u2713','synced');return;}
           var remote=remoteParsed||emptyVal;
-          var merged=mergeFn(local,remote);
+          var localTs=getLocalTs(key)||0;
+          var merged=mergeFn(local,remote,localTs);
           var mergedStr=JSON.stringify(merged);
           if(mergedStr!==localRaw){nativeSetItem(key,mergedStr);try{window.dispatchEvent(new CustomEvent('homer-data-synced',{detail:{key:key}}));}catch(_de){}}
           var ts=getLocalTs(key)||Date.now();
@@ -1293,22 +1307,27 @@
     function syncJournal(){syncMergeKey('homer-journal',mergeJournal,[]);}
 
     // ── Car: {vehicles,documents,maintenance,fuel} — merge each sub-array by id ─
-    function mergeCarArr(local,remote){
-      // Cloud wins on same ID: remote overwrites local only when updatedAt is equal or newer.
-      // This prevents a stale remote pull from clobbering a local edit not yet pushed.
+    function mergeCarArr(local,remote,localTs){
+      // Local items establish the survivor set (after user edits/deletes).
+      // Remote-only items are only added if newer than localTs — prevents deletion resurrection.
+      // Same-ID updates: remote wins when updatedAt is equal or newer (cloud authoritative for edits).
       var byId={};
       (Array.isArray(local)?local:[]).forEach(function(x){if(x&&x.id!=null)byId[String(x.id)]=Object.assign({},x);});
       (Array.isArray(remote)?remote:[]).forEach(function(x){
         if(!x||x.id==null)return;
         var k=String(x.id);
-        if(!byId[k]||(x.updatedAt||0)>=(byId[k].updatedAt||0))byId[k]=Object.assign({},x);
+        if(byId[k]){
+          if((x.updatedAt||0)>=(byId[k].updatedAt||0))byId[k]=Object.assign({},x);
+        }else{
+          if((x.updatedAt||0)>(localTs||0))byId[k]=Object.assign({},x);
+        }
       });
       return Object.keys(byId).map(function(k){return byId[k];});
     }
-    function mergeCar(local,remote){
+    function mergeCar(local,remote,localTs){
       var l=(local&&typeof local==='object'&&!Array.isArray(local))?local:{};
       var r=(remote&&typeof remote==='object'&&!Array.isArray(remote))?remote:{};
-      return{vehicles:mergeCarArr(l.vehicles,r.vehicles),documents:mergeCarArr(l.documents,r.documents),maintenance:mergeCarArr(l.maintenance,r.maintenance),fuel:mergeCarArr(l.fuel,r.fuel),odoLogs:mergeCarArr(l.odoLogs,r.odoLogs)};
+      return{vehicles:mergeCarArr(l.vehicles,r.vehicles,localTs),documents:mergeCarArr(l.documents,r.documents,localTs),maintenance:mergeCarArr(l.maintenance,r.maintenance,localTs),fuel:mergeCarArr(l.fuel,r.fuel,localTs),odoLogs:mergeCarArr(l.odoLogs,r.odoLogs,localTs)};
     }
     function syncCar(){syncMergeKey('homer-car',mergeCar,{vehicles:[],documents:[],maintenance:[],fuel:[],odoLogs:[]});}
 
@@ -1320,7 +1339,7 @@
       (Array.isArray(remote)?remote:[]).forEach(function(t){if(t&&t.ts!=null)byTs[String(t.ts)]=Object.assign({},t);});
       (Array.isArray(local)?local:[]).forEach(function(t){if(t&&t.ts!=null)byTs[String(t.ts)]=Object.assign({},t);});
       var merged=Object.keys(byTs).map(function(k){return byTs[k];});
-      merged.sort(function(a,b){return(a.ts||0)-(b.ts||0);});
+      merged.sort(function(a,b){return(b.ts||0)-(a.ts||0);}); // newest-first so active task is most recently added
       return merged;
     }
     function syncPomTasks(){

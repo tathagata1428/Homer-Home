@@ -1328,19 +1328,17 @@ document.addEventListener('DOMContentLoaded', function(){
       settings.longEvery= Math.max(1, parseInt(settings.longEvery)|| 4);
       settings.auto     = !!settings.auto;
       const state=loadJSON(SKEY,{mode:'focus', remaining:settings.focus*60, running:false, pomodoros:0, endTime:0});
-      // Recalculate remaining from absolute endTime (handles tab restore/reload)
-      var _advanceOnLoad = false;
+      // Recalculate remaining from absolute endTime so display is accurate after a refresh
       if(state.running && state.endTime){
         var _left=Math.floor((state.endTime - Date.now())/1000);
-        if(_left > 0){ state.remaining = _left; } else { state.remaining = 0; _advanceOnLoad = true; }
+        if(_left > 0){ state.remaining = _left; } else { state.remaining = 0; }
       }
-      // Reset display only when not needing to advance (timer wasn't running, or ran out without endTime)
-      if(!_advanceOnLoad && state.remaining <= 0){ state.remaining = durFor(state.mode); state.running = false; state.endTime = 0; }
+      if(state.remaining <= 0){ state.remaining = durFor(state.mode); state.running = false; state.endTime = 0; }
       elSetFocus.value=settings.focus; elSetShort.value=settings.short; elSetLong.value=settings.long;
       if(elAuto) elAuto.checked = settings.auto;
       elMode.textContent=cap(state.mode); updateTime(); updateRing(); updateMeta();
-      // Auto-resume: advance phase if timer expired during reload, else resume if still running
-      if(_advanceOnLoad){ advance(false); } else if(state.running){ start(); }
+      let tick=null; // declare before start() to avoid TDZ ReferenceError
+      if(state.running){ start(); }
 
       function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
       function durFor(mode){ return (mode==='focus'?settings.focus:mode==='short'?settings.short:settings.long)*60; }
@@ -1408,7 +1406,6 @@ document.addEventListener('DOMContentLoaded', function(){
         window.addEventListener(evt,function(){ try{ audioUnlocked = true; ensureAC(); preloadHomer(); if('speechSynthesis' in window) speechSynthesis.resume(); }catch(_){ } },{once:true, passive:true});
       });
 
-      let tick=null;
       function start(){
           if(tick) return;
           state.running=true;
@@ -1556,6 +1553,12 @@ document.addEventListener('DOMContentLoaded', function(){
       const taskClearDone=document.getElementById('task-clear-done');
       if(taskClearDone) taskClearDone.addEventListener('click',()=>{ saveTasks(loadTasks().filter(t=>!t.done)); renderTasks(); });
 
+      // Re-render task list when sync (enhancements direct sync, CF Pages Realtime, or backup restore) writes fresh data
+      window.addEventListener('homer-data-synced', function(e){
+        if(e && e.detail && e.detail.key === 'pom.tasks.v1') renderTasks();
+      });
+      window.addEventListener('homer-cloud-pull', function(){ renderTasks(); });
+
       // Space bar: start/pause when Pomodoro tab is visible
       document.addEventListener('keydown',function(e){
         if(e.key!==' '&&e.key!=='Spacebar') return;
@@ -1566,14 +1569,6 @@ document.addEventListener('DOMContentLoaded', function(){
         e.preventDefault();
         state.running?pause():start();
       });
-
-      // Handle timer that expired while page was closed
-      if(state.running && state.remaining <= 0){
-        state.running = false;
-        advance(false);
-      } else if(state.running){
-        start();
-      }
 
       // Re-sync timer when tab becomes visible (switching back from other device/tab)
       document.addEventListener('visibilitychange', function(){
