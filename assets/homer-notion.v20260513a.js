@@ -108,6 +108,14 @@
   .an-summary-lbl{font-size:.7rem;color:var(--muted);margin-top:4px;line-height:1.4;}
   .an-summary-delta{font-size:.7rem;font-weight:700;margin-top:3px;}
   .an-summary-delta.up{color:#34d399;}.an-summary-delta.down{color:#f87171;}.an-summary-delta.flat{color:var(--muted);}
+  .an-summary-card.savings{border-color:rgba(52,211,153,.25);}.an-summary-card.savings .an-summary-val{color:#34d399;}
+  .an-summary-card.deficit{border-color:rgba(248,113,113,.25);}.an-summary-card.deficit .an-summary-val{color:#f87171;}
+  .an-budget-totals{display:flex;align-items:center;gap:18px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:12px 16px;margin-bottom:4px;flex-wrap:wrap;}
+  .an-budget-total-item{display:flex;flex-direction:column;align-items:center;gap:1px;}
+  .an-bt-lbl{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+  .an-bt-val{font-size:1.1rem;font-weight:900;line-height:1.2;}
+  .an-budget-bar-wrap{flex:1;min-width:80px;height:7px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;}
+  .an-budget-bar-fill{height:100%;border-radius:4px;transition:width .5s cubic-bezier(.4,0,.2,1);}
   .an-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   @media(max-width:700px){.an-grid{grid-template-columns:1fr;}}
   .an-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:15px;padding:16px;}
@@ -129,13 +137,16 @@
   .streak-num{font-size:1.35rem;font-weight:900;color:#60a5fa;line-height:1;}
   .streak-lbl{font-size:.68rem;color:var(--muted);margin-top:3px;text-align:center;max-width:75px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .streak-rate{font-size:.65rem;color:#34d399;margin-top:1px;}
-  .bar-chart{display:flex;gap:5px;align-items:flex-end;height:90px;margin-top:8px;}
-  .bar-col{display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;}
+  .bar-chart{display:flex;gap:5px;align-items:flex-end;height:140px;margin-top:8px;}
+  .bar-col{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;}
   .bar-fill{width:100%;border-radius:4px 4px 0 0;background:linear-gradient(180deg,#60a5fa,#3b82f6);min-height:3px;}
   .bar-fill.green{background:linear-gradient(180deg,#34d399,#10b981);}
   .bar-fill.purple{background:linear-gradient(180deg,#a78bfa,#7c3aed);}
   .bar-lbl{font-size:.62rem;color:var(--muted);}
   .bar-val{font-size:.65rem;color:#60a5fa;font-weight:700;}
+  .bar-duo{display:flex;gap:2px;align-items:flex-end;width:100%;}
+  .bar-duo .bar-fill{width:50%;}
+  .bar-net{font-size:.58rem;font-weight:800;line-height:1;}
   .cat-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
   .cat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
   .cat-name{flex:1;font-size:.82rem;color:var(--text);}
@@ -170,7 +181,7 @@
   .day-dot.active{background:rgba(96,165,250,.25);color:#60a5fa;border:1px solid rgba(96,165,250,.4);}
   .day-dot.best{background:#60a5fa;color:#fff;border:none;}
   .day-name{font-size:.6rem;color:var(--muted);}
-  .energy-chart{display:flex;gap:6px;align-items:flex-end;height:60px;margin-top:8px;}
+  .energy-chart{display:flex;gap:6px;align-items:flex-end;height:90px;margin-top:8px;}
   .energy-bar-col{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;}
   .energy-bar{width:100%;border-radius:3px 3px 0 0;min-height:3px;}
   .energy-lbl{font-size:.6rem;color:var(--muted);}
@@ -538,6 +549,7 @@
 
     var hd = getHabitsData(), habits = hd.habits, completions = hd.completions;
     var expenses = ls('homer-expenses') || []; if (!Array.isArray(expenses)) expenses = [];
+    var income = ls('homer-income') || []; if (!Array.isArray(income)) income = [];
     var sessions = ls('homer-sessions') || []; if (!Array.isArray(sessions)) sessions = [];
     var reviews = ls('homer-weekly-reviews') || []; if (!Array.isArray(reviews)) reviews = [];
     var notes = ls('homer-notes') || []; if (!Array.isArray(notes)) notes = [];
@@ -546,6 +558,7 @@
 
     // Filter by range
     var rangeExpenses = expenses.filter(function (e) { return (e.date || '') >= rangeStart; });
+    var rangeIncome = income.filter(function (e) { return (e.date || '') >= rangeStart; });
     var rangeSessions = sessions.filter(function (s) { return (s.date || '') >= rangeStart; });
     var rangeNotes = notes.filter(function (n) { return (n.updated || n.created || '') >= rangeStart; });
 
@@ -554,6 +567,8 @@
     var prevExpenses = expenses.filter(function (e) { return (e.date || '') >= prevStart && (e.date || '') < prevEnd; });
     var curSpend = rangeExpenses.reduce(function (s, e) { return s + parseFloat(e.amount || 0); }, 0);
     var prevSpend = prevExpenses.reduce(function (s, e) { return s + parseFloat(e.amount || 0); }, 0);
+    var curIncome = rangeIncome.reduce(function (s, e) { return s + parseFloat(e.amount || 0); }, 0);
+    var netSavings = curIncome - curSpend;
     var spendDelta = prevSpend ? Math.round(((curSpend - prevSpend) / prevSpend) * 100) : 0;
     var curSessions = rangeSessions.length;
     var prevSessions = sessions.filter(function (s) { return (s.date || '') >= prevStart && (s.date || '') < prevEnd; }).length;
@@ -577,7 +592,9 @@
       '<div class="an-summary-card focus"><div class="an-summary-icon">⏱️</div><div class="an-summary-val">' + focusLabel + '</div><div class="an-summary-lbl">Focus Time (' + curSessions + ' sessions)</div>' + mkDelta(focusDelta, false) + '</div>' +
       '<div class="an-summary-card habits"><div class="an-summary-icon">✅</div><div class="an-summary-val">' + avgHabitRate + '%</div><div class="an-summary-lbl">Habit Completion</div>' + mkDelta(habitDelta, false) + '</div>' +
       '<div class="an-summary-card streak"><div class="an-summary-icon">🔥</div><div class="an-summary-val">' + bestStreak + '</div><div class="an-summary-lbl">Best Streak (days)</div></div>' +
-      '<div class="an-summary-card notes"><div class="an-summary-icon">✏️</div><div class="an-summary-val">' + rangeNotes.length + '</div><div class="an-summary-lbl">Notes Written</div></div>';
+      (curIncome > 0
+        ? '<div class="an-summary-card ' + (netSavings >= 0 ? 'savings' : 'deficit') + '"><div class="an-summary-icon">' + (netSavings >= 0 ? '💚' : '📉') + '</div><div class="an-summary-val">' + (netSavings >= 0 ? '+' : '') + Math.round(netSavings) + '</div><div class="an-summary-lbl">Net ' + (netSavings >= 0 ? 'Saved' : 'Deficit') + ' (' + anRange + 'd)</div>' + mkDelta(curIncome ? Math.round((netSavings / curIncome) * 100) : 0, false) + '</div>'
+        : '<div class="an-summary-card notes"><div class="an-summary-icon">✏️</div><div class="an-summary-val">' + rangeNotes.length + '</div><div class="an-summary-lbl">Notes Written</div></div>');
 
     // ─── Habit streaks + completion rate ──────────────────────────────
     var streakHtml = habits.length
@@ -648,7 +665,9 @@
     for (var fi = 13; fi >= 0; fi--) { var fd = new Date(); fd.setDate(fd.getDate() - fi); focusDays.push({ key: fd.toISOString().slice(0, 10), lbl: ['Su','Mo','Tu','We','Th','Fr','Sa'][fd.getDay()], count: 0 }); }
     sessions.forEach(function (s) { var key = (s.date || '').slice(0, 10); var fd2 = focusDays.find(function (d2) { return d2.key === key; }); if (fd2) fd2.count++; });
     var maxF = Math.max.apply(null, focusDays.map(function (d2) { return d2.count; })) || 1;
-    var focusBarHtml = '<p class="an-card-sub">Each bar = one 25-minute Pomodoro session. Total this period: <strong style="color:#a78bfa">' + focusLabel + '</strong> (' + curSessions + ' sessions).</p><div class="bar-chart">' + focusDays.map(function (d2) {
+    var avgFocusPerDay = anRange > 0 ? Math.round(totalFocusMin / anRange) : 0;
+    var avgFocusLabel = avgFocusPerDay >= 60 ? Math.floor(avgFocusPerDay/60)+'h '+(avgFocusPerDay%60?avgFocusPerDay%60+'m':'') : avgFocusPerDay+'m';
+    var focusBarHtml = '<p class="an-card-sub">Total: <strong style="color:#a78bfa">' + focusLabel + '</strong> · ' + curSessions + ' sessions · avg <strong style="color:#a78bfa">' + avgFocusLabel + '/day</strong></p><div class="bar-chart">' + focusDays.map(function (d2) {
       var pct = Math.round((d2.count / maxF) * 100);
       return '<div class="bar-col"><div class="bar-val" style="color:#a78bfa;">' + (d2.count || '') + '</div><div class="bar-fill purple" style="height:' + Math.max(pct, d2.count ? 8 : 3) + 'px;"></div><div class="bar-lbl">' + d2.lbl + '</div></div>';
     }).join('') + '</div>';
@@ -656,13 +675,30 @@
     // ─── Expense bar (6 months) ───────────────────────────────────────
     var months = [];
     var now2 = new Date();
-    for (var mi = 5; mi >= 0; mi--) { var md = new Date(now2.getFullYear(), now2.getMonth() - mi, 1); months.push({ key: md.getFullYear() + '-' + String(md.getMonth() + 1).padStart(2, '0'), lbl: md.toLocaleDateString(undefined, { month: 'short' }), total: 0 }); }
+    for (var mi = 5; mi >= 0; mi--) { var md = new Date(now2.getFullYear(), now2.getMonth() - mi, 1); months.push({ key: md.getFullYear() + '-' + String(md.getMonth() + 1).padStart(2, '0'), lbl: md.toLocaleDateString(undefined, { month: 'short' }), total: 0, inc: 0 }); }
     expenses.forEach(function (e) { var k = (e.date || '').slice(0, 7); var m = months.find(function (x) { return x.key === k; }); if (m) m.total += parseFloat(e.amount || 0); });
-    var maxM = Math.max.apply(null, months.map(function (m) { return m.total; })) || 1;
-    var barHtml = '<p class="an-card-sub">Monthly spending trend. Hover a bar to see the exact amount.</p><div class="bar-chart">' + months.map(function (m) {
-      var pct = Math.round((m.total / maxM) * 100);
-      return '<div class="bar-col"><div class="bar-val">' + (m.total > 0 ? Math.round(m.total) : '') + '</div><div class="bar-fill" style="height:' + Math.max(pct, m.total ? 8 : 3) + 'px;"></div><div class="bar-lbl">' + m.lbl + '</div></div>';
-    }).join('') + '</div>';
+    income.forEach(function (e) { var k = (e.date || '').slice(0, 7); var m = months.find(function (x) { return x.key === k; }); if (m) m.inc += parseFloat(e.amount || 0); });
+    var hasIncome = months.some(function(m){ return m.inc > 0; });
+    var maxM = Math.max.apply(null, months.map(function (m) { return Math.max(m.total, m.inc); })) || 1;
+    var barHtml = hasIncome
+      ? '<p class="an-card-sub">Monthly income <span style="color:#34d399">▩</span> vs expenses <span style="color:#60a5fa">▩</span>. Net shown below each month.</p><div class="bar-chart">' + months.map(function (m) {
+          var expPct = Math.round((m.total / maxM) * 100);
+          var incPct = Math.round((m.inc / maxM) * 100);
+          var net = m.inc - m.total;
+          var netCol = net >= 0 ? '#34d399' : '#f87171';
+          return '<div class="bar-col">' +
+            '<div class="bar-duo">' +
+              '<div class="bar-fill green" style="height:'+Math.max(incPct, m.inc?8:3)+'px;" title="Income: '+Math.round(m.inc)+'"></div>' +
+              '<div class="bar-fill" style="height:'+Math.max(expPct, m.total?8:3)+'px;" title="Spend: '+Math.round(m.total)+'"></div>' +
+            '</div>' +
+            '<div class="bar-net" style="color:'+netCol+'">' + (net !== 0 ? (net>0?'+':'')+Math.round(net) : '') + '</div>' +
+            '<div class="bar-lbl">'+m.lbl+'</div>' +
+          '</div>';
+        }).join('') + '</div>'
+      : '<p class="an-card-sub">Monthly spending trend. Add income entries to see savings rate.</p><div class="bar-chart">' + months.map(function (m) {
+          var pct = Math.round((m.total / maxM) * 100);
+          return '<div class="bar-col"><div class="bar-val">' + (m.total > 0 ? Math.round(m.total) : '') + '</div><div class="bar-fill" style="height:' + Math.max(pct, m.total ? 8 : 3) + 'px;"></div><div class="bar-lbl">' + m.lbl + '</div></div>';
+        }).join('') + '</div>';
 
     // ─── Categories + MoM delta ────────────────────────────────────────
     var curMoKey = new Date().toISOString().slice(0, 7), prevMoKey = (function () { var d2 = new Date(); d2.setMonth(d2.getMonth() - 1); return d2.toISOString().slice(0, 7); })();
@@ -706,7 +742,11 @@
       if (bha && !bhb) return -1; if (bhb && !bha) return 1;
       return sb - sa || a.localeCompare(b);
     });
-    var budgetHtml = '<p class="an-card-sub">Click budget amount to edit · Click <strong>+ Add</strong> to log a transaction · Red = over, yellow = &gt;80%.</p>' +
+    var totalBudgeted = Object.keys(budgets).reduce(function(s,k){ return s+(budgets[k]||0); }, 0);
+    var overallBudgetPct = totalBudgeted ? Math.min(Math.round(curMonthTotal/totalBudgeted*100), 100) : 0;
+    var overallBudgetColor = curMonthTotal > totalBudgeted ? '#f87171' : (curMonthTotal > totalBudgeted*0.8 ? '#fbbf24' : '#34d399');
+    var budgetHtml = '<div class="an-budget-totals"><div class="an-budget-total-item"><span class="an-bt-lbl">Spent</span><span class="an-bt-val" style="color:'+overallBudgetColor+'">'+Math.round(curMonthTotal)+'</span></div><div class="an-budget-total-item"><span class="an-bt-lbl">Budget</span><span class="an-bt-val">'+Math.round(totalBudgeted)+'</span></div><div class="an-budget-total-item"><span class="an-bt-lbl">Remaining</span><span class="an-bt-val" style="color:'+(totalBudgeted-curMonthTotal>=0?'#34d399':'#f87171')+'">'+(totalBudgeted>0?(totalBudgeted-curMonthTotal>=0?'+':'')+Math.round(totalBudgeted-curMonthTotal):'—')+'</span></div><div style="flex:1"></div><div class="an-budget-bar-wrap"><div class="an-budget-bar-fill" style="width:'+overallBudgetPct+'%;background:'+overallBudgetColor+'"></div></div></div>' +
+      '<p class="an-card-sub" style="margin-top:10px">Click budget to edit · <strong>+ Add</strong> to log a transaction · Red = over, yellow = &gt;80%.</p>' +
       '<div class="env-grid">' +
       budgetCats.map(function (cat) {
         var spent = curMoCats[cat] || 0, budget = budgets[cat] || 0;
@@ -768,7 +808,7 @@
         '<div class="an-card an-card-full"><h4>Habit Activity Heatmap <span style="font-weight:400;opacity:.6">(16 weeks)</span></h4><p class="an-card-sub">Each cell = one day. Darker = more habits completed. Shows habit consistency at a glance.</p>' + hmHtml + '</div>' +
         '<div class="an-card"><h4>Focus Sessions</h4>' + focusBarHtml + '</div>' +
         '<div class="an-card"><h4>Weekly Energy Trend</h4>' + energyHtml + '</div>' +
-        '<div class="an-card"><h4>Monthly Spend</h4>' + barHtml + '</div>' +
+        '<div class="an-card"><h4>' + (hasIncome ? 'Income vs Expenses' : 'Monthly Spend') + '</h4>' + barHtml + '</div>' +
         '<div class="an-card"><h4>This Month by Category</h4>' + catHtml + '</div>' +
         '<div class="an-card an-card-full"><h4>Budget Tracker <span style="font-weight:400;opacity:.6">' + curMoKey + ' &mdash; Total: ' + Math.round(curMonthTotal) + '</span></h4>' + budgetHtml + '</div>' +
       '</div>';
