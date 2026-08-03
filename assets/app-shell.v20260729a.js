@@ -985,7 +985,7 @@ function renderQuote(q) {
         const guideEl = document.getElementById("focus-guidance");
 
         focusOverlay.style.display = "grid";
-        if(timerEl) timerEl.textContent = "0:30";
+        if(timerEl) timerEl.textContent = "0:00";
         if(hintEl)  hintEl.classList.remove("fade-out");
         if(guideEl) guideEl.classList.remove("fade-out");
 
@@ -993,17 +993,14 @@ function renderQuote(q) {
         setTimeout(() => { if(guideEl) guideEl.classList.add("fade-out"); }, 3000);
         setTimeout(() => { if(hintEl)  hintEl.classList.add("fade-out");  }, 5000);
 
-        // 30s countdown
-        let secs = 30;
+        // Count up — no auto-exit
+        let secs = 0;
         clearInterval(_focusCountdown);
         _focusCountdown = setInterval(() => {
-          secs--;
-          if(timerEl) timerEl.textContent = "0:" + String(secs).padStart(2, "0");
-          if(secs <= 0) {
-            clearInterval(_focusCountdown);
-            if(timerEl) timerEl.textContent = "";
-            setTimeout(() => { focusOverlay.style.display = "none"; }, 1000);
-          }
+          secs++;
+          const m = Math.floor(secs / 60);
+          const s = secs % 60;
+          if(timerEl) timerEl.textContent = m + ":" + String(s).padStart(2, "0");
         }, 1000);
 
         if(document.documentElement.requestFullscreen) {
@@ -6816,7 +6813,9 @@ let tvWidgetCreated = false;
     if(!raw) return Promise.resolve({ok:false, reason:'no-mirror'});
     var mirror;
     try{ mirror = JSON.parse(raw); }catch(_e){ return Promise.resolve({ok:false, reason:'invalid-mirror'}); }
-    var mirrorGoals = mirror && Array.isArray(mirror.goals) ? mirror.goals : [];
+    // Mirror may use 'goals' (persistProjectMutation path) or 'tasks' (doVaultSync path) — accept both.
+    var mirrorGoals = mirror && Array.isArray(mirror.goals) ? mirror.goals
+      : (mirror && Array.isArray(mirror.tasks) ? mirror.tasks : []);
     var mirrorProjects = mirror && Array.isArray(mirror.projects) ? mirror.projects : [];
     if(!mirrorGoals.length) return Promise.resolve({ok:false, reason:'empty-mirror'});
     kanbanMirrorRecoveryInFlight = true;
@@ -9310,9 +9309,13 @@ let tvWidgetCreated = false;
     // User data synced via enhancements merge — must be in backup too
     'homer-habits', 'homer-inbox',
     'homer-expenses', 'homer-income', 'homer-expense-goals',
-    'homer-expense-templates', 'homer-expense-budgets', 'homer-payday-day',
+    'homer-expense-templates', 'homer-expense-budgets', 'homer-expense-budgets-excluded',
+    'homer-expense-cats', 'homer-payday-day',
     'homer-notes', 'homer-recurring', 'homer-sessions', 'homer-weekly-reviews',
-    'homer-countdown', 'homer-car', 'homer-journal', 'homer-reminders'
+    'homer-countdown', 'homer-car', 'homer-journal', 'homer-reminders',
+    'homer-kanban', 'homer-life-goals',
+    'homer-secrets:personal', 'homer-secrets:work',
+    'homer-vault-notes:personal', 'homer-vault-notes:work'
   ];
   var IDB_KEYS = ['homer-vault-salt', 'homer-vault-hash', 'homer-vault-data'];
   var ALL_KEYS = LS_KEYS.concat(IDB_KEYS);
@@ -10252,9 +10255,10 @@ let tvWidgetCreated = false;
   }
   function exportLocalBackupJson() {
     try {
-      var snap = { _exportedAt: new Date().toISOString(), _version: 1, localStorage: {}, indexedDb: {} };
+      var snap = { _exportedAt: new Date().toISOString(), _version: 2, localStorage: {}, indexedDb: {} };
       for (var i = 0; i < localStorage.length; i++) {
         var k = localStorage.key(i);
+        if(k === 'homer-auth-hash' || k === 'homer-sync-pass' || /^sb-.+-auth-token$/i.test(k)) continue;
         snap.localStorage[k] = localStorage.getItem(k);
       }
       if (window._cachedVaultDataForBeacon) snap.indexedDb['homer-vault-data'] = window._cachedVaultDataForBeacon;
@@ -10267,8 +10271,14 @@ let tvWidgetCreated = false;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(url);
       }
-      // Also include car IDB (homer-car-db / store:'car' / key:'main')
-      try {
+      Promise.all(IDB_KEYS.map(function(key){
+        return syncIdbGet(key).then(function(value){ return { key:key, value:value }; });
+      })).then(function(vaultEntries){
+        vaultEntries.forEach(function(entry){
+          if(entry.value !== null && entry.value !== undefined) snap.indexedDb[entry.key] = entry.value;
+        });
+        // Also include car IDB (homer-car-db / store:'car' / key:'main')
+        try {
         var carReq = indexedDB.open('homer-car-db', 1);
         carReq.onsuccess = function(e) {
           try {
@@ -10281,7 +10291,8 @@ let tvWidgetCreated = false;
           } catch(_) { doDownload(); }
         };
         carReq.onerror = function() { doDownload(); };
-      } catch(_) { doDownload(); }
+        } catch(_) { doDownload(); }
+      }).catch(function(){ doDownload(); });
     } catch(e) { alert('Export failed: ' + e.message); }
   }
   function importLocalBackupJson(file) {
@@ -10292,28 +10303,48 @@ let tvWidgetCreated = false;
         var snap = JSON.parse(ev.target.result);
         var ls = snap.localStorage || snap;
         if (!ls || typeof ls !== 'object') throw new Error('Invalid backup format');
-        var count = 0;
-        Object.keys(ls).forEach(function(k) {
-          if (k === '_exportedAt' || k === '_version') return;
-          try { localStorage.setItem(k, String(ls[k] == null ? '' : ls[k])); count++; } catch(_le) {}
+        var idbValues = snap.indexedDb && typeof snap.indexedDb === 'object' ? snap.indexedDb : {};
+        var presentVaultKeys = IDB_KEYS.filter(function(key){
+          return idbValues[key] !== undefined && idbValues[key] !== null;
         });
-        if (snap.indexedDb && snap.indexedDb['homer-vault-data'] && typeof window._homerIdbWriteVaultData === 'function') {
-          window._homerIdbWriteVaultData(snap.indexedDb['homer-vault-data']);
+        if(presentVaultKeys.length > 0 && presentVaultKeys.length !== IDB_KEYS.length){
+          throw new Error('Backup has an incomplete encrypted vault and was not imported');
         }
-        // Restore car IDB
-        if (snap.indexedDb && snap.indexedDb['homer-car-data']) {
-          try {
-            var carRestore = indexedDB.open('homer-car-db', 1);
-            carRestore.onupgradeneeded = function(e) { e.target.result.createObjectStore('car'); };
-            carRestore.onsuccess = function(e) {
-              try {
-                var tx = e.target.result.transaction('car','readwrite');
-                tx.objectStore('car').put(snap.indexedDb['homer-car-data'], 'main');
-              } catch(_) {}
-            };
-          } catch(_) {}
-        }
-        if (confirm('Restored ' + count + ' items from local backup. Reload to apply?')) location.reload();
+        if(!confirm('Import this backup?\n\nYour current browser and encrypted vault data will be saved as a pre-restore copy first.')) return;
+        saveEmergencyLocalBackup().then(function(){
+          var count = 0;
+          Object.keys(ls).forEach(function(k) {
+            if (k === '_exportedAt' || k === '_version') return;
+            if(k === 'homer-auth-hash' || k === 'homer-sync-pass' || /^sb-.+-auth-token$/i.test(k)) return;
+            try { origSetItem(k, String(ls[k] == null ? '' : ls[k])); count++; } catch(_le) {}
+          });
+          var restoreTasks = presentVaultKeys.map(function(key){
+            return syncIdbSet(key, idbValues[key]);
+          });
+          if(idbValues['homer-car-data']){
+            restoreTasks.push(new Promise(function(resolve, reject){
+              try{
+                var carRestore = indexedDB.open('homer-car-db', 1);
+                carRestore.onupgradeneeded = function(e) { e.target.result.createObjectStore('car'); };
+                carRestore.onerror = function(){ reject(carRestore.error || new Error('Car backup restore failed')); };
+                carRestore.onsuccess = function(e) {
+                  try {
+                    var tx = e.target.result.transaction('car','readwrite');
+                    tx.objectStore('car').put(idbValues['homer-car-data'], 'main');
+                    tx.oncomplete = function(){ resolve(); };
+                    tx.onerror = function(){ reject(tx.error || new Error('Car backup restore failed')); };
+                  } catch(error) { reject(error); }
+                };
+              }catch(error){ reject(error); }
+            }));
+          }
+          return Promise.all(restoreTasks).then(function(){
+            alert('Restored ' + count + ' browser items and verified the local databases. Homer will reload now.');
+            location.reload();
+          });
+        }).catch(function(error){
+          alert('Import failed safely: ' + (error && error.message ? error.message : error));
+        });
       } catch(e) { alert('Import failed: ' + e.message); }
     };
     reader.readAsText(file);
@@ -10343,6 +10374,7 @@ let tvWidgetCreated = false;
     });
   }
   function saveEmergencyLocalBackup(){
+    var savedAt = Date.now();
     try {
       var localBackup = {};
       for(var i=0; i<localStorage.length; i++){
@@ -10350,8 +10382,19 @@ let tvWidgetCreated = false;
         localBackup[bk] = localStorage.getItem(bk);
       }
       localStorage.setItem('homer-pre-restore-backup', JSON.stringify(localBackup));
-      localStorage.setItem('homer-pre-restore-ts', Date.now().toString());
+      localStorage.setItem('homer-pre-restore-ts', savedAt.toString());
     } catch(e){}
+    return Promise.all(IDB_KEYS.map(function(key){
+      return syncIdbGet(key).then(function(value){ return { key:key, value:value }; });
+    })).then(function(entries){
+      var idbBackup = { savedAt:savedAt, values:{} };
+      entries.forEach(function(entry){
+        if(entry.value !== null && entry.value !== undefined) idbBackup.values[entry.key] = entry.value;
+      });
+      return syncIdbSet('homer-pre-restore-idb', idbBackup);
+    }).catch(function(){
+      return null;
+    });
   }
   function isSnapshotLike(snapshot){
     return !!(snapshot && typeof snapshot === 'object' && Object.keys(snapshot).length);
@@ -10359,6 +10402,18 @@ let tvWidgetCreated = false;
   function analyzeBackupSnapshot(snapshot){
     if(!isSnapshotLike(snapshot)){
       return { ok:false, verified:false, legacy:false, reason:'Snapshot is empty or not an object' };
+    }
+    var presentVaultKeys = IDB_KEYS.filter(function(key){
+      return snapshot[key] !== undefined && snapshot[key] !== null && String(snapshot[key]).length > 0;
+    });
+    if(presentVaultKeys.length > 0 && presentVaultKeys.length !== IDB_KEYS.length){
+      return {
+        ok:false,
+        verified:false,
+        legacy:false,
+        reason:'Encrypted vault snapshot is incomplete',
+        presentVaultKeys:presentVaultKeys
+      };
     }
     var manifest = parseBackupManifest(snapshot);
     if(!manifest){
@@ -10369,6 +10424,15 @@ let tvWidgetCreated = false;
         reason:'Snapshot has no backup manifest',
         manifest:null,
         keyCount:Object.keys(snapshot).length
+      };
+    }
+    if(Number(manifest.version || 0) > BACKUP_SCHEMA_VERSION){
+      return {
+        ok:false,
+        verified:false,
+        legacy:false,
+        reason:'Snapshot was created by a newer unsupported backup format',
+        manifest:manifest
       };
     }
     var missingLocal = (manifest.localStorage || []).filter(function(key){ return !(key in snapshot); });
@@ -10393,6 +10457,7 @@ let tvWidgetCreated = false;
       keyCount:Object.keys(snapshot).length
     };
   }
+  window._homerAnalyzeBackupSnapshot = analyzeBackupSnapshot;
   function extractJoeyBundles(snapshot){
     var bundles = {};
     JOEY_BUNDLE_MODES.forEach(function(mode){
@@ -10468,8 +10533,9 @@ let tvWidgetCreated = false;
     if(!analysis.ok){
       return Promise.reject(new Error((source || 'snapshot') + ' is invalid: ' + analysis.reason));
     }
-    saveEmergencyLocalBackup();
-    return applyCloudSnapshot(snapshot).then(function(result){
+    return saveEmergencyLocalBackup().then(function(){
+      return applyCloudSnapshot(snapshot);
+    }).then(function(result){
       return restoreJoeyBundlesToRedis(passphrase, snapshot)
         .catch(function(err){
           console.warn('[Backup] Joey bundle restore warning:', err && err.message ? err.message : err);
@@ -10496,6 +10562,11 @@ let tvWidgetCreated = false;
       return performSnapshotRestore(passphrase, data.data, 'cloud', data.ts || Date.now());
     });
   }
+  window._homerRestoreSnapshotSafely = function(snapshot, source, ts){
+    var passphrase = getActiveSyncPass();
+    if(!passphrase) return Promise.reject(new Error('Unlock the vault before restoring a snapshot'));
+    return performSnapshotRestore(passphrase, snapshot, source || 'manual', ts || Date.now());
+  };
   function restoreDbMirror(passphrase){
     return fetchDbSnapshot(passphrase).then(function(data){
       return performSnapshotRestore(passphrase, data.data, 'db', data.ts || Date.now());
@@ -10690,7 +10761,15 @@ let tvWidgetCreated = false;
     'homer-oc-config-personal', 'homer-oc-config-work',
     'homer-habits', 'homer-inbox',
     'homer-expenses', 'homer-income', 'homer-expense-goals',
-    'homer-expense-templates', 'homer-expense-budgets'
+    'homer-expense-templates', 'homer-expense-budgets',
+    'homer-expense-budgets-excluded', 'homer-expense-cats',
+    'homer-payday-day', 'homer-notes', 'homer-recurring',
+    'homer-sessions', 'homer-weekly-reviews', 'homer-countdown',
+    'homer-car', 'homer-journal', 'homer-reminders',
+    'homer-kanban', 'homer-life-goals',
+    'homer-secrets:personal', 'homer-secrets:work',
+    'homer-vault-notes:personal', 'homer-vault-notes:work',
+    'homer-vault-data'
   ];
 
   // --- Content hash for change detection ---
@@ -10871,10 +10950,33 @@ let tvWidgetCreated = false;
     if(snapshot[BACKUP_MANIFEST_KEY]) origSetItem(BACKUP_MANIFEST_KEY, snapshot[BACKUP_MANIFEST_KEY]);
     renderBackupHealth();
   }
+  function restoreCarBackupToIdb(value){
+    if(value === undefined || value === null) return Promise.resolve();
+    return new Promise(function(resolve, reject){
+      try{
+        var request = indexedDB.open('homer-car-db', 1);
+        request.onupgradeneeded = function(event){
+          if(!event.target.result.objectStoreNames.contains('car')) event.target.result.createObjectStore('car');
+        };
+        request.onerror = function(){ reject(request.error || new Error('Could not open car backup database')); };
+        request.onsuccess = function(event){
+          try{
+            var tx = event.target.result.transaction('car', 'readwrite');
+            tx.objectStore('car').put(value, 'main');
+            tx.oncomplete = function(){ resolve(); };
+            tx.onerror = function(){ reject(tx.error || new Error('Could not restore car backup database')); };
+          }catch(error){ reject(error); }
+        };
+      }catch(error){ reject(error); }
+    });
+  }
 
   function applyCloudSnapshot(snapshot, opts){
     opts = opts || {};
-    if(!snapshot || typeof snapshot !== 'object') return Promise.resolve({ applied:0, cleared:0 });
+    var snapshotInspection = analyzeBackupSnapshot(snapshot);
+    if(!snapshotInspection.ok){
+      return Promise.reject(new Error('Refusing to apply invalid backup: ' + snapshotInspection.reason));
+    }
     var manifest = parseBackupManifest(snapshot);
     var incomingLs = {};
     var incomingIdb = {};
@@ -10911,7 +11013,10 @@ let tvWidgetCreated = false;
       if(isLocalOnlyBackupKey(key)) return;
       // Auth identity keys (username, permissions) are allowed through even though they're in syncMetaKeys
       if(syncMetaKeys.indexOf(key) >= 0 && AUTH_SYNC_KEYS.indexOf(key) < 0) return;
-      if(IDB_KEYS.indexOf(key) >= 0){
+      if(key === 'homer-car-data'){
+        idbTasks.push(restoreCarBackupToIdb(snapshot[key]));
+        applied++;
+      } else if(IDB_KEYS.indexOf(key) >= 0){
         idbTasks.push(syncIdbSet(key, snapshot[key]));
         applied++;
       } else if((key === 'homer-brain-dump' || key === 'homer-zen-goal') && !opts.force){
@@ -10944,10 +11049,11 @@ let tvWidgetCreated = false;
     });
   }
 
-  function doBackup(p, allData){
+  function doBackup(p, allData, opts){
+    opts = opts || {};
     st('Backing up...');
     var svg=cloud.querySelector('svg'); svg.classList.add('fab-spinning');
-    return fetch(R2_WORKER_URL+'/sync',{method:'POST',headers:{'Content-Type':'application/json','X-Sync-Key':p},body:JSON.stringify({data:allData})})
+    return fetch(R2_WORKER_URL+'/sync',{method:'POST',headers:{'Content-Type':'application/json','X-Sync-Key':p},body:JSON.stringify({data:allData,allowRegression:!!opts.allowRegression})})
       .then(function(r){ return r.json(); })
       .then(function(d){
         svg.classList.remove('fab-spinning');
@@ -11007,6 +11113,7 @@ let tvWidgetCreated = false;
           }
         })
       })).then(function(result){
+        if(!result || !result.ok || !result.verified) throw new Error('Drive did not verify the emergency snapshot');
         setRuntimeMarker(BACKUP_EMERGENCY_DRIVE_TS_KEY, Date.now());
         return result;
       });
@@ -11098,7 +11205,7 @@ let tvWidgetCreated = false;
             }
           }
 
-          return doBackup(p, allData).then(function(result){
+          return doBackup(p, allData, { allowRegression:!!force }).then(function(result){
             if(result && result.ok) autoBackupBackoffUntil = 0;
             else if(!force) autoBackupBackoffUntil = Date.now() + AUTO_BACKUP_FAILURE_BACKOFF_MS;
             return result;
@@ -11106,7 +11213,15 @@ let tvWidgetCreated = false;
         })
         .catch(function(){
           // Can't reach cloud — only backup if forced (manual)
-          if(force) return doBackup(p, allData);
+          if(force){
+            var continueUnverified = confirm(
+              'The existing cloud backup could not be verified.\n\n' +
+              'Continuing may replace newer data from another device.\n\n' +
+              'Click Cancel to keep the cloud backup unchanged.'
+            );
+            if(continueUnverified) return doBackup(p, allData, { allowRegression:true });
+            return { ok:false, skipped:true, reason:'preflight-unavailable' };
+          }
           st('Auto-backup skipped — could not verify cloud data');
           autoBackupBackoffUntil = Date.now() + AUTO_BACKUP_FAILURE_BACKOFF_MS;
           return { ok:false, skipped:true, reason:'preflight-failed' };
@@ -11577,7 +11692,11 @@ let tvWidgetCreated = false;
           .then(function(r){ return r.json(); })
           .then(function(cd){
             if(!cd.data){ pullInProgress = false; return; }
-            return applyCloudSnapshot(cd.data).then(function(result){
+            var cloudInspection = analyzeBackupSnapshot(cd.data);
+            if(!cloudInspection.ok) throw new Error('Cloud snapshot failed integrity check: ' + cloudInspection.reason);
+            return saveEmergencyLocalBackup().then(function(){
+              return applyCloudSnapshot(cd.data);
+            }).then(function(result){
               lastPullTs = Date.now();
               pullInProgress = false;
               conflictBackoffUntil = 0;
@@ -14281,7 +14400,9 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
 
   // --- Google Drive full bundle backup (disaster recovery) ---
   var gdriveFullBackupBtn = document.getElementById('oc-gdrive-full-backup');
-  if(gdriveFullBackupBtn) gdriveFullBackupBtn.addEventListener('click', function(){
+  // The dedicated full-backup module owns this button so one click cannot
+  // launch two concurrent Drive uploads.
+  if(false && gdriveFullBackupBtn) gdriveFullBackupBtn.addEventListener('click', function(){
     var btn = this;
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!hasJoeyRemoteAuth()){ alert('Log in first to back up to Drive.'); return; }
@@ -14355,9 +14476,21 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
             body: JSON.stringify(withContextMode({ passphrase: pass, kind: 'vault-snapshot' }))
           })).then(function(vd){
             if(vd && vd.ok && vd.snapshot){
-              var applyFn = window._homerApplyCloudSnapshot;
-              if(typeof applyFn !== 'function') return;
-              return applyFn(vd.snapshot, { force: true }).then(function(result){
+              var inspectFn = window._homerAnalyzeBackupSnapshot;
+              var restoreFn = window._homerRestoreSnapshotSafely;
+              if(typeof inspectFn !== 'function' || typeof restoreFn !== 'function') return;
+              var inspection = inspectFn(vd.snapshot);
+              if(!inspection.ok) throw new Error('Drive vault snapshot is invalid: ' + inspection.reason);
+              var verificationText = vd.verified ? 'Checksum verified.' : 'Legacy snapshot: no checksum is available.';
+              var restoreVault = confirm(
+                'Joey context was restored.\n\n' +
+                'Also restore the browser and encrypted vault snapshot from Drive?\n' +
+                verificationText + '\n' +
+                'Saved: ' + (vd.exportedAt ? new Date(vd.exportedAt).toLocaleString() : 'unknown') + '\n\n' +
+                'Cancel keeps your current browser and Kanban data unchanged.'
+              );
+              if(!restoreVault) return;
+              return restoreFn(vd.snapshot, 'drive-vault', vd.exportedAt ? Date.parse(vd.exportedAt) : Date.now()).then(function(result){
                 console.log('[GDrive Restore] Vault snapshot restored — applied:', result.applied, 'cleared:', result.cleared, '(re-enter vault password to unlock)');
               });
             }
