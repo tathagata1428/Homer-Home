@@ -1334,7 +1334,13 @@ document.addEventListener('DOMContentLoaded', function(){
         var _left=Math.floor((state.endTime - Date.now())/1000);
         if(_left > 0){ state.remaining = _left; } else { state.remaining = 0; }
       }
-      if(state.remaining <= 0){ state.remaining = durFor(state.mode); state.running = false; state.endTime = 0; }
+      if(state.remaining <= 0){
+        if(state.running){
+          // Timer expired while page was closed — silently advance to next phase, keep running
+          if(state.mode==='focus'){ state.pomodoros=(state.pomodoros||0)+1; var _advN=state.pomodoros%settings.longEvery; state.mode=_advN===0?'long':'short'; } else { state.mode='focus'; }
+          state.remaining=durFor(state.mode); state.endTime=0;
+        } else { state.remaining=durFor(state.mode); state.endTime=0; }
+      }
       elSetFocus.value=settings.focus; elSetShort.value=settings.short; elSetLong.value=settings.long;
       if(elAuto) elAuto.checked = settings.auto;
       elMode.textContent=cap(state.mode); updateTime(); updateRing(); updateMeta();
@@ -1428,7 +1434,9 @@ document.addEventListener('DOMContentLoaded', function(){
                   var _tNow=Date.now(), _tLast=parseInt(localStorage.getItem('pom.adv.ts')||'0',10);
                   if(_tLast>0 && _tNow>=_tLast && _tNow-_tLast<900){ clearInterval(tick); tick=null; return; }
                   localStorage.setItem('pom.adv.ts',String(_tNow));
-                  try{ advance(false); }catch(_e){ clearInterval(tick); tick=null; } return;
+                  clearInterval(tick); tick=null;
+                  try{ advance(false); }catch(_e){ if(state.running||settings.auto) try{start();}catch(__){} }
+                  return;
               }
               updateTime(); updateRing();
               window.dispatchEvent(new Event('pom-tick'));
@@ -1581,7 +1589,7 @@ document.addEventListener('DOMContentLoaded', function(){
             state.pomodoros = fresh.pomodoros;
             state.remaining = 0;
             if(tick){ clearInterval(tick); tick=null; }
-            advance(false);
+            try{ advance(false); }catch(_e){ if(state.running||settings.auto) try{start();}catch(__){} }
           } else {
             if(left !== state.remaining || fresh.mode !== state.mode){
               state.mode = fresh.mode;
@@ -1618,7 +1626,7 @@ document.addEventListener('DOMContentLoaded', function(){
         var fresh = loadJSON(SKEY, null);
         if(fresh && fresh.running && fresh.endTime){
           var left = Math.floor((fresh.endTime - Date.now()) / 1000);
-          if(left <= 0){ if(tick){clearInterval(tick);tick=null;} advance(false); }
+          if(left <= 0){ if(tick){clearInterval(tick);tick=null;} try{advance(false);}catch(_e){if(state.running||settings.auto) try{start();}catch(__){}} }
           else { state.remaining = left; state.endTime = fresh.endTime; clearInterval(tick); tick=null; start(); }
         } else if(!tick) { start(); }
       });
@@ -1631,7 +1639,7 @@ document.addEventListener('DOMContentLoaded', function(){
         if(left <= 0){
           state.mode = fresh.mode; state.pomodoros = fresh.pomodoros; state.remaining = 0;
           if(tick){ clearInterval(tick); tick=null; }
-          advance(false);
+          try{ advance(false); }catch(_e){ if(state.running||settings.auto) try{start();}catch(__){} }
         } else {
           state.mode = fresh.mode; state.pomodoros = fresh.pomodoros; state.remaining = left; state.endTime = fresh.endTime;
           clearInterval(tick); tick=null; start();
