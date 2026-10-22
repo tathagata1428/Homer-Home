@@ -181,6 +181,7 @@
       return r.json().catch(function () { return {}; }).then(function (data) {
         if (r.status === 401) throw new Error('Your Homer sign-in has ended. Sign in again (Account) to sync the inbox.');
         if (r.status === 409 && data.notYet) return data;
+        if (data.upstream) throw new Error(data.error || 'Second Brain could not be reached');
         if (!r.ok) throw new Error(data.error || ('Homer answered ' + r.status));
         return data;
       });

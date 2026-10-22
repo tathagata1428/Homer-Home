@@ -24,6 +24,14 @@ function json(body, status = 200) {
   return Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 }
 
+// A failure upstream (the hub, the database) is answered with 200 and
+// { error, upstream: true }: Cloudflare replaces a function's 502/503 body
+// with its own error page, and the panel needs the reason to show it.
+function upstream(message) {
+  console.error('[sb-captures]', message);
+  return json({ error: String(message).slice(0, 500), upstream: true });
+}
+
 export async function onRequestPost(context) {
   const { request } = context;
   if (!isHubConfigured()) return json({ error: 'Second Brain is not connected (HUB_TOKEN is not set).' }, 503);
@@ -43,7 +51,7 @@ export async function onRequestPost(context) {
   try {
     if (action === 'refresh') {
       const result = await pullHub(ownerId, { force: true });
-      if (result && result.error) return json({ error: 'Second Brain: ' + result.error }, 502);
+      if (result && result.error) return upstream('Second Brain: ' + result.error);
       return json({ value: await inboxValue(ownerId) });
     }
     if (action === 'image-get') {
@@ -57,17 +65,17 @@ export async function onRequestPost(context) {
       if (img && img.image_data.length > MAX_IMAGE_CHARS) return json({ error: 'Picture over 22 MB' }, 413);
       const res = await setCaptureImage(ownerId, id, img || null);
       if (res.notYet) return json({ notYet: true }, 409);
-      if (res.error) return json({ error: 'Second Brain: ' + res.error }, 502);
+      if (res.error) return upstream('Second Brain: ' + res.error);
       return json({ ok: true });
     }
     if (action === 'delete') {
       const ids = Array.isArray(body.ids) ? body.ids.slice(0, 200).map(String) : [];
       const res = await deleteCaptures(ownerId, ids);
-      if (res.error) return json({ error: 'Second Brain: ' + res.error }, 502);
+      if (res.error) return upstream('Second Brain: ' + res.error);
       return json(res);
     }
     return json({ error: 'Unknown action' }, 400);
   } catch (err) {
-    return json({ error: (err && err.message) || 'Second Brain could not be reached' }, 502);
+    return upstream((err && err.message) || 'Second Brain could not be reached');
   }
 }
