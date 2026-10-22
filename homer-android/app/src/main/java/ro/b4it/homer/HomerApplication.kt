@@ -17,7 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import ro.b4it.homer.data.sync.RealtimeSyncManager
+import ro.b4it.homer.data.sync.FieldChangePoller
 import ro.b4it.homer.data.sync.SyncEngine
 import ro.b4it.homer.notification.ReminderManager
 import ro.b4it.homer.worker.SyncWorker
@@ -29,7 +29,7 @@ class HomerApplication : Application(), Configuration.Provider {
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var reminderManager: ReminderManager
     @Inject lateinit var syncEngine: SyncEngine
-    @Inject lateinit var realtimeSyncManager: RealtimeSyncManager
+    @Inject lateinit var fieldChangePoller: FieldChangePoller
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -45,8 +45,6 @@ class HomerApplication : Application(), Configuration.Provider {
         // Start sync: pull all fields on launch; periodic 15-min push via SyncWorker.
         syncEngine.start()
         SyncWorker.schedule(this)
-        // Supabase Realtime: instant push to Room when other devices write field_state.
-        realtimeSyncManager.start()
         // Register a one-shot network callback so that if the initial pull failed
         // (device was offline at boot / WiFi not yet reconnected), we retry as soon
         // as the device has a working internet connection rather than waiting 15 min.
@@ -60,14 +58,21 @@ class HomerApplication : Application(), Configuration.Provider {
      * Register an activity lifecycle observer that calls [SyncEngine.onForeground] every time
      * any activity is resumed. SyncEngine.onForeground() debounces to at most one pull per
      * 2 minutes, so this is safe to register globally without flooding the server.
+     * Also runs [FieldChangePoller] while at least one activity is visible, so changes
+     * from other devices show up within seconds.
      */
     private fun registerForegroundSyncObserver() {
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+            private var started = 0
             override fun onActivityResumed(activity: Activity) { syncEngine.onForeground() }
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
-            override fun onActivityStarted(activity: Activity) {}
+            override fun onActivityStarted(activity: Activity) {
+                if (started++ == 0) fieldChangePoller.setForeground(true)
+            }
             override fun onActivityPaused(activity: Activity) {}
-            override fun onActivityStopped(activity: Activity) {}
+            override fun onActivityStopped(activity: Activity) {
+                if (--started == 0) fieldChangePoller.setForeground(false)
+            }
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
             override fun onActivityDestroyed(activity: Activity) {}
         })

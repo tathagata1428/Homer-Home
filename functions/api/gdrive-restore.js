@@ -11,15 +11,8 @@ import {
   saveRedisJson,
   verifyJoeyPassphrase
 } from '../../lib/joey-server.js';
-import {
-  isSupabaseClientConfigured,
-  isSupabaseConfigured,
-  createAdminClient,
-  createUserClient,
-  resolveSupabaseOwnerId,
-  verifySupabaseJwt
-} from '../../lib/supabase-server.js';
-import { createSupabaseRedisFetch } from '../../lib/supabase-redis-compat.js';
+import { isDbConfigured, createDbClient, resolveOwnerId, verifySessionToken } from '../../lib/db.js';
+import { createDbRedisFetch } from '../../lib/db-redis-compat.js';
 
 function sanitizeCustomFilesMap(value) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
@@ -77,29 +70,29 @@ async function _onRequest(context, corsHeaders) {
   let redisFetch;
   const authHeader = String(request.headers.get('authorization') || '');
   const jwtToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  let supabaseUser = null;
-  const supabaseJwtEnabled = isSupabaseClientConfigured();
-  const supabaseAdminEnabled = isSupabaseConfigured();
+  let dbUser = null;
+  const dbJwtEnabled = isDbConfigured();
+  const dbAdminEnabled = isDbConfigured();
   const rawRedisFetch = createRedisFetch();
   const { url: redisUrl, token: redisToken } = getRedisConfig();
-  if (jwtToken && supabaseJwtEnabled) {
-    supabaseUser = await verifySupabaseJwt(jwtToken).catch(() => null);
+  if (jwtToken && dbJwtEnabled) {
+    dbUser = await verifySessionToken(jwtToken).catch(() => null);
   }
-  if (supabaseUser) {
-    const supabaseClient = createUserClient(jwtToken);
-    redisFetch = createSupabaseRedisFetch(supabaseClient, supabaseUser.id);
+  if (dbUser) {
+    const dbClient = createDbClient();
+    redisFetch = createDbRedisFetch(dbClient, dbUser.id);
   } else {
     if (!passphrase) return Response.json({ error: 'Missing passphrase' }, { status: 401, headers: corsHeaders });
     const adminHash = String(env.HOMER_ADMIN_HASH || '').trim();
-    const ownerId = await resolveSupabaseOwnerId();
+    const ownerId = await resolveOwnerId();
     let isValid = !!adminHash && passphrase.trim() === adminHash;
     if (!isValid) {
       isValid = await verifyJoeyPassphrase(passphrase, rawRedisFetch);
     }
     if (!isValid) return Response.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders });
 
-    if (supabaseAdminEnabled && ownerId) {
-      redisFetch = createSupabaseRedisFetch(createAdminClient(), ownerId);
+    if (dbAdminEnabled && ownerId) {
+      redisFetch = createDbRedisFetch(createDbClient(), ownerId);
     } else {
       if (!redisUrl || !redisToken || !rawRedisFetch) {
         return Response.json({ error: 'Redis not configured' }, { status: 500, headers: corsHeaders });
@@ -225,7 +218,7 @@ async function _onRequest(context, corsHeaders) {
       }, { status: 200, headers: corsHeaders });
     }
 
-    // Run Google fetch and Supabase reads in parallel to minimise total wall-clock time.
+    // Run Google fetch and DB reads in parallel to minimise total wall-clock time.
     const restoreUrl = gdriveWebhook + '?action=restore&secret=' + encodeURIComponent(gdriveSecret) + '&mode=' + encodeURIComponent(mode);
     const [response, [currentProfile, currentMemories, currentHistory, currentFileLibrary, currentJournal]] = await Promise.all([
       fetchWithRedirects(restoreUrl, { method: 'GET', timeoutMs: 22000 }),

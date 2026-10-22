@@ -704,7 +704,7 @@
         data.sessions.push({ ts: new Date().toISOString(), task: taskDesc, duration: total });
         data.sessions = data.sessions.slice(-200);
         save();
-        // Write to homer-sessions (auto-synced to Supabase for Bogdan via patched localStorage.setItem)
+        // Write to homer-sessions (auto-synced to DB for Bogdan via patched localStorage.setItem)
         var newSesId = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
         try {
           var sesArr = JSON.parse(localStorage.getItem('homer-sessions') || '[]');
@@ -1183,7 +1183,7 @@
     function loadMems() {
       var list = document.getElementById('homer-mem-list');
       list.innerHTML = '<div class="homer-skeleton homer-skeleton-card" style="margin:12px"></div><div class="homer-skeleton homer-skeleton-card" style="margin:12px"></div>';
-      var auth = typeof window.supabaseAuthHeader === 'function' ? window.supabaseAuthHeader() : '';
+      var auth = typeof window.dbAuthHeader === 'function' ? window.dbAuthHeader() : '';
       var headers = { 'Content-Type': 'application/json' };
       if (auth) headers['Authorization'] = auth;
       fetch('/api/joey', { method: 'POST', headers: headers, body: JSON.stringify({ action: 'getMemory' }) })

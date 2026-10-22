@@ -6,13 +6,7 @@ import {
   handleJoeyGatewayRequest
 } from '../../lib/joey-chat-handler.js';
 import { createVercelAdapter } from '../../lib/cf-vercel-adapter.js';
-import {
-  isSupabaseConfigured,
-  isSupabaseClientConfigured,
-  createAdminClient,
-  resolveSupabaseOwnerId,
-  verifySupabaseJwt
-} from '../../lib/supabase-server.js';
+import { isDbConfigured, createDbClient, resolveOwnerId, verifySessionToken } from '../../lib/db.js';
 
 function cleanTranscript(value) {
   let text = String(value || '').trim();
@@ -101,33 +95,33 @@ async function handleTranscribe(request, env) {
   }
 }
 
-// Fetch live personal data from Supabase for every Joey request.
+// Fetch live personal data from DB for every Joey request.
 // Returns a concise markdown string injected into the system prompt.
 // Never throws — returns '' on any error.
 async function fetchLivePersonalContext(jwtToken) {
   try {
-    if (!isSupabaseConfigured()) return '';
+    if (!isDbConfigured()) return '';
 
     let userId = null;
-    if (jwtToken && isSupabaseClientConfigured()) {
-      const user = await verifySupabaseJwt(jwtToken).catch(() => null);
+    if (jwtToken && isDbConfigured()) {
+      const user = await verifySessionToken(jwtToken).catch(() => null);
       if (user) userId = user.id;
     }
-    if (!userId) userId = await resolveSupabaseOwnerId().catch(() => null);
+    if (!userId) userId = await resolveOwnerId().catch(() => null);
     if (!userId) return '';
 
-    const supabase = createAdminClient();
+    const db = createDbClient();
     const today = new Date().toISOString().slice(0, 10);
     const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
     const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString();
 
     const [habitsRes, completionsRes, tasksRes, journalRes, focusRes, fieldsRes] = await Promise.all([
-      supabase.from('habits').select('id,name,emoji,freq,archived').eq('user_id', userId).eq('archived', false).order('display_order', { ascending: true }).limit(30),
-      supabase.from('habit_completions').select('habit_id,date').eq('user_id', userId).gte('date', sevenDaysAgo).limit(300),
-      supabase.from('tasks').select('title,status,priority,due_at').eq('user_id', userId).not('status', 'in', '("done","cancelled")').order('created_at', { ascending: false }).limit(20),
-      supabase.from('journal').select('ts,text').eq('user_id', userId).eq('type', 'entry').neq('text', '').order('ts', { ascending: false }).limit(5),
-      supabase.from('focus_sessions').select('task_label,duration_secs,created_at').eq('user_id', userId).gte('created_at', twoDaysAgo).order('created_at', { ascending: false }).limit(10),
-      supabase.from('field_state').select('field_id,value').eq('user_id', userId).in('field_id', ['homer-notes', 'homer-inbox', 'ls:homer-expenses']),
+      db.from('habits').select('id,name,emoji,freq,archived').eq('user_id', userId).eq('archived', false).order('display_order', { ascending: true }).limit(30),
+      db.from('habit_completions').select('habit_id,date').eq('user_id', userId).gte('date', sevenDaysAgo).limit(300),
+      db.from('tasks').select('title,status,priority,due_at').eq('user_id', userId).not('status', 'in', '("done","cancelled")').order('created_at', { ascending: false }).limit(20),
+      db.from('journal').select('ts,text').eq('user_id', userId).eq('type', 'entry').neq('text', '').order('ts', { ascending: false }).limit(5),
+      db.from('focus_sessions').select('task_label,duration_secs,created_at').eq('user_id', userId).gte('created_at', twoDaysAgo).order('created_at', { ascending: false }).limit(10),
+      db.from('field_state').select('field_id,value').eq('user_id', userId).in('field_id', ['homer-notes', 'homer-inbox', 'ls:homer-expenses']),
     ]);
 
     const parts = [];
@@ -296,6 +290,67 @@ function buildOpenClawSystemParts(context) {
   return systemParts.filter(Boolean);
 }
 
+// Trim all env key lookups — OC_GATEWAY_URL has a trailing space in CF dashboard
+function envGetter(e) {
+  return (k) => String(e[k] || e[k.trim()] || Object.entries(e || {}).find(([ek]) => ek.trim() === k.trim())?.[1] || '').trim();
+}
+
+/**
+ * OpenClaw gateway on Unraid (https://openclaw.b4it.ro), OpenAI-compatible.
+ * Enabled when OPENCLAW_URL and OPENCLAW_TOKEN are set. OPENCLAW_AGENT picks
+ * the agent (main | fast | heavy …, default main) — the gateway rejects the
+ * bare "openclaw" model because several agents are configured.
+ */
+function openClawConfig(e) {
+  const envGet = envGetter(e);
+  const url = envGet('OPENCLAW_URL');
+  const token = envGet('OPENCLAW_TOKEN');
+  if (!url || !token) return null;
+  const agent = envGet('OPENCLAW_AGENT') || 'main';
+  return {
+    gatewayUrl: /\/v1\/?$/.test(url) ? url : url.replace(/\/+$/, '') + '/v1',
+    gatewayToken: token,
+    primaryModel: 'openclaw/' + agent,
+    fallbackModel: '',
+    largeContext: true,
+    // Unraid offline or tunnel down → fall back to OpenRouter quickly.
+    connectTimeoutMs: 15000
+  };
+}
+
+function openRouterConfig(e) {
+  const envGet = envGetter(e);
+  const primaryModel = (function(m) {
+    m = String(m || '').trim();
+    if (!m) m = 'inclusionai/ring-2.6-1t:free';
+    if (/^kimi-k2\.5(:cloud)?$/i.test(m)) m = 'kimi-k2.6:cloud';
+    return m;
+  })(envGet('OC_MODEL') || 'inclusionai/ring-2.6-1t:free');
+
+  let gatewayUrl   = envGet('OC_PERSONAL_GATEWAY_URL') || envGet('OC_GATEWAY_URL') || 'https://openrouter.ai/api/v1';
+  let gatewayToken = envGet('OC_PERSONAL_GATEWAY_TOKEN') || envGet('OC_GATEWAY_TOKEN');
+
+  if (/nemotron/i.test(primaryModel)) {
+    // Nemotron runs on Ollama — share the NemoClaw gateway
+    gatewayUrl   = envGet('NEMOCLAW_GATEWAY_URL') || gatewayUrl;
+    gatewayToken = envGet('NEMOCLAW_GATEWAY_TOKEN') || gatewayToken;
+  } else {
+    // Cloud models (ring, kimi, inclusionai, etc.) must go to OpenRouter, not a local tunnel
+    const isCloudModel   = /inclusionai|\/ring-|kimi|mistralai|google\//i.test(primaryModel);
+    const isLocalGateway = !/openrouter\.ai/i.test(gatewayUrl);
+    if (isCloudModel && isLocalGateway) {
+      gatewayUrl   = 'https://openrouter.ai/api/v1';
+      gatewayToken = envGet('OC_GATEWAY_TOKEN') || envGet('OC_PERSONAL_GATEWAY_TOKEN');
+    }
+  }
+
+  // Fallback model tried automatically on 429 / rate-limit
+  const fallbackModel = /inclusionai|ring/i.test(primaryModel)
+    ? 'meta-llama/llama-3.3-70b-instruct:free'
+    : '';
+  return { gatewayUrl, gatewayToken, primaryModel, fallbackModel, largeContext: true };
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   // Make CF env vars available via process.env for libs that read process.env directly
@@ -330,12 +385,14 @@ export async function onRequest(context) {
     } else if (isCloud && isLocal) {
       resolvedUrl = 'https://openrouter.ai/api/v1';
     }
+    const oc = openClawConfig(env);
     return Response.json({
       ok: true,
-      resolvedGatewayUrl: resolvedUrl,
+      openclaw: oc ? { gatewayUrl: oc.gatewayUrl, model: oc.primaryModel } : null,
+      resolvedGatewayUrl: oc ? oc.gatewayUrl : resolvedUrl,
       rawPersonalUrl, rawGatewayUrl,
       model, isNemotron, isCloudModel: isCloud, wouldRedirect: isCloud && isLocal,
-      hasToken: !!(envGet('OC_GATEWAY_TOKEN') || envGet('OC_PERSONAL_GATEWAY_TOKEN')),
+      hasToken: !!(envGet('OPENCLAW_TOKEN') || envGet('OC_GATEWAY_TOKEN') || envGet('OC_PERSONAL_GATEWAY_TOKEN')),
       envKeys: Object.keys(env || {})
     });
   }
@@ -344,7 +401,7 @@ export async function onRequest(context) {
   const authHeader = String(request.headers.get('authorization') || '');
   const jwtToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
 
-  // Fetch live Supabase context and create Vercel adapter in parallel
+  // Fetch live DB context and create Vercel adapter in parallel
   const [{ req, res, getResponse }, liveDataText] = await Promise.all([
     createVercelAdapter(request),
     fetchLivePersonalContext(jwtToken)
@@ -352,39 +409,11 @@ export async function onRequest(context) {
 
   await handleJoeyGatewayRequest(req, res, {
     getProviderConfig({ env: e }) {
-      // Trim all env key lookups — OC_GATEWAY_URL has a trailing space in CF dashboard
-      const envGet = (k) => String(e[k] || e[k.trim()] || Object.entries(e || {}).find(([ek]) => ek.trim() === k.trim())?.[1] || '').trim();
-      const primaryModel = (function(m) {
-        m = String(m || '').trim();
-        if (!m) m = 'inclusionai/ring-2.6-1t:free';
-        if (/^kimi-k2\.5(:cloud)?$/i.test(m)) m = 'kimi-k2.6:cloud';
-        return m;
-      })(envGet('OC_MODEL') || 'inclusionai/ring-2.6-1t:free');
-
-      let gatewayUrl   = envGet('OC_PERSONAL_GATEWAY_URL') || envGet('OC_GATEWAY_URL') || 'https://openrouter.ai/api/v1';
-      let gatewayToken = envGet('OC_PERSONAL_GATEWAY_TOKEN') || envGet('OC_GATEWAY_TOKEN');
-
-      if (/nemotron/i.test(primaryModel)) {
-        // Nemotron runs on Ollama — share the NemoClaw gateway
-        gatewayUrl   = envGet('NEMOCLAW_GATEWAY_URL') || gatewayUrl;
-        gatewayToken = envGet('NEMOCLAW_GATEWAY_TOKEN') || gatewayToken;
-      } else {
-        // Cloud models (ring, kimi, inclusionai, etc.) must go to OpenRouter, not a local tunnel
-        const isCloudModel   = /inclusionai|\/ring-|kimi|mistralai|google\//i.test(primaryModel);
-        const isLocalGateway = !/openrouter\.ai/i.test(gatewayUrl);
-        if (isCloudModel && isLocalGateway) {
-          gatewayUrl   = 'https://openrouter.ai/api/v1';
-          gatewayToken = envGet('OC_GATEWAY_TOKEN') || envGet('OC_PERSONAL_GATEWAY_TOKEN');
-        }
-      }
-
-      // Fallback model tried automatically on 429 / rate-limit
-      const fallbackModel = /inclusionai|ring/i.test(primaryModel)
-        ? 'meta-llama/llama-3.3-70b-instruct:free'
-        : '';
-      return { gatewayUrl, gatewayToken, primaryModel, fallbackModel, largeContext: true };
+      // Self-hosted OpenClaw agent (Unraid) first; OpenRouter becomes the fallback.
+      return openClawConfig(e) || openRouterConfig(e);
     },
     getFallbackGatewayConfig({ env: e }) {
+      if (openClawConfig(e)) return openRouterConfig(e);
       const localModel = String(e.OC_FALLBACK_MODEL || '').trim();
       // Reject empty, nemotron, or any cloud-only model as a local fallback
       if (!localModel || /nemotron|kimi|ring|inclusionai/i.test(localModel)) return null;

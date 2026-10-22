@@ -253,26 +253,26 @@
     scheduleSync(arr);
   }
 
-  /* ── Supabase sync ──────────────────────────────────────────────────── */
+  /* ── DB sync ──────────────────────────────────────────────────── */
   function isBogdan() {
     var u = localStorage.getItem('homer-auth-user');
     if (u && u.toLowerCase() === 'bogdan') return true;
-    var sess = window.__sbSession;
+    var sess = window.__dbSession;
     return !!(sess && sess.user && (sess.user.email || '').toLowerCase().includes('bogdan'));
   }
-  function getSbClient() { return window.__supabase || null; }
+  function getSbClient() { return window.__db || null; }
   function getSbUid() {
-    var sess = window.__sbSession;
+    var sess = window.__dbSession;
     return (sess && sess.user && sess.user.id) || null;
   }
 
   function scheduleSync(entries) {
     if (!isBogdan()) return;
     clearTimeout(syncTimer);
-    syncTimer = setTimeout(function () { pushToSupabase(entries || getEntries()); }, 800);
+    syncTimer = setTimeout(function () { pushToDb(entries || getEntries()); }, 800);
   }
 
-  function pushToSupabase(entries) {
+  function pushToDb(entries) {
     var client = getSbClient(), uid2 = getSbUid();
     if (!client || !uid2) return;
     var ts = Date.now();
@@ -290,7 +290,7 @@
     });
   }
 
-  function pullFromSupabase(callback) {
+  function pullFromDb(callback) {
     var client = getSbClient(), uid2 = getSbUid();
     if (!client || !uid2 || !isBogdan()) return;
     client.from('field_state')
@@ -1306,9 +1306,9 @@
     }
     tryPatch();
 
-    window.addEventListener('supabase:session', function (e) {
+    window.addEventListener('db:session', function (e) {
       if (e.detail && isBogdan()) {
-        pullFromSupabase(function () {
+        pullFromDb(function () {
           var tab = document.getElementById('tab-journal');
           if (tab && tab.style.display !== 'none') renderTab();
         });
@@ -1316,7 +1316,7 @@
     });
     if (isBogdan()) {
       setTimeout(function () {
-        pullFromSupabase(function () {
+        pullFromDb(function () {
           var tab = document.getElementById('tab-journal');
           if (tab && tab.style.display !== 'none') renderTab();
         });

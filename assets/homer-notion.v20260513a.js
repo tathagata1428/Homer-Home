@@ -1620,7 +1620,7 @@
     notesDriveTimer = setTimeout(function () {
       try {
         var notes = getNotes(); if (!notes.length) return;
-        var authHeader = typeof window.supabaseAuthHeader === 'function' ? window.supabaseAuthHeader() : null;
+        var authHeader = typeof window.dbAuthHeader === 'function' ? window.dbAuthHeader() : null;
         var pass = localStorage.getItem('homer-sync-pass') || '';
         if (!authHeader && !pass) return;
         var body = { notesMarkdown: buildNotesMd(notes), redisOnly: true };

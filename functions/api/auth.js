@@ -1,10 +1,17 @@
 /**
- * Supabase Auth endpoint — Cloudflare Pages Function version.
+ * Auth endpoint — Cloudflare Pages Function.
  *
- * POST /api/auth
- * GET  /api/auth?action=user
+ * Homer has one owner account. Credentials are the Homer username + password,
+ * checked as sha256(lower(username) + ':' + password) against HOMER_ADMIN_HASH
+ * (or a reserved sync hash). A valid login gets a signed session from lib/db.js.
+ *
+ * POST /api/auth { action: 'signIn' | 'exchangeToken', username, password }
+ * POST /api/auth { action: 'refresh', refreshToken }
+ * POST /api/auth { action: 'verifyHash', hash }
+ * POST /api/auth { action: 'signOut' }            (stateless; client drops tokens)
+ * GET  /api/auth?action=user                      (Authorization: Bearer <token>)
  */
-import { createUserClient, createAdminClient, isSupabaseClientConfigured, verifySupabaseJwt, isSupabaseConfigured, resolveSupabaseOwnerId } from '../../lib/supabase-server.js';
+import { issueSession, refreshSession, verifySessionToken, resolveOwnerId, ownerEmail, isDbConfigured } from '../../lib/db.js';
 import { isReservedSyncHash } from '../../lib/joey-server.js';
 import crypto from 'crypto';
 
@@ -14,16 +21,22 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 };
 
+function json(body, status = 200) {
+  return Response.json(body, { status, headers: CORS });
+}
+
+function isValidHash(hash, env) {
+  const adminHash = String(env.HOMER_ADMIN_HASH || '').trim();
+  const h = String(hash || '').trim();
+  return !!h && ((adminHash && h === adminHash) || isReservedSyncHash(h));
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   if (env && typeof env === "object") Object.assign(process.env, env);
 
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 200, headers: CORS });
-  }
-
-  if (!isSupabaseClientConfigured()) {
-    return Response.json({ error: 'Supabase not configured' }, { status: 503, headers: CORS });
   }
 
   const { searchParams } = new URL(request.url);
@@ -41,144 +54,61 @@ export async function onRequest(context) {
   const jwtToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
 
   try {
-    // ── signIn ──────────────────────────────────────────────
-    if (action === 'signIn') {
-      const { email, password } = body;
-      if (!email || !password) {
-        return Response.json({ error: 'Missing email or password' }, { status: 400, headers: CORS });
-      }
-      const client = createUserClient();
-      const { data, error } = await client.auth.signInWithPassword({ email, password });
-      if (error) return Response.json({ error: error.message }, { status: 401, headers: CORS });
-      return Response.json({ ok: true, session: data.session, user: sanitiseUser(data.user) }, { status: 200, headers: CORS });
+    // ── verifyHash — reserved hash check (no session issued) ──
+    if (action === 'verifyHash') {
+      if (!body.hash || typeof body.hash !== 'string') return json({ error: 'Missing hash' }, 400);
+      return isValidHash(body.hash, env) ? json({ ok: true }) : json({ error: 'Invalid credentials' }, 401);
     }
 
-    // ── signUp ──────────────────────────────────────────────
-    if (action === 'signUp') {
-      const { email, password, username } = body;
-      if (!email || !password) {
-        return Response.json({ error: 'Missing email or password' }, { status: 400, headers: CORS });
-      }
-      const client = createUserClient();
-      const { data, error } = await client.auth.signUp({
-        email,
-        password,
-        options: { data: { username: username || email.split('@')[0] } }
-      });
-      if (error) return Response.json({ error: error.message }, { status: 400, headers: CORS });
-      return Response.json({ ok: true, session: data.session, user: sanitiseUser(data.user) }, { status: 200, headers: CORS });
-    }
+    // ── signIn / exchangeToken — Homer credentials → session ──
+    // exchangeToken keeps the flat response shape the Android app expects.
+    if (action === 'signIn' || action === 'exchangeToken') {
+      const { username, password } = body;
+      if (!username || !password) return json({ error: 'Missing credentials' }, 400);
+      if (!isDbConfigured()) return json({ error: 'Database not configured' }, 503);
 
-    // ── signOut ─────────────────────────────────────────────
-    if (action === 'signOut') {
-      if (!jwtToken) return Response.json({ error: 'Missing token' }, { status: 401, headers: CORS });
-      const client = createUserClient(jwtToken);
-      await client.auth.signOut();
-      return Response.json({ ok: true }, { status: 200, headers: CORS });
+      const passHash = crypto.createHash('sha256')
+        .update(String(username).toLowerCase().trim() + ':' + password)
+        .digest('hex');
+      if (!isValidHash(passHash, env)) return json({ error: 'Invalid credentials' }, 401);
+
+      const ownerId = await resolveOwnerId();
+      if (!ownerId) return json({ error: 'Owner account not found — run db/schema.sql and insert the users row' }, 500);
+      const session = await issueSession({ id: ownerId, email: ownerEmail() });
+
+      if (action === 'exchangeToken') {
+        return json({
+          ok: true,
+          access_token:  session.access_token,
+          refresh_token: session.refresh_token,
+          expires_in:    session.expires_in,
+          user_id:       ownerId
+        });
+      }
+      return json({ ok: true, session, user: session.user });
     }
 
     // ── refresh ─────────────────────────────────────────────
     if (action === 'refresh') {
-      const { refreshToken } = body;
-      if (!refreshToken) return Response.json({ error: 'Missing refreshToken' }, { status: 400, headers: CORS });
-      const client = createUserClient();
-      const { data, error } = await client.auth.refreshSession({ refresh_token: refreshToken });
-      if (error) return Response.json({ error: error.message }, { status: 401, headers: CORS });
-      return Response.json({ ok: true, session: data.session }, { status: 200, headers: CORS });
+      if (!body.refreshToken) return json({ error: 'Missing refreshToken' }, 400);
+      const session = await refreshSession(body.refreshToken);
+      return session ? json({ ok: true, session }) : json({ error: 'Invalid or expired refresh token' }, 401);
     }
 
-    // ── user ─────────────────────────────────────────────────
+    // ── user ────────────────────────────────────────────────
     if (action === 'user') {
-      if (!jwtToken) return Response.json({ error: 'Missing token' }, { status: 401, headers: CORS });
-      const user = await verifySupabaseJwt(jwtToken);
-      if (!user) return Response.json({ error: 'Invalid or expired token' }, { status: 401, headers: CORS });
-      return Response.json({ ok: true, user: sanitiseUser(user) }, { status: 200, headers: CORS });
+      if (!jwtToken) return json({ error: 'Missing token' }, 401);
+      const user = await verifySessionToken(jwtToken);
+      return user ? json({ ok: true, user }) : json({ error: 'Invalid or expired token' }, 401);
     }
 
-    // ── resetPassword ────────────────────────────────────────
-    if (action === 'resetPassword') {
-      const { email } = body;
-      if (!email) return Response.json({ error: 'Missing email' }, { status: 400, headers: CORS });
-      const client = createUserClient();
-      const { error } = await client.auth.resetPasswordForEmail(email, {
-        redirectTo: String(env.AUTH_REDIRECT_URL || '').trim() || undefined
-      });
-      if (error) return Response.json({ error: error.message }, { status: 400, headers: CORS });
-      return Response.json({ ok: true }, { status: 200, headers: CORS });
-    }
+    // ── signOut — tokens are stateless; the client discards them ──
+    if (action === 'signOut') return json({ ok: true });
 
-    // ── verifyHash — reserved hash check (no Supabase user needed) ──────────
-    if (action === 'verifyHash') {
-      const { hash } = body;
-      if (!hash || typeof hash !== 'string') {
-        return Response.json({ error: 'Missing hash' }, { status: 400, headers: CORS });
-      }
-      const adminHash = String(env.HOMER_ADMIN_HASH || '').trim();
-      if ((adminHash && hash.trim() === adminHash) || isReservedSyncHash(hash.trim())) {
-        return Response.json({ ok: true }, { status: 200, headers: CORS });
-      }
-      return Response.json({ error: 'Invalid credentials' }, { status: 401, headers: CORS });
-    }
-
-    // ── exchangeToken — Homer credentials → Supabase JWT (for Android) ──────
-    if (action === 'exchangeToken') {
-      const { username, password } = body;
-      if (!username || !password) {
-        return Response.json({ error: 'Missing credentials' }, { status: 400, headers: CORS });
-      }
-      if (!isSupabaseConfigured()) {
-        return Response.json({ error: 'Supabase not configured' }, { status: 503, headers: CORS });
-      }
-
-      // Validate Homer credentials via HOMER_ADMIN_HASH (no Redis dependency)
-      const adminHash = String(env.HOMER_ADMIN_HASH || '').trim();
-      const passHash = crypto.createHash('sha256')
-        .update(username.toLowerCase().trim() + ':' + password)
-        .digest('hex');
-      if (!adminHash || (passHash !== adminHash && !isReservedSyncHash(passHash))) {
-        return Response.json({ error: 'Invalid credentials' }, { status: 401, headers: CORS });
-      }
-
-      // Exchange for a Supabase session.
-      // Use SUPABASE_SYNC_PASSWORD env var if set; otherwise fall back to the
-      // Homer password the user just proved they know.
-      const syncEmail = String(env.SUPABASE_SYNC_EMAIL || 'bogdan.radu@b4it.ro').trim();
-      const syncPass  = String(env.SUPABASE_SYNC_PASSWORD || password).trim();
-
-      // Force-set the Supabase Auth password so sign-in always works,
-      // even if the account was created without a password (magic-link / OAuth).
-      const admin   = createAdminClient();
-      const ownerId = await resolveSupabaseOwnerId();
-      if (!ownerId) return Response.json({ error: 'Supabase owner not found' }, { status: 500, headers: CORS });
-      await admin.auth.admin.updateUserById(ownerId, { password: syncPass });
-
-      const client = createUserClient();
-      const { data, error } = await client.auth.signInWithPassword({ email: syncEmail, password: syncPass });
-      if (error) return Response.json({ error: error.message }, { status: 401, headers: CORS });
-
-      return Response.json({
-        ok: true,
-        access_token:  data.session.access_token,
-        refresh_token: data.session.refresh_token,
-        expires_in:    data.session.expires_in,
-        user_id:       data.user.id,
-      }, { status: 200, headers: CORS });
-    }
-
-    return Response.json({ error: 'Unknown action' }, { status: 400, headers: CORS });
+    return json({ error: 'Unknown action' }, 400);
 
   } catch (err) {
     console.error('[auth]', err);
-    return Response.json({ error: err.message || 'Internal error' }, { status: 500, headers: CORS });
+    return json({ error: err.message || 'Internal error' }, 500);
   }
-}
-
-function sanitiseUser(user) {
-  if (!user) return null;
-  return {
-    id:         user.id,
-    email:      user.email,
-    username:   user.user_metadata && user.user_metadata.username,
-    created_at: user.created_at
-  };
 }

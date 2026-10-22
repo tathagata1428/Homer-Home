@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { verifySupabaseJwt, isSupabaseClientConfigured } from '../../lib/supabase-server.js';
+import { verifySessionToken, isDbConfigured } from '../../lib/db.js';
 
 const ADMIN_HASH = 'e5d510e7c10f6dbafca09488da4fe64b08518188b9b061c3b5d0ef62a103e914'; // bogdan.radu@b4it.ro:QAZwsx098pl.!
 const RESERVED_USER = 'bogdan';
@@ -74,12 +74,12 @@ export async function onRequest(context) {
     return Response.json({ error: 'Redis not configured' }, { status: 500, headers: corsHeaders });
   }
 
-  // Accept Supabase JWT as an alternative to admin credentials
+  // Accept session token as an alternative to admin credentials
   var authHeader = String(request.headers.get('authorization') || '');
   var jwtToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  var supabaseUser = null;
-  if (jwtToken && isSupabaseClientConfigured()) {
-    supabaseUser = await verifySupabaseJwt(jwtToken);
+  var dbUser = null;
+  if (jwtToken && isDbConfigured()) {
+    dbUser = await verifySessionToken(jwtToken);
   }
 
   async function redis(cmd) {
@@ -164,8 +164,8 @@ export async function onRequest(context) {
       }
     }
 
-    // --- ADMIN ENDPOINTS (require admin auth or Supabase JWT) ---
-    var adminOk = supabaseUser != null || verifyAdmin(body.user, body.pass);
+    // --- ADMIN ENDPOINTS (require admin auth or session token) ---
+    var adminOk = dbUser != null || verifyAdmin(body.user, body.pass);
     if (!adminOk) return Response.json({ error: 'Unauthorized' }, { status: 403, headers: corsHeaders });
 
     if (action === 'list') {

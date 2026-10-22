@@ -3,5 +3,5 @@
 .dev.vars
 .claude/settings.local.json
 node_modules/
-supabase/.temp/
 *.aab
+.wrangler/

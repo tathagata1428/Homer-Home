@@ -53,14 +53,12 @@ android {
         // Default is false: all data stays local in Room only; website syncs independently.
         buildConfigField("Boolean", "SYNC_ENABLED",
             "${(localProps["SYNC_ENABLED"] as String?)?.lowercase() == "true"}")
-        buildConfigField("String", "SUPABASE_URL",
-            "\"${localProps["SUPABASE_URL"] ?: "https://fwzxxrldxnlhcyulkwrg.supabase.co"}\"")
-        buildConfigField("String", "SUPABASE_ANON_KEY",
-            "\"${localProps["SUPABASE_ANON_KEY"] ?: ""}\"")
-        buildConfigField("String", "SUPABASE_SYNC_EMAIL",
-            "\"${localProps["SUPABASE_SYNC_EMAIL"] ?: "bogdan.radu@b4it.ro"}\"")
-        buildConfigField("String", "SUPABASE_SYNC_PASSWORD",
-            "\"${localProps["SUPABASE_SYNC_PASSWORD"] ?: ""}\"")
+        // Homer login used for sync (same credentials as the website; checked
+        // server-side against HOMER_ADMIN_HASH by /api/auth).
+        buildConfigField("String", "HOMER_SYNC_USERNAME",
+            "\"${localProps["HOMER_SYNC_USERNAME"] ?: "bogdan"}\"")
+        buildConfigField("String", "HOMER_SYNC_PASSWORD",
+            "\"${localProps["HOMER_SYNC_PASSWORD"] ?: ""}\"")
 
     }
 

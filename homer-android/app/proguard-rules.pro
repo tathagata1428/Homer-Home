@@ -1,8 +1,7 @@
 # ─── Homer ProGuard rules ────────────────────────────────────────────────────
 
-# ── App entities & Supabase bridge ───────────────────────────────────────────
+# ── App entities & sync ──────────────────────────────────────────────────────
 -keep class ro.b4it.homer.data.local.entity.** { *; }
--keep class ro.b4it.homer.data.supabase.** { *; }
 -keep class ro.b4it.homer.data.sync.** { *; }
 
 # ── Kotlinx Serialization ────────────────────────────────────────────────────
@@ -32,12 +31,6 @@
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
 -dontwarn kotlinx.coroutines.**
-
-# ── Ktor / Supabase ──────────────────────────────────────────────────────────
--keep class io.ktor.** { *; }
--keep class io.github.jan.tennert.supabase.** { *; }
--dontwarn io.ktor.**
--dontwarn io.github.jan.tennert.**
 
 # ── OkHttp ───────────────────────────────────────────────────────────────────
 -dontwarn okhttp3.**

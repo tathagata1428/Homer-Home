@@ -39,7 +39,7 @@ class SyncEngine @Inject constructor(
     /**
      * Mutex that ensures only one pullAll() runs at a time.
      * tryLock() returns false if a pull is already in-flight; callers skip silently.
-     * This prevents concurrent Supabase reads + racing Room writes from startup,
+     * This prevents concurrent server reads + racing Room writes from startup,
      * SyncWorker, HomeViewModel.pullAll(), and SyncViewModel.startPull().
      */
     private val pullMutex = Mutex()
@@ -81,7 +81,7 @@ class SyncEngine @Inject constructor(
     suspend fun pullAll() {
         if (!syncClient.isConfigured()) return
         // Deduplicate: if a pull is already in flight, skip this call to prevent
-        // concurrent Supabase reads and racing Room clear+upsert operations.
+        // concurrent server reads and racing Room clear+upsert operations.
         if (!pullMutex.tryLock()) {
             Log.d("HomerSync", "pullAll: already in flight, skipping duplicate call")
             return
@@ -175,7 +175,7 @@ class SyncEngine @Inject constructor(
     }
 
     /** Cancel any pending debounced push for a single field.
-     *  Called from [applyFieldUpdate] so a Realtime update from another device
+     *  Called from [applyFieldUpdate] so a polled update from another device
      *  is not immediately overwritten by a stale local push. */
     fun cancelPendingPush(fieldKey: String) {
         synchronized(pendingJobs) {
@@ -192,11 +192,11 @@ class SyncEngine @Inject constructor(
         db.syncQueueDao().clear()
     }
 
-    // ── Realtime field update ─────────────────────────────────────────────────
+    // ── Remote field update ───────────────────────────────────────────────────
 
     /**
-     * Called by RealtimeSyncManager when Supabase pushes a field change instantly.
-     * Cancels any pending local push for this field (Realtime wins), updates the field
+     * Called by FieldChangePoller when another device changed a field.
+     * Cancels any pending local push for this field (remote wins), updates the field
      * cache with the new value, and routes to the correct Room entity pull method.
      */
     suspend fun applyFieldUpdate(fieldId: String, value: String) {
@@ -683,7 +683,7 @@ class SyncEngine @Inject constructor(
     }
 
     // ── Journal ───────────────────────────────────────────────────────────────
-    // Website key: "homer-journal" → Supabase field_id: "ls:homer-journal"
+    // Website key: "homer-journal" → server field_id: "ls:homer-journal"
     // Format: [{id, date, content, mood, moodLabel, aiReflection, wordCount, createdAt, updatedAt}]
 
     private suspend fun pushJournal() {
@@ -702,7 +702,7 @@ class SyncEngine @Inject constructor(
     }
 
     // ── Car ───────────────────────────────────────────────────────────────────
-    // Website key: "homer-car" → Supabase field_id: "ls:homer-car"
+    // Website key: "homer-car" → server field_id: "ls:homer-car"
     // Format: {vehicles:[...], documents:[...], maintenance:[...], fuel:[...]}
 
     @Serializable
@@ -1149,12 +1149,12 @@ class SyncEngine @Inject constructor(
 
     // ── Conflict resolution: last-write-wins ─────────────────────────────────
     // compareFieldPriority() in sync.js returns 1 always → last HTTP write wins.
-    // cancelPendingPush() is called in applyFieldUpdate() so Realtime updates from
+    // cancelPendingPush() is called in applyFieldUpdate() so polled updates from
     // other devices always win over stale debounced local pushes.
 
 
     // ── Saved Quotes ──────────────────────────────────────────────────────────
-    // Website key: "motivator.savedQuotes.v1" → Supabase field_id: "ls:savedQuotes"
+    // Website key: "motivator.savedQuotes.v1" → server field_id: "ls:savedQuotes"
     // Website format: [{q, a, ts}]  — short keys used by website renderSaved/buildMarkdown
     // Old Android format: [{text, author, savedAt}]  — kept as fallback fields for backwards compat
 
@@ -1210,7 +1210,7 @@ class SyncEngine @Inject constructor(
     }
 
     // ── Focus Sessions ────────────────────────────────────────────────────────
-    // Website key: "homer-sessions" → Supabase field_id: "ls:homer-sessions"
+    // Website key: "homer-sessions" → server field_id: "ls:homer-sessions"
     // Format: [{ts, durationSecs, taskLabel}]
 
     @Serializable
@@ -1239,7 +1239,7 @@ class SyncEngine @Inject constructor(
     }
 
     // ── Pomodoro Settings ─────────────────────────────────────────────────────
-    // Website key: "pom.settings.v1" → Supabase: "ls:pom-settings"
+    // Website key: "pom.settings.v1" → server: "ls:pom-settings"
     // Stored as raw JSON blob in AppSetting table (key: "pom.settings.v1")
 
     private suspend fun pushPomSettings() {
@@ -1254,7 +1254,7 @@ class SyncEngine @Inject constructor(
     }
 
     // ── Expense Templates ─────────────────────────────────────────────────────
-    // Website key: "homer-expense-templates" → Supabase: "ls:homer-expense-templates"
+    // Website key: "homer-expense-templates" → server: "ls:homer-expense-templates"
 
     private suspend fun pushExpenseTemplates() {
         val v = db.appSettingDao().get("homer-expense-templates") ?: return
@@ -1268,7 +1268,7 @@ class SyncEngine @Inject constructor(
     }
 
     // ── Expense Categories ────────────────────────────────────────────────────
-    // Website key: "homer-expense-cats" → Supabase: "ls:homer-expense-cats"
+    // Website key: "homer-expense-cats" → server: "ls:homer-expense-cats"
 
     private suspend fun pushExpenseCats() {
         val v = db.appSettingDao().get("homer-expense-cats") ?: return
@@ -1282,7 +1282,7 @@ class SyncEngine @Inject constructor(
     }
 
     // ── Payday Day ────────────────────────────────────────────────────────────
-    // Website key: "homer-payday-day" → Supabase: "ls:homer-payday-day"
+    // Website key: "homer-payday-day" → server: "ls:homer-payday-day"
 
     private suspend fun pushPaydayDay() {
         val v = db.appSettingDao().get("homer-payday-day") ?: return
@@ -1296,7 +1296,7 @@ class SyncEngine @Inject constructor(
     }
 
     // ── Recurring Tasks ───────────────────────────────────────────────────────
-    // Website key: "homer-recurring" → Supabase: "ls:homer-recurring"
+    // Website key: "homer-recurring" → server: "ls:homer-recurring"
 
     private suspend fun pushRecurring() {
         val v = db.appSettingDao().get("homer-recurring") ?: return
@@ -1310,7 +1310,7 @@ class SyncEngine @Inject constructor(
     }
 
     // ── Weekly Reviews ────────────────────────────────────────────────────────
-    // Website key: "homer-weekly-reviews" → Supabase: "ls:homer-weekly-reviews"
+    // Website key: "homer-weekly-reviews" → server: "ls:homer-weekly-reviews"
 
     private suspend fun pushWeeklyReviews() {
         val v = db.appSettingDao().get("homer-weekly-reviews") ?: return
@@ -1323,8 +1323,8 @@ class SyncEngine @Inject constructor(
         db.appSettingDao().set(AppSetting("homer-weekly-reviews", v))
     }
 
-    // ── Realtime + periodic pull ──────────────────────────────────────────────
-    // RealtimeSyncManager subscribes to Supabase Realtime WebSocket and calls
+    // ── Polling + periodic pull ───────────────────────────────────────────────
+    // FieldChangePoller polls the Homer API for changed fields and calls
     // applyFieldUpdate() for instant Room updates when another device pushes.
     // Additionally:
     //  - on startup  → start() → pullAll()
@@ -1334,7 +1334,7 @@ class SyncEngine @Inject constructor(
 
     // ── Vault Secrets (Passwords) ─────────────────────────────────────────────
     // Website key: "homer-secrets:personal" / "homer-secrets:work"
-    // Supabase field_id: "ls:homer-secrets:personal" / "ls:homer-secrets:work"
+    // server field_id: "ls:homer-secrets:personal" / "ls:homer-secrets:work"
     // Website format: [{label, site, user, pass, details}]
     // Android: VaultCredential(id, label, site, username, passwordEncrypted, details)
     //   - "user" ↔ "username";  "pass" ↔ "passwordEncrypted"
@@ -1382,7 +1382,7 @@ class SyncEngine @Inject constructor(
 
     // ── Vault Notes ───────────────────────────────────────────────────────────
     // Website key: "homer-vault-notes:personal" / "homer-vault-notes:work"
-    // Supabase field_id: "ls:homer-vault-notes:personal" / "ls:homer-vault-notes:work"
+    // server field_id: "ls:homer-vault-notes:personal" / "ls:homer-vault-notes:work"
     // Website pushes JSON.stringify(vault.notes) → value is a JSON-encoded string
     // Android: VaultNote(id=1→personal, id=2→work, mode, textEncrypted)
 
@@ -1406,7 +1406,7 @@ class SyncEngine @Inject constructor(
     }
 
     // ── Countdown ─────────────────────────────────────────────────────────────
-    // Website key: "homer-countdown" → Supabase: "ls:homer-countdown"
+    // Website key: "homer-countdown" → server: "ls:homer-countdown"
     // Format: {name: "", date: "YYYY-MM-DDTHH:mm", collapsed: false}
     // Android: SharedPreferences "homer_countdown" {name (String), dateMs (Long)}
 
@@ -1455,7 +1455,7 @@ class SyncEngine @Inject constructor(
     }
 
     // ── Reminders ─────────────────────────────────────────────────────────────
-    // Website key: "homer-reminders" → Supabase field_id: "ls:homer-reminders"
+    // Website key: "homer-reminders" → server field_id: "ls:homer-reminders"
     // Format: [{id, title, body, triggerAt, recurType, enabled, createdAt}]
     // Matches Android Reminder entity exactly.
 

@@ -10,15 +10,8 @@ import handleJoeyCommit, { runLearnStep } from '../../lib/joey-commit-handler.js
 import { getJoeyContextKeys, getJoeyMode } from '../../lib/joey-context.js';
 import { loadRedisJson, saveRedisJson, safeJsonParse, verifyJoeyPassphrase } from '../../lib/joey-server.js';
 import { computeJoeySyncMeta } from '../../lib/joey-sync-meta.js';
-import { createSupabaseRedisFetch } from '../../lib/supabase-redis-compat.js';
-import {
-  isSupabaseClientConfigured,
-  createAdminClient,
-  createUserClient,
-  resolveSupabaseOwnerId,
-  verifySupabaseJwt,
-  isSupabaseConfigured
-} from '../../lib/supabase-server.js';
+import { createDbRedisFetch } from '../../lib/db-redis-compat.js';
+import { isDbConfigured, createDbClient, resolveOwnerId, verifySessionToken } from '../../lib/db.js';
 import { createVercelAdapter } from '../../lib/cf-vercel-adapter.js';
 
 export async function onRequest(context) {
@@ -49,7 +42,7 @@ export async function onRequest(context) {
     return getResponse();
   }
 
-  // Auth — accept Supabase JWT (new) OR legacy passphrase (backward compat)
+  // Auth — accept session token (new) OR legacy passphrase (backward compat)
   let body = null;
   if (request.method === 'POST' || request.method === 'DELETE') {
     try { body = await request.json(); } catch (e) { body = {}; }
@@ -77,40 +70,40 @@ export async function onRequest(context) {
       }).then(r => r.json())
     : null;
 
-  const supabaseJwtConfigured = isSupabaseClientConfigured();
-  const supabaseAdminConfigured = isSupabaseConfigured();
-  let supabaseClient = null;
+  const dbJwtConfigured = isDbConfigured();
+  const dbAdminConfigured = isDbConfigured();
+  let dbClient = null;
 
-  if (!redisRaw && !supabaseJwtConfigured && !supabaseAdminConfigured) {
-    return Response.json({ error: 'No data store configured. Set Redis or Supabase env vars.' }, { status: 500, headers: corsHeaders });
+  if (!redisRaw && !dbJwtConfigured && !dbAdminConfigured) {
+    return Response.json({ error: 'No data store configured. Set Redis or DB env vars.' }, { status: 500, headers: corsHeaders });
   }
 
   let isValid = false;
   let userId = null;
 
-  if (jwtToken && supabaseJwtConfigured) {
-    const jwtUser = await verifySupabaseJwt(jwtToken);
+  if (jwtToken && dbJwtConfigured) {
+    const jwtUser = await verifySessionToken(jwtToken);
     if (jwtUser) {
       isValid = true;
       userId = jwtUser.id;
-      supabaseClient = createUserClient(jwtToken);
+      dbClient = createDbClient();
     }
   }
 
   if (!isValid && passphrase) {
     isValid = await verifyJoeyPassphrase(passphrase, redisRaw);
     if (isValid) {
-      userId = await resolveSupabaseOwnerId() || null;
-      if (supabaseAdminConfigured && userId) {
-        supabaseClient = createAdminClient();
+      userId = await resolveOwnerId() || null;
+      if (dbAdminConfigured && userId) {
+        dbClient = createDbClient();
       }
     }
   }
 
   if (!isValid) return Response.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders });
 
-  const redis = (supabaseClient && userId)
-    ? createSupabaseRedisFetch(supabaseClient, userId)
+  const redis = (dbClient && userId)
+    ? createDbRedisFetch(dbClient, userId)
     : redisRaw;
 
   if (!redis) return Response.json({ error: 'Data store unavailable' }, { status: 500, headers: corsHeaders });
@@ -629,10 +622,10 @@ export async function onRequest(context) {
       return Response.json({ ...learnOutcome, syncMetaUpdated: true, filesUpdated: true, totalJournalEntries: Array.isArray(currentJournal) ? currentJournal.length : 0 }, { status: 200, headers: corsHeaders });
     }
 
-    // ── Vault / habits / extras backup (server-side, no client Supabase session needed) ──
+    // ── Vault / habits / extras backup (server-side, no client DB session needed) ──
     if (action === 'vault-backup' && request.method === 'POST') {
-      if (!supabaseClient || !userId) {
-        return Response.json({ ok: false, error: 'Supabase admin client not available' }, { status: 500, headers: corsHeaders });
+      if (!dbClient || !userId) {
+        return Response.json({ ok: false, error: 'DB admin client not available' }, { status: 500, headers: corsHeaders });
       }
       const { vaultSalt, vaultData, habitsData, extras, workVaultSalt, workVaultData } = body || {};
       const now = new Date().toISOString();
@@ -640,7 +633,7 @@ export async function onRequest(context) {
       const upserts = [];
 
       if (vaultData) {
-        upserts.push(supabaseClient.from('joey_meta').upsert(
+        upserts.push(dbClient.from('joey_meta').upsert(
           { user_id: userId, mode: 'personal', key: 'vault_encrypted_blob',
             value: { vault_salt: vaultSalt || null, vault_data: vaultData, synced_at: ts },
             updated_at: now },
@@ -648,7 +641,7 @@ export async function onRequest(context) {
         ));
       }
       if (workVaultData) {
-        upserts.push(supabaseClient.from('joey_meta').upsert(
+        upserts.push(dbClient.from('joey_meta').upsert(
           { user_id: userId, mode: 'work', key: 'vault_encrypted_blob',
             value: { vault_salt: workVaultSalt || null, vault_data: workVaultData, synced_at: ts },
             updated_at: now },
@@ -656,14 +649,14 @@ export async function onRequest(context) {
         ));
       }
       if (habitsData != null) {
-        upserts.push(supabaseClient.from('joey_meta').upsert(
+        upserts.push(dbClient.from('joey_meta').upsert(
           { user_id: userId, mode: 'personal', key: 'habits_data',
             value: habitsData, updated_at: now },
           { onConflict: 'user_id,mode,key' }
         ));
       }
       if (extras && typeof extras === 'object') {
-        upserts.push(supabaseClient.from('joey_meta').upsert(
+        upserts.push(dbClient.from('joey_meta').upsert(
           { user_id: userId, mode: 'personal', key: 'ls_extras',
             value: { ...extras, synced_at: ts }, updated_at: now },
           { onConflict: 'user_id,mode,key' }

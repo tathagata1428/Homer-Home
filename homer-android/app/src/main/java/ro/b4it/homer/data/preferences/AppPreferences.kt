@@ -36,7 +36,7 @@ class AppPreferences @Inject constructor(@ApplicationContext private val ctx: Co
         val KEY_SIDEBAR_COLLAPSED = booleanPreferencesKey("homer-sidebar-collapsed")
         val KEY_LAST_TAB       = stringPreferencesKey("homer-last-tab")
 
-        // Supabase sync timestamps (bogdan only)
+        // Server sync timestamps (bogdan only)
         val KEY_VAULT_SUPA_TS  = longPreferencesKey("homer-vault-supa-ts")
         val KEY_LOCAL_SAVE_TS  = longPreferencesKey("homer-local-save-ts")
         val KEY_FIELD_SYNC_VER = longPreferencesKey("homer-field-sync-version")

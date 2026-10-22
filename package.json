@@ -6,13 +6,14 @@
   "scripts": {
     "check": "node scripts/validate-static.mjs",
     "build": "npm run check",
-    "deploy": "npx wrangler pages deploy ."
+    "deploy": "npx wrangler pages deploy .",
+    "db:schema": "node scripts/db-schema.mjs",
+    "db:migrate-from-supabase": "node scripts/migrate-from-supabase.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.4"
+    "pg": "^8.20.0"
   },
   "devDependencies": {
-    "pg": "^8.20.0",
     "wrangler": "file:./tools/wrangler"
   }
 }
