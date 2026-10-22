@@ -231,6 +231,7 @@
   async function refresh() {
     var data = await call({ action: 'refresh' });
     if (typeof window._homerApplyRemoteInbox === 'function') window._homerApplyRemoteInbox(data.value);
+    if (data.problem) lastError = 'Synced, but Second Brain reported: ' + data.problem;
     rerender();
   }
 

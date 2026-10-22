@@ -52,7 +52,9 @@ export async function onRequestPost(context) {
     if (action === 'refresh') {
       const result = await pullHub(ownerId, { force: true });
       if (result && result.error) return upstream('Second Brain: ' + result.error);
-      return json({ value: await inboxValue(ownerId) });
+      // The inbox still comes back when another part of the pull had a problem.
+      const problem = result && (result.pictureError || (result.fieldErrors && Object.entries(result.fieldErrors).map(([k, m]) => k + ': ' + m)[0]));
+      return json({ value: await inboxValue(ownerId), ...(problem ? { problem: String(problem).slice(0, 300) } : {}) });
     }
     if (action === 'image-get') {
       if (!id) return json({ error: 'Missing id' }, 400);
