@@ -11373,6 +11373,7 @@ let tvWidgetCreated = false;
   function pendingSyncCount(){
     var n = fieldSyncPendingMap.size;
     try { if(typeof window._homerDataDirtyCount === 'function') n += window._homerDataDirtyCount(); } catch(_e){}
+    try { if(typeof window._homerCapturesDirtyCount === 'function') n += window._homerCapturesDirtyCount(); } catch(_e){}
     return n;
   }
   function renderSyncSummary(){
@@ -11405,6 +11406,7 @@ let tvWidgetCreated = false;
         .then(settle(function(){ return flushFieldSyncOps('sync-now'); }))
         .then(settle(function(){ return typeof window._homerDataPushDirty === 'function' ? window._homerDataPushDirty() : null; }))
         .then(settle(function(){ if(typeof window._homerDailyBriefPush === 'function') window._homerDailyBriefPush(); }))
+        .then(settle(function(){ return jwt && typeof window._homerCapturesPush === 'function' ? window._homerCapturesPush() : null; }))
         // No DB session: the R2 snapshot is the cloud copy.
         .then(settle(function(){ return !jwt && passKey && dirty ? backup() : null; }));
     }
@@ -11415,6 +11417,7 @@ let tvWidgetCreated = false;
         // Merge keys (habits, expenses, notes, journal…) merge both ways, then the vault (kanban, life goals, secrets).
         .then(settle(function(){ return typeof window._heSyncPullAll === 'function' ? window._heSyncPullAll() : null; }))
         .then(settle(function(){ return typeof window._homerCarSyncNow === 'function' ? window._homerCarSyncNow() : null; }))
+        .then(settle(function(){ return jwt && typeof window._homerCapturesPull === 'function' ? window._homerCapturesPull() : null; }))
         .then(settle(function(){ return !jwt && passKey ? pullIfNewer(true) : null; }));
     }
     syncRun = chain.then(function(){
