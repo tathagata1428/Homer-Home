@@ -6751,8 +6751,39 @@ let tvWidgetCreated = false;
   // Holds the password for remember-me until unlock() fires, then clears
   var _pendingRememberPw = null;
 
+  // Start a new vault when the old one can't be unlocked. The old encrypted
+  // vault is copied to homer-vault-old-<time>:{salt,hash,data} (never deleted),
+  // so it can still be opened later if its password turns up. Kanban and life
+  // goals refill from the synced mirrors (homer-kanban / homer-life-goals).
+  var vaultStartNewBtn = document.getElementById('vault-start-new');
+  if(vaultStartNewBtn) vaultStartNewBtn.addEventListener('click', function(){
+    if(!pwInput.value){ showError('Type the password the new vault should use, then try again.'); return; }
+    if(!window.confirm('Start a new vault with the password you typed?\n\nThe current vault stays saved on this device as a backup copy, but its saved credentials, links and secret notes will not be in the new vault. Kanban and life goals reload from sync.')) return;
+    var prefix = 'homer-vault-old-' + new Date().toISOString().replace(/[:.]/g, '-') + ':';
+    Promise.all([idb.get(SALT_KEY), idb.get(HASH_KEY), idb.get(DATA_KEY)]).then(function(old){
+      return Promise.all([
+        idb.set(prefix + 'salt', old[0]), idb.set(prefix + 'hash', old[1]), idb.set(prefix + 'data', old[2])
+      ]).then(function(){
+        return Promise.all([idb.get(prefix + 'hash'), idb.get(prefix + 'data')]);
+      }).then(function(copy){
+        // Only clear the live vault once the backup copy is confirmed written.
+        if(copy[0] !== old[1] || copy[1] !== old[2]) throw new Error('backup copy did not verify');
+        return Promise.all([idb.del(SALT_KEY), idb.del(HASH_KEY), idb.del(DATA_KEY)]);
+      });
+    }).then(function(){
+      try{ localStorage.setItem('homer-vault-old-latest', prefix); }catch(_e){}
+      isNew = true;
+      vaultStartNewBtn.style.display = 'none';
+      hideError();
+      unlockBtn.click();
+    }).catch(function(err){
+      showError('Could not start a new vault (' + (err && err.message ? err.message : err) + '). Nothing was changed.');
+    });
+  });
+
   unlockBtn.addEventListener('click', function(){
     hideError();
+    if(vaultStartNewBtn) vaultStartNewBtn.style.display = 'none';
     var user = vaultUserInput.value.trim();
     var pw = pwInput.value;
     if(!user){ showError('Please enter your username.'); return; }
@@ -6788,6 +6819,7 @@ let tvWidgetCreated = false;
             var loggedIn = !!localStorage.getItem('homer-auth-user');
             if(!loggedIn){ showError('Vault password could not unlock existing data.'); return; }
             showError('Vault password did not match. Your existing vault was not changed. Check the password or open Recovery.');
+            if(vaultStartNewBtn) vaultStartNewBtn.style.display = '';
           }
           if(!legacyPasswords.length){ vaultResetForLoggedIn(); return; }
           var tryLegacy = function(index){
