@@ -8,8 +8,8 @@
  *   DATABASE_URL=postgres://... \
  *   node scripts/migrate-from-supabase.mjs [--dry-run]
  *
- * Run scripts/db-schema.mjs first with HOMER_OWNER_ID=$SUPABASE_OWNER_ID so the
- * owner keeps the same id and every copied row still belongs to them.
+ * Run scripts/db-schema.mjs first. Rows are re-owned by the local owner account
+ * (users row for HOMER_OWNER_EMAIL), so its id does not need to match Supabase.
  * Existing rows (same primary key) are left alone, so re-running is safe.
  */
 import pg from 'pg';
@@ -55,10 +55,11 @@ function toParam(v) {
 const db = new pg.Client({ connectionString: DATABASE_URL });
 await db.connect();
 try {
-  const owner = await db.query('SELECT id FROM users WHERE id = $1', [SUPABASE_OWNER_ID]);
-  if (!owner.rows.length) {
-    throw new Error('Owner ' + SUPABASE_OWNER_ID + ' not in users — run: HOMER_OWNER_ID=' + SUPABASE_OWNER_ID + ' node scripts/db-schema.mjs');
-  }
+  const ownerEmail = (process.env.HOMER_OWNER_EMAIL || 'bogdan.radu@b4it.ro').toLowerCase();
+  const owner = await db.query('SELECT id FROM users WHERE lower(email) = $1', [ownerEmail]);
+  if (!owner.rows.length) throw new Error('No users row for ' + ownerEmail + ' — run scripts/db-schema.mjs first');
+  const localOwnerId = owner.rows[0].id;
+  console.log('Supabase owner', SUPABASE_OWNER_ID, '→ local owner', localOwnerId);
   const colsRes = await db.query(
     `SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public'`
   );
@@ -75,6 +76,7 @@ try {
       // Keep the copied updated_at values instead of stamping NOW().
       await db.query(`ALTER TABLE "${table}" DISABLE TRIGGER USER`);
       for (const row of rows) {
+        if ('user_id' in row) row.user_id = localOwnerId;
         const cols = Object.keys(row).filter((c) => columns[table].has(c));
         const res = await db.query(
           `INSERT INTO "${table}" (${cols.map((c) => `"${c}"`).join(', ')})
