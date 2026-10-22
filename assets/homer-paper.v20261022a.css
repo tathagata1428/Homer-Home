@@ -1,0 +1,313 @@
+/* ══════════════════════════════════════════════════════════════════
+   Homer · Paper theme — black ink drawn on warm paper, e-reader style.
+
+   Active when <html class="theme-paper"> (default; toggle in the header).
+
+   How it works: the app is a dark theme with colours hard-coded across
+   app-shell.css and every feature module. Instead of repainting each one,
+   the root element is inverted into grayscale with a touch of sepia, which
+   turns the dark UI into ink on paper everywhere at once. (A filter on the
+   root does not break position:fixed — the spec exempts the root element.)
+
+   So every colour below is written PRE-INVERT:
+     light / white  → comes out as ink
+     dark  / black  → comes out as paper
+   Photos, video, iframes and canvases are inverted back so they stay true
+   (but grayscale, like an e-reader).
+   ══════════════════════════════════════════════════════════════════ */
+
+html.theme-paper {
+  filter: invert(1) hue-rotate(180deg) grayscale(1) sepia(.22) contrast(1.06);
+  background: #070707;
+  --bg: #070707;
+  --text: #f4f2ee;              /* ink */
+  --muted: #b9b4aa;             /* pencil */
+  --border: rgba(255, 255, 255, .62);
+  --card-a: transparent;
+  --card-b: transparent;
+  --accent: #ffffff;
+  --accent-2: #e9e6df;
+  --shadow: 3px 4px 0 rgba(255, 255, 255, .72);
+  --radius: 14px;
+  --countdown-track: rgba(255, 255, 255, .25);
+  --paper-ink: rgba(255, 255, 255, .86);
+  --paper-ink-soft: rgba(255, 255, 255, .42);
+  --paper-hatch: repeating-linear-gradient(-45deg, rgba(255, 255, 255, .26) 0 1.5px, transparent 1.5px 6px);
+  --paper-hatch-dense: repeating-linear-gradient(-45deg, rgba(255, 255, 255, .45) 0 1.5px, transparent 1.5px 4px);
+  /* Slightly uneven corners, like boxes drawn freehand (kept small so tall panels don't bulge). */
+  --paper-wobble: 22px 7px 26px 9px / 9px 24px 7px 22px;
+  --paper-wobble-2: 8px 24px 9px 26px / 24px 8px 22px 9px;
+  --font-ink: 'Literata', Georgia, 'Noto Emoji', serif;
+  --font-hand: 'Patrick Hand', 'Comic Neue', 'Noto Emoji', cursive;
+}
+
+/* Media keeps its real look (grayscale, like e-ink). */
+html.theme-paper img,
+html.theme-paper video,
+html.theme-paper iframe,
+html.theme-paper canvas,
+html.theme-paper picture,
+html.theme-paper embed,
+html.theme-paper object,
+html.theme-paper [style*="background-image"] {
+  filter: invert(1) hue-rotate(180deg);
+}
+/* …except inline SVG icons, which should read as ink. */
+html.theme-paper svg image { filter: invert(1) hue-rotate(180deg); }
+
+/* ── Paper ─────────────────────────────────────────────────────────── */
+html.theme-paper body {
+  background: #070707 !important;
+  color: var(--text);
+  font-family: var(--font-ink);
+  font-size: 16.5px;
+  letter-spacing: .005em;
+}
+/* Grain + a soft page vignette (light pre-invert → darker flecks on paper). */
+html.theme-paper body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: .55;
+  background:
+    radial-gradient(120% 90% at 50% 40%, transparent 62%, rgba(255, 255, 255, .10) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+html.theme-paper ::selection { background: rgba(255, 255, 255, .28); color: inherit; }
+
+/* ── Type ──────────────────────────────────────────────────────────── */
+html.theme-paper h1, html.theme-paper h2, html.theme-paper h3, html.theme-paper h4,
+html.theme-paper .title, html.theme-paper .tab-btn, html.theme-paper .btn,
+html.theme-paper button, html.theme-paper label, html.theme-paper .section-title,
+html.theme-paper [class*="title"], html.theme-paper [class*="-head"] {
+  font-family: var(--font-hand);
+  letter-spacing: .01em;
+}
+html.theme-paper p, html.theme-paper li, html.theme-paper td,
+html.theme-paper textarea, html.theme-paper input, html.theme-paper select,
+html.theme-paper .subtitle, html.theme-paper [class*="content"], html.theme-paper [class*="body"] {
+  font-family: var(--font-ink);
+}
+html.theme-paper code, html.theme-paper pre, html.theme-paper kbd {
+  font-family: 'Courier Prime', 'Courier New', 'Noto Emoji', monospace;
+}
+
+/* Header: a hand-lettered title with a scribbled underline. */
+html.theme-paper .hero .title {
+  font-size: clamp(2.4rem, 7vw, 3.6rem);
+  font-weight: 400;
+  color: var(--text);
+  text-shadow: none;
+}
+html.theme-paper .hero .title { position: relative; }
+html.theme-paper .hero .title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  height: 9px;
+  width: 4.2em;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 9' preserveAspectRatio='none'%3E%3Cpath d='M2 6 C 40 1, 80 8, 120 4 S 200 2, 258 5' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+}
+html.theme-paper .title-badge,
+html.theme-paper .hero .title span {
+  background: transparent !important;
+  border: 1.5px solid var(--paper-ink);
+  border-radius: var(--paper-wobble);
+  color: var(--text) !important;
+  box-shadow: 2px 2px 0 var(--paper-ink-soft) !important;
+  font-family: var(--font-hand);
+}
+html.theme-paper .subtitle { font-style: italic; color: var(--muted); }
+
+/* ── Sketched boxes ────────────────────────────────────────────────── */
+html.theme-paper .card,
+html.theme-paper [class$="-card"],
+html.theme-paper [class*="-card "],
+html.theme-paper [class*="-panel"],
+html.theme-paper [class*="modal-box"],
+html.theme-paper [class*="-modal"]:not([class*="-bg"]):not([class*="overlay"]) {
+  background: #070707 !important;
+  border: 1.6px solid var(--paper-ink) !important;
+  border-radius: var(--paper-wobble) !important;
+  box-shadow: 3px 4px 0 var(--paper-ink-soft) !important;
+  backdrop-filter: none !important;
+}
+html.theme-paper .card:nth-of-type(even),
+html.theme-paper [class$="-card"]:nth-of-type(even) {
+  border-radius: var(--paper-wobble-2) !important;
+}
+/* Section labels (h2.section): hand-lettered with a pencil underline. */
+html.theme-paper h2.section,
+html.theme-paper .sb-section-title {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  font-family: var(--font-hand);
+  font-weight: 400;
+  letter-spacing: .06em;
+  font-size: 1.02rem;
+  color: var(--muted) !important;
+  padding-bottom: 2px !important;
+  display: inline-block;
+  border-bottom: 1.5px solid var(--paper-ink-soft) !important;
+  border-radius: 0 0 40% 60% / 0 0 3px 2px !important;
+}
+
+/* Modal backdrops: a pale wash instead of a dark blur. */
+html.theme-paper [class*="overlay"],
+html.theme-paper [class*="modal-bg"],
+html.theme-paper [id$="-overlay"] {
+  background: rgba(7, 7, 7, .72) !important;
+  backdrop-filter: none !important;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────── */
+html.theme-paper .btn,
+html.theme-paper button:not(.tab-btn):not(.sb-item):not(.pw-toggle):not([class*="icon"]):not([class*="close"]) {
+  background: #070707 !important;
+  color: var(--text) !important;
+  border: 1.5px solid var(--paper-ink) !important;
+  border-radius: var(--paper-wobble) !important;
+  box-shadow: 2px 3px 0 var(--paper-ink-soft) !important;
+  transition: transform .08s ease, box-shadow .08s ease;
+  text-shadow: none !important;
+}
+html.theme-paper .btn:hover,
+html.theme-paper button:not(.tab-btn):not(.sb-item):hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 4px 0 var(--paper-ink) !important;
+}
+html.theme-paper .btn:active,
+html.theme-paper button:not(.tab-btn):not(.sb-item):active {
+  transform: translate(1px, 2px);
+  box-shadow: 0 0 0 var(--paper-ink) !important;
+}
+/* Primary action: cross-hatched like a pencil shading. */
+html.theme-paper .btn.primary,
+html.theme-paper button.primary,
+html.theme-paper [class*="btn-primary"] {
+  background: var(--paper-hatch), #070707 !important;
+  font-weight: 700;
+}
+
+/* ── Tabs: index cards with a hatched active one ──────────────────── */
+html.theme-paper .tabs {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  gap: 6px;
+}
+html.theme-paper .tab-btn {
+  background: #070707 !important;
+  color: var(--muted) !important;
+  border: 1.4px solid var(--paper-ink-soft) !important;
+  border-radius: var(--paper-wobble-2) !important;
+  box-shadow: none !important;
+  font-size: 1.05rem;
+}
+html.theme-paper .tab-btn:hover { color: var(--text) !important; border-color: var(--paper-ink) !important; }
+html.theme-paper .tab-btn.active {
+  color: var(--text) !important;
+  background: var(--paper-hatch), #070707 !important;
+  border-color: var(--paper-ink) !important;
+  box-shadow: 2px 3px 0 var(--paper-ink-soft) !important;
+}
+
+/* ── Sidebar: a hand-written contents page ─────────────────────── */
+html.theme-paper #desktop-sidebar {
+  background: #070707 !important;
+  border-right: 1.5px solid var(--paper-ink-soft) !important;
+  box-shadow: none !important;
+}
+html.theme-paper .sb-item {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--muted) !important;
+  font-family: var(--font-hand);
+  font-size: 1.06rem;
+  border-radius: 4px 12px 6px 10px !important;
+}
+html.theme-paper .sb-item:hover { color: var(--text) !important; background: rgba(255, 255, 255, .05) !important; }
+/* Active page: a highlighter stroke behind the word. */
+html.theme-paper .sb-section-title { margin-left: 18px !important; }
+html.theme-paper .sb-item.active {
+  color: var(--text) !important;
+  background: var(--paper-hatch), rgba(255, 255, 255, .08) !important;
+  box-shadow: inset 3px 0 0 var(--paper-ink) !important;
+}
+html.theme-paper .sb-item svg { stroke: currentColor !important; }
+
+/* Leftovers of the old auto light mode would invert to dark: keep them paper. */
+html.theme-paper body.theme-light .homer-toast,
+html.theme-paper body.theme-light #homer-theme-btn {
+  background: #070707 !important; color: var(--text) !important; border-color: var(--paper-ink-soft) !important;
+}
+
+/* ── Inputs: ruled lines ───────────────────────────────────────────── */
+html.theme-paper input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.theme-paper textarea,
+html.theme-paper select {
+  background-color: #070707 !important;
+  color: var(--text) !important;
+  border: 1.3px solid var(--paper-ink-soft) !important;
+  border-radius: 6px 10px 7px 9px !important;
+  box-shadow: none !important;
+}
+html.theme-paper input:focus, html.theme-paper textarea:focus, html.theme-paper select:focus {
+  outline: none !important;
+  border-color: var(--paper-ink) !important;
+  box-shadow: 2px 2px 0 var(--paper-ink-soft) !important;
+}
+html.theme-paper textarea {
+  background-image: repeating-linear-gradient(transparent 0 1.55em, rgba(255, 255, 255, .10) 1.55em calc(1.55em + 1px)) !important;
+  line-height: 1.6em;
+}
+html.theme-paper select option, html.theme-paper select optgroup { background: #070707; color: var(--text); }
+html.theme-paper input[type="checkbox"], html.theme-paper input[type="radio"], html.theme-paper input[type="range"] {
+  accent-color: #f4f2ee;
+}
+html.theme-paper ::placeholder { color: var(--muted); opacity: .8; font-style: italic; }
+
+/* ── Shading: progress, rings, meters become pencil hatch ─────────── */
+html.theme-paper progress, html.theme-paper meter { accent-color: #f4f2ee; }
+html.theme-paper [class*="progress"] > *,
+html.theme-paper [class*="-bar-fill"],
+html.theme-paper [class*="-fill"] {
+  background: var(--paper-hatch-dense) !important;
+}
+html.theme-paper .ring-bg { stroke: rgba(255, 255, 255, .18) !important; }
+html.theme-paper .ring-fg { stroke: #f4f2ee !important; }
+
+/* Dividers and tables drawn with a pen. */
+html.theme-paper hr { border: none; height: 6px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 6' preserveAspectRatio='none'%3E%3Cpath d='M1 3 C 80 1, 160 5, 240 3 S 360 2, 399 3' fill='none' stroke='white' stroke-opacity='.6' stroke-width='1.4'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+html.theme-paper table { border-collapse: collapse; }
+html.theme-paper th, html.theme-paper td { border-bottom: 1px dashed var(--paper-ink-soft) !important; }
+
+/* Links: inked and underlined. */
+html.theme-paper a { color: var(--text); text-decoration-color: var(--paper-ink-soft); text-underline-offset: 3px; }
+
+/* Scrollbars: a thin pencil line. */
+html.theme-paper * { scrollbar-color: rgba(255, 255, 255, .45) transparent; scrollbar-width: thin; }
+html.theme-paper ::-webkit-scrollbar { width: 9px; height: 9px; }
+html.theme-paper ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .4); border-radius: 9px; border: 2px solid #070707; }
+html.theme-paper ::-webkit-scrollbar-track { background: transparent; }
+
+/* Theme toggle (header). */
+.paper-toggle {
+  position: absolute; top: 14px; right: 14px; z-index: 5;
+  font: 600 .82rem/1 'Inter', system-ui, sans-serif;
+  padding: 7px 11px; border-radius: 999px; cursor: pointer;
+  background: rgba(255, 255, 255, .06); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, .14);
+}
+html.theme-paper .paper-toggle { font-family: var(--font-hand); font-size: 1rem; }
+.hero { position: relative; }
+
+/* Calm motion: an e-reader doesn't animate much. */
+@media (prefers-reduced-motion: no-preference) {
+  html.theme-paper * { transition-duration: .08s !important; }
+}

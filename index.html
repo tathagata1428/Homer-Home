@@ -28,7 +28,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <!-- Paper theme (default): ink on paper, e-reader style. Set before first paint to avoid a dark flash. -->
+  <script>
+    (function(){
+      var t = 'paper';
+      try { t = localStorage.getItem('homer-theme') || 'paper'; } catch (_e) {}
+      if (t === 'paper') document.documentElement.classList.add('theme-paper');
+    })();
+  </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;0,7..72,700;1,7..72,400&family=Patrick+Hand&family=Courier+Prime&family=Noto+Emoji:wght@400;600&display=swap">
   <link rel="stylesheet" href="/assets/app-shell.v20260331.css?v=20260727a">
+  <link rel="stylesheet" href="/assets/homer-paper.v20261022a.css?v=20261022b">
 </head>
 <body>
 
@@ -106,6 +116,7 @@
 
   <div class="shell">
     <header class="hero">
+      <button type="button" id="paper-toggle" class="paper-toggle" title="Switch between paper and dark theme">&#9998; Paper</button>
       <div class="title">Homer <span id="greeting" class="title-badge">Hello</span></div>
       <div class="subtitle">&ldquo;Trying is the first step towards failure.&rdquo; &mdash; Homer Simpson</div>
     </header>
@@ -1716,6 +1727,20 @@
     <script src="/assets/homer-car.v20260515a.js?v=20261022b"></script>
     <script src="/assets/homer-gdrive-fullbackup.v20260604a.js?v=20261022a"></script>
 
+<script>
+  // Paper / dark theme toggle (see assets/homer-paper.*.css).
+  (function () {
+    var btn = document.getElementById('paper-toggle');
+    if (!btn) return;
+    function label() { btn.innerHTML = document.documentElement.classList.contains('theme-paper') ? '&#9790; Dark' : '&#9998; Paper'; }
+    label();
+    btn.addEventListener('click', function () {
+      var paper = document.documentElement.classList.toggle('theme-paper');
+      try { localStorage.setItem('homer-theme', paper ? 'paper' : 'dark'); } catch (_e) {}
+      label();
+    });
+  })();
+</script>
 <!-- ── Data client (own Postgres via /api/db; loaded after app bundle so window globals are ready) ── -->
 <script src="/assets/homer-db.v20261022a.js"></script>
 </body>
