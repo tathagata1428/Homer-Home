@@ -541,7 +541,8 @@
     }
     function openInbox() {
       inboxPanel.classList.add('open'); ov.classList.add('open'); renderInbox();
-      if (typeof window._homerSyncInbox === 'function') window._homerSyncInbox();
+      // Sync is on demand: the panel's Sync button (or Sync Now) merges the inbox.
+      if (window.HOMER_SYNC_ON_DEMAND === false && typeof window._homerSyncInbox === 'function') window._homerSyncInbox();
     }
     function closeInbox() { inboxPanel.classList.remove('open'); ov.classList.remove('open'); }
 
@@ -576,7 +577,7 @@
       localStorage.setItem(INBOX_KEY, JSON.stringify(inbox.slice(0, 200)));
       closeCapture();
       window._homerToast({ message: 'Captured!', type: 'success', duration: 1500 });
-      if (typeof window._homerSyncInbox === 'function') setTimeout(window._homerSyncInbox, 300);
+      if (window.HOMER_SYNC_ON_DEMAND === false && typeof window._homerSyncInbox === 'function') setTimeout(window._homerSyncInbox, 300);
       if (activeType === 'expense') setTimeout(function() { if (window._homerOpenExpenses) window._homerOpenExpenses(text); }, 300);
     }
 

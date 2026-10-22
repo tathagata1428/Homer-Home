@@ -985,6 +985,8 @@ function renderQuote(q) {
         const guideEl = document.getElementById("focus-guidance");
 
         focusOverlay.style.display = "grid";
+        // Paper theme pauses its ink filter so the flame stays amber on true black.
+        document.documentElement.classList.add("focus-dot-open");
         if(timerEl) timerEl.textContent = "0:00";
         if(hintEl)  hintEl.classList.remove("fade-out");
         if(guideEl) guideEl.classList.remove("fade-out");
@@ -1011,6 +1013,7 @@ function renderQuote(q) {
       function closeTrataka() {
         clearInterval(_focusCountdown);
         focusOverlay.style.display = "none";
+        document.documentElement.classList.remove("focus-dot-open");
         if(document.exitFullscreen) {
           document.exitFullscreen().catch(e => console.log(e));
         }
@@ -3980,6 +3983,10 @@ let tvWidgetCreated = false;
         if(Array.isArray(data.lifeGoals) && data.lifeGoals.length > 0)
           queueLsFieldOp('homer-life-goals', JSON.stringify(data.lifeGoals));
       } catch(e) {}
+      if(window.HOMER_SYNC_ON_DEMAND !== false){
+        if(typeof window._homerMarkCloudDirty === 'function') window._homerMarkCloudDirty();
+        return data;
+      }
       var backupTask = typeof window._homerBackupEverythingToDb === 'function'
         ? window._homerBackupEverythingToDb()
         : flushDbBackupNow(reason || 'project-mutation');
@@ -9325,6 +9332,8 @@ let tvWidgetCreated = false;
     return next;
   }
   var SYNC_AUTO_KEY = 'homer-sync-auto';
+  // Sync runs only when asked (Sync & Backup panel): no timers, no pulls on load/focus, no pushes on edit/hide.
+  function syncOnDemand(){ return window.HOMER_SYNC_ON_DEMAND !== false; }
   window._homerSyncPassKey = SYNC_PASS_KEY;
   var setVaultMirrorStatus = window._homerSetVaultMirrorStatus || function(){};
   var vaultMirrorRefreshInFlight = null;
@@ -9368,6 +9377,7 @@ let tvWidgetCreated = false;
     BACKUP_LAST_RESTORE_TS_KEY, BACKUP_LAST_RESTORE_SOURCE_KEY
   ];
   var LOCAL_ONLY_BACKUP_KEYS = ['homer-pre-restore-backup', 'homer-pre-restore-ts', 'homer-field-sync-version', 'homer-sync-device-id', 'homer-quotes-seen',
+    'homer-field-sync-pending', '_he_sync_dirty', '_he_vault_local_dirty', 'homer-last-sync-ts',
     // pom.state.v1/settings.v1 are per-device — never restore from backup (state causes stuck timer, settings are local preference)
     'pom.state.v1', 'pom.settings.v1', 'pom.adv.ts', 'pom.today.v1'];
   var LOCAL_ONLY_BACKUP_PREFIXES = ['homer-oc-chat-cache:', 'homer-oc-chat-cleared:'];
@@ -9618,7 +9628,33 @@ let tvWidgetCreated = false;
   var FIELD_SYNC_PUSH_DELAY = 350;
   var FIELD_SYNC_PULL_INTERVAL = 2000;
   var FIELD_SYNC_SB_POLL_INTERVAL = 30000; // DB fallback poll — catches missed Realtime events
-  var fieldSyncPendingMap = new Map();
+  var FIELD_SYNC_PENDING_KEY = 'homer-field-sync-pending';
+  // Pending field ops wait here until Sync Now / Push; kept in localStorage so a reload doesn't lose them.
+  var fieldSyncPendingMap = (function(){
+    var map = new Map();
+    try {
+      (JSON.parse(localStorage.getItem(FIELD_SYNC_PENDING_KEY) || '[]') || []).forEach(function(op){
+        if(op && op.fieldId) map.set(op.fieldId, op);
+      });
+    } catch(_e){}
+    var saveTimer = null;
+    function save(){
+      if(saveTimer) return;
+      saveTimer = setTimeout(function(){
+        saveTimer = null;
+        try { Storage.prototype.setItem.call(localStorage, FIELD_SYNC_PENDING_KEY, JSON.stringify(Array.from(map.values()))); } catch(_e){}
+        window.dispatchEvent(new CustomEvent('homer-sync-pending-changed', { detail:{ count: map.size } }));
+      }, 200);
+    }
+    var set = map.set.bind(map), del = map.delete.bind(map), clear = map.clear.bind(map);
+    map.set = function(k, v){ set(k, v); save(); return map; };
+    map.delete = function(k){ var r = del(k); if(r) save(); return r; };
+    map.clear = function(){ clear(); save(); };
+    window.addEventListener('pagehide', function(){
+      try { Storage.prototype.setItem.call(localStorage, FIELD_SYNC_PENDING_KEY, JSON.stringify(Array.from(map.values()))); } catch(_e){}
+    });
+    return map;
+  })();
   var fieldSyncPushTimer = null;
   var fieldSyncPushInFlight = null;
   var fieldSyncPullTimer = null;
@@ -9854,6 +9890,7 @@ let tvWidgetCreated = false;
       deviceId: getFieldSyncDeviceId()
     });
     if(fieldSyncPushTimer) clearTimeout(fieldSyncPushTimer);
+    if(syncOnDemand()) return true;
     if(/^agent-/.test(String(reason || ''))){
       fieldSyncPushTimer = setTimeout(function(){
         fieldSyncPushTimer = null;
@@ -9883,6 +9920,7 @@ let tvWidgetCreated = false;
       deviceId: getFieldSyncDeviceId()
     });
     if(fieldSyncPushTimer) clearTimeout(fieldSyncPushTimer);
+    if(syncOnDemand()) return;
     fieldSyncPushTimer = setTimeout(function(){
       fieldSyncPushTimer = null;
       flushFieldSyncOps('ls-change');
@@ -9898,6 +9936,7 @@ let tvWidgetCreated = false;
       queuePersistentFieldOperation(el);
     }
     if(fieldSyncPushTimer) clearTimeout(fieldSyncPushTimer);
+    if(syncOnDemand()) return;
     fieldSyncPushTimer = setTimeout(function(){
       fieldSyncPushTimer = null;
       flushFieldSyncOps('debounced-input');
@@ -9910,6 +9949,7 @@ let tvWidgetCreated = false;
     var p = jwt ? '' : String(localStorage.getItem(SYNC_PASS_KEY) || pass.value || '').trim();
     if(!jwt && !p) return Promise.resolve({ ok:false, skipped:true, reason:'nologin' });
     var batch = Array.from(fieldSyncPendingMap.values()).slice(0, 50);
+    var sizeBefore = fieldSyncPendingMap.size;
     if(!batch.length) return Promise.resolve({ ok:true, skipped:true, reason:'empty-batch' });
     var batchIds = batch.map(function(op){ return op.fieldId; });
     var headers = {'Content-Type':'application/json'};
@@ -9949,8 +9989,12 @@ let tvWidgetCreated = false;
         if(Array.isArray(d.rejected) && d.rejected.length){
           setTimeout(function(){ hydrateFieldSyncState(false); }, 60);
         }
-        if(fieldSyncPendingMap.size){
-          setTimeout(function(){ flushFieldSyncOps('follow-up'); }, 120);
+        // Keep draining while each round settles something (Sync Now pushes the whole queue).
+        if(fieldSyncPendingMap.size && fieldSyncPendingMap.size < sizeBefore){
+          return new Promise(function(r){ setTimeout(r, 120); }).then(function(){
+            fieldSyncPushInFlight = null;
+            return flushFieldSyncOps('follow-up');
+          });
         }
         return d;
       })
@@ -10018,6 +10062,7 @@ let tvWidgetCreated = false;
   }
   function startFieldSyncLoop(){
     stopFieldSyncLoop();
+    if(syncOnDemand()) return;
     var jwt = getSyncJwt();
     if(jwt){
       // DB mode: full pull on start + Realtime for live updates
@@ -10700,6 +10745,15 @@ let tvWidgetCreated = false;
   function updDot(){
     var hasPass = !!localStorage.getItem(SYNC_PASS_KEY);
     var autoOn = localStorage.getItem(SYNC_AUTO_KEY) === 'true';
+    if(syncOnDemand()){
+      var lastOnDemand = parseInt(localStorage.getItem('homer-last-sync-ts') || '0', 10);
+      var signedIn = hasPass || !!getSyncJwt();
+      dot.className = 'fab-dot ' + (signedIn ? 'ok' : 'off');
+      cloud.title = signedIn
+        ? 'Sync on demand' + (lastOnDemand ? ' (last: ' + new Date(lastOnDemand).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) + ')' : '')
+        : 'Cloud sync (not signed in)';
+      return;
+    }
     dot.className = 'fab-dot ' + (hasPass && autoOn ? 'ok' : 'off');
     if(hasPass && autoOn){
       cloud.title = lastSyncTs ? 'Auto-syncing (last: ' + new Date(lastSyncTs).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) + ')' : 'Auto-sync enabled';
@@ -11309,23 +11363,87 @@ let tvWidgetCreated = false;
 
   document.getElementById('fab-backup').addEventListener('click', function(){ backup(true); });
   document.getElementById('fab-restore').addEventListener('click', restore);
-  var fabDbPullBtn = document.getElementById('fab-db-pull');
-  if(fabDbPullBtn) fabDbPullBtn.addEventListener('click', function(){
-    var btn = this;
-    btn.disabled = true;
-    btn.textContent = 'Syncing…';
-    // Step 1: Force a fresh CF Pages fetch so localStorage has the latest Android data.
-    // Step 2: After fetch completes, run vault sync (kanban/life-goals/secrets) directly
-    //         using the now-fresh localStorage — no DB session required.
-    // Step 3: Also call _heSyncPullAll for non-vault fields (expenses, habits, etc.)
-    var doHePull = function(){
-      if(typeof window._heSyncPullAll === 'function') window._heSyncPullAll();
-      // Vault sync reads directly from localStorage which hydrateFieldSyncState just refreshed.
-      if(typeof window._heVaultSync === 'function') setTimeout(window._heVaultSync, 300);
-      setTimeout(function(){ btn.disabled = false; btn.textContent = '\u21D3 Pull from DB (sync from phone)'; }, 4000);
+  // ── On-demand sync (same actions as the Android Sync screen) ──
+  // Nothing syncs in the background: edits queue up locally (field ops in
+  // homer-field-sync-pending, merge keys in _he_sync_dirty) until one of these runs.
+  var LAST_SYNC_KEY = 'homer-last-sync-ts';
+  var syncRun = null;
+  var syncSummaryEl = document.getElementById('fab-sync-summary');
+  var syncButtons = ['fab-sync-now', 'fab-push', 'fab-pull'].map(function(id){ return document.getElementById(id); }).filter(Boolean);
+  function pendingSyncCount(){
+    var n = fieldSyncPendingMap.size;
+    try { if(typeof window._homerDataDirtyCount === 'function') n += window._homerDataDirtyCount(); } catch(_e){}
+    return n;
+  }
+  function renderSyncSummary(){
+    if(!syncSummaryEl) return;
+    var last = parseInt(localStorage.getItem(LAST_SYNC_KEY) || '0', 10);
+    var pending = pendingSyncCount();
+    var when = last ? new Date(last).toLocaleString([], { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : 'never';
+    syncSummaryEl.textContent = 'Last synced: ' + when + ' \u00b7 ' + (pending ? pending + ' change' + (pending === 1 ? '' : 's') + ' waiting' : 'nothing waiting');
+  }
+  function settle(fn){
+    return function(){
+      try { return Promise.resolve(fn()).catch(function(err){ console.warn('[Sync]', err && err.message ? err.message : err); }); }
+      catch(err){ console.warn('[Sync]', err && err.message ? err.message : err); }
     };
-    try{ hydrateFieldSyncState(true).then(doHePull).catch(doHePull); }catch(_){ doHePull(); }
-  });
+  }
+  // mode: 'both' (Sync Now) | 'push' | 'pull'
+  function runSync(mode){
+    if(syncRun) return syncRun;
+    var push = mode !== 'pull', pull = mode !== 'push';
+    var jwt = getSyncJwt(), passKey = getActiveSyncPass();
+    if(!jwt && !passKey){
+      st('Sign in (Account) to sync.');
+      return Promise.resolve({ ok:false, reason:'nologin' });
+    }
+    syncButtons.forEach(function(b){ b.disabled = true; });
+    st(mode === 'push' ? 'Pushing to cloud\u2026' : mode === 'pull' ? 'Pulling from cloud\u2026' : 'Syncing\u2026');
+    var chain = Promise.resolve();
+    if(push){
+      chain = chain
+        .then(settle(function(){ return flushFieldSyncOps('sync-now'); }))
+        .then(settle(function(){ return typeof window._homerDataPushDirty === 'function' ? window._homerDataPushDirty() : null; }))
+        .then(settle(function(){ if(typeof window._homerDailyBriefPush === 'function') window._homerDailyBriefPush(); }))
+        // No DB session: the R2 snapshot is the cloud copy.
+        .then(settle(function(){ return !jwt && passKey && dirty ? backup() : null; }));
+    }
+    if(pull){
+      chain = chain
+        .then(settle(function(){ return hydrateFieldSyncState(true); }))
+        .then(settle(function(){ return window.__db && typeof window.__db.pollNow === 'function' ? window.__db.pollNow() : null; }))
+        // Merge keys (habits, expenses, notes, journal…) merge both ways, then the vault (kanban, life goals, secrets).
+        .then(settle(function(){ return typeof window._heSyncPullAll === 'function' ? window._heSyncPullAll() : null; }))
+        .then(settle(function(){ return typeof window._homerCarSyncNow === 'function' ? window._homerCarSyncNow() : null; }))
+        .then(settle(function(){ return !jwt && passKey ? pullIfNewer(true) : null; }));
+    }
+    syncRun = chain.then(function(){
+      var failed = fieldSyncPendingMap.size && push;
+      origSetItem(LAST_SYNC_KEY, String(Date.now()));
+      if(!failed) dirty = false;
+      st(failed ? 'Some changes could not be sent \u2014 tap Sync Now to retry.' : (mode === 'push' ? 'Pushed \u2713' : mode === 'pull' ? 'Pulled \u2713' : 'Synced \u2713'));
+      requestSyncFieldLabelUpdate();
+      safeUpdateVaultSyncBadge();
+      return { ok: !failed };
+    }).finally(function(){
+      syncRun = null;
+      syncButtons.forEach(function(b){ b.disabled = false; });
+      renderSyncSummary();
+      updDot();
+    });
+    return syncRun;
+  }
+  window.homerSyncNow = function(mode){ return runSync(mode || 'both'); };
+  var syncNowBtn = document.getElementById('fab-sync-now');
+  if(syncNowBtn) syncNowBtn.addEventListener('click', function(){ runSync('both'); });
+  var pushBtn = document.getElementById('fab-push');
+  if(pushBtn) pushBtn.addEventListener('click', function(){ runSync('push'); });
+  var pullBtn = document.getElementById('fab-pull');
+  if(pullBtn) pullBtn.addEventListener('click', function(){ runSync('pull'); });
+  window.addEventListener('homer-sync-pending-changed', renderSyncSummary);
+  cloud.addEventListener('click', renderSyncSummary);
+  window.addEventListener('load', renderSyncSummary);
+  renderSyncSummary();
   var localExportBtn = document.getElementById('fab-local-export');
   var localImportBtn = document.getElementById('fab-local-import');
   var localImportInput = document.getElementById('fab-local-import-input');
@@ -11678,6 +11796,7 @@ let tvWidgetCreated = false;
 
   function markDirty(){
     if(!getActiveSyncPass()) return;
+    if(syncOnDemand()){ dirty = true; requestSyncFieldLabelUpdate(); return; }
     if(localStorage.getItem(SYNC_AUTO_KEY) !== 'true') return;
     dirty = true;
     requestSyncFieldLabelUpdate();
@@ -11703,11 +11822,11 @@ let tvWidgetCreated = false;
   }
 
   // --- Pull from cloud if newer (non-destructive merge) ---
-  function pullIfNewer(){
+  function pullIfNewer(manual){
     var p = getActiveSyncPass();
     if(!p || pullInProgress) return Promise.resolve();
-    if(!isLeader) return Promise.resolve(); // Only leader pulls from cloud
-    if(Date.now() - lastPullTs < PULL_COOLDOWN) return Promise.resolve();
+    if(!manual && !isLeader) return Promise.resolve(); // Only leader pulls from cloud
+    if(!manual && Date.now() - lastPullTs < PULL_COOLDOWN) return Promise.resolve();
     pullInProgress = true;
     var localTs = parseInt(localStorage.getItem('homer-backup-ts') || '0');
     return fetch(R2_WORKER_URL+'/sync/ts',{headers:{'X-Sync-Key':p}})
@@ -11782,7 +11901,7 @@ let tvWidgetCreated = false;
       // Schedule a flush — queueLsFieldOp only adds to the pending map;
       // without this, data sits unsent until pagehide (e.g. car data on page load never reached CF Pages).
       if(fieldSyncPushTimer) clearTimeout(fieldSyncPushTimer);
-      fieldSyncPushTimer = setTimeout(function(){ fieldSyncPushTimer = null; flushFieldSyncOps('ls-change'); }, 1000);
+      if(!syncOnDemand()) fieldSyncPushTimer = setTimeout(function(){ fieldSyncPushTimer = null; flushFieldSyncOps('ls-change'); }, 1000);
     }
   };
   localStorage.removeItem = function(key){
@@ -11807,6 +11926,7 @@ let tvWidgetCreated = false;
   function startAuto(){
     if(!isSharedSyncUser()) return;
     stopAuto();
+    if(syncOnDemand()) return;
     startFieldSyncLoop();
     // Pull first, then start backup cycle.
     // Skip R2 pullIfNewer when DB JWT is active — DB field sync is authoritative;
@@ -11866,7 +11986,7 @@ let tvWidgetCreated = false;
     if(cur === TAB_ID && isLeader) return;
     if(!cur || cur === TAB_ID || !leaderAlive()){
       claimLeader();
-      if(triggerSync && getActiveSyncPass() && localStorage.getItem(SYNC_AUTO_KEY) === 'true'){
+      if(triggerSync && !syncOnDemand() && getActiveSyncPass() && localStorage.getItem(SYNC_AUTO_KEY) === 'true'){
         pullIfNewer().then(function(){ startAuto(); });
       }
     }
@@ -11882,7 +12002,7 @@ let tvWidgetCreated = false;
       if(m.type === 'leader-dying'){
         setTimeout(function(){ tryLead(true); }, 50 + Math.random() * 200);
       }
-      if(m.type === 'request-pull' && isLeader){
+      if(m.type === 'request-pull' && isLeader && !syncOnDemand()){
         pullIfNewer();
       }
     };
@@ -11898,6 +12018,7 @@ let tvWidgetCreated = false;
 
   var criticalDbBackupTimer = null;
   function scheduleCriticalDbBackup(reason, delay){
+    if(syncOnDemand()){ markDirty(); safeUpdateVaultSyncBadge(); return; }
     var wait = typeof delay === 'number' ? delay : 1600;
     if(criticalDbBackupTimer) clearTimeout(criticalDbBackupTimer);
     criticalDbBackupTimer = setTimeout(function(){
@@ -11923,6 +12044,7 @@ let tvWidgetCreated = false;
       if(bc) bc.postMessage({ type: 'leader-dying' });
       if(hbTimer){ clearInterval(hbTimer); hbTimer = null; }
     }
+    if(syncOnDemand()) return;
     if(!getActiveSyncPass()) return;
     if(!dirty) return;
     if(lastSyncTs && (Date.now() - lastSyncTs) < 60000) return;
@@ -11951,6 +12073,10 @@ let tvWidgetCreated = false;
 
   // --- Sync on tab focus + tab coordination ---
   document.addEventListener('visibilitychange', function(){
+    if(syncOnDemand()){
+      if(document.visibilityState === 'visible' && !isLeader && !leaderAlive()) tryLead(false);
+      return;
+    }
     if(document.visibilityState === 'hidden'){
       flushFieldSyncOps('visibility-hidden');
       flushDbBackupNow('visibility-hidden');
@@ -11979,6 +12105,7 @@ let tvWidgetCreated = false;
     }
   });
   window.addEventListener('pagehide', function(){
+    if(syncOnDemand()) return;
     flushFieldSyncOps('pagehide');
     flushDbBackupNow('pagehide');
     // On mobile PWA, pagehide fires when switching away — send beacon with vault data if dirty
@@ -12101,11 +12228,13 @@ let tvWidgetCreated = false;
 
   // On page load: if logged in, pull cloud data first, then start auto-backup
   if(getActiveSyncPass()){
-    autoChk.checked = true;
-    origSetItem(SYNC_AUTO_KEY, 'true'); // Use origSetItem to avoid triggering markDirty
-    // Pull newer cloud data before starting backup cycle
-    pullIfNewer().then(function(){ startAuto(); });
     versionsDiv.style.display = 'block';
+    if(!syncOnDemand()){
+      autoChk.checked = true;
+      origSetItem(SYNC_AUTO_KEY, 'true'); // Use origSetItem to avoid triggering markDirty
+      // Pull newer cloud data before starting backup cycle
+      pullIfNewer().then(function(){ startAuto(); });
+    }
   }
   updDot();
 
@@ -12546,6 +12675,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     renderMessages();
   }
   function isAutoSyncEnabled(){
+    if(window.HOMER_SYNC_ON_DEMAND !== false) return false;
     return localStorage.getItem('homer-sync-auto') === 'true';
   }
   function setAutoSyncEnabled(enabled){

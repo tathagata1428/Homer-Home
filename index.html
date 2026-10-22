@@ -30,6 +30,8 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
   <!-- Paper theme (default): ink on paper, e-reader style. Set before first paint to avoid a dark flash. -->
   <script>
+    // Sync runs only when asked (Sync & Backup panel). Set to false to bring back background sync.
+    window.HOMER_SYNC_ON_DEMAND = true;
     (function(){
       var t = 'paper';
       try { t = localStorage.getItem('homer-theme') || 'paper'; } catch (_e) {}
@@ -37,8 +39,8 @@
     })();
   </script>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;0,7..72,700;1,7..72,400&family=Patrick+Hand&family=Courier+Prime&family=Noto+Emoji:wght@400;600&display=swap">
-  <link rel="stylesheet" href="/assets/app-shell.v20260331.css?v=20260727a">
-  <link rel="stylesheet" href="/assets/homer-paper.v20261022a.css?v=20261022b">
+  <link rel="stylesheet" href="/assets/app-shell.v20260331.css?v=20261022d">
+  <link rel="stylesheet" href="/assets/homer-paper.v20261022a.css?v=20261022d">
 </head>
 <body>
 
@@ -1479,7 +1481,7 @@
         <div style="font-size:1.2rem;font-weight:800;color:var(--text);" id="acct-display-name"></div>
         <div style="color:var(--muted);font-size:.85rem;margin-top:4px;">Signed in</div>
       </div>
-      <p style="color:var(--muted);font-size:.85rem;margin:0 0 16px;text-align:center;">Signed in. Fields sync automatically.</p>
+      <p style="color:var(--muted);font-size:.85rem;margin:0 0 16px;text-align:center;">Signed in. Your data syncs when you tap Sync.</p>
       <button id="acct-logout" class="btn" style="width:100%;padding:10px;font-size:.95rem;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;color:#fff;">Sign Out</button>
     </div>
 
@@ -1512,26 +1514,27 @@
     </div>
     <input id="fab-pass" type="hidden">
 
-    <!-- Primary action -->
-    <button id="fab-backup" class="btn primary" style="width:100%;padding:12px;font-size:.95rem;font-weight:700;margin-bottom:10px;border-radius:12px;">
-      &#x2601; Backup Now
-    </button>
+    <!-- Sync: on demand only (same actions as the Android Sync screen) -->
+    <div class="sync-actions">
+      <button id="fab-sync-now" class="btn primary sync-now">&#8645; Sync Now <span class="sync-sub">Push + Pull</span></button>
+      <div class="sync-row">
+        <button id="fab-push" class="btn ghost">&#8679; Push to Cloud</button>
+        <button id="fab-pull" class="btn ghost">&#8681; Pull</button>
+        <button id="fab-backup" class="btn ghost">&#9729; Backup Now</button>
+      </div>
+      <p id="fab-sync-summary" class="sync-summary">Last synced: never</p>
+      <p class="sync-note">Nothing syncs in the background. Changes wait on this device until you tap Sync Now or Push.</p>
+    </div>
 
-    <!-- Secondary actions -->
-    <div style="display:flex;gap:8px;margin-bottom:10px;">
-      <button id="fab-restore" class="btn ghost" style="flex:1;padding:10px;font-size:.85rem;border-radius:10px;">&#8617; Restore</button>
-      <button id="fab-local-export" class="btn ghost" style="flex:1;padding:10px;font-size:.85rem;border-radius:10px;">&#8615; Export JSON</button>
-      <button id="fab-local-import" class="btn ghost" style="flex:1;padding:10px;font-size:.85rem;border-radius:10px;">&#8679; Import</button>
+    <div class="sync-section-label">Restore &amp; files</div>
+    <div class="sync-row" style="margin-bottom:14px;">
+      <button id="fab-restore" class="btn ghost">&#8617; Restore</button>
+      <button id="fab-local-export" class="btn ghost">&#8615; Export JSON</button>
+      <button id="fab-local-import" class="btn ghost">&#8679; Import</button>
       <input type="file" id="fab-local-import-input" accept=".json" style="display:none">
     </div>
-    <!-- Pull latest data from DB field sync (e.g. after Android push) -->
-    <button id="fab-db-pull" class="btn ghost" style="width:100%;padding:10px;font-size:.85rem;border-radius:10px;margin-bottom:10px;">&#8659; Pull from DB (sync from phone)</button>
-
-    <!-- Auto-backup toggle -->
-    <label style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 14px;cursor:pointer;margin-bottom:14px;">
-      <input id="fab-auto" type="checkbox" style="accent-color:var(--accent);width:16px;height:16px;flex-shrink:0;">
-      <span style="font-size:.83rem;color:var(--muted);">Auto-backup on every change <span style="opacity:.6;">(8s debounce)</span></span>
-    </label>
+    <!-- Background auto-backup is off (on-demand sync); kept for scripts that read it. -->
+    <input id="fab-auto" type="checkbox" hidden>
 
     <!-- Backup health -->
     <div id="fab-backup-health" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;"></div>
@@ -1715,16 +1718,16 @@
 </div>
 <input type="file" id="receipt-camera-input" accept="image/*" capture="environment" style="display:none">
 
-    <script src="/assets/app-shell.v20260729a.js?v=20261022b"></script>
-    <script src="/assets/homer-features.v20260502a.js?v=20261022a"></script>
-    <script src="/assets/homer-enhancements.v20260605a.js?v=20261022a"></script>
+    <script src="/assets/app-shell.v20260729a.js?v=20261022d"></script>
+    <script src="/assets/homer-features.v20260502a.js?v=20261022d"></script>
+    <script src="/assets/homer-enhancements.v20260605a.js?v=20261022d"></script>
     <script src="/assets/homer-habits.v20260508a.js?v=20261022a"></script>
-    <script src="/assets/homer-daily-brief.v20260511b.js?v=20261022b"></script>
-    <script src="/assets/homer-notion.v20260513a.js?v=20261022a"></script>
+    <script src="/assets/homer-daily-brief.v20260511b.js?v=20261022d"></script>
+    <script src="/assets/homer-notion.v20260513a.js?v=20261022d"></script>
     <script src="/assets/homer-journal.v20260609a.js?v=20261022a"></script>
     <script src="/assets/homer-countdown.v20260520a.js?v=20260522a"></script>
     <script src="/assets/homer-tips.v20260609a.js?v=20261022a"></script>
-    <script src="/assets/homer-car.v20260515a.js?v=20261022b"></script>
+    <script src="/assets/homer-car.v20260515a.js?v=20261022d"></script>
     <script src="/assets/homer-gdrive-fullbackup.v20260604a.js?v=20261022a"></script>
 
 <script>
@@ -1742,6 +1745,6 @@
   })();
 </script>
 <!-- ── Data client (own Postgres via /api/db; loaded after app bundle so window globals are ready) ── -->
-<script src="/assets/homer-db.v20261022a.js"></script>
+<script src="/assets/homer-db.v20261022a.js?v=20261022d"></script>
 </body>
 </html>

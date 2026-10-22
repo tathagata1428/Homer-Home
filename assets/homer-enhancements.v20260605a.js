@@ -985,6 +985,7 @@
    * 15. DB DATA SYNC  (Bogdan-only)
    * ═══════════════════════════════════════════════════════════════════ */
   var _syncDirty={};
+  function onDemand(){return window.HOMER_SYNC_ON_DEMAND!==false;}
 
   function initDbDataSync(){
     // Do NOT gate on isBogdan() here — session is async on mobile.
@@ -1013,7 +1014,7 @@
       // Embed timestamp inside the stored value so any device can compare freshness
       var ts=getLocalTs(key)||Date.now();
       showBadge('Syncing\u2026','syncing');
-      client.from('field_state').upsert({field_id:'ls:'+key,value:val,user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',server_ts:ts,updated_at:new Date(ts).toISOString()},{onConflict:'user_id,field_id'})
+      return client.from('field_state').upsert({field_id:'ls:'+key,value:val,user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',server_ts:ts,updated_at:new Date(ts).toISOString()},{onConflict:'user_id,field_id'})
         .then(function(r){
           if(r.error)showBadge('Sync error','error');
           else{delete _syncDirty[key];showBadge('Synced \u2713','synced');}
@@ -1023,7 +1024,7 @@
     function pullKey(key){
       if(!canSync())return;
       var client=getClient(),uid=getUid();if(!client||!uid)return;
-      client.from('field_state').select('value,server_ts').eq('field_id','ls:'+key).eq('user_id',uid).maybeSingle()
+      return client.from('field_state').select('value,server_ts').eq('field_id','ls:'+key).eq('user_id',uid).maybeSingle()
         .then(function(r){
           if(!r.data||!r.data.value)return;
           // Support old {_ts,_data} wrapper AND new plain-JSON format
@@ -1060,7 +1061,7 @@
       var key='homer-inbox';
       var local=safeJson(localStorage.getItem(key),[]);
       showBadge('Syncing\u2026','syncing');
-      client.from('field_state').select('value,server_ts').eq('field_id','ls:'+key).eq('user_id',uid).maybeSingle()
+      return client.from('field_state').select('value,server_ts').eq('field_id','ls:'+key).eq('user_id',uid).maybeSingle()
         .then(function(r){
           var remote=[];
           if(r.data&&r.data.value){
@@ -1133,7 +1134,7 @@
       var localRaw=localStorage.getItem(key);
       var local=safeJson(localRaw,null)||{habits:[],completions:{}};
       showBadge('Syncing\u2026','syncing');
-      client.from('field_state').select('value,server_ts').eq('field_id','ls:'+key).eq('user_id',uid).maybeSingle()
+      return client.from('field_state').select('value,server_ts').eq('field_id','ls:'+key).eq('user_id',uid).maybeSingle()
         .then(function(r){
           _habitsPullDone=true;
           var remoteParsed=null;
@@ -1201,7 +1202,7 @@
       var localRaw=localStorage.getItem(key);
       var local=safeJson(localRaw,null)||emptyVal;
       showBadge('Syncing\u2026','syncing');
-      client.from('field_state').select('value,server_ts').eq('field_id','ls:'+key).eq('user_id',uid).maybeSingle()
+      return client.from('field_state').select('value,server_ts').eq('field_id','ls:'+key).eq('user_id',uid).maybeSingle()
         .then(function(r){
           var remoteParsed=null;
           if(r.data&&r.data.value){
@@ -1232,11 +1233,11 @@
         })
         .catch(function(){showBadge('Sync error','error');});
     }
-    function syncExpenses(){syncMergeKey('homer-expenses',mergeById);}
-    function syncIncome(){syncMergeKey('homer-income',mergeById);}
-    function syncGoals(){syncMergeKey('homer-expense-goals',mergeGoals);}
-    function syncTemplates(){syncMergeKey('homer-expense-templates',mergeById);}
-    function syncBudgets(){syncMergeKey('homer-expense-budgets',mergeBudgets,{});}
+    function syncExpenses(){return syncMergeKey('homer-expenses',mergeById);}
+    function syncIncome(){return syncMergeKey('homer-income',mergeById);}
+    function syncGoals(){return syncMergeKey('homer-expense-goals',mergeGoals);}
+    function syncTemplates(){return syncMergeKey('homer-expense-templates',mergeById);}
+    function syncBudgets(){return syncMergeKey('homer-expense-budgets',mergeBudgets,{});}
     // Custom categories: union by name — local wins per entry so renames from this device propagate
     function mergeCats(local,remote){
       var byName={};
@@ -1244,7 +1245,7 @@
       (Array.isArray(local)?local:[]).forEach(function(c){if(c&&c.name)byName[c.name]=Object.assign({},c);});
       return Object.keys(byName).map(function(n){return byName[n];});
     }
-    function syncCats(){syncMergeKey('homer-expense-cats',mergeCats,[]);}
+    function syncCats(){return syncMergeKey('homer-expense-cats',mergeCats,[]);}
 
     // ── Notes: merge by id, newer updatedAt wins ─────────────────────────
     // Normalise: ensures every note has numeric updatedAt/createdAt (Long ms)
@@ -1277,7 +1278,7 @@
       merged.sort(function(a,b){return b.updatedAt-a.updatedAt;});
       return merged;
     }
-    function syncNotes(){syncMergeKey('homer-notes',mergeNotes,[]);}
+    function syncNotes(){return syncMergeKey('homer-notes',mergeNotes,[]);}
 
     // ── Links: merge by url (no id) — union, local wins per url ──────────
     function mergeLinks(local,remote){
@@ -1287,7 +1288,7 @@
       (Array.isArray(remote)?remote:[]).forEach(function(l){if(l&&l.url)byUrl[l.url]=Object.assign({},l);});
       return Object.keys(byUrl).map(function(u){return byUrl[u];});
     }
-    function syncLinks(){syncMergeKey('homer-links',mergeLinks,[]);}
+    function syncLinks(){return syncMergeKey('homer-links',mergeLinks,[]);}
 
     // ── Journal: merge by id, newer updatedAt wins ────────────────────────
     function mergeJournal(local,remote){
@@ -1304,7 +1305,7 @@
       merged.sort(function(a,b){return(b.updatedAt||b.id||0)-(a.updatedAt||a.id||0);});
       return merged;
     }
-    function syncJournal(){syncMergeKey('homer-journal',mergeJournal,[]);}
+    function syncJournal(){return syncMergeKey('homer-journal',mergeJournal,[]);}
 
     // ── Car: {vehicles,documents,maintenance,fuel} — merge each sub-array by id ─
     function mergeCarArr(local,remote,localTs){
@@ -1329,7 +1330,7 @@
       var r=(remote&&typeof remote==='object'&&!Array.isArray(remote))?remote:{};
       return{vehicles:mergeCarArr(l.vehicles,r.vehicles,localTs),documents:mergeCarArr(l.documents,r.documents,localTs),maintenance:mergeCarArr(l.maintenance,r.maintenance,localTs),fuel:mergeCarArr(l.fuel,r.fuel,localTs),odoLogs:mergeCarArr(l.odoLogs,r.odoLogs,localTs)};
     }
-    function syncCar(){syncMergeKey('homer-car',mergeCar,{vehicles:[],documents:[],maintenance:[],fuel:[],odoLogs:[]});}
+    function syncCar(){return syncMergeKey('homer-car',mergeCar,{vehicles:[],documents:[],maintenance:[],fuel:[],odoLogs:[]});}
 
     // ── Pomodoro tasks: {text,done,ts} — merge by ts; field_id=ls:pom-tasks ─
     // Android uses field_id 'ls:pom-tasks'; web localStorage key is 'pom.tasks.v1'.
@@ -1350,7 +1351,7 @@
       var localRaw=localStorage.getItem(key);
       var local=safeJson(localRaw,null)||[];
       showBadge('Syncing\u2026','syncing');
-      client.from('field_state').select('value,server_ts').eq('field_id',fieldId).eq('user_id',uid).maybeSingle()
+      return client.from('field_state').select('value,server_ts').eq('field_id',fieldId).eq('user_id',uid).maybeSingle()
         .then(function(r){
           var remoteParsed=null;
           if(r.data&&r.data.value){var stored=safeJson(r.data.value,null);remoteParsed=(stored&&typeof stored._ts==='number')?safeJson(stored._data,null):stored;}
@@ -1456,7 +1457,7 @@
     }
     var _vaultSyncTimer=null;
     var _inVaultPull=false;          // prevents vault-goals-changed from re-triggering sync during our own save
-    var _localMutationPending=false; // set by local edits so doVaultSync pushes local-wins (no merge with stale remote)
+    var _localMutationPending=localStorage.getItem('_he_vault_local_dirty')==='1'; // set by local edits so doVaultSync pushes local-wins (no merge with stale remote); kept across reloads for on-demand sync
     var _lastLocalVaultMutation=0;   // timestamp of last local vault mutation; grace-period guard against resurrection
     var _vaultSyncPending=false;     // set when Android pushes while vault is locked; flushed on vault unlock
     function scheduleVaultSync(){clearTimeout(_vaultSyncTimer);_vaultSyncTimer=setTimeout(doVaultSync,3000);}
@@ -1470,7 +1471,7 @@
       var client=_canSupa?getClient():null,uid=_canSupa?getUid():null;
       // Capture time before async vault load so we can detect mutations that arrive while we run.
       var syncAt=Date.now();
-      window._homerLoadVault().then(function(vault){
+      return window._homerLoadVault().then(function(vault){
         if(!vault)return;
         var localTasks=   (vault.goals||[]).map(vaultNormalizeTask);
         var localProjects=(vault.projects||[]).map(vaultNormalizeProject);
@@ -1555,6 +1556,7 @@
         // clearing _localMutationPending and re-adding the deleted item via the UUID exception.
         var isLocalPush=_localMutationPending||(Date.now()-_lastLocalVaultMutation<60000);
         _localMutationPending=false;
+        try{localStorage.removeItem('_he_vault_local_dirty');}catch(_e){}
         if(isLocalPush){
           // Local mutation: push local vault state, ignore remote entirely.
           applyMerge({projects:[],tasks:[]},[]); // empty remote → merge result == local only
@@ -1585,13 +1587,13 @@
     }
     // Re-sync on vault data changes — but never re-trigger from our own save.
     // Mark as local mutation so doVaultSync pushes local-wins (prevents deletion resurrection).
-    window.addEventListener('vault-goals-changed',function(){if(!_inVaultPull&&isBogdan()){_localMutationPending=true;_lastLocalVaultMutation=Date.now();scheduleVaultSync();}});
+    window.addEventListener('vault-goals-changed',function(){if(!_inVaultPull&&isBogdan()){_localMutationPending=true;_lastLocalVaultMutation=Date.now();try{nativeSetItem('_he_vault_local_dirty','1');}catch(_e){}if(!onDemand())scheduleVaultSync();}});
     // Also fire when vault unlocks — first unlock on page load is the most important.
     // Also flush any pending Android-pushed data that arrived while vault was locked.
     // Use isBogdan() (not canSync()) so vault sync runs even without a DB session —
     // doVaultSync() reads from localStorage which works with the CF Pages / admin-hash path.
     window.addEventListener('homer-vault-state',function(){
-      if(isBogdan()&&window._homerVaultUnlocked){
+      if(isBogdan()&&window._homerVaultUnlocked&&!onDemand()){
         _vaultSyncPending=false;
         scheduleVaultSync();
       }
@@ -1614,62 +1616,67 @@
     var _pullDone=false;
     function pullAll(){
       // Always attempt vault sync when vault is unlocked — works via localStorage even without DB session.
-      if(isBogdan()&&window._homerVaultUnlocked)scheduleVaultSync();
-      if(!canSync())return;
+      if(!canSync())return Promise.resolve(isBogdan()&&window._homerVaultUnlocked?doVaultSync():null);
       var firstPull=!_pullDone;
       _pullDone=true;
       // Pre-fetch remote kanban + life-goals so doVaultSync can merge immediately on vault unlock
       var _c=getClient(),_u=getUid();
-      SYNC_KEYS.filter(function(k){return k!=='homer-inbox';}).forEach(pullKey);
-      syncInbox();
-      syncHabits();
-      syncExpenses();
-      syncIncome();
-      syncGoals();
-      syncTemplates();
-      syncBudgets();
-      syncCats();
-      syncNotes();
-      syncLinks();
-      syncJournal();
-      syncCar();
-      syncPomTasks();
-      doVaultSync();
+      var steps=SYNC_KEYS.filter(function(k){return k!=='homer-inbox';}).map(pullKey).concat([
+        syncInbox(),syncHabits(),syncExpenses(),syncIncome(),syncGoals(),syncTemplates(),syncBudgets(),
+        syncCats(),syncNotes(),syncLinks(),syncJournal(),syncCar(),syncPomTasks()
+      ]);
       if(firstPull){
         // After first pull, signal vault components to re-read IDB.
         // This catches the case where the vault was loaded before a restore
         // and still shows stale cached data in memory.
         setTimeout(function(){window.dispatchEvent(new Event('vault-goals-changed'));},700);
       }
+      // Vault merge runs after the kanban/life-goals pulls have landed in localStorage.
+      return settleAll(steps).then(function(){return doVaultSync();});
     }
-    function markDirty(key){_syncDirty[key]=true;}
+    function settleAll(list){
+      return Promise.all((list||[]).map(function(x){return Promise.resolve(x).catch(function(e){console.warn('[HomerSync]',e);});}));
+    }
+    // Dirty keys are kept in localStorage so edits made before a reload still go out on the next Sync Now.
+    var DIRTY_KEY='_he_sync_dirty';
+    try{(JSON.parse(localStorage.getItem(DIRTY_KEY)||'[]')||[]).forEach(function(k){_syncDirty[k]=true;});}catch(_e){}
+    function saveDirty(){try{nativeSetItem(DIRTY_KEY,JSON.stringify(Object.keys(_syncDirty)));}catch(_e){}}
+    function markDirty(key){_syncDirty[key]=true;saveDirty();}
     function pushDirty(){
-      if(!canSync())return;
-      Object.keys(_syncDirty).forEach(function(key){
-        if(key==='homer-inbox')syncInbox();
-        else if(key==='homer-habits')syncHabits();
-        else if(key==='homer-expenses')syncExpenses();
-        else if(key==='homer-income')syncIncome();
-        else if(key==='homer-expense-goals')syncGoals();
-        else if(key==='homer-expense-templates')syncTemplates();
-        else if(key==='homer-expense-budgets')syncBudgets();
-        else if(key==='homer-expense-cats')syncCats();
-        else if(key==='homer-notes')syncNotes();
-        else if(key==='homer-links')syncLinks();
-        else if(key==='homer-journal')syncJournal();
-        else if(key==='homer-car')syncCar();
-        else if(key==='pom.tasks.v1')syncPomTasks();
-        else pushKey(key);
+      if(!canSync())return Promise.resolve();
+      var steps=Object.keys(_syncDirty).map(function(key){
+        if(key==='homer-inbox')return syncInbox();
+        else if(key==='homer-habits')return syncHabits();
+        else if(key==='homer-expenses')return syncExpenses();
+        else if(key==='homer-income')return syncIncome();
+        else if(key==='homer-expense-goals')return syncGoals();
+        else if(key==='homer-expense-templates')return syncTemplates();
+        else if(key==='homer-expense-budgets')return syncBudgets();
+        else if(key==='homer-expense-cats')return syncCats();
+        else if(key==='homer-notes')return syncNotes();
+        else if(key==='homer-links')return syncLinks();
+        else if(key==='homer-journal')return syncJournal();
+        else if(key==='homer-car')return syncCar();
+        else if(key==='pom.tasks.v1')return syncPomTasks();
+        else return pushKey(key);
       });
+      if(isBogdan()&&window._homerVaultUnlocked&&_localMutationPending)steps.push(doVaultSync());
+      return settleAll(steps).then(saveDirty);
     }
+    // On-demand entry points for the Sync & Backup panel (see window.homerSyncNow in app-shell).
+    window._homerDataPushDirty=pushDirty;
+    window._homerDataDirtyCount=function(){return Object.keys(_syncDirty).length+(_localMutationPending?1:0);};
 
     // Primary trigger: fires when persisted session restores (async on mobile)
-    window.addEventListener('db:session',function(e){
-      if(e.detail&&!_pullDone&&isBogdan())pullAll();
-    });
-    if(canSync())pullAll();
-    setTimeout(function(){if(!_pullDone&&canSync())pullAll();},1500);
-    setTimeout(function(){if(!_pullDone&&canSync())pullAll();},5000);
+    // Sync is on demand: nothing pulls on load, sign-in or tab focus unless HOMER_SYNC_ON_DEMAND is turned off.
+    if(!onDemand()){
+      window.addEventListener('db:session',function(e){
+        if(e.detail&&!_pullDone&&isBogdan())pullAll();
+      });
+      if(canSync())pullAll();
+      setTimeout(function(){if(!_pullDone&&canSync())pullAll();},1500);
+      setTimeout(function(){if(!_pullDone&&canSync())pullAll();},5000);
+    }
 
     // Patch setItem: record write timestamp + mark dirty for our SYNC_KEYS.
     // Forwards through origSetItem (app-shell's patch) so LS_FIELD_MAP ops and
@@ -1683,13 +1690,15 @@
       }
     };
 
-    setInterval(pushDirty,30000);
-    window.addEventListener('beforeunload',pushDirty);
+    if(!onDemand()){
+      setInterval(pushDirty,30000);
+      window.addEventListener('beforeunload',pushDirty);
+    }
 
     // Notion-like: re-sync when user returns to the tab after being away
     var _lastVisibilitySync=0;
     document.addEventListener('visibilitychange',function(){
-      if(document.visibilityState==='visible'&&canSync()){
+      if(document.visibilityState==='visible'&&canSync()&&!onDemand()){
         var now=Date.now();
         if(now-_lastVisibilitySync>60000){// at most once per minute
           _lastVisibilitySync=now;
@@ -1700,7 +1709,7 @@
 
     ['homer-expense-panel','homer-habits-panel','homer-inbox-panel'].forEach(function(id){
       waitForEl(id,function(el){
-        new MutationObserver(function(){if(!el.classList.contains('open'))pushDirty();}).observe(el,{attributes:true,attributeFilter:['class']});
+        new MutationObserver(function(){if(!el.classList.contains('open')&&!onDemand())pushDirty();}).observe(el,{attributes:true,attributeFilter:['class']});
       });
     });
 

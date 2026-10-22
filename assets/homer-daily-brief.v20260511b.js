@@ -827,8 +827,19 @@
     });
   }
 
+  // Sync is on demand (Sync & Backup panel → window.homerSyncNow); these automatic pushes only run when HOMER_SYNC_ON_DEMAND is off.
+  function autoSync() { return window.HOMER_SYNC_ON_DEMAND === false; }
+  window._homerDailyBriefPush = function () {
+    if (!isBogdan()) return;
+    _lastVaultHash = '';
+    pushVaultToDb(true);
+    pushHabitsToDb(true);
+    pushExtrasToDb(true);
+  };
+
   /* ── Master 8-second tick ─────────────────────────────────────────── */
   function startPeriodicSync() {
+    if (!autoSync()) return;
     setInterval(function () {
       if (!isBogdan()) return;
       pushVaultToDb(false); // includes habits + extras in single request
@@ -839,7 +850,7 @@
   function hookDataSaves() {
     // Vault save → immediate backup (also picks up habits + extras in same request)
     window.addEventListener('vault-goals-changed', function () {
-      if (isBogdan()) setTimeout(function () { pushVaultToDb(true); }, 800);
+      if (isBogdan() && autoSync()) setTimeout(function () { pushVaultToDb(true); }, 800);
       if (document.body.dataset.activeTab === 'daily-brief') populateFromVault();
     });
 
@@ -852,20 +863,20 @@
     // Habits / extras changed → force a full backup (vault-backup sends everything)
     window.addEventListener('storage', function (e) {
       if (!isBogdan()) return;
-      if (e.key === HABITS_KEY)  { _lastVaultHash = ''; pushVaultToDb(true); if (document.body.dataset.activeTab === 'daily-brief') renderHabits(); }
-      if (e.key === ZEN_KEY || e.key === BRAIN_KEY) { _lastVaultHash = ''; pushVaultToDb(true); }
+      if (e.key === HABITS_KEY)  { _lastVaultHash = ''; if (autoSync()) pushVaultToDb(true); if (document.body.dataset.activeTab === 'daily-brief') renderHabits(); }
+      if ((e.key === ZEN_KEY || e.key === BRAIN_KEY) && autoSync()) { _lastVaultHash = ''; pushVaultToDb(true); }
     });
 
     // DB session or Homer auth → force full backup
     window.addEventListener('db:session', function () {
-      if (isBogdan()) setTimeout(function () { pushVaultToDb(true); }, 2000);
+      if (isBogdan() && autoSync()) setTimeout(function () { pushVaultToDb(true); }, 2000);
     });
 
     // Auth / vault unlock → refresh visibility + backup + auto-open brief if morning
     window.addEventListener('homer-auth', function () {
       updateBogdanVisibility();
       if (isBogdan()) {
-        setTimeout(function () { pushVaultToDb(true); }, 1500);
+        if (autoSync()) setTimeout(function () { pushVaultToDb(true); }, 1500);
         // Auto-open daily brief on first login of the morning (before ack)
         if (isInMorningWindow() && !hasAckedToday()) {
           setTimeout(function () { showDailyBrief(); }, 600);
@@ -889,7 +900,7 @@
     var btn = document.getElementById('db-refresh-btn');
     if (btn) btn.addEventListener('click', function () {
       refreshDailyBrief();
-      if (isBogdan()) {
+      if (isBogdan() && autoSync()) {
         pushVaultToDb(true);
         pushHabitsToDb(true);
         pushExtrasToDb(true);
@@ -919,7 +930,7 @@
 
     // If session already exists on load, kick off first sync immediately
     setTimeout(function () {
-      if (isBogdan() && window.__dbSession && window.__dbSession.user) {
+      if (isBogdan() && autoSync() && window.__dbSession && window.__dbSession.user) {
         pushVaultToDb(true);
         pushHabitsToDb(true);
         pushExtrasToDb(true);

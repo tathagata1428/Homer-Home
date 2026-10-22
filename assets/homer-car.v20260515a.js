@@ -101,7 +101,8 @@
     window.__homerCarData = syncData;             // expose for daily brief (bypasses stale LS)
     try { localStorage.setItem('homer-car', JSON.stringify(syncData)); } catch(e) {}
     try { window.dispatchEvent(new CustomEvent('homer-data-synced', {detail:{key:'homer-car'}})); } catch(e) {}
-    pushToDb(syncData);
+    // On-demand sync: the homer-car write above is queued and goes out on Sync Now.
+    if (window.HOMER_SYNC_ON_DEMAND === false) pushToDb(syncData);
   }
 
   /* ── DB ─────────────────────────────────────────────────────── */
@@ -1513,8 +1514,16 @@
       if (container && container.style.display !== 'none') renderTab();
     }
 
+    // Sync & Backup panel → Sync Now pulls car data through here (merge into IDB, then push).
+    window._homerCarSyncNow = function() {
+      return new Promise(function(resolve) {
+        if (!isBogdan()) { resolve(); return; }
+        pullFromDb(function(remote) { applyRemote(remote); resolve(); });
+      });
+    };
+
     window.addEventListener('db:session', function(e) {
-      if (!e.detail || !isBogdan()) return;
+      if (!e.detail || !isBogdan() || window.HOMER_SYNC_ON_DEMAND !== false) return;
       // Pull-first: applyRemote handles both cases —
       //   remote=null  → push local (first sync / DB wiped)
       //   remote=data  → merge-intersection + push (respects cloud deletions)
@@ -1535,7 +1544,7 @@
 
     // Fallback: pull after 3 s in case db:session already fired before this listener was registered.
     // Check isBogdan() inside the callback so it works on fresh browser (not logged in at page load).
-    setTimeout(function() { if (isBogdan()) pullFromDb(applyRemote); }, 3000);
+    setTimeout(function() { if (isBogdan() && window.HOMER_SYNC_ON_DEMAND === false) pullFromDb(applyRemote); }, 3000);
 
     // Re-pull from DB into IDB whenever Android pushes car data via Realtime.
     // applySyncedFieldValue writes to localStorage but the car UI reads from IDB,

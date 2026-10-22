@@ -12,6 +12,10 @@
  * every POLL_MS while the tab is visible; rows arrive as
  * { eventType, table, new, old } just like Supabase payloads.
  *
+ * Sync is on demand (window.HOMER_SYNC_ON_DEMAND): the timer only polls the
+ * Joey chat tables (LIVE_TABLES); data tables such as field_state are polled
+ * by __db.pollNow(), which the Sync & Backup panel calls.
+ *
  * Window events: db:session, db:authchange, db:field, db:message,
  * db:memory, db:task.
  */
@@ -20,6 +24,7 @@
 
   var STORAGE_KEY = 'homer_db_session';
   var POLL_MS = 10000;
+  var LIVE_TABLES = ['messages', 'memories'];
   var REFRESH_BEFORE_S = 24 * 3600;
 
   var session = null;
@@ -140,12 +145,16 @@
     return true;
   }
 
-  function pollOnce() {
+  function onDemand() { return window.HOMER_SYNC_ON_DEMAND !== false; }
+  function pollOnce(all) {
     if (polling || !session || isExpired(session) || !subscriptions.length) return Promise.resolve();
-    if (document.visibilityState === 'hidden') return Promise.resolve();
+    if (!all && document.visibilityState === 'hidden') return Promise.resolve();
     polling = true;
     var since = {};
-    subscriptions.forEach(function (s) { since[s.table] = cursors[s.table] || null; });
+    subscriptions.forEach(function (s) {
+      if (all || !onDemand() || LIVE_TABLES.indexOf(s.table) >= 0) since[s.table] = cursors[s.table] || null;
+    });
+    if (!Object.keys(since).length) { polling = false; return Promise.resolve(); }
     return refreshIfNeeded().then(function () {
       return postJson('/api/db', { op: 'changes', since: since }, session && session.access_token);
     }).then(function (d) {
@@ -170,11 +179,11 @@
 
   function startPolling() {
     if (pollTimer) return;
-    pollTimer = setInterval(pollOnce, POLL_MS);
-    setTimeout(pollOnce, 0);
+    pollTimer = setInterval(function () { pollOnce(false); }, POLL_MS);
+    setTimeout(function () { pollOnce(false); }, 0);
   }
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible') pollOnce();
+    if (document.visibilityState === 'visible') pollOnce(false);
   });
 
   function channel() {
@@ -199,6 +208,8 @@
   var client = {
     from: function (table) { return new Builder(table); },
     channel: channel,
+    /** Poll every subscribed table once (on-demand sync). */
+    pollNow: function () { return pollOnce(true); },
     auth: {
       getSession: function () {
         return refreshIfNeeded().then(function () { return { data: { session: session }, error: null }; });

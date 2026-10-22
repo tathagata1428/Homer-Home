@@ -157,13 +157,26 @@ html.theme-paper .sb-section-title {
   border-radius: 0 0 40% 60% / 0 0 3px 2px !important;
 }
 
-/* Modal backdrops: a pale wash instead of a dark blur. */
+/* Modal backdrops: a near-solid paper wash instead of a dark blur. (The blur is gone,
+   so a thin wash let the screen underneath show through, worst on phones.) */
 html.theme-paper [class*="overlay"],
 html.theme-paper [class*="modal-bg"],
-html.theme-paper [id$="-overlay"] {
-  background: rgba(7, 7, 7, .72) !important;
+html.theme-paper [id$="-overlay"],
+html.theme-paper #mobile-sheet {
+  background: rgba(7, 7, 7, .94) !important;
   backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
+/* Full-screen pages are screens, not backdrops: solid paper, so they never overlap visibly. */
+html.theme-paper .vault-ov,
+html.theme-paper .goals-overlay,
+html.theme-paper #zen-overlay,
+html.theme-paper #jn-editor-overlay,
+html.theme-paper #mobile-nav,
+html.theme-paper #mobile-sheet-content {
+  background: #070707 !important;
+}
+html.theme-paper #mobile-nav { border-top: 1.5px solid var(--paper-ink-soft) !important; }
 
 /* ── Buttons ───────────────────────────────────────────────────────── */
 html.theme-paper .btn,
@@ -311,3 +324,15 @@ html.theme-paper .paper-toggle { font-family: var(--font-hand); font-size: 1rem;
 @media (prefers-reduced-motion: no-preference) {
   html.theme-paper * { transition-duration: .08s !important; }
 }
+
+/* Focus Dot (Trataka): a real black screen with the amber flame, above every bar and button.
+   The ink filter is paused while it is open (it would turn black into paper and the flame grey). */
+html.theme-paper.focus-dot-open { filter: none; }
+html.theme-paper.focus-dot-open body::before { display: none; }
+html.theme-paper.focus-dot-open img,
+html.theme-paper.focus-dot-open video,
+html.theme-paper.focus-dot-open iframe,
+html.theme-paper.focus-dot-open canvas,
+html.theme-paper.focus-dot-open [style*="background-image"] { filter: none; }
+.focus-overlay { z-index: 2147482000 !important; }
+html.theme-paper .focus-overlay { background: #000 !important; }

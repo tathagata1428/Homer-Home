@@ -1617,6 +1617,7 @@
   }
   function pushNotesToDrive() {
     clearTimeout(notesDriveTimer);
+    if (window.HOMER_SYNC_ON_DEMAND !== false) return; // on-demand: notes reach Drive via Backup Now
     notesDriveTimer = setTimeout(function () {
       try {
         var notes = getNotes(); if (!notes.length) return;

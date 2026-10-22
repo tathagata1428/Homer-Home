@@ -3432,3 +3432,18 @@ html{background-color:#0a1220;}
   /* Larger minimum tap targets on mobile nav */
   .mnav-btn{min-height:46px;}
 }
+
+/* ── Sync & Backup panel: on-demand actions (mirrors the Android Sync screen) ── */
+.sync-actions{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+.sync-actions .sync-now{width:100%;padding:13px;font-size:1rem;font-weight:800;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;}
+.sync-actions .sync-sub{font-size:.75rem;font-weight:600;opacity:.75;}
+.sync-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+.sync-row .btn{padding:10px 6px;font-size:.82rem;border-radius:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sync-actions button:disabled{opacity:.55;cursor:progress;}
+.sync-summary{margin:2px 0 0;font-size:.8rem;font-weight:600;color:var(--text);text-align:center;}
+.sync-note{margin:0;font-size:.74rem;color:var(--muted);text-align:center;line-height:1.4;}
+.sync-section-label{font-size:.6rem;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin:2px 0 8px;}
+@media (max-width:420px){
+  .sync-row{grid-template-columns:1fr 1fr;}
+  .sync-row .btn:last-of-type:nth-child(odd){grid-column:1 / -1;}
+}
