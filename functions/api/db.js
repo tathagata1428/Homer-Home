@@ -12,8 +12,13 @@
  *
  * Every query is pinned to the caller's user_id, and only the tables
  * below are reachable.
+ *
+ * Secondbrain bridge (lib/hub-bridge.js): a change poll also pulls hub changes
+ * (throttled), and writes to bridged field_state rows are pushed to the hub,
+ * both in the background after the response.
  */
 import { executeSpec, query, verifySessionToken, isDbConfigured } from '../../lib/db.js';
+import { pullHub, pushField, isBridgedField } from '../../lib/hub-bridge.js';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -78,8 +83,17 @@ function scopeToUser(spec, userId) {
   return scoped;
 }
 
+/** field_state rows a write touched that the hub bridge mirrors. */
+function bridgedWrites(spec) {
+  if (spec.table !== 'field_state' || (spec.op !== 'upsert' && spec.op !== 'insert' && spec.op !== 'update')) return [];
+  const rows = Array.isArray(spec.values) ? spec.values : [spec.values];
+  return rows.filter((r) => r && isBridgedField(r.field_id) && typeof r.value === 'string')
+    .map((r) => ({ fieldId: r.field_id, value: r.value }));
+}
+
 export async function onRequest(context) {
   const { request } = context;
+  const later = (promise) => (typeof context.waitUntil === 'function' ? context.waitUntil(promise) : promise);
   if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: CORS });
   if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
   if (!isDbConfigured()) return json({ error: 'Database not configured' }, 503);
@@ -94,7 +108,10 @@ export async function onRequest(context) {
   if (!body || typeof body !== 'object') return json({ error: 'Invalid body' }, 400);
 
   try {
-    if (body.op === 'changes') return json(await pollChanges(user.id, body.since));
+    if (body.op === 'changes') {
+      later(pullHub(user.id));
+      return json(await pollChanges(user.id, body.since));
+    }
 
     if (!TABLES.has(body.table)) return json({ error: 'Unknown table' }, 400);
     if (!['select', 'insert', 'upsert', 'update', 'delete'].includes(body.op)) return json({ error: 'Unknown op' }, 400);
@@ -103,7 +120,9 @@ export async function onRequest(context) {
       // conflict target could match another user's row.
       return json({ error: 'upsert onConflict must include user_id' }, 400);
     }
-    return json(await executeSpec(scopeToUser(body, user.id)));
+    const result = await executeSpec(scopeToUser(body, user.id));
+    if (!result.error) for (const w of bridgedWrites(body)) later(pushField(user.id, w.fieldId, w.value));
+    return json(result);
   } catch (err) {
     return json({ data: null, error: { message: err.message || 'Database error' } }, 500);
   }

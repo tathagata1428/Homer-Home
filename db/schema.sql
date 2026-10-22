@@ -231,3 +231,40 @@ CREATE INDEX IF NOT EXISTS field_state_user_updated ON public.field_state (user_
 CREATE INDEX IF NOT EXISTS messages_user_created    ON public.messages (user_id, created_at);
 CREATE INDEX IF NOT EXISTS memories_user_updated    ON public.memories (user_id, updated_at);
 CREATE INDEX IF NOT EXISTS tasks_user_updated       ON public.tasks (user_id, updated_at);
+
+-- ── SECONDBRAIN HUB BRIDGE ───────────────────────────────────
+-- lib/hub-bridge.js mirrors the owner's secondbrain hub rows (hub.b4it.ro)
+-- into Homer's field_state blobs and pushes Homer edits back.
+CREATE TABLE IF NOT EXISTS public.hub_rows (
+  user_id     UUID    NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  tbl         TEXT    NOT NULL,
+  sync_id     UUID    NOT NULL,
+  data        JSONB   NOT NULL,
+  deleted     BOOLEAN NOT NULL DEFAULT FALSE,
+  updated_at  TIMESTAMPTZ NOT NULL,
+  PRIMARY KEY (user_id, tbl, sync_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.hub_cursors (
+  user_id  UUID   NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  tbl      TEXT   NOT NULL,
+  seq      TEXT   NOT NULL DEFAULT '0',
+  PRIMARY KEY (user_id, tbl)
+);
+
+-- Homer item id ↔ hub sync_id, for items created in Homer (hub-created
+-- items simply use their sync_id as the Homer id).
+CREATE TABLE IF NOT EXISTS public.hub_links (
+  user_id   UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  tbl       TEXT NOT NULL,
+  homer_id  TEXT NOT NULL,
+  sync_id   UUID NOT NULL,
+  PRIMARY KEY (user_id, tbl, homer_id),
+  UNIQUE (user_id, tbl, sync_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.hub_state (
+  user_id    UUID PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
+  last_pull  TIMESTAMPTZ NOT NULL DEFAULT 'epoch',
+  last_error TEXT
+);

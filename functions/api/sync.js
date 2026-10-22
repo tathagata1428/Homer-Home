@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { verifySessionToken, createDbClient, isDbConfigured, resolveOwnerId } from '../../lib/db.js';
 import { isReservedSyncHash } from '../../lib/joey-server.js';
+import { pushField, isBridgedField } from '../../lib/hub-bridge.js';
 
 const BACKUP_MANIFEST_KEY = 'homer-backup-manifest';
 const FIELD_OP_BATCH_LIMIT = 100;
@@ -283,7 +284,7 @@ async function sbFieldOps(userId, since) {
   });
 }
 
-async function sbApplyFieldOps(userId, body) {
+async function sbApplyFieldOps(userId, body, later) {
   var ops = Array.isArray(body.ops) ? body.ops : [];
   if (!ops.length) return Response.json({ error: 'Missing ops' }, { status: 400 });
   var db = createDbClient();
@@ -323,6 +324,10 @@ async function sbApplyFieldOps(userId, body) {
   if (upserts.length) {
     var { error } = await db.from('field_state').upsert(upserts, { onConflict: 'user_id,field_id' });
     if (error) return Response.json({ error: error.message }, { status: 500 });
+    // Mirror secondbrain-bridged fields to the hub after responding.
+    upserts.forEach(function(u) {
+      if (later && isBridgedField(u.field_id) && !u.deleted && typeof u.value === 'string') later(pushField(userId, u.field_id, u.value));
+    });
   }
   return Response.json({
     ok: true, applied: applied, rejected: rejected, duplicates: duplicates,
@@ -337,6 +342,7 @@ export async function onRequest(context) {
   if (env && typeof env === 'object') {
     Object.assign(process.env, env);
   }
+  const later = (promise) => (typeof context.waitUntil === 'function' ? context.waitUntil(promise) : promise);
 
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -378,7 +384,7 @@ export async function onRequest(context) {
       if (request.method === 'POST') {
         const sbBody = await request.json().catch(() => ({}));
         if (sbBody && sbBody.action === 'field-op') {
-          return addCors(await sbApplyFieldOps(dbUser.id, sbBody), corsHeaders);
+          return addCors(await sbApplyFieldOps(dbUser.id, sbBody, later), corsHeaders);
         }
       }
     } catch (sbErr) {
@@ -418,7 +424,7 @@ export async function onRequest(context) {
         if (request.method === 'POST') {
           const reservedPostAction = (maybeBody && maybeBody.action) || searchParams.get('action') || '';
           if (reservedPostAction === 'field-op') {
-            return addCors(await sbApplyFieldOps(reservedOwnerId, maybeBody || {}), corsHeaders);
+            return addCors(await sbApplyFieldOps(reservedOwnerId, maybeBody || {}, later), corsHeaders);
           }
         }
       }
@@ -445,7 +451,7 @@ export async function onRequest(context) {
           }
           if (request.method === 'POST') {
             const adminPostAction = (maybeBody && maybeBody.action) || searchParams.get('action') || '';
-            if (adminPostAction === 'field-op') return addCors(await sbApplyFieldOps(adminOwnerId, maybeBody || {}), corsHeaders);
+            if (adminPostAction === 'field-op') return addCors(await sbApplyFieldOps(adminOwnerId, maybeBody || {}, later), corsHeaders);
           }
         }
       } catch (adminErr) {
