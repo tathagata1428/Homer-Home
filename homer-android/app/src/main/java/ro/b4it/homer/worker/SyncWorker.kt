@@ -10,7 +10,7 @@ import ro.b4it.homer.data.sync.SyncEngine
 import java.util.concurrent.TimeUnit
 
 /**
- * Periodic background sync — pulls all Supabase field_state rows into Room every 15 minutes
+ * Periodic background sync — pulls all field_state rows into Room every 15 minutes
  * when the device is connected to the network and the user is Bogdan.
  *
  * Uses Hilt-assisted injection so SyncEngine is available without a manual factory.

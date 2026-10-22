@@ -12,15 +12,8 @@ import {
   saveRedisJson,
   verifyJoeyPassphrase
 } from '../../lib/joey-server.js';
-import {
-  isSupabaseClientConfigured,
-  isSupabaseConfigured,
-  createAdminClient,
-  createUserClient,
-  resolveSupabaseOwnerId,
-  verifySupabaseJwt
-} from '../../lib/supabase-server.js';
-import { createSupabaseRedisFetch } from '../../lib/supabase-redis-compat.js';
+import { isDbConfigured, createDbClient, resolveOwnerId, verifySessionToken } from '../../lib/db.js';
+import { createDbRedisFetch } from '../../lib/db-redis-compat.js';
 
 const MAX_HISTORY = 100;
 const MAX_MEMORIES = 320;
@@ -265,29 +258,29 @@ export async function onRequest(context) {
   let redisFetch = null;
   const rawRedisFetch = createRedisFetch();
   const { url: redisUrl, token: redisToken } = getRedisConfig();
-  const supabaseJwtEnabled = isSupabaseClientConfigured();
-  const supabaseAdminEnabled = isSupabaseConfigured();
-  if (!supabaseAdminEnabled && !supabaseJwtEnabled && (!redisUrl || !redisToken || !rawRedisFetch)) {
+  const dbJwtEnabled = isDbConfigured();
+  const dbAdminEnabled = isDbConfigured();
+  if (!dbAdminEnabled && !dbJwtEnabled && (!redisUrl || !redisToken || !rawRedisFetch)) {
     return Response.json({ error: 'Redis not configured' }, { status: 500, headers: corsHeaders });
   }
 
   try {
     let isValid = false;
-    if (jwtToken && supabaseJwtEnabled) {
-      const user = await verifySupabaseJwt(jwtToken).catch(() => null);
+    if (jwtToken && dbJwtEnabled) {
+      const user = await verifySessionToken(jwtToken).catch(() => null);
       if (user) {
-        redisFetch = createSupabaseRedisFetch(createUserClient(jwtToken), user.id);
+        redisFetch = createDbRedisFetch(createDbClient(), user.id);
         isValid = true;
       }
     }
 
     if (!isValid && passphrase) {
       const adminHash = String(env.HOMER_ADMIN_HASH || '').trim();
-      const ownerId = await resolveSupabaseOwnerId();
+      const ownerId = await resolveOwnerId();
       isValid = !!adminHash && String(passphrase || '').trim() === adminHash;
       if (!isValid) isValid = await verifyJoeyPassphrase(passphrase, rawRedisFetch);
       if (isValid) {
-        if (supabaseAdminEnabled && ownerId) redisFetch = createSupabaseRedisFetch(createAdminClient(), ownerId);
+        if (dbAdminEnabled && ownerId) redisFetch = createDbRedisFetch(createDbClient(), ownerId);
         else redisFetch = rawRedisFetch;
       }
     }

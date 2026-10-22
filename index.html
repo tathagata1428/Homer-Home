@@ -858,7 +858,7 @@
           <div style="font-size:.7rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Sync Status</div>
           <div style="display:flex;flex-direction:column;gap:8px;">
             <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span style="font-size:.82rem;color:var(--muted);">Supabase vault backup</span>
+              <span style="font-size:.82rem;color:var(--muted);">DB vault backup</span>
               <span style="font-size:.82rem;font-weight:700;color:#64748b;" id="db-sync-supa">Checking&hellip;</span>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -1467,7 +1467,7 @@
         <div style="font-size:1.2rem;font-weight:800;color:var(--text);" id="acct-display-name"></div>
         <div style="color:var(--muted);font-size:.85rem;margin-top:4px;">Signed in</div>
       </div>
-      <p style="color:var(--muted);font-size:.85rem;margin:0 0 16px;text-align:center;">Signed in. Fields sync automatically via Supabase.</p>
+      <p style="color:var(--muted);font-size:.85rem;margin:0 0 16px;text-align:center;">Signed in. Fields sync automatically.</p>
       <button id="acct-logout" class="btn" style="width:100%;padding:10px;font-size:.95rem;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;color:#fff;">Sign Out</button>
     </div>
 
@@ -1512,8 +1512,8 @@
       <button id="fab-local-import" class="btn ghost" style="flex:1;padding:10px;font-size:.85rem;border-radius:10px;">&#8679; Import</button>
       <input type="file" id="fab-local-import-input" accept=".json" style="display:none">
     </div>
-    <!-- Pull latest data from Supabase field sync (e.g. after Android push) -->
-    <button id="fab-supabase-pull" class="btn ghost" style="width:100%;padding:10px;font-size:.85rem;border-radius:10px;margin-bottom:10px;">&#8659; Pull from Supabase (sync from phone)</button>
+    <!-- Pull latest data from DB field sync (e.g. after Android push) -->
+    <button id="fab-db-pull" class="btn ghost" style="width:100%;padding:10px;font-size:.85rem;border-radius:10px;margin-bottom:10px;">&#8659; Pull from DB (sync from phone)</button>
 
     <!-- Auto-backup toggle -->
     <label style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 14px;cursor:pointer;margin-bottom:14px;">
@@ -1703,116 +1703,19 @@
 </div>
 <input type="file" id="receipt-camera-input" accept="image/*" capture="environment" style="display:none">
 
-    <script src="/assets/app-shell.v20260729a.js?v=20260803g"></script>
-    <script src="/assets/homer-features.v20260502a.js?v=20260603a"></script>
-    <script src="/assets/homer-enhancements.v20260605a.js?v=20260803a"></script>
-    <script src="/assets/homer-habits.v20260508a.js?v=20260522b"></script>
-    <script src="/assets/homer-daily-brief.v20260511b.js?v=20260609c"></script>
-    <script src="/assets/homer-notion.v20260513a.js?v=20260803b"></script>
-    <script src="/assets/homer-journal.v20260609a.js?v=20260730e"></script>
+    <script src="/assets/app-shell.v20260729a.js?v=20261022a"></script>
+    <script src="/assets/homer-features.v20260502a.js?v=20261022a"></script>
+    <script src="/assets/homer-enhancements.v20260605a.js?v=20261022a"></script>
+    <script src="/assets/homer-habits.v20260508a.js?v=20261022a"></script>
+    <script src="/assets/homer-daily-brief.v20260511b.js?v=20261022a"></script>
+    <script src="/assets/homer-notion.v20260513a.js?v=20261022a"></script>
+    <script src="/assets/homer-journal.v20260609a.js?v=20261022a"></script>
     <script src="/assets/homer-countdown.v20260520a.js?v=20260522a"></script>
-    <script src="/assets/homer-tips.v20260609a.js?v=20260724a"></script>
-    <script src="/assets/homer-car.v20260515a.js?v=20260609a"></script>
-    <script src="/assets/homer-gdrive-fullbackup.v20260604a.js?v=20260604a"></script>
+    <script src="/assets/homer-tips.v20260609a.js?v=20261022a"></script>
+    <script src="/assets/homer-car.v20260515a.js?v=20261022a"></script>
+    <script src="/assets/homer-gdrive-fullbackup.v20260604a.js?v=20261022a"></script>
 
-<!-- ── Supabase client (loaded after app bundle so window globals are ready) ── -->
-<script src="/api/config?format=js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script>
-(function () {
-  var SUPA_URL = window.__SUPABASE_URL__ || '';
-  var SUPA_ANON = window.__SUPABASE_ANON_KEY__ || '';
-
-  // Values are injected by the server (see api/config endpoint) or can be
-  // hard-coded here after setup.  Do NOT put the service-role key here.
-  if (!SUPA_URL || !SUPA_ANON) return;
-
-  var client = supabase.createClient(SUPA_URL, SUPA_ANON, {
-    auth: { persistSession: true, autoRefreshToken: true, storageKey: 'homer_sb_session' }
-  });
-
-  window.__supabase = client;
-
-  // ── Restore existing session ──────────────────────────────
-  client.auth.getSession().then(function (result) {
-    var session = result && result.data && result.data.session;
-    if (session) {
-      window.__sbSession = session;
-      window.dispatchEvent(new CustomEvent('supabase:session', { detail: session }));
-    }
-  });
-
-  // ── Listen for auth state changes ─────────────────────────
-  client.auth.onAuthStateChange(function (event, session) {
-    window.__sbSession = session;
-    window.dispatchEvent(new CustomEvent('supabase:session', { detail: session }));
-    window.dispatchEvent(new CustomEvent('supabase:authchange', { detail: { event: event, session: session } }));
-  });
-
-  // ── Realtime: messages ────────────────────────────────────
-  client.channel('homer-messages')
-    .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'messages'
-    }, function (payload) {
-      window.dispatchEvent(new CustomEvent('supabase:message', { detail: payload }));
-    })
-    .subscribe();
-
-  // ── Realtime: memories ────────────────────────────────────
-  client.channel('homer-memories')
-    .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'memories'
-    }, function (payload) {
-      window.dispatchEvent(new CustomEvent('supabase:memory', { detail: payload }));
-    })
-    .subscribe();
-
-  // ── Realtime: tasks ───────────────────────────────────────
-  client.channel('homer-tasks')
-    .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'tasks'
-    }, function (payload) {
-      window.dispatchEvent(new CustomEvent('supabase:task', { detail: payload }));
-    })
-    .subscribe();
-
-  // ── Realtime: field_state (UI field sync for bogdan) ──────
-  client.channel('homer-fields')
-    .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'field_state'
-    }, function (payload) {
-      window.dispatchEvent(new CustomEvent('supabase:field', { detail: payload }));
-    })
-    .subscribe();
-
-  // ── Helper: sign in and cache JWT ─────────────────────────
-  window.supabaseSignIn = function (email, password) {
-    return client.auth.signInWithPassword({ email: email, password: password })
-      .then(function (result) {
-        if (result.error) throw new Error(result.error.message);
-        window.__sbSession = result.data.session;
-        return result.data;
-      });
-  };
-
-  // ── Helper: get Authorization header value ────────────────
-  window.supabaseAuthHeader = function () {
-    var session = window.__sbSession;
-    if (session && session.access_token) return 'Bearer ' + session.access_token;
-    try {
-      var raw = localStorage.getItem('homer_sb_session') || '';
-      if (!raw) return null;
-      var parsed = JSON.parse(raw);
-      var effective = (parsed && parsed.currentSession) || (parsed && parsed.session) || parsed;
-      var accessToken = effective && effective.access_token;
-      if (!accessToken) return null;
-      window.__sbSession = effective;
-      return 'Bearer ' + accessToken;
-    } catch (_err) {
-      return null;
-    }
-  };
-})();
-</script>
+<!-- ── Data client (own Postgres via /api/db; loaded after app bundle so window globals are ready) ── -->
+<script src="/assets/homer-db.v20261022a.js"></script>
 </body>
 </html>

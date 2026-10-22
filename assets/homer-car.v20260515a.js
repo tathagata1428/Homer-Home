@@ -1,8 +1,8 @@
 /* ====================================================================
  * Homer Car Tracker  v20260515a
  * Track vehicle documents (insurance, vignette, ITP), maintenance,
- * and fuel log. Supabase sync included.
- * Data key: 'homer-car'  /  Supabase field_id: 'ls:homer-car'
+ * and fuel log. DB sync included.
+ * Data key: 'homer-car'  /  DB field_id: 'ls:homer-car'
  * ==================================================================== */
 (function () {
   'use strict';
@@ -46,7 +46,7 @@
   function emptyData() {
     return { vehicles: [], documents: [], maintenance: [], fuel: [], odoLogs: [] };
   }
-  /** Strip base64 file blobs before writing to localStorage/Supabase (quota / size safety).
+  /** Strip base64 file blobs before writing to localStorage/DB (quota / size safety).
    *  IDB always retains the full data including fileData. */
   function stripFileData(data) {
     return Object.assign({}, data, {
@@ -101,22 +101,22 @@
     window.__homerCarData = syncData;             // expose for daily brief (bypasses stale LS)
     try { localStorage.setItem('homer-car', JSON.stringify(syncData)); } catch(e) {}
     try { window.dispatchEvent(new CustomEvent('homer-data-synced', {detail:{key:'homer-car'}})); } catch(e) {}
-    pushToSupabase(syncData);
+    pushToDb(syncData);
   }
 
-  /* ── Supabase ─────────────────────────────────────────────────────── */
-  function getSbClient() { return window.__supabase || null; }
+  /* ── DB ─────────────────────────────────────────────────────── */
+  function getSbClient() { return window.__db || null; }
   function getSbUid() {
-    var sess = window.__sbSession || null;
+    var sess = window.__dbSession || null;
     return sess && sess.user ? sess.user.id : null;
   }
   function isBogdan() {
     var u = localStorage.getItem('homer-auth-user');
     if (u && u.toLowerCase() === 'bogdan') return true;
-    var sess = window.__sbSession;
+    var sess = window.__dbSession;
     return !!(sess && sess.user && (sess.user.email || '').toLowerCase().includes('bogdan'));
   }
-  function pushToSupabase(data) {
+  function pushToDb(data) {
     if (!isBogdan()) return;
     var client = getSbClient(), uid2 = getSbUid();
     if (!client || !uid2) return;
@@ -128,7 +128,7 @@
       updated_at: new Date(ts).toISOString(),
     }, { onConflict: 'user_id,field_id' });
   }
-  function pullFromSupabase(cb) {
+  function pullFromDb(cb) {
     if (!isBogdan()) { cb(null); return; }
     var client = getSbClient(), uid2 = getSbUid();
     if (!client || !uid2) { cb(null); return; }
@@ -744,24 +744,24 @@
 
   /* ── Event wiring ────────────────────────────────────────────────── */
   function attachTabEvents(container, vehicle) {
-    // Sync button: push IDB data to Supabase + pull back
+    // Sync button: push IDB data to DB + pull back
     var syncBtn = document.getElementById('car-sync-btn');
     if (syncBtn) syncBtn.onclick = function() {
       syncBtn.classList.add('syncing');
       syncBtn.disabled = true;
       // Push current IDB data up
       if (isBogdan() && getSbClient() && getSbUid()) {
-        pushToSupabase(stripFileData(state.data));
+        pushToDb(stripFileData(state.data));
         try { localStorage.setItem('homer-car', JSON.stringify(stripFileData(state.data))); } catch(_) {}
       }
-      // Pull from Supabase
-      pullFromSupabase(function(remote) {
+      // Pull from DB
+      pullFromDb(function(remote) {
         syncBtn.classList.remove('syncing');
         syncBtn.disabled = false;
         if (remote) {
           applyRemote(remote);
         } else if (state.data.vehicles.length) {
-          // Nothing in Supabase yet — we just pushed, render current data
+          // Nothing in DB yet — we just pushed, render current data
           renderTab();
         }
       });
@@ -1432,7 +1432,7 @@
         var _toSyncStripped = stripFileData(_toSync);
         window.__homerCarData = _toSyncStripped;
         try { localStorage.setItem('homer-car', JSON.stringify(_toSyncStripped)); } catch(_) {}
-        // NOTE: do NOT push to Supabase here — session handler does pull-then-merge-push,
+        // NOTE: do NOT push to DB here — session handler does pull-then-merge-push,
         // which correctly reconciles with any cloud deletions (e.g. vehicle deleted on Android).
       }
       var ct = document.getElementById(CONTAINER_ID);
@@ -1457,7 +1457,7 @@
       }
     });
 
-    // Pull from Supabase when session is ready (fires after Supabase auth)
+    // Pull from DB when session is ready (fires after DB auth)
     var _applyRemoteLock = false;
     function applyRemote(remote) {
       if (_applyRemoteLock) return;
@@ -1467,12 +1467,12 @@
     }
     function _doApplyRemote(remote) {
       if (!remote) {
-        // Supabase has no car data — if we have local IDB data, push it now so other
-        // browsers can restore. This happens when Supabase was wiped by a race condition
+        // DB has no car data — if we have local IDB data, push it now so other
+        // browsers can restore. This happens when DB was wiped by a race condition
         // or on the very first sync from a new device.
         if (state.data.vehicles.length || state.data.documents.length ||
             state.data.maintenance.length || state.data.fuel.length || (state.data.odoLogs||[]).length) {
-          pushToSupabase(stripFileData(state.data));
+          pushToDb(stripFileData(state.data));
           try { localStorage.setItem('homer-car', JSON.stringify(stripFileData(state.data))); } catch(_) {}
         }
         return;
@@ -1504,24 +1504,24 @@
       if (merged.vehicles.length || merged.documents.length ||
           merged.maintenance.length || merged.fuel.length || merged.odoLogs.length) {
         // Push metadata-only so large file blobs don't block sync
-        pushToSupabase(syncData);
+        pushToDb(syncData);
       }
       var container = document.getElementById(CONTAINER_ID);
       if (container && container.style.display !== 'none') renderTab();
     }
 
-    window.addEventListener('supabase:session', function(e) {
+    window.addEventListener('db:session', function(e) {
       if (!e.detail || !isBogdan()) return;
       // Pull-first: applyRemote handles both cases —
-      //   remote=null  → push local (first sync / Supabase wiped)
+      //   remote=null  → push local (first sync / DB wiped)
       //   remote=data  → merge-intersection + push (respects cloud deletions)
       // Pushing local BEFORE pulling caused vehicle resurrection: stale IDB data
       // (with a deleted vehicle) overwrote the Android-pushed cloud state.
-      pullFromSupabase(applyRemote);
+      pullFromDb(applyRemote);
     });
 
     // Realtime: react immediately when Android pushes new car data
-    window.addEventListener('supabase:field', function(e) {
+    window.addEventListener('db:field', function(e) {
       var payload = e && e.detail;
       if (!payload) return;
       var rec = payload.new || payload.old;
@@ -1530,23 +1530,23 @@
       applyRemote(safeJson(String(rec.value || ''), null));
     });
 
-    // Fallback: pull after 3 s in case supabase:session already fired before this listener was registered.
+    // Fallback: pull after 3 s in case db:session already fired before this listener was registered.
     // Check isBogdan() inside the callback so it works on fresh browser (not logged in at page load).
-    setTimeout(function() { if (isBogdan()) pullFromSupabase(applyRemote); }, 3000);
+    setTimeout(function() { if (isBogdan()) pullFromDb(applyRemote); }, 3000);
 
-    // Re-pull from Supabase into IDB whenever Android pushes car data via Realtime.
+    // Re-pull from DB into IDB whenever Android pushes car data via Realtime.
     // applySyncedFieldValue writes to localStorage but the car UI reads from IDB,
     // so we need this explicit pull to bridge the gap.
     window.addEventListener('homer-data-synced', function(e) {
       if (e && e.detail && e.detail.key === 'homer-car' && isBogdan()) {
         // applySyncedFieldValue already wrote the value to localStorage — use it directly
-        // so car data from Android works even without an active Supabase session.
+        // so car data from Android works even without an active DB session.
         var lsVal = localStorage.getItem('homer-car');
         var remote = lsVal ? safeJson(lsVal, null) : null;
         if (remote && (remote.vehicles || remote.documents || remote.maintenance || remote.fuel || remote.odoLogs)) {
           applyRemote(remote);
         } else {
-          pullFromSupabase(applyRemote);
+          pullFromDb(applyRemote);
         }
       }
     });

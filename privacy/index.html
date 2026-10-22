@@ -215,7 +215,7 @@
   <p>This data <strong>never leaves your device</strong> unless you enable optional cloud sync (see Section 3).</p>
 
   <p><span class="badge">Authentication</span> <strong>Account information</strong></p>
-  <p>If you create an account to enable cross-device sync, we collect your email address and an encrypted password hash. Authentication is handled by Supabase (supabase.com), a trusted infrastructure provider.</p>
+  <p>If you create an account to enable cross-device sync, we collect your email address and an encrypted password hash. Authentication is handled by Homer's own server; no third-party identity provider is involved.</p>
 
   <p><span class="badge">AI Features</span> <strong>Journal AI reflection</strong></p>
   <p>When you voluntarily tap "Get AI Reflection" in the Journal screen, your journal entry text is sent to an AI language model via OpenRouter (openrouter.ai) to generate a reflection and mood analysis. This data is transmitted over HTTPS. We do not store your journal text on any server — it is sent once for processing and the response is returned immediately. OpenRouter's processing is subject to their own privacy policy.</p>
@@ -232,11 +232,11 @@
   </ul>
 
   <h2>3. Cloud Sync (Optional)</h2>
-  <p>Homer offers an optional cloud sync feature powered by <strong>Supabase</strong>. Sync is disabled by default and only activates when you sign in with your account credentials.</p>
-  <p>When sync is active, your productivity data (habits, notes, journal entries, tasks, etc.) is uploaded to Supabase cloud storage to enable access across multiple devices. This data is:</p>
+  <p>Homer offers an optional cloud sync feature powered by Homer's own PostgreSQL database. Sync is disabled by default and only activates when you sign in with your account credentials.</p>
+  <p>When sync is active, your productivity data (habits, notes, journal entries, tasks, etc.) is uploaded to Homer's database to enable access across multiple devices. This data is:</p>
   <ul>
     <li>Transmitted over encrypted HTTPS connections</li>
-    <li>Stored in Supabase infrastructure (EU or US region depending on your account)</li>
+    <li>Stored in a PostgreSQL database on a server operated by Homer's developer (Oracle Cloud)</li>
     <li>Accessible only by your account (row-level security enforced)</li>
     <li>Not sold, rented, or shared with third parties</li>
   </ul>
@@ -254,7 +254,7 @@
   <h2>5. Internet Permissions</h2>
   <p>The Homer app requests internet access for the following purposes:</p>
   <ul>
-    <li>Optional Supabase cloud sync (when signed in)</li>
+    <li>Optional cloud sync (when signed in)</li>
     <li>AI journal reflection (when you tap "Get AI Reflection")</li>
     <li>Weather data on the Home screen (your approximate city is used, not GPS coordinates)</li>
     <li>News feed on the News screen</li>
@@ -264,7 +264,7 @@
 
   <h2>6. Third-Party Services</h2>
   <div class="card">
-    <p><strong>Supabase</strong> — Cloud database and authentication provider. Used for optional sync and account management. Privacy policy: <a href="https://supabase.com/privacy" target="_blank" rel="noopener">supabase.com/privacy</a></p>
+    <p><strong>Oracle Cloud</strong> — Hosts the server and database used for optional sync. Privacy policy: <a href="https://www.oracle.com/legal/privacy/" target="_blank" rel="noopener">oracle.com/legal/privacy</a></p>
   </div>
   <div class="card">
     <p><strong>OpenRouter / AI providers</strong> — Used for AI journal reflection when you explicitly request it. Your journal text is sent for one-time processing. Privacy policy: <a href="https://openrouter.ai/privacy" target="_blank" rel="noopener">openrouter.ai/privacy</a></p>
@@ -277,7 +277,7 @@
   <h2>7. Data Retention</h2>
   <ul>
     <li><strong>On-device data</strong> — Retained until you delete it within the app or uninstall the app.</li>
-    <li><strong>Cloud sync data</strong> — Retained in Supabase until you delete your account or request deletion.</li>
+    <li><strong>Cloud sync data</strong> — Retained in the sync database until you delete your account or request deletion.</li>
     <li><strong>AI reflection requests</strong> — Not retained on our servers. The AI provider (OpenRouter) processes and discards per their policy.</li>
   </ul>
 
@@ -299,7 +299,7 @@
   <p>We implement the following security measures:</p>
   <ul>
     <li>All data transmitted to/from servers uses TLS 1.2+ encryption</li>
-    <li>Supabase enforces row-level security — users can only access their own data</li>
+    <li>The sync API scopes every query to the signed-in account — users can only access their own data</li>
     <li>Vault secrets are stored with additional encryption on-device</li>
     <li>We do not log or store journal entries or other productivity content on our servers</li>
   </ul>

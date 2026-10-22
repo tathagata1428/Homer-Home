@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { verifySupabaseJwt, createAdminClient, isSupabaseConfigured, resolveSupabaseOwnerId } from '../../lib/supabase-server.js';
+import { verifySessionToken, createDbClient, isDbConfigured, resolveOwnerId } from '../../lib/db.js';
 import { isReservedSyncHash } from '../../lib/joey-server.js';
 
 const BACKUP_MANIFEST_KEY = 'homer-backup-manifest';
@@ -238,11 +238,11 @@ async function fetchFieldOps(redis, hk, since, limit) {
   };
 }
 
-// ── Supabase field-state helpers ───────────────────────────────────────────
+// ── DB field-state helpers ───────────────────────────────────────────
 
 async function sbFieldState(userId) {
-  var supabase = createAdminClient();
-  var { data, error } = await supabase
+  var db = createDbClient();
+  var { data, error } = await db
     .from('field_state')
     .select('field_id,kind,value,deleted,client_ts,client_seq,device_id,server_ts')
     .eq('user_id', userId);
@@ -259,8 +259,8 @@ async function sbFieldState(userId) {
 }
 
 async function sbFieldOps(userId, since) {
-  var supabase = createAdminClient();
-  var query = supabase
+  var db = createDbClient();
+  var query = db
     .from('field_state')
     .select('field_id,kind,value,deleted,client_ts,client_seq,device_id,server_ts')
     .eq('user_id', userId);
@@ -286,12 +286,12 @@ async function sbFieldOps(userId, since) {
 async function sbApplyFieldOps(userId, body) {
   var ops = Array.isArray(body.ops) ? body.ops : [];
   if (!ops.length) return Response.json({ error: 'Missing ops' }, { status: 400 });
-  var supabase = createAdminClient();
+  var db = createDbClient();
   var serverTs = Date.now();
   var fieldIds = ops.map(function(op){ return op && op.fieldId; }).filter(Boolean);
   var currentMap = {};
   if (fieldIds.length) {
-    var { data: rows } = await supabase
+    var { data: rows } = await db
       .from('field_state')
       .select('field_id,client_ts,client_seq,device_id,value,kind,deleted')
       .eq('user_id', userId)
@@ -321,7 +321,7 @@ async function sbApplyFieldOps(userId, body) {
     applied.push(Object.assign({}, normalized, { version: serverTs, serverTs: serverTs }));
   }
   if (upserts.length) {
-    var { error } = await supabase.from('field_state').upsert(upserts, { onConflict: 'user_id,field_id' });
+    var { error } = await db.from('field_state').upsert(upserts, { onConflict: 'user_id,field_id' });
     if (error) return Response.json({ error: error.message }, { status: 500 });
   }
   return Response.json({
@@ -351,25 +351,25 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const searchParams = url.searchParams;
 
-  // ── Supabase JWT auth ──────────────────────────────────────────────────
+  // ── session token auth ──────────────────────────────────────────────────
   const authHeader = String(request.headers.get('authorization') || '');
   const jwtToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  let supabaseUser = null;
-  if (jwtToken && isSupabaseConfigured()) {
-    supabaseUser = await verifySupabaseJwt(jwtToken);
+  let dbUser = null;
+  if (jwtToken && isDbConfigured()) {
+    dbUser = await verifySessionToken(jwtToken);
   }
 
-  // Route Supabase-authenticated field-sync requests
-  if (supabaseUser) {
+  // Route DB-authenticated field-sync requests
+  if (dbUser) {
     try {
       if (request.method === 'GET') {
         const sbAction = searchParams.get('action') || 'latest';
         if (sbAction === 'field-state') {
-          return addCors(await sbFieldState(supabaseUser.id), corsHeaders);
+          return addCors(await sbFieldState(dbUser.id), corsHeaders);
         }
         if (sbAction === 'field-ops') {
           const since = parseInt(searchParams.get('since') || '0', 10) || 0;
-          return addCors(await sbFieldOps(supabaseUser.id, since), corsHeaders);
+          return addCors(await sbFieldOps(dbUser.id, since), corsHeaders);
         }
         if (sbAction === 'status') {
           return addCors(Response.json({ ok: true, exists: true, ts: Date.now(), fieldVersion: Date.now() }), corsHeaders);
@@ -378,11 +378,11 @@ export async function onRequest(context) {
       if (request.method === 'POST') {
         const sbBody = await request.json().catch(() => ({}));
         if (sbBody && sbBody.action === 'field-op') {
-          return addCors(await sbApplyFieldOps(supabaseUser.id, sbBody), corsHeaders);
+          return addCors(await sbApplyFieldOps(dbUser.id, sbBody), corsHeaders);
         }
       }
     } catch (sbErr) {
-      return addCors(Response.json({ error: sbErr.message || 'Supabase error' }, { status: 500 }), corsHeaders);
+      return addCors(Response.json({ error: sbErr.message || 'DB error' }, { status: 500 }), corsHeaders);
     }
   }
 
@@ -398,9 +398,9 @@ export async function onRequest(context) {
       : (maybeBody && maybeBody.key) || ''
   ).trim();
 
-  if (!supabaseUser && isSupabaseConfigured() && isReservedSyncHash(reservedKey)) {
+  if (!dbUser && isDbConfigured() && isReservedSyncHash(reservedKey)) {
     try {
-      const reservedOwnerId = await resolveSupabaseOwnerId();
+      const reservedOwnerId = await resolveOwnerId();
       if (reservedOwnerId) {
         if (request.method === 'GET') {
           const reservedAction = searchParams.get('action') || 'latest';
@@ -423,16 +423,16 @@ export async function onRequest(context) {
         }
       }
     } catch (reservedErr) {
-      return addCors(Response.json({ error: reservedErr.message || 'Supabase error' }, { status: 500 }), corsHeaders);
+      return addCors(Response.json({ error: reservedErr.message || 'DB error' }, { status: 500 }), corsHeaders);
     }
   }
 
-  // ── Admin-hash passphrase → Supabase field sync (no Redis needed) ─────
-  if (!supabaseUser && isSupabaseConfigured() && reservedKey) {
+  // ── Admin-hash passphrase → DB field sync (no Redis needed) ─────
+  if (!dbUser && isDbConfigured() && reservedKey) {
     const adminHash = String(process.env.HOMER_ADMIN_HASH || '').trim();
     if (adminHash && reservedKey === adminHash) {
       try {
-        const adminOwnerId = await resolveSupabaseOwnerId();
+        const adminOwnerId = await resolveOwnerId();
         if (adminOwnerId) {
           if (request.method === 'GET') {
             const adminAction = searchParams.get('action') || 'latest';
@@ -449,7 +449,7 @@ export async function onRequest(context) {
           }
         }
       } catch (adminErr) {
-        return addCors(Response.json({ error: adminErr.message || 'Supabase error' }, { status: 500 }), corsHeaders);
+        return addCors(Response.json({ error: adminErr.message || 'DB error' }, { status: 500 }), corsHeaders);
       }
     }
   }

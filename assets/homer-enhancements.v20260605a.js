@@ -13,7 +13,7 @@
  *
  *  Productivity
  *   8.  Pomodoro Title         — live countdown in browser tab
- *   9.  Pomodoro Session Log   — localStorage + Supabase focus_sessions
+ *   9.  Pomodoro Session Log   — localStorage + DB focus_sessions
  *   10. Links Live Search      — filter by name / URL / category
  *   11. Smart Capture Auto-tag — expense / link / task / thought
  *   12. Habit Morning Reminder — 8-11 AM toast
@@ -24,7 +24,7 @@
  *   14. Expense Category Chart  — bar chart inside expense panel
  *
  *  Data
- *   15. Supabase Data Sync     — Bogdan-only: push/pull expenses,
+ *   15. DB Data Sync     — Bogdan-only: push/pull expenses,
  *                                habits, inbox via field_state table
  *   16. Expense Ledger         — full-page sortable/filterable table
  *   17. Inbox Actions          — Thought->Joey, Task->Kanban,
@@ -67,7 +67,7 @@
   function isBogdan(){
     var u=localStorage.getItem('homer-auth-user');
     if(u&&u.toLowerCase()==='bogdan')return true;
-    var sess=window.__sbSession;
+    var sess=window.__dbSession;
     return !!(sess&&sess.user&&(sess.user.email||'').toLowerCase().includes('bogdan'));
   }
 
@@ -185,7 +185,7 @@
     '.he-bar-fill{height:100%;border-radius:4px;transition:width .4s cubic-bezier(.4,0,.2,1)}',
     '.he-bar-val{width:66px;font-size:.7rem;color:#94a3b8;font-weight:700;text-align:right;white-space:nowrap;flex-shrink:0}',
 
-    /* Supabase sync badge */
+    /* DB sync badge */
     '#he-sync-badge{position:fixed;bottom:16px;right:16px;z-index:9988;font-size:.68rem;font-weight:700;color:#64748b;background:rgba(15,23,42,.85);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:3px 10px;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap}',
     '#he-sync-badge.visible{opacity:1}',
     '#he-sync-badge.syncing{color:#60a5fa}',
@@ -467,7 +467,7 @@
     initHabitMorningReminder();
     initInlineWeatherForecast();
     initExpenseChart();
-    initSupabaseDataSync();
+    initDbDataSync();
     initExpenseLedger();
     initInboxActions();
     initJoeyCommandBridge();
@@ -716,8 +716,8 @@
           var sessions=safeJson(localStorage.getItem(STORAGE_KEY),[]);sessions.push(sess);if(sessions.length>500)sessions=sessions.slice(-500);
           try{localStorage.setItem(STORAGE_KEY,JSON.stringify(sessions));}catch(_){}
           if(isBogdan()){
-            var client=window.__supabase;
-            if(client){var uid=window.__sbSession&&window.__sbSession.user&&window.__sbSession.user.id;client.from('focus_sessions').insert({created_at:sess.ts,duration_secs:dur,task_label:task||null,user_id:uid||null}).then(function(r){if(r.error)console.debug('[homer] focus_sessions:',r.error.message);});}
+            var client=window.__db;
+            if(client){var uid=window.__dbSession&&window.__dbSession.user&&window.__dbSession.user.id;client.from('focus_sessions').insert({created_at:sess.ts,duration_secs:dur,task_label:task||null,user_id:uid||null}).then(function(r){if(r.error)console.debug('[homer] focus_sessions:',r.error.message);});}
           }
           toast('\uD83C\uDF45 Session \u2014 '+Math.round(dur/60)+' min logged','success',2500);
           showBadge('\uD83C\uDF45 '+todayCount()+' sessions today');sessionStart=null;
@@ -982,16 +982,16 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-   * 15. SUPABASE DATA SYNC  (Bogdan-only)
+   * 15. DB DATA SYNC  (Bogdan-only)
    * ═══════════════════════════════════════════════════════════════════ */
   var _syncDirty={};
 
-  function initSupabaseDataSync(){
+  function initDbDataSync(){
     // Do NOT gate on isBogdan() here — session is async on mobile.
     // All sync operations use canSync() which is evaluated lazily.
 
     var badge=document.createElement('div');badge.id='he-sync-badge';document.body.appendChild(badge);
-    function showBadge(txt,cls){if(cls==='error'){console.warn('[Sync] Supabase-direct call failed (CF Pages path handles sync):',txt);badge.classList.remove('visible');return;}badge.className=cls;badge.textContent=txt;badge.classList.add('visible');if(cls==='synced')setTimeout(function(){badge.classList.remove('visible');},3000);}
+    function showBadge(txt,cls){if(cls==='error'){console.warn('[Sync] DB-direct call failed (CF Pages path handles sync):',txt);badge.classList.remove('visible');return;}badge.className=cls;badge.textContent=txt;badge.classList.add('visible');if(cls==='synced')setTimeout(function(){badge.classList.remove('visible');},3000);}
 
     // nativeSetItem = Storage prototype directly — bypasses ALL patches (ours + app-shell's).
     // Used for internal writes (pulls, timestamps) so they don't trigger R2 dirty-marking.
@@ -1000,8 +1000,8 @@
     var nativeSetItem=Storage.prototype.setItem.bind(localStorage);
     var origSetItem=localStorage.setItem.bind(localStorage);
 
-    function getClient(){return window.__supabase||null;}
-    function getUid(){return window.__sbSession&&window.__sbSession.user&&window.__sbSession.user.id||null;}
+    function getClient(){return window.__db||null;}
+    function getUid(){return window.__dbSession&&window.__dbSession.user&&window.__dbSession.user.id||null;}
     function canSync(){return isBogdan()&&!!getUid();}
     function getLocalTs(key){return parseInt(localStorage.getItem('_he_ts_'+key)||'0',10);}
     function setLocalTs(key,ts){nativeSetItem('_he_ts_'+key,String(ts));}
@@ -1211,7 +1211,7 @@
           // ENTERPRISE GUARD: if both local and remote are empty, skip all writes.
           // Prevents overwriting a concurrent IDB push (e.g. homer-car) that races with
           // this fetch — the IDB callback fires after our LS read but before our upsert,
-          // so without this guard we would stomp good Supabase data with an empty payload.
+          // so without this guard we would stomp good DB data with an empty payload.
           if(!localRaw&&!remoteParsed){showBadge('Synced \u2713','synced');return;}
           var remote=remoteParsed||emptyVal;
           var localTs=getLocalTs(key)||0;
@@ -1373,7 +1373,7 @@
 
     // ── Vault Shadow Sync ──────────────────────────────────────────────────────
     // Kanban tasks (goals) and Life Goals live in encrypted vault IDB — not LS.
-    // doVaultSync() normalises them to Android format and shadows to Supabase
+    // doVaultSync() normalises them to Android format and shadows to DB
     // fields ls:homer-kanban and ls:homer-life-goals so Android can pull them.
     // Triggered on vault-goals-changed (debounced 3s) and from pullAll().
 
@@ -1465,7 +1465,7 @@
       if(!window._homerVaultUnlocked)return;
       if(typeof window._homerLoadVault!=='function')return;
       if(typeof window._homerSaveVault!=='function')return;
-      // canSync() requires active Supabase session; isBogdan() is enough for CF Pages path.
+      // canSync() requires active DB session; isBogdan() is enough for CF Pages path.
       var _canSupa=canSync();
       var client=_canSupa?getClient():null,uid=_canSupa?getUid():null;
       // Capture time before async vault load so we can detect mutations that arrive while we run.
@@ -1502,13 +1502,13 @@
               status:g.status||'active',progress:g.progress||0,updatedAt:g.updatedAt||Date.now()};
           });
           // Push vault data via localStorage → queueLsFieldOp → CF Pages.
-          // This path works without an active Supabase session (uses admin hash / sync passphrase).
+          // This path works without an active DB session (uses admin hash / sync passphrase).
           var _vaultMode=window._homerGetVaultMode?window._homerGetVaultMode():'personal';
           try{origSetItem('homer-kanban',JSON.stringify(mergedKanban));}catch(e){}
           try{origSetItem('homer-life-goals',JSON.stringify(mergedLg));}catch(e){}
           if(Array.isArray(vault.creds)&&vault.creds.length>0)try{origSetItem('homer-secrets:'+_vaultMode,JSON.stringify(vault.creds));}catch(e){}
           if(typeof vault.notes==='string'&&vault.notes)try{origSetItem('homer-vault-notes:'+_vaultMode,JSON.stringify(vault.notes));}catch(e){}
-          // Also push directly to Supabase when session is active (fires Realtime for other devices).
+          // Also push directly to DB when session is active (fires Realtime for other devices).
           if(client&&uid){
             var tsK=Date.now();
             client.from('field_state').upsert(
@@ -1561,7 +1561,7 @@
         } else {
           // Remote-merge mode: read kanban/life-goals/secrets/vault-notes from localStorage.
           // localStorage is written by hydrateFieldSyncState (CF Pages poll) which reads
-          // the same field_state rows as a direct Supabase query — no Supabase session needed.
+          // the same field_state rows as a direct DB query — no DB session needed.
           var _rmMode=window._homerGetVaultMode?window._homerGetVaultMode():'personal';
           var _lsKb=safeJson(localStorage.getItem('homer-kanban')||'{}',{});
           var _lsLg=safeJson(localStorage.getItem('homer-life-goals')||'[]',[]);
@@ -1588,7 +1588,7 @@
     window.addEventListener('vault-goals-changed',function(){if(!_inVaultPull&&isBogdan()){_localMutationPending=true;_lastLocalVaultMutation=Date.now();scheduleVaultSync();}});
     // Also fire when vault unlocks — first unlock on page load is the most important.
     // Also flush any pending Android-pushed data that arrived while vault was locked.
-    // Use isBogdan() (not canSync()) so vault sync runs even without a Supabase session —
+    // Use isBogdan() (not canSync()) so vault sync runs even without a DB session —
     // doVaultSync() reads from localStorage which works with the CF Pages / admin-hash path.
     window.addEventListener('homer-vault-state',function(){
       if(isBogdan()&&window._homerVaultUnlocked){
@@ -1613,7 +1613,7 @@
 
     var _pullDone=false;
     function pullAll(){
-      // Always attempt vault sync when vault is unlocked — works via localStorage even without Supabase session.
+      // Always attempt vault sync when vault is unlocked — works via localStorage even without DB session.
       if(isBogdan()&&window._homerVaultUnlocked)scheduleVaultSync();
       if(!canSync())return;
       var firstPull=!_pullDone;
@@ -1664,7 +1664,7 @@
     }
 
     // Primary trigger: fires when persisted session restores (async on mobile)
-    window.addEventListener('supabase:session',function(e){
+    window.addEventListener('db:session',function(e){
       if(e.detail&&!_pullDone&&isBogdan())pullAll();
     });
     if(canSync())pullAll();
@@ -1721,7 +1721,7 @@
         if(nt&&nt.style.display!=='none'&&typeof window._homerRenderNoteList==='function')window._homerRenderNoteList();
       }
       // Kanban/life-goals/secrets: Android pushed new data → trigger vault sync.
-      // Use isBogdan() — doVaultSync() works via localStorage even without Supabase session.
+      // Use isBogdan() — doVaultSync() works via localStorage even without DB session.
       if(key==='homer-kanban'||key==='homer-life-goals'){
         if(isBogdan()&&window._homerVaultUnlocked){
           scheduleVaultSync();
@@ -3132,7 +3132,7 @@
 
   function saveToJoey(text,cb){
     var headers={'Content-Type':'application/json'};
-    var authH=typeof window.supabaseAuthHeader==='function'?window.supabaseAuthHeader():null;
+    var authH=typeof window.dbAuthHeader==='function'?window.dbAuthHeader():null;
     if(authH)headers['Authorization']=authH;
     fetch('/api/joey',{method:'POST',headers:headers,body:JSON.stringify({action:'memory',memory:text,source:'inbox',category:'thought'})})
       .then(function(r){return r.json();}).then(function(d){cb(!d.error);}).catch(function(){cb(false);});

@@ -535,7 +535,7 @@ function renderQuote(q) {
       return latestItem ? normalizeSavedQuoteText(latestItem.q) : '';
     }
     function getQuotesSyncAuthHeader(){
-      try{ if(typeof window.supabaseAuthHeader === 'function') return String(window.supabaseAuthHeader() || '').trim(); }catch(_e){}
+      try{ if(typeof window.dbAuthHeader === 'function') return String(window.dbAuthHeader() || '').trim(); }catch(_e){}
       return '';
     }
     function verifyRemoteQuotesFile(pass, expectedContent){
@@ -3970,7 +3970,7 @@ let tvWidgetCreated = false;
   }
   function persistProjectMutation(data, reason, mode){
     return saveVaultForMode(mode || currentVaultMode, data).then(function(){
-      // Mirror plaintext Kanban + life-goals to Supabase field_state for Android sync.
+      // Mirror plaintext Kanban + life-goals to DB field_state for Android sync.
       // Vault stays encrypted (primary); this is a read-only shadow for mobile clients.
       try {
         var kanbanBlob = JSON.stringify({ projects: data.projects || [], goals: data.goals || [] });
@@ -8541,7 +8541,7 @@ let tvWidgetCreated = false;
   var AUTH_USER_KEY = 'homer-auth-user';
   var AUTH_HASH_KEY = 'homer-auth-hash';
   var RESERVED_SYNC_USER = 'bogdan';
-  // Migrate: if homer-auth-user was previously stored as the Supabase email, normalize to the username
+  // Migrate: if homer-auth-user was previously stored as the DB email, normalize to the username
   (function(){
     var stored = localStorage.getItem(AUTH_USER_KEY);
     if(stored && stored.toLowerCase() === 'bogdan.radu@b4it.ro'){
@@ -8632,24 +8632,24 @@ let tvWidgetCreated = false;
     modalBg.classList.remove('open');
     return Promise.all(idbW).then(function(){ location.reload(); });
   }
-  function hydrateSupabaseSession(session){
+  function hydrateDbSession(session){
     if(!session || typeof session !== 'object') return Promise.resolve();
     try{
-      window.__sbSession = session;
-      window.dispatchEvent(new CustomEvent('supabase:session', { detail: session }));
+      window.__dbSession = session;
+      window.dispatchEvent(new CustomEvent('db:session', { detail: session }));
     }catch(_err){}
     try{
-      if(window.__supabase && window.__supabase.auth && typeof window.__supabase.auth.setSession === 'function'){
+      if(window.__db && window.__db.auth && typeof window.__db.auth.setSession === 'function'){
         var accessToken = String(session.access_token || '').trim();
         var refreshToken = String(session.refresh_token || '').trim();
         if(accessToken && refreshToken){
-          return window.__supabase.auth.setSession({
+          return window.__db.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken
           }).then(function(result){
             if(result && result.data && result.data.session){
-              window.__sbSession = result.data.session;
-              window.dispatchEvent(new CustomEvent('supabase:session', { detail: result.data.session }));
+              window.__dbSession = result.data.session;
+              window.dispatchEvent(new CustomEvent('db:session', { detail: result.data.session }));
             }
           }).catch(function(){});
         }
@@ -8672,16 +8672,16 @@ let tvWidgetCreated = false;
         });
       });
     }
-    if(typeof window.supabaseSignIn === 'function'){
+    if(typeof window.dbSignIn === 'function'){
       return tryHashFallback().then(function(localPayload){
-        // Local password OK — now establish Supabase session with Supabase credentials (separate from local password)
-        return window.supabaseSignIn(email, pass).then(function(result){
+        // Local password OK — now get a DB session for the same Homer credentials
+        return window.dbSignIn(user, pass).then(function(result){
           var payload = Object.assign({}, localPayload, {
             session: result && result.session ? result.session : null,
             userData: result && result.user ? result.user : null
           });
-          return hydrateSupabaseSession(payload.session).then(function(){
-            // Push all existing localStorage data to Supabase now that session is active
+          return hydrateDbSession(payload.session).then(function(){
+            // Push all existing localStorage data to the DB now that session is active
             setTimeout(function(){
               Object.keys(LS_FIELD_MAP).forEach(function(k){
                 var v = localStorage.getItem(k);
@@ -8696,12 +8696,12 @@ let tvWidgetCreated = false;
     return fetch('/api/auth', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({action:'signIn', email: email, password: pass})
+      body: JSON.stringify({action:'signIn', username: user, password: pass})
     }).then(function(r){ return r.json(); }).then(function(d){
       if(d && d.ok) {
         var payload = Object.assign({}, basePayload, { session: d.session || null, userData: d.user || null });
-        return hydrateSupabaseSession(payload.session).then(function(){
-          // Push all existing localStorage data to Supabase now that session is active
+        return hydrateDbSession(payload.session).then(function(){
+          // Push all existing localStorage data to the DB now that session is active
           setTimeout(function(){
             Object.keys(LS_FIELD_MAP).forEach(function(k){
               var v = localStorage.getItem(k);
@@ -8967,8 +8967,8 @@ let tvWidgetCreated = false;
       modalBg.classList.remove('open');
     }
     try{
-      if(window.__supabase && window.__supabase.auth && typeof window.__supabase.auth.signOut === 'function'){
-        window.__supabase.auth.signOut().catch(function(){}).finally(finishLogout);
+      if(window.__db && window.__db.auth && typeof window.__db.auth.signOut === 'function'){
+        window.__db.auth.signOut().catch(function(){}).finally(finishLogout);
         return;
       }
     }catch(_err){}
@@ -9278,13 +9278,13 @@ let tvWidgetCreated = false;
   var R2_WORKER_URL = 'https://homer-attachments.it-network-drive.workers.dev';
   var DB_BACKUP_URL = '/api/sync';
   var SYNC_PASS_KEY = 'homer-sync-pass';
-  // Local helper — withSupabaseAuth lives in a later IIFE, so resolve JWT lazily via window globals
+  // Local helper — withDbAuth lives in a later IIFE, so resolve JWT lazily via window globals
   function addJoeyAuth(options){
     var src = options && typeof options === 'object' ? options : {};
     var next = Object.assign({}, src);
     try {
-      var authVal = typeof window.supabaseAuthHeader === 'function' ? window.supabaseAuthHeader() : '';
-      if(!authVal && window.__sbSession && window.__sbSession.access_token) authVal = 'Bearer ' + window.__sbSession.access_token;
+      var authVal = typeof window.dbAuthHeader === 'function' ? window.dbAuthHeader() : '';
+      if(!authVal && window.__dbSession && window.__dbSession.access_token) authVal = 'Bearer ' + window.__dbSession.access_token;
       if(authVal){
         next.headers = Object.assign({}, src.headers || {});
         if(!next.headers.Authorization) next.headers.Authorization = authVal;
@@ -9346,7 +9346,7 @@ let tvWidgetCreated = false;
   var AUTH_SYNC_KEYS = ['homer-auth-user', 'homer-user-permissions'];
   var BACKUP_LOCALSTORAGE_PREFIXES = ['homer-oc-config-'];
   var BACKUP_SCHEMA_VERSION = 2;
-  // LS field sync: localStorage keys that get pushed to Supabase field_state when Bogdan is logged in
+  // LS field sync: localStorage keys that get pushed to DB field_state when Bogdan is logged in
   var LS_FIELD_MAP = {
     'homer-vault-mode':         'ls:homer-vault-mode',
     'homer-oc-mode':            'ls:homer-oc-mode',
@@ -9585,7 +9585,7 @@ let tvWidgetCreated = false;
   var FIELD_SYNC_CLIENT_SEQ_KEY = 'homer-field-sync-client-seq';
   var FIELD_SYNC_PUSH_DELAY = 350;
   var FIELD_SYNC_PULL_INTERVAL = 2000;
-  var FIELD_SYNC_SB_POLL_INTERVAL = 30000; // Supabase fallback poll — catches missed Realtime events
+  var FIELD_SYNC_SB_POLL_INTERVAL = 30000; // DB fallback poll — catches missed Realtime events
   var fieldSyncPendingMap = new Map();
   var fieldSyncPushTimer = null;
   var fieldSyncPushInFlight = null;
@@ -9631,10 +9631,10 @@ let tvWidgetCreated = false;
   }
   function getSyncJwt(){
     try{
-      if(typeof window.supabaseAuthHeader === 'function'){
-        return String(window.supabaseAuthHeader() || '').trim();
+      if(typeof window.dbAuthHeader === 'function'){
+        return String(window.dbAuthHeader() || '').trim();
       }
-      var sbSess = window.__sbSession;
+      var sbSess = window.__dbSession;
       if(sbSess && sbSess.access_token) return 'Bearer ' + sbSess.access_token;
     }catch(_e){}
     return '';
@@ -9726,7 +9726,7 @@ let tvWidgetCreated = false;
   function applySyncedFieldValue(fieldId, value, opts){
     opts = opts || {};
     // Guard: never apply synced values for local-only keys (e.g. pom.state.v1 may exist
-    // in Supabase field_state from an old code version — must never overwrite local timer state)
+    // in DB field_state from an old code version — must never overwrite local timer state)
     if(LOCAL_ONLY_BACKUP_KEYS.indexOf(fieldId) >= 0) return;
     var nextValue = String(value == null ? '' : value);
     var focusLabConfig = getFocusLabSyncConfig(fieldId);
@@ -9988,7 +9988,7 @@ let tvWidgetCreated = false;
     stopFieldSyncLoop();
     var jwt = getSyncJwt();
     if(jwt){
-      // Supabase mode: full pull on start + Realtime for live updates
+      // DB mode: full pull on start + Realtime for live updates
       // + fallback poll every 30s to catch any missed Realtime events (last-edit-wins)
       hydrateFieldSyncState(true);
       fieldSyncPullTimer = setInterval(function(){
@@ -10204,7 +10204,7 @@ let tvWidgetCreated = false;
       return { tone:'pending', text:'Pending', title:'Field sync pending.' };
     }
     if(jwt){
-      return { tone:'synced', text:'Synced', title:'Field synced via Supabase Realtime.' };
+      return { tone:'synced', text:'Synced', title:'Field synced.' };
     }
     return { tone:'idle', text:'No sync', title:'Field not yet synced.' };
   }
@@ -10249,7 +10249,7 @@ let tvWidgetCreated = false;
     backupHealthEl.innerHTML =
       renderHealthCard('Local Vault Save', localStorage.getItem(BACKUP_LOCAL_SAVE_TS_KEY), 'Latest encrypted save on this device.', '#38bdf8') +
       renderHealthCard('Cloud Snapshot', localStorage.getItem('homer-backup-ts'), backupCount + ' keys stored in cloud snapshot. Source: ' + source + '.', '#60a5fa') +
-      renderHealthCard('Joey Memory (Supabase)', localStorage.getItem(BACKUP_JOEY_TS_KEY), 'Agent chat, memory, and file index backup.', '#f59e0b') +
+      renderHealthCard('Joey Memory (DB)', localStorage.getItem(BACKUP_JOEY_TS_KEY), 'Agent chat, memory, and file index backup.', '#f59e0b') +
       renderHealthCard('Joey Drive Context', localStorage.getItem(BACKUP_DRIVE_TS_KEY), 'Long-term Joey context export to Drive.', '#a78bfa') +
       renderHealthCard('Emergency Drive Snapshot', localStorage.getItem(BACKUP_EMERGENCY_DRIVE_TS_KEY), 'Standalone whole-app snapshot for emergency recovery.', '#22c55e') +
       renderHealthCard('Last Restore', localStorage.getItem(BACKUP_LAST_RESTORE_TS_KEY), 'Most recent recovery source: ' + restoreSource + '.', '#f87171');
@@ -10932,7 +10932,7 @@ let tvWidgetCreated = false;
     return vaultMirrorRefreshInFlight;
   }
   function ensureVaultServerMirror(){
-    // Field state is now synced via Supabase Realtime — no Redis mirror needed
+    // Field state is now synced via sync polling — no Redis mirror needed
   }
   var lastBackupHash = '';
 
@@ -11037,7 +11037,7 @@ let tvWidgetCreated = false;
       }
     });
     // Stamp enhancements sync timestamps for all restored merge keys so the
-    // restored data is treated as "newest" and wins on the next Supabase sync.
+    // restored data is treated as "newest" and wins on the next DB sync.
     var HE_MERGE_KEYS = ['homer-habits','homer-inbox','homer-expenses','homer-income',
       'homer-expense-goals','homer-expense-templates','homer-expense-budgets',
       'homer-notes','homer-links','homer-journal','homer-car','pom.tasks.v1'];
@@ -11082,7 +11082,7 @@ let tvWidgetCreated = false;
   }
 
   function doDbBackup(p, allData, opts){
-    // Redis full-snapshot mirror removed — field state synced via Supabase Realtime
+    // Redis full-snapshot mirror removed — field state synced via sync polling
     return Promise.resolve({ ok:true, skipped:true });
   }
 
@@ -11277,20 +11277,20 @@ let tvWidgetCreated = false;
 
   document.getElementById('fab-backup').addEventListener('click', function(){ backup(true); });
   document.getElementById('fab-restore').addEventListener('click', restore);
-  var fabSupabasePullBtn = document.getElementById('fab-supabase-pull');
-  if(fabSupabasePullBtn) fabSupabasePullBtn.addEventListener('click', function(){
+  var fabDbPullBtn = document.getElementById('fab-db-pull');
+  if(fabDbPullBtn) fabDbPullBtn.addEventListener('click', function(){
     var btn = this;
     btn.disabled = true;
     btn.textContent = 'Syncing…';
     // Step 1: Force a fresh CF Pages fetch so localStorage has the latest Android data.
     // Step 2: After fetch completes, run vault sync (kanban/life-goals/secrets) directly
-    //         using the now-fresh localStorage — no Supabase session required.
+    //         using the now-fresh localStorage — no DB session required.
     // Step 3: Also call _heSyncPullAll for non-vault fields (expenses, habits, etc.)
     var doHePull = function(){
       if(typeof window._heSyncPullAll === 'function') window._heSyncPullAll();
       // Vault sync reads directly from localStorage which hydrateFieldSyncState just refreshed.
       if(typeof window._heVaultSync === 'function') setTimeout(window._heVaultSync, 300);
-      setTimeout(function(){ btn.disabled = false; btn.textContent = '\u21D3 Pull from Supabase (sync from phone)'; }, 4000);
+      setTimeout(function(){ btn.disabled = false; btn.textContent = '\u21D3 Pull from DB (sync from phone)'; }, 4000);
     };
     try{ hydrateFieldSyncState(true).then(doHePull).catch(doHePull); }catch(_){ doHePull(); }
   });
@@ -11493,18 +11493,18 @@ let tvWidgetCreated = false;
       var p = getActiveSyncPass();
       var jwt = getSyncJwt();
       if(!p && !jwt){ st('Shared restore is available only for Bogdan after unlocking the vault.'); return; }
-      // Supabase mode: pull all field_state records directly (no Redis needed)
+      // DB mode: pull all field_state records directly (no Redis needed)
       if(jwt){
-        st('Pulling all data from Supabase...');
+        st('Pulling all data from DB...');
         hydrateFieldSyncState(true).then(function(result){
           if(result && result.ok === false){
-            st('Supabase pull failed: ' + (result.error || 'unknown error'));
+            st('DB pull failed: ' + (result.error || 'unknown error'));
           } else {
-            st('Data restored from Supabase. Reloading...');
+            st('Data restored from DB. Reloading...');
             setTimeout(function(){ location.reload(); }, 1000);
           }
         }).catch(function(err){
-          st('Supabase restore failed: ' + (err && err.message ? err.message : String(err)));
+          st('DB restore failed: ' + (err && err.message ? err.message : String(err)));
         });
         return;
       }
@@ -11777,8 +11777,8 @@ let tvWidgetCreated = false;
     stopAuto();
     startFieldSyncLoop();
     // Pull first, then start backup cycle.
-    // Skip R2 pullIfNewer when Supabase JWT is active — Supabase field sync is authoritative;
-    // R2 snapshot can be months stale and would overwrite current Supabase data + delete
+    // Skip R2 pullIfNewer when DB JWT is active — DB field sync is authoritative;
+    // R2 snapshot can be months stale and would overwrite current DB data + delete
     // keys not in the old manifest (homer-car, homer-reminders, homer-journal).
     var _pullPromise = getSyncJwt() ? Promise.resolve() : pullIfNewer();
     _pullPromise.then(function(){
@@ -11881,8 +11881,8 @@ let tvWidgetCreated = false;
   }
 
   function flushDbBackupNow(reason){
-    // Redis mirror removed — field state synced via Supabase Realtime
-    return Promise.resolve({ ok:true, skipped:true, reason:'supabase-realtime' });
+    // Redis mirror removed — field state synced via sync polling
+    return Promise.resolve({ ok:true, skipped:true, reason:'db-polling' });
   }
 
   // Save before page close — only leader sends beacon (or fallback if leader is dead)
@@ -11932,7 +11932,7 @@ let tvWidgetCreated = false;
       return;
     }
     if(document.visibilityState === 'visible'){
-      // In Supabase mode force a full re-hydrate on tab focus — catches any events missed while hidden
+      // In DB mode force a full re-hydrate on tab focus — catches any events missed while hidden
       hydrateFieldSyncState(!!getSyncJwt());
       // Claim leadership if current leader is dead
       if(!isLeader && !leaderAlive()) tryLead(true);
@@ -12021,8 +12021,8 @@ let tvWidgetCreated = false;
       // Existing account — restore from cloud, then enable auto-backup
       var p = getActiveSyncPass();
       if(!p){
-        // No R2 pass, but if a Supabase JWT is available (fresh browser, Bogdan just logged in)
-        // still start field sync so car/habits/etc. pull from Supabase field_state.
+        // No R2 pass, but if a DB JWT is available (fresh browser, Bogdan just logged in)
+        // still start field sync so car/habits/etc. pull from DB field_state.
         if(getSyncJwt()) startFieldSyncLoop();
         return;
       }
@@ -12092,10 +12092,10 @@ let tvWidgetCreated = false;
     });
   });
 
-  // ── Supabase Realtime: apply incoming field changes ──────────
-  // When Supabase pushes a field_state change, apply it directly —
+  // ── sync polling: apply incoming field changes ──────────
+  // When DB pushes a field_state change, apply it directly —
   // no polling needed. Ignore changes from the same device.
-  window.addEventListener('supabase:field', function(e){
+  window.addEventListener('db:field', function(e){
     var payload = e && e.detail;
     if(!payload) return;
     var rec = payload.new || payload.old;
@@ -12106,16 +12106,16 @@ let tvWidgetCreated = false;
     requestSyncFieldLabelUpdate();
   });
 
-  // ── Supabase session: switch from Redis polling to Realtime ──
-  window.addEventListener('supabase:session', function(){
-    // isSharedSyncUser() reads homer-auth-user which may not be set yet when supabase:session
-    // fires during login (hydrateSupabaseSession dispatches before finalizeSignin sets the key).
+  // ── DB session: switch from Redis polling to Realtime ──
+  window.addEventListener('db:session', function(){
+    // isSharedSyncUser() reads homer-auth-user which may not be set yet when db:session
+    // fires during login (hydrateDbSession dispatches before finalizeSignin sets the key).
     // Use getSyncJwt() instead — if we have a JWT the session is for Bogdan.
     if(!getSyncJwt()) return;
-    // JWT is now available — restart field sync in Supabase mode (no polling)
+    // JWT is now available — restart field sync in DB mode (no polling)
     startFieldSyncLoop();
   });
-  window.addEventListener('supabase:authchange', function(e){
+  window.addEventListener('db:authchange', function(e){
     var detail = e && e.detail;
     if(!detail || !detail.session) return;
     if(!getSyncJwt()) return;
@@ -12531,11 +12531,11 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
   }
   function getJoeyAccessState(){
-    // Supabase session is a valid auth path (e.g. mobile where homer-auth-user may not be set)
-    var sbSession = window.__sbSession && typeof window.__sbSession === 'object' ? window.__sbSession : null;
+    // DB session is a valid auth path (e.g. mobile where homer-auth-user may not be set)
+    var sbSession = window.__dbSession && typeof window.__dbSession === 'object' ? window.__dbSession : null;
     var sbUser = sbSession && sbSession.user && typeof sbSession.user === 'object' ? sbSession.user : null;
     if(sbUser && (sbUser.id || sbUser.email)){
-      return { ok:true, user:String(sbUser.email || sbUser.id || 'supabase-user'), memoryEnabled: hasJoeyRemoteAuth() };
+      return { ok:true, user:String(sbUser.email || sbUser.id || 'db-user'), memoryEnabled: hasJoeyRemoteAuth() };
     }
     // homer-sync-pass is Bogdan's credential hash — its presence confirms identity on all devices
     if(String(localStorage.getItem('homer-sync-pass') || '').trim()){
@@ -12587,15 +12587,15 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(showMessage !== false) notifyJoeyAccessDenied(access.message);
     return false;
   }
-  function getSupabaseAuthHeaderValue(){
+  function getDbAuthHeaderValue(){
     try{
-      if(typeof window.supabaseAuthHeader === 'function'){
-        var direct = String(window.supabaseAuthHeader() || '').trim();
+      if(typeof window.dbAuthHeader === 'function'){
+        var direct = String(window.dbAuthHeader() || '').trim();
         if(direct) return direct;
       }
     }catch(_err){}
     try{
-      var storedRaw = localStorage.getItem('homer_sb_session') || '';
+      var storedRaw = localStorage.getItem('homer_db_session') || '';
       if(storedRaw){
         var stored = JSON.parse(storedRaw);
         var accessToken = String(
@@ -12605,8 +12605,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
           ''
         ).trim();
         if(accessToken){
-          if(!window.__sbSession || !window.__sbSession.access_token){
-            window.__sbSession = (stored && stored.currentSession) || (stored && stored.session) || stored;
+          if(!window.__dbSession || !window.__dbSession.access_token){
+            window.__dbSession = (stored && stored.currentSession) || (stored && stored.session) || stored;
           }
           return 'Bearer ' + accessToken;
         }
@@ -12615,13 +12615,13 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     return '';
   }
   function hasJoeyRemoteAuth(){
-    return !!(String(localStorage.getItem('homer-sync-pass') || '').trim() || getSupabaseAuthHeaderValue());
+    return !!(String(localStorage.getItem('homer-sync-pass') || '').trim() || getDbAuthHeaderValue());
   }
-  function withSupabaseAuth(options){
+  function withDbAuth(options){
     var source = options && typeof options === 'object' ? options : {};
     var next = {};
     Object.keys(source).forEach(function(key){ next[key] = source[key]; });
-    var authHeader = getSupabaseAuthHeaderValue();
+    var authHeader = getDbAuthHeaderValue();
     if(!authHeader) return next;
     var headers = {};
     var sourceHeaders = source.headers && typeof source.headers === 'object' ? source.headers : {};
@@ -12662,6 +12662,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   function normalizeModelLabel(raw){
     var value = String(raw || '').trim();
     if(!value) return '';
+    if(/^openclaw\//i.test(value)) return 'openclaw-' + value.split('/')[1];
     value = value.split('/').pop();
     if(/nemotron/i.test(value)) return 'nemotron-3-super';
     if(/hermes/i.test(value)) return 'hermes';
@@ -12911,8 +12912,8 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
     renderJoeySyncStatusState('Checking Redis and Google Drive for ' + (currentContextMode === 'work' ? 'Work' : 'Personal') + ' mode...', [], []);
     joeySyncStatusInFlight = Promise.all([
-      fetch(joeyActionUrl('sync-meta', pass), withSupabaseAuth({ cache:'no-store' })).then(function(r){ return r.json(); }),
-      fetch('/api/gdrive-reconcile', withSupabaseAuth({
+      fetch(joeyActionUrl('sync-meta', pass), withDbAuth({ cache:'no-store' })).then(function(r){ return r.json(); }),
+      fetch('/api/gdrive-reconcile', withDbAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(withContextMode({ passphrase: pass, compareOnly: true }))
@@ -13602,7 +13603,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       libraryList.innerHTML = '<div class="oc-library-empty">Loading remembered uploads...</div>';
     }
     var pass = localStorage.getItem('homer-sync-pass') || '';
-    return fetch(joeyActionUrl('file-library', pass), withSupabaseAuth({ cache:'no-store' }))
+    return fetch(joeyActionUrl('file-library', pass), withDbAuth({ cache:'no-store' }))
       .then(function(res){ return res.json().then(function(data){ return { ok:res.ok, data:data }; }); })
       .then(function(result){
         if(!result.ok || !result.data || !result.data.ok) throw new Error((result.data && (result.data.detail || result.data.error)) || 'Could not load uploads');
@@ -13773,9 +13774,9 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       setTimeout(function(){ if(!panelOpen) openPanel(); }, 50);
     }
   });
-  // Re-check when Supabase session resolves (async — fires after initial load)
-  window.addEventListener('supabase:session', updateFabVisibility);
-  window.addEventListener('supabase:authchange', updateFabVisibility);
+  // Re-check when DB session resolves (async — fires after initial load)
+  window.addEventListener('db:session', updateFabVisibility);
+  window.addEventListener('db:authchange', updateFabVisibility);
   var fabVisibilityTimer = 0;
   function scheduleFabVisibilitySync(delay){
     if(fabVisibilityTimer) window.clearTimeout(fabVisibilityTimer);
@@ -14235,7 +14236,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     joeyManualCommitInFlight = true;
     if(!opts.silent) setManualCommitButtons('busy');
     return collectTaskSnapshot().then(function(tasks){
-      return fetch('/api/joey?action=commit', withSupabaseAuth({
+      return fetch('/api/joey?action=commit', withDbAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         keepalive: !!opts.keepalive,
@@ -14371,7 +14372,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     btn.disabled = true;
     btn.textContent = '⏳ Backing up...';
     Promise.resolve(primeJoeyRedisForBackup('manual-backup', { keepalive:false })).catch(function(){ return null; }).then(function(){
-      return window._homerFetchJson('/api/gdrive-backup', withSupabaseAuth({
+      return window._homerFetchJson('/api/gdrive-backup', withDbAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(withContextMode({ passphrase: pass, redisOnly:true }))
@@ -14414,7 +14415,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var clientSnapshot = {};
     try { for(var _i=0;_i<localStorage.length;_i++){ var _k=localStorage.key(_i); if(_k) clientSnapshot[_k]=localStorage.getItem(_k); } } catch(_){}
     btn.textContent = '⏳ Saving full backup...';
-    window._homerFetchJson('/api/gdrive-full-backup', withSupabaseAuth({
+    window._homerFetchJson('/api/gdrive-full-backup', withDbAuth({
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ passphrase: pass, clientSnapshot: clientSnapshot })
@@ -14422,7 +14423,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       if(d && d.ok){
         if(typeof window._homerRecordBackupMarker === 'function') window._homerRecordBackupMarker('homer-drive-backup-ts');
         var stats = d.stats || {};
-        btn.textContent = '✅ Full backup saved! (' + (stats.clientKeys||0) + ' LS keys, ' + (stats.totalSupabaseRows||0) + ' DB rows)';
+        btn.textContent = '✅ Full backup saved! (' + (stats.clientKeys||0) + ' LS keys, ' + (stats.totalDbRows||0) + ' DB rows)';
         setTimeout(function(){ btn.innerHTML = '&#x1F4E6; Full Backup to Drive'; btn.disabled = false; }, 4000);
       } else {
         btn.textContent = '❌ Failed';
@@ -14446,7 +14447,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     btn.disabled = true;
     btn.textContent = '⏳ Fetching from Drive...';
     // Phase 1: fetch from Drive only (no DB writes — fits under CF 30s wall limit)
-    window._homerFetchJson('/api/gdrive-restore', withSupabaseAuth({
+    window._homerFetchJson('/api/gdrive-restore', withDbAuth({
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(withContextMode({ passphrase: pass, kind: 'drive-fetch' }))
@@ -14460,7 +14461,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       }
       btn.textContent = '⏳ Applying to DB...';
       // Phase 2: apply fetched data to DB (no Drive fetch — fits under CF 30s wall limit)
-      return window._homerFetchJson('/api/gdrive-restore', withSupabaseAuth({
+      return window._homerFetchJson('/api/gdrive-restore', withDbAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(withContextMode({ passphrase: pass, kind: 'drive-apply', driveData: fd.driveData }))
@@ -14473,7 +14474,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
           refreshCanonicalFiles().catch(function(){});
           if(libraryPanel && libraryPanel.classList.contains('open')) fetchFileLibrary({ silent:true });
           scheduleJoeySyncStatusRefresh(250);
-          Promise.resolve(window._homerFetchJson('/api/gdrive-restore', withSupabaseAuth({
+          Promise.resolve(window._homerFetchJson('/api/gdrive-restore', withDbAuth({
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify(withContextMode({ passphrase: pass, kind: 'vault-snapshot' }))
           })).then(function(vd){
@@ -14581,7 +14582,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     return 10000;
   }
   function joeyFetchJson(url, options){
-    var nextOptions = withSupabaseAuth(options);
+    var nextOptions = withDbAuth(options);
     if(typeof window._homerFetchJson === 'function') return window._homerFetchJson(url, nextOptions);
     return fetch(url, nextOptions).then(function(r){
       return r.text().then(function(text){
@@ -14627,7 +14628,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!hasJoeyRemoteAuth()) return Promise.reject(new Error('Missing sync credentials'));
     if(joeyBundleRefreshInflight && joeyBundleRefreshInflightMode === activeMode) return joeyBundleRefreshInflight;
     joeyBundleRefreshInflightMode = activeMode;
-    joeyBundleRefreshInflight = joeyFetchJson(joeyActionUrl('bundle', pass, activeMode), withSupabaseAuth({ cache:'no-store' })).then(function(data){
+    joeyBundleRefreshInflight = joeyFetchJson(joeyActionUrl('bundle', pass, activeMode), withDbAuth({ cache:'no-store' })).then(function(data){
       var bundle = data && data.bundle && typeof data.bundle === 'object' ? data.bundle : null;
       if(!bundle) throw new Error('Missing Redis bundle');
       hydrateJoeyBundle(bundle, opts);
@@ -14649,7 +14650,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(minInterval > 0 && (Date.now() - lastCheckAt) < minInterval) return Promise.resolve(null);
     joeyLastSyncMetaCheckAtByMode[activeMode] = Date.now();
     joeySyncMetaInflightMode = activeMode;
-    joeySyncMetaInflight = joeyFetchJson(joeyActionUrl('sync-meta', pass, activeMode), withSupabaseAuth({ cache:'no-store' })).then(function(data){
+    joeySyncMetaInflight = joeyFetchJson(joeyActionUrl('sync-meta', pass, activeMode), withDbAuth({ cache:'no-store' })).then(function(data){
       var syncMeta = data && data.syncMeta ? data.syncMeta : {};
       var remoteStamp = parseJoeyBundleStamp(syncMeta.updatedAt);
       var localStamp = getJoeyBundleStamp(activeMode);
@@ -14689,7 +14690,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       joeyLastHistorySyncedLengthByMode[activeMode] = chatHistory.length;
       return Promise.resolve({ ok:true, skipped:true, reason:'no-delta' });
     }
-    var request = fetch(joeyActionUrl('history', pass), withSupabaseAuth({
+    var request = fetch(joeyActionUrl('history', pass), withDbAuth({
       method:'POST',
       headers:{'Content-Type':'application/json'},
       keepalive: !!opts.keepalive,
@@ -14763,7 +14764,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
     joeyDriveBackupInFlight = true;
     return Promise.resolve(primeJoeyRedisForBackup(reason || 'auto-backup', { keepalive:false })).catch(function(){ return null; }).then(function(){
-      return window._homerFetchJson('/api/gdrive-backup', withSupabaseAuth({
+      return window._homerFetchJson('/api/gdrive-backup', withDbAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(withContextMode({ passphrase: pass, redisOnly:true }))
@@ -14809,7 +14810,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     persistChatCache(currentContextMode, chatLastLocalMutationAt);
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(hasJoeyRemoteAuth()){
-      fetch(joeyActionUrl('history', pass), withSupabaseAuth({
+      fetch(joeyActionUrl('history', pass), withDbAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(withContextMode({ passphrase:pass, messages:[], chatClearedAt:getChatClearedAt(currentContextMode) }))
@@ -14826,7 +14827,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       return collectTaskSnapshot();
     }).then(function(tasks){
       var savedQuotesContent = buildSavedQuotesMarkdown(loadSaved());
-      return fetch(joeyActionUrl('files'), withSupabaseAuth({
+      return fetch(joeyActionUrl('files'), withDbAuth({
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(withContextMode({ passphrase:pass, tasks:tasks, savedQuotesContent:savedQuotesContent }))
@@ -14871,7 +14872,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   }
 
   function fetchJoeyJson(url, opts){
-    return fetch(url, withSupabaseAuth(opts || {})).then(function(r){
+    return fetch(url, withDbAuth(opts || {})).then(function(r){
       return r.text().then(function(text){
         var data = {};
         try { data = text ? JSON.parse(text) : {}; }
@@ -15022,7 +15023,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     var options = (force && typeof force === 'object') ? force : { force: !!force };
     var pass = localStorage.getItem('homer-sync-pass') || '';
     if(!hasJoeyRemoteAuth()){ console.warn('[Joey] No sync credentials - cannot load history from shared store'); return; }
-    fetch(joeyActionUrl('history', pass), withSupabaseAuth())
+    fetch(joeyActionUrl('history', pass), withDbAuth())
       .then(function(r){ return r.json(); })
       .then(function(data){
         if(data.error){ console.error('[Joey] Redis history error:', data.error); return; }
@@ -15084,7 +15085,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
   function runAutoLearnPayload(payload, reason){
     var key = getAutoLearnKey(payload);
     if(!payload || !key || key === autoLearnLastCommittedKey) return Promise.resolve(null);
-    return fetch(joeyActionUrl('learn', '', payload.mode), withSupabaseAuth({
+    return fetch(joeyActionUrl('learn', '', payload.mode), withDbAuth({
       method:'POST',
       headers:{'Content-Type':'application/json'},
       keepalive: true,
@@ -15175,7 +15176,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     }
   });
 
-  // ── Supabase Realtime: refresh Joey bundle when messages/memories change ──
+  // ── sync polling: refresh Joey bundle when messages/memories change ──
   var joeyRealtimeRefreshTimer = null;
   function scheduleJoeyRealtimeRefresh(source){
     if(!hasJoeyRemoteAuth()) return;
@@ -15186,20 +15187,20 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       refreshJoeyBundleFromRedis({ forceMode:true, mode:currentContextMode, source: source || 'realtime' }).catch(function(){});
     }, 400);
   }
-  window.addEventListener('supabase:message', function(){ scheduleJoeyRealtimeRefresh('realtime-message'); });
-  window.addEventListener('supabase:memory', function(){ scheduleJoeyRealtimeRefresh('realtime-memory'); });
+  window.addEventListener('db:message', function(){ scheduleJoeyRealtimeRefresh('realtime-message'); });
+  window.addEventListener('db:memory', function(){ scheduleJoeyRealtimeRefresh('realtime-memory'); });
 
-  // On Supabase login: load Joey bundle immediately for Bogdan
-  window.addEventListener('supabase:session', function(){
+  // On DB login: load Joey bundle immediately for Bogdan
+  window.addEventListener('db:session', function(){
     if(!hasJoeyRemoteAuth()) return;
     setTimeout(function(){
-      refreshJoeyBundleFromRedis({ forceMode:true, mode:currentContextMode, source:'supabase-session' }).catch(function(){
-        loadHistoryFromRedis({ force:false, source:'supabase-session-fallback' });
+      refreshJoeyBundleFromRedis({ forceMode:true, mode:currentContextMode, source:'db-session' }).catch(function(){
+        loadHistoryFromRedis({ force:false, source:'db-session-fallback' });
       });
     }, 300);
   });
 
-  // Load conversation from Redis/Supabase as fallback (cross-device continuity)
+  // Load conversation from Redis/DB as fallback (cross-device continuity)
   setTimeout(function(){
     maybeRefreshJoeyBundleFromRedis({ source:'initial-redis-sync' }).then(function(result){
       if(!result) refreshJoeyBundleFromRedis({ forceMode:true, mode:currentContextMode, source:'initial-redis-sync-fallback' }).catch(function(){
@@ -15221,7 +15222,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
     if(!pass) return Promise.reject('No passphrase');
 
     console.log('[Joey] Reconciling context from Google Drive...');
-    return window._homerFetchJson('/api/gdrive-reconcile', withSupabaseAuth({
+    return window._homerFetchJson('/api/gdrive-reconcile', withDbAuth({
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(withContextMode({ passphrase: pass }))
@@ -16192,7 +16193,7 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
         confidence:typeof payload.confidence === 'number' ? payload.confidence : 0.96,
         pinned:!!payload.pinned || String(payload.category || '').toLowerCase() === 'pin'
       };
-    return fetch(rememberUrl, withSupabaseAuth({
+    return fetch(rememberUrl, withDbAuth({
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify(rememberBody)
@@ -17844,13 +17845,14 @@ window.addEventListener('DOMContentLoaded',function(){if(typeof pdfjsLib!=='unde
       function armStreamIdleTimer(){
         clearStreamIdleTimer();
         if(!streamController) return;
+        // OpenClaw agents go quiet while running tools; give them longer.
         streamIdleTimer = setTimeout(function(){
           if(streamSawContent){
             try{ streamController.abort(new Error('stream-idle-timeout')); }catch(_e){}
           }
-        }, isMobileShell() ? 2200 : 3200);
+        }, /^openclaw\//i.test(activeModel || '') ? 90000 : (isMobileShell() ? 2200 : 3200));
       }
-      var res = await fetch(apiEndpoint, withSupabaseAuth({
+      var res = await fetch(apiEndpoint, withDbAuth({
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         signal: streamController ? streamController.signal : undefined,

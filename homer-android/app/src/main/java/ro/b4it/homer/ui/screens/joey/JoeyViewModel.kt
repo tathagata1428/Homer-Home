@@ -73,7 +73,7 @@ class JoeyViewModel @Inject constructor(
     }
 
     private suspend fun loadMemories(@Suppress("UNUSED_PARAMETER") mode: String) {
-        // Bundle memory loading requires Supabase JWT (removed in Option A).
+        // Bundle memory loading requires a Homer session token (not wired up on Android).
         // Joey still uses local journal context loaded in loadJournalContext().
     }
 

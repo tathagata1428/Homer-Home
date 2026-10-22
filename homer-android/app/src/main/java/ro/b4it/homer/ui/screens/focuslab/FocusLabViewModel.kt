@@ -24,7 +24,7 @@ class FocusLabViewModel @Inject constructor(
     val zenGoal: StateFlow<String> = _zenGoal.asStateFlow()
 
     init {
-        // Collect from DB flows so pulled Supabase values appear immediately
+        // Collect from DB flows so pulled server values appear immediately
         viewModelScope.launch {
             settingDao.getFlow(KEY_BRAIN_DUMP).collect { v -> _brainDump.value = v ?: "" }
         }

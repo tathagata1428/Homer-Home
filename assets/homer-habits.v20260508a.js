@@ -1,6 +1,6 @@
 /* ====================================================================
  * Homer Habit Tracker  v20260508a
- * Full-featured vault habit tracking app with Supabase sync.
+ * Full-featured vault habit tracking app with DB sync.
  * Data key: 'homer-habits' (already in SYNC_KEYS in enhancements)
  * ==================================================================== */
 (function () {
@@ -1054,7 +1054,7 @@
     updateBadge();
     setInterval(updateBadge, 60000); // refresh on minute (midnight rollover)
 
-    // Re-badge after Supabase sync pulls new data (cross-tab)
+    // Re-badge after DB sync pulls new data (cross-tab)
     window.addEventListener('storage', function(e) {
       if (e && e.key === KEY) {
         updateBadge();

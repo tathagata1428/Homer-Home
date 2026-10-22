@@ -128,7 +128,7 @@
     { icon: '&#128200;', name: 'Expenses & Budget', desc: 'Track income and expenses with category budgets and monthly trends.', tab: null, action: 'budget', isNew: false },
     { icon: '&#9989;', name: 'Habits', desc: 'Daily / weekday / weekly habits with streak tracking and completion calendar.', tab: null, action: 'habits', isNew: false },
     { icon: '&#129504;', name: 'Joey AI', desc: 'Context-aware assistant with access to your journal, habits, and memories.', tab: null, action: 'joey', isNew: false },
-    { icon: '&#128260;', name: 'Real-time Sync', desc: 'Changes sync instantly across devices via Supabase Realtime WebSocket.', tab: 'vault', isNew: false },
+    { icon: '&#128260;', name: 'Real-time Sync', desc: 'Changes sync across devices within about 10 seconds.', tab: 'vault', isNew: false },
   ];
 
   var HOWTOS = [
@@ -186,7 +186,7 @@
       title: 'Sync data across devices',
       steps: [
         'Open <strong>Settings &rarr; Sync</strong> and sign in with your account.',
-        'Changes are pushed to Supabase automatically after each edit (debounced ~1s).',
+        'Changes are pushed to DB automatically after each edit (debounced ~1s).',
         'On another device, open Homer and sign in with the same account &mdash; data pulls on load.',
         'Use the <strong>Sync Now</strong> button to force an immediate push + pull.',
         '<strong>Vault data</strong> syncs only after you unlock the vault on the source device first.',

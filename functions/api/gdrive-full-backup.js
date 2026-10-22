@@ -7,7 +7,7 @@
  *     • Every localStorage key (no filtering)
  *     • Vault IDB (homer-vault-salt, homer-vault-hash, homer-vault-data)
  *
- *   SUPABASE (fetched server-side via admin client — bypasses RLS)
+ *   DATABASE (every table, fetched server-side for the owner)
  *     • profiles          — Joey profile per mode
  *     • messages          — full chat history
  *     • memories          — all Joey memories
@@ -37,24 +37,17 @@ import {
   getRedisConfig,
   verifyJoeyPassphrase
 } from '../../lib/joey-server.js';
-import {
-  isSupabaseClientConfigured,
-  isSupabaseConfigured,
-  createAdminClient,
-  createUserClient,
-  resolveSupabaseOwnerId,
-  verifySupabaseJwt
-} from '../../lib/supabase-server.js';
+import { isDbConfigured, createDbClient, resolveOwnerId, verifySessionToken } from '../../lib/db.js';
 
 const TIMEOUT_MS = 120000; // 2 min — large payloads need time
 
 // Fetch all rows of a user-scoped table. Never throws — returns [] on error.
-async function dumpTable(supabase, table, userId, opts) {
+async function dumpTable(db, table, userId, opts) {
   opts = opts || {};
   const limit = opts.limit || 10000;
   const orderCol = opts.orderCol || 'created_at';
   try {
-    let q = supabase.from(table).select('*').eq('user_id', userId);
+    let q = db.from(table).select('*').eq('user_id', userId);
     if (orderCol) q = q.order(orderCol, { ascending: true });
     q = q.limit(limit);
     const { data, error } = await q;
@@ -96,33 +89,33 @@ export async function onRequest(context) {
   const authHeader = String(request.headers.get('authorization') || '');
   const jwtToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
 
-  let supabaseAdmin = null;
+  let dbAdmin = null;
   let userId = null;
 
-  const supabaseJwtEnabled = isSupabaseClientConfigured();
-  const supabaseAdminEnabled = isSupabaseConfigured();
+  const dbJwtEnabled = isDbConfigured();
+  const dbAdminEnabled = isDbConfigured();
   const rawRedisFetch = createRedisFetch();
   const { url: redisUrl, token: redisToken } = getRedisConfig();
 
-  let supabaseUser = null;
-  if (jwtToken && supabaseJwtEnabled) {
-    supabaseUser = await verifySupabaseJwt(jwtToken).catch(() => null);
+  let dbUser = null;
+  if (jwtToken && dbJwtEnabled) {
+    dbUser = await verifySessionToken(jwtToken).catch(() => null);
   }
 
-  if (supabaseUser) {
-    userId = supabaseUser.id;
-    if (supabaseAdminEnabled) supabaseAdmin = createAdminClient();
+  if (dbUser) {
+    userId = dbUser.id;
+    if (dbAdminEnabled) dbAdmin = createDbClient();
   } else {
     if (!passphrase) return Response.json({ error: 'Missing passphrase. Unlock vault first.' }, { status: 401, headers: corsHeaders });
     const adminHash = String(env.HOMER_ADMIN_HASH || '').trim();
-    const ownerId = await resolveSupabaseOwnerId();
+    const ownerId = await resolveOwnerId();
     let isValid = !!adminHash && passphrase.trim() === adminHash;
     if (!isValid) isValid = await verifyJoeyPassphrase(passphrase, rawRedisFetch);
     if (!isValid) return Response.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders });
 
-    if (supabaseAdminEnabled && ownerId) {
+    if (dbAdminEnabled && ownerId) {
       userId = ownerId;
-      supabaseAdmin = createAdminClient();
+      dbAdmin = createDbClient();
     } else {
       if (!redisUrl || !redisToken || !rawRedisFetch) {
         return Response.json({ error: 'Storage not configured' }, { status: 500, headers: corsHeaders });
@@ -134,10 +127,10 @@ export async function onRequest(context) {
     const backedUpAt = new Date().toISOString();
     const safeClientSnapshot = clientSnapshot && typeof clientSnapshot === 'object' ? clientSnapshot : {};
 
-    // --- Dump every Supabase table in parallel ---
-    let supabaseDump = {};
+    // --- Dump every DB table in parallel ---
+    let dbDump = {};
 
-    if (supabaseAdmin && userId) {
+    if (dbAdmin && userId) {
       const [
         profiles,
         messages,
@@ -152,21 +145,21 @@ export async function onRequest(context) {
         focusSessions,
         devices
       ] = await Promise.all([
-        dumpTable(supabaseAdmin, 'profiles',          userId, { orderCol: 'updated_at' }),
-        dumpTable(supabaseAdmin, 'messages',          userId, { orderCol: 'ts', limit: 20000 }),
-        dumpTable(supabaseAdmin, 'memories',          userId, { orderCol: 'ts' }),
-        dumpTable(supabaseAdmin, 'journal',           userId, { orderCol: 'ts', limit: 5000 }),
-        dumpTable(supabaseAdmin, 'joey_meta',         userId, { orderCol: 'updated_at' }),
-        dumpTable(supabaseAdmin, 'field_state',       userId, { orderCol: 'updated_at', limit: 5000 }),
-        dumpTable(supabaseAdmin, 'tasks',             userId, { orderCol: 'created_at' }),
-        dumpTable(supabaseAdmin, 'task_events',       userId, { orderCol: 'created_at', limit: 5000 }),
-        dumpTable(supabaseAdmin, 'habits',            userId, { orderCol: 'created_at' }),
-        dumpTable(supabaseAdmin, 'habit_completions', userId, { orderCol: 'date', limit: 20000 }),
-        dumpTable(supabaseAdmin, 'focus_sessions',    userId, { orderCol: 'created_at', limit: 10000 }),
-        dumpTable(supabaseAdmin, 'devices',           userId, { orderCol: 'last_seen_at' })
+        dumpTable(dbAdmin, 'profiles',          userId, { orderCol: 'updated_at' }),
+        dumpTable(dbAdmin, 'messages',          userId, { orderCol: 'ts', limit: 20000 }),
+        dumpTable(dbAdmin, 'memories',          userId, { orderCol: 'ts' }),
+        dumpTable(dbAdmin, 'journal',           userId, { orderCol: 'ts', limit: 5000 }),
+        dumpTable(dbAdmin, 'joey_meta',         userId, { orderCol: 'updated_at' }),
+        dumpTable(dbAdmin, 'field_state',       userId, { orderCol: 'updated_at', limit: 5000 }),
+        dumpTable(dbAdmin, 'tasks',             userId, { orderCol: 'created_at' }),
+        dumpTable(dbAdmin, 'task_events',       userId, { orderCol: 'created_at', limit: 5000 }),
+        dumpTable(dbAdmin, 'habits',            userId, { orderCol: 'created_at' }),
+        dumpTable(dbAdmin, 'habit_completions', userId, { orderCol: 'date', limit: 20000 }),
+        dumpTable(dbAdmin, 'focus_sessions',    userId, { orderCol: 'created_at', limit: 10000 }),
+        dumpTable(dbAdmin, 'devices',           userId, { orderCol: 'last_seen_at' })
       ]);
 
-      supabaseDump = {
+      dbDump = {
         profiles,
         messages,
         memories,
@@ -193,25 +186,25 @@ export async function onRequest(context) {
       },
       // Complete browser-side data
       client: safeClientSnapshot,
-      // Complete Supabase dump — every table, every row
-      supabase: supabaseDump
+      // Complete DB dump — every table, every row
+      database: dbDump
     };
 
     // Build stats
     const counts = {};
-    Object.keys(supabaseDump).forEach(t => {
-      counts[t] = Array.isArray(supabaseDump[t]) ? supabaseDump[t].length : 0;
+    Object.keys(dbDump).forEach(t => {
+      counts[t] = Array.isArray(dbDump[t]) ? dbDump[t].length : 0;
     });
     const clientKeys = Object.keys(safeClientSnapshot).length;
-    const totalSupabaseRows = Object.values(counts).reduce((a, b) => a + b, 0);
+    const totalDbRows = Object.values(counts).reduce((a, b) => a + b, 0);
     const hasCarIdb = 'homer-car-data' in safeClientSnapshot;
 
     const manifest = {
       version: 2,
       backedUpAt,
       clientKeyCount: clientKeys,
-      supabaseRowCounts: counts,
-      totalSupabaseRows
+      dbRowCounts: counts,
+      totalDbRows
     };
 
     // --- POST to Google Drive ---
@@ -220,7 +213,7 @@ export async function onRequest(context) {
       kind: 'vault-snapshot',
       snapshot: fullSnapshot,
       manifest,
-      meta: { source: 'full-backup', backedUpAt, clientKeys, totalSupabaseRows }
+      meta: { source: 'full-backup', backedUpAt, clientKeys, totalDbRows }
     };
 
     const response = await fetchWithRedirects(gdriveWebhook, {
@@ -258,7 +251,7 @@ export async function onRequest(context) {
     return Response.json({
       ok: true,
       backedUpAt,
-      stats: { clientKeys, totalSupabaseRows, counts, hasCarIdb },
+      stats: { clientKeys, totalDbRows, counts, hasCarIdb },
       drive: parsed
     }, { headers: corsHeaders });
 

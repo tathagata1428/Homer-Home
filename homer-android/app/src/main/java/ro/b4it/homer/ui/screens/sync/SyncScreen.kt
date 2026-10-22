@@ -75,7 +75,7 @@ fun SyncScreen(vm: SyncViewModel = hiltViewModel()) {
                             color      = TextPrimary,
                         )
                         Text(
-                            if (active) "Direct Supabase REST sync" else "Supabase credentials not configured",
+                            if (active) "Homer API sync" else "Sync credentials not configured",
                             style = MaterialTheme.typography.labelSmall,
                             color = TextMuted,
                         )

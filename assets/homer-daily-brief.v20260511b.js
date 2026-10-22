@@ -32,9 +32,9 @@
   /* ── Helpers ──────────────────────────────────────────────────────── */
   function isBogdan() {
     if (String(localStorage.getItem('homer-auth-user') || '').trim().toLowerCase() === BOGDAN_USER) return true;
-    // Fallback: Supabase session may be restored before Homer auth fires
+    // Fallback: DB session may be restored before Homer auth fires
     try {
-      var s = window.__sbSession;
+      var s = window.__dbSession;
       if (s && s.user && s.user.email && s.user.email.toLowerCase() === 'bogdan.radu@b4it.ro') return true;
     } catch (_) {}
     return false;
@@ -286,7 +286,7 @@
   /* ── Bogdan visibility ────────────────────────────────────────────── */
   function updateBogdanVisibility() {
     // Sidebar button (#db-sb-btn) is always visible — it's in HTML and this is
-    // a personal dashboard. Supabase sync ops are separately gated by canSync().
+    // a personal dashboard. DB sync ops are separately gated by canSync().
   }
 
   /* ── Weather ──────────────────────────────────────────────────────── */
@@ -677,7 +677,7 @@
   }
 
   /* ==================================================================
-   * SUPABASE SYNC — vault blob (8s interval, hash-dedup)
+   * DB SYNC — vault blob (8s interval, hash-dedup)
    * ================================================================== */
   var _lastVaultHash = '';
   var _vaultSyncBusy = false;
@@ -702,7 +702,7 @@
     };
   }
 
-  function pushVaultToSupabase(force) {
+  function pushVaultToDb(force) {
     if (!isBogdan()) return;
     if (_vaultSyncBusy) return;
     var pass = String(localStorage.getItem('homer-sync-pass') || '').trim();
@@ -767,15 +767,15 @@
   }
 
   /* ==================================================================
-   * SUPABASE SYNC — habits (8s interval, hash-dedup)
+   * DB SYNC — habits (8s interval, hash-dedup)
    * ================================================================== */
   var _lastHabitsHash = '';
 
-  function pushHabitsToSupabase(force) {
+  function pushHabitsToDb(force) {
     if (!isBogdan()) return;
-    var supabase = window.__supabase;
-    var session  = window.__sbSession;
-    if (!supabase || !session || !session.user) return;
+    var dbClient = window.__db;
+    var session  = window.__dbSession;
+    if (!dbClient || !session || !session.user) return;
     var raw = localStorage.getItem(HABITS_KEY);
     if (!raw) return;
     // Don't push empty habits before the enhancements pull completes —
@@ -788,7 +788,7 @@
     if (!force && hash === _lastHabitsHash) return;
     _lastHabitsHash = hash;
     var value; try { value = JSON.parse(raw); } catch (_) { return; }
-    supabase.from('joey_meta').upsert(
+    dbClient.from('joey_meta').upsert(
       { user_id: session.user.id, mode: 'personal', key: 'habits_data',
         value: value, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,mode,key' }
@@ -799,21 +799,21 @@
   }
 
   /* ==================================================================
-   * SUPABASE SYNC — extra localStorage keys (zen-goal, brain-dump)
+   * DB SYNC — extra localStorage keys (zen-goal, brain-dump)
    * ================================================================== */
   var _lastExtrasHash = '';
 
-  function pushExtrasToSupabase(force) {
+  function pushExtrasToDb(force) {
     if (!isBogdan()) return;
-    var supabase = window.__supabase;
-    var session  = window.__sbSession;
-    if (!supabase || !session || !session.user) return;
+    var dbClient = window.__db;
+    var session  = window.__dbSession;
+    if (!dbClient || !session || !session.user) return;
     var zen   = localStorage.getItem(ZEN_KEY)   || '';
     var brain = localStorage.getItem(BRAIN_KEY) || '';
     var hash  = quickHash(zen + '||' + brain);
     if (!force && hash === _lastExtrasHash) return;
     _lastExtrasHash = hash;
-    supabase.from('joey_meta').upsert(
+    dbClient.from('joey_meta').upsert(
       { user_id: session.user.id, mode: 'personal', key: 'ls_extras',
         value: { zen_goal: zen, brain_dump: brain, synced_at: Date.now() },
         updated_at: new Date().toISOString() },
@@ -828,7 +828,7 @@
   function startPeriodicSync() {
     setInterval(function () {
       if (!isBogdan()) return;
-      pushVaultToSupabase(false); // includes habits + extras in single request
+      pushVaultToDb(false); // includes habits + extras in single request
     }, 8000);
   }
 
@@ -836,7 +836,7 @@
   function hookDataSaves() {
     // Vault save → immediate backup (also picks up habits + extras in same request)
     window.addEventListener('vault-goals-changed', function () {
-      if (isBogdan()) setTimeout(function () { pushVaultToSupabase(true); }, 800);
+      if (isBogdan()) setTimeout(function () { pushVaultToDb(true); }, 800);
       if (document.body.dataset.activeTab === 'daily-brief') populateFromVault();
     });
 
@@ -849,20 +849,20 @@
     // Habits / extras changed → force a full backup (vault-backup sends everything)
     window.addEventListener('storage', function (e) {
       if (!isBogdan()) return;
-      if (e.key === HABITS_KEY)  { _lastVaultHash = ''; pushVaultToSupabase(true); if (document.body.dataset.activeTab === 'daily-brief') renderHabits(); }
-      if (e.key === ZEN_KEY || e.key === BRAIN_KEY) { _lastVaultHash = ''; pushVaultToSupabase(true); }
+      if (e.key === HABITS_KEY)  { _lastVaultHash = ''; pushVaultToDb(true); if (document.body.dataset.activeTab === 'daily-brief') renderHabits(); }
+      if (e.key === ZEN_KEY || e.key === BRAIN_KEY) { _lastVaultHash = ''; pushVaultToDb(true); }
     });
 
-    // Supabase session or Homer auth → force full backup
-    window.addEventListener('supabase:session', function () {
-      if (isBogdan()) setTimeout(function () { pushVaultToSupabase(true); }, 2000);
+    // DB session or Homer auth → force full backup
+    window.addEventListener('db:session', function () {
+      if (isBogdan()) setTimeout(function () { pushVaultToDb(true); }, 2000);
     });
 
     // Auth / vault unlock → refresh visibility + backup + auto-open brief if morning
     window.addEventListener('homer-auth', function () {
       updateBogdanVisibility();
       if (isBogdan()) {
-        setTimeout(function () { pushVaultToSupabase(true); }, 1500);
+        setTimeout(function () { pushVaultToDb(true); }, 1500);
         // Auto-open daily brief on first login of the morning (before ack)
         if (isInMorningWindow() && !hasAckedToday()) {
           setTimeout(function () { showDailyBrief(); }, 600);
@@ -880,16 +880,16 @@
     });
 
     window.addEventListener('homer-auth', updateBogdanVisibility);
-    window.addEventListener('supabase:authchange', updateBogdanVisibility);
-    window.addEventListener('supabase:session', updateBogdanVisibility);
+    window.addEventListener('db:authchange', updateBogdanVisibility);
+    window.addEventListener('db:session', updateBogdanVisibility);
 
     var btn = document.getElementById('db-refresh-btn');
     if (btn) btn.addEventListener('click', function () {
       refreshDailyBrief();
       if (isBogdan()) {
-        pushVaultToSupabase(true);
-        pushHabitsToSupabase(true);
-        pushExtrasToSupabase(true);
+        pushVaultToDb(true);
+        pushHabitsToDb(true);
+        pushExtrasToDb(true);
       }
     });
 
@@ -916,10 +916,10 @@
 
     // If session already exists on load, kick off first sync immediately
     setTimeout(function () {
-      if (isBogdan() && window.__sbSession && window.__sbSession.user) {
-        pushVaultToSupabase(true);
-        pushHabitsToSupabase(true);
-        pushExtrasToSupabase(true);
+      if (isBogdan() && window.__dbSession && window.__dbSession.user) {
+        pushVaultToDb(true);
+        pushHabitsToDb(true);
+        pushExtrasToDb(true);
       }
     }, 2500);
   });

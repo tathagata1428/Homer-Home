@@ -1,9 +1,10 @@
 ## Copy this to local.properties (never commit local.properties)
 sdk.dir=/path/to/Android/Sdk
 
-## Supabase — project ref: fwzxxrldxnlhcyulkwrg
-SUPABASE_URL=https://fwzxxrldxnlhcyulkwrg.supabase.co
-SUPABASE_ANON_KEY=eyJ...   # get from Supabase dashboard → Project Settings → API
+## Cloud sync (talks to HOMER_BASE_URL/api — same login as the website)
+SYNC_ENABLED=true
+HOMER_SYNC_USERNAME=bogdan
+HOMER_SYNC_PASSWORD=...
 
 ## AI gateway (OpenRouter)
 OC_GATEWAY_URL=https://openrouter.ai/api/v1

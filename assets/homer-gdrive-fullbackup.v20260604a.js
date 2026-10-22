@@ -6,8 +6,8 @@
  *
  * Shows ALL backup layers with live staleness indicators:
  *   ☁  R2 Cloud        — localStorage + vault IDB (auto-sync)
- *   🗄  Supabase DB     — full DB mirror
- *   📦  Drive Full      — EVERYTHING: local + Supabase field_state + Joey context
+ *   🗄  DB DB     — full DB mirror
+ *   📦  Drive Full      — EVERYTHING: local + DB field_state + Joey context
  *   🧠  Joey Drive      — Joey AI context markdown files
  *
  * "Backup Everything Now" button fires all layers in parallel.
@@ -27,11 +27,11 @@
   function isBogdan() {
     var u = localStorage.getItem('homer-auth-user');
     if (u && u.toLowerCase() === 'bogdan') return true;
-    var sess = window.__sbSession;
+    var sess = window.__dbSession;
     return !!(sess && sess.user && (sess.user.email || '').toLowerCase().includes('bogdan'));
   }
   function getJwt() {
-    var s = window.__sbSession;
+    var s = window.__dbSession;
     return s && s.access_token ? s.access_token : null;
   }
   function getSyncPass() { return localStorage.getItem('homer-sync-pass') || ''; }
@@ -122,7 +122,7 @@
 
   /* ── Backup state keys ──────────────────────────────────────────── */
   var KEY_R2_TS      = 'homer-backup-ts';          // R2 cloud backup
-  var KEY_DB_TS      = 'homer-vault-supa-ts';        // Supabase vault sync (written by daily-brief on successful supa push)
+  var KEY_DB_TS      = 'homer-vault-supa-ts';        // DB vault sync (written by daily-brief on successful supa push)
   var KEY_DRIVE_TS   = 'homer-drive-backup-ts';     // Joey context Drive
   var KEY_FULL_TS    = 'homer-drive-fullbackup-ts'; // Full Drive backup (this script)
   var KEY_FULL_STATS = 'homer-drive-fullbackup-stats';
@@ -155,16 +155,16 @@
     });
   }
 
-  /* ── Run Supabase Sync ──────────────────────────────────────────── */
+  /* ── Run DB Sync ──────────────────────────────────────────── */
   function runDbMirror(onStatus) {
     if (typeof window._heSyncPullAll === 'function') {
-      onStatus('Syncing with Supabase\u2026');
+      onStatus('Syncing with DB\u2026');
       try { window._heSyncPullAll(); } catch (e) { return Promise.resolve({ ok: false, error: e.message }); }
       // _heSyncPullAll is fire-and-forget; stamp optimistically
       localStorage.setItem('homer-vault-supa-ts', String(Date.now()));
       return Promise.resolve({ ok: true });
     }
-    return Promise.resolve({ ok: false, error: 'Supabase sync not available' });
+    return Promise.resolve({ ok: false, error: 'DB sync not available' });
   }
 
   /* ── Run Joey Drive Backup ──────────────────────────────────────── */
@@ -198,7 +198,7 @@
 
     if (descEl) {
       if (fullTs) {
-        var rows = stats && stats.totalSupabaseRows ? stats.totalSupabaseRows + ' rows · ' : '';
+        var rows = stats && stats.totalDbRows ? stats.totalDbRows + ' rows · ' : '';
         descEl.textContent = rows + fmtAge(fullTs);
       } else {
         descEl.textContent = 'Never backed up';
@@ -270,7 +270,7 @@
       var chips = [];
       var c = stats.counts || {};
       if (stats.clientKeys)           chips.push(stats.clientKeys + ' local keys');
-      if (stats.totalSupabaseRows)    chips.push(stats.totalSupabaseRows + ' DB rows total');
+      if (stats.totalDbRows)    chips.push(stats.totalDbRows + ' DB rows total');
       if (c.messages)                 chips.push(c.messages + ' messages');
       if (c.memories)                 chips.push(c.memories + ' memories');
       if (c.journal)                  chips.push(c.journal + ' journal entries');
@@ -293,13 +293,13 @@
       '<div style="padding:14px 0 0;border-top:1px solid rgba(255,255,255,.08);">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;">'
       + '<div><h3 style="margin:0 0 3px;font-size:1rem;font-weight:800;color:#e5e7eb;">&#x1F6E1;&#xFE0F; Backup Control Panel</h3>'
-      + '<p style="margin:0;font-size:.74rem;color:#64748b;">localStorage &bull; vault IDB &bull; car IDB (file attachments) &bull; habits, expenses, notes, car tracker, kanban, life goals, journal, secret notes, inbox &bull; Supabase field state &bull; focus sessions &bull; Joey AI memories &amp; history</p></div>'
+      + '<p style="margin:0;font-size:.74rem;color:#64748b;">localStorage &bull; vault IDB &bull; car IDB (file attachments) &bull; habits, expenses, notes, car tracker, kanban, life goals, journal, secret notes, inbox &bull; DB field state &bull; focus sessions &bull; Joey AI memories &amp; history</p></div>'
       + '<button id="bcp-backup-all" class="btn primary" style="padding:8px 18px;font-size:.85rem;font-weight:800;border-radius:10px;flex-shrink:0;">&#x2601; Backup Everything Now</button>'
       + '</div>'
       // Status rows
       + '<div style="margin-bottom:4px;">'
       + row('&#x2601;', 'R2 Cloud &mdash; auto-sync (browser data)', r2Ts, 1, 3)
-      + row('&#x1F5C4;', 'Supabase sync &mdash; vault &amp; field state', dbTs, 1, 3)
+      + row('&#x1F5C4;', 'DB sync &mdash; vault &amp; field state', dbTs, 1, 3)
       + row('&#x1F4E6;', 'Drive Full Backup &mdash; everything, all devices', fullTs, 3, 7)
       + row('&#x1F9E0;', 'Joey Context &mdash; AI memories &amp; history', joeyTs, 3, 7)
       + '</div>'
@@ -413,7 +413,7 @@
   ready(function () {
     // Show immediately on load
     show();
-    // Retry after 800ms in case Supabase/auth initializes after DOMContentLoaded
+    // Retry after 800ms in case DB/auth initializes after DOMContentLoaded
     setTimeout(show, 800);
     // Retry after 2.5s for slow auth
     setTimeout(show, 2500);
