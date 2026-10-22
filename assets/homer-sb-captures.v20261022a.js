@@ -1,31 +1,36 @@
-/* Homer — Second Brain Captures
+/* Homer — Inbox (= Second Brain Captures)
  *
- * The same Captures list the Second Brain desktop, web and phone apps share:
- * throw in an idea, link, note or picture, see what the other devices
- * captured, and send yours to them.
+ * Homer's Inbox and secondbrain's Captures are one list: the server bridges
+ * the inbox field (ls:homer-inbox) to the hub's captures table
+ * (lib/hub-bridge.js). This panel shows that list — what was captured here,
+ * on the Homer phone app, and in secondbrain on the phone, PC or web — and
+ * adds text, links and pictures to it.
  *
  * Like the rest of Homer (HOMER_SYNC_ON_DEMAND), nothing moves until a Sync
- * is asked for: the panel's Sync button, or Sync Now / Push / Pull in the Sync
- * & Backup panel (app-shell runSync calls _homerCapturesPush/_homerCapturesPull).
- * New captures, edits and deletions wait here (IndexedDB, so pictures fit),
- * marked as not sent, and count as waiting changes.
+ * is asked for: the panel's Sync button runs the same Sync Now as the Sync &
+ * Backup panel. Items are written to localStorage['homer-inbox'] like any
+ * inbox edit (queued until Sync); deletions are tombstoned
+ * (window._homerInboxTombstone) so a merge never brings them back.
  *
- * The hub is reached through /api/sb-captures (functions/api/sb-captures.js)
- * with the Homer sign-in; the server uses Homer's own hub device.
- *
- * A capture that a Second Brain desktop sees with status "pending" is sorted
- * there by its AI, exactly like one made on the phone. */
+ * Pictures don't fit in that blob: they wait in IndexedDB and go to the hub
+ * through /api/sb-captures (functions/api/sb-captures.js) once their item
+ * has reached it; a picture captured elsewhere is fetched from there when
+ * shown. app-shell runSync calls _homerCapturesPush / _homerCapturesPull. */
 (function () {
   'use strict';
 
   var API = '/api/sb-captures';
+  var KEY = 'homer-inbox';
   var DB_NAME = 'homer-sb-captures';
-  var DB_VERSION = 1;
+  var DB_VERSION = 2;
   // Same ceiling as Second Brain's own clients: a picture travels as base64
   // inside its row and the hub refuses rows over 32 MB.
   var MAX_PHOTO_BYTES = 22 * 1024 * 1024;
 
   // ── Storage ───────────────────────────────────────────────────────────
+  // images: { id (inbox item id), image_name, image_type, image_data,
+  //           pending: not sent yet, removed: the picture was taken off }
+  // captures: left over from the first version of this panel (migrated once).
   var dbPromise = null;
   function openDb() {
     if (dbPromise) return dbPromise;
@@ -35,6 +40,7 @@
         var db = req.result;
         if (!db.objectStoreNames.contains('captures')) db.createObjectStore('captures', { keyPath: 'sync_id' });
         if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta');
+        if (!db.objectStoreNames.contains('images')) db.createObjectStore('images', { keyPath: 'id' });
       };
       req.onsuccess = function () { resolve(req.result); };
       req.onerror = function () { dbPromise = null; reject(req.error); };
@@ -45,36 +51,32 @@
     return openDb().then(function (db) {
       return new Promise(function (resolve, reject) {
         var t = db.transaction(store, mode);
-        var result;
-        t.oncomplete = function () { resolve(result); };
+        var req = fn(t.objectStore(store));
+        t.oncomplete = function () { resolve(req && 'result' in req ? req.result : undefined); };
         t.onerror = function () { reject(t.error); };
         t.onabort = function () { reject(t.error); };
-        result = fn(t.objectStore(store));
-        if (result && 'onsuccess' in result) {
-          var req = result;
-          req.onsuccess = function () { result = req.result; };
-        }
       });
     });
   }
-  function allRows() { return tx('captures', 'readonly', function (s) { return s.getAll(); }); }
-  function getRow(id) { return tx('captures', 'readonly', function (s) { return s.get(id); }); }
-  function putRow(row) { return tx('captures', 'readwrite', function (s) { s.put(row); }); }
-  function deleteRow(id) { return tx('captures', 'readwrite', function (s) { s.delete(id); }); }
-  function getMeta(key) { return tx('meta', 'readonly', function (s) { return s.get(key); }); }
-  function setMeta(key, value) { return tx('meta', 'readwrite', function (s) { s.put(value, key); }); }
-  function clearAll() {
-    return openDb().then(function (db) {
-      return new Promise(function (resolve, reject) {
-        var t = db.transaction(['captures', 'meta'], 'readwrite');
-        t.objectStore('captures').clear();
-        t.objectStore('meta').clear();
-        t.oncomplete = function () { resolve(); };
-        t.onerror = function () { reject(t.error); };
-      });
-    });
-  }
+  function getImage(id) { return tx('images', 'readonly', function (s) { return s.get(String(id)); }); }
+  function allImages() { return tx('images', 'readonly', function (s) { return s.getAll(); }); }
+  function putImage(rec) { return tx('images', 'readwrite', function (s) { s.put(Object.assign({}, rec, { id: String(rec.id) })); }); }
+  function dropImage(id) { return tx('images', 'readwrite', function (s) { s.delete(String(id)); }); }
 
+  function safeJson(text, fallback) { try { var v = JSON.parse(text); return v == null ? fallback : v; } catch (e) { return fallback; } }
+  // Items deleted here, to delete in Second Brain on the next Sync (the
+  // server never deletes a capture just because a saved inbox lacks it).
+  // Local only: Storage.prototype.setItem skips Homer's sync patches.
+  var DELETE_QUEUE_KEY = 'homer-inbox-delete-queue';
+  function deleteQueue() { var v = safeJson(localStorage.getItem(DELETE_QUEUE_KEY), []); return Array.isArray(v) ? v : []; }
+  function setDeleteQueue(ids) { try { Storage.prototype.setItem.call(localStorage, DELETE_QUEUE_KEY, JSON.stringify(ids)); } catch (e) {} }
+  function readInbox() { var v = safeJson(localStorage.getItem(KEY), []); return Array.isArray(v) ? v : []; }
+  // Through localStorage.setItem on purpose: Homer's patches queue it for the
+  // next Sync like every other inbox edit.
+  function writeInbox(list) {
+    localStorage.setItem(KEY, JSON.stringify(list));
+    window.dispatchEvent(new Event('homer-inbox-changed'));
+  }
 
   // ── Helpers ───────────────────────────────────────────────────────────
   function uuid() {
@@ -89,8 +91,17 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
-  function timeAgo(iso) {
-    var t = new Date(iso).getTime();
+  // Inbox items carry their time in whichever key the client that made them used.
+  function itemTime(x) {
+    return Number(x.createdAt) || Date.parse(x.ts || x.date || '') || (/^\d{12,}$/.test(String(x.id)) ? Number(x.id) : 0);
+  }
+  function itemText(x) { return [String(x.text || '').trim(), String(x.note || '').trim()].filter(Boolean).join('\n'); }
+  function splitText(content) {
+    var c = String(content || '').replace(/\r\n/g, '\n').trim();
+    var cut = c.indexOf('\n');
+    return cut < 0 ? { text: c, note: '' } : { text: c.slice(0, cut).trim(), note: c.slice(cut + 1).trim() };
+  }
+  function timeAgo(t) {
     if (!t) return '';
     var s = Math.max(0, (Date.now() - t) / 1000);
     if (s < 60) return 'just now';
@@ -101,12 +112,11 @@
   }
   // Only the picture formats a browser draws; anything else (HEIC from an
   // older phone build) is offered as a download instead.
-  var DRAWABLE = /^image\/(png|jpe?g|gif|webp|bmp|avif|svg\+xml)$/i;
-  function photoSrc(row) {
-    if (!row || !row.image_data) return null;
-    var type = String(row.image_type || 'image/jpeg').toLowerCase();
-    if (!DRAWABLE.test(type) || type === 'image/svg+xml') return null;
-    return 'data:' + type + ';base64,' + row.image_data;
+  var DRAWABLE = /^image\/(png|jpe?g|gif|webp|bmp|avif)$/i;
+  function photoSrc(img) {
+    if (!img || !img.image_data || img.removed) return null;
+    var type = String(img.image_type || 'image/jpeg').toLowerCase();
+    return DRAWABLE.test(type) ? 'data:' + type + ';base64,' + img.image_data : null;
   }
   function readPhoto(file) {
     return new Promise(function (resolve) {
@@ -125,19 +135,20 @@
       r.readAsDataURL(file);
     });
   }
-  function downloadPhoto(row) {
-    var bin = atob(row.image_data), bytes = new Uint8Array(bin.length);
+  function downloadPhoto(id, img) {
+    var bin = atob(img.image_data), bytes = new Uint8Array(bin.length);
     for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    var url = URL.createObjectURL(new Blob([bytes], { type: row.image_type || 'application/octet-stream' }));
-    var ext = String(row.image_type || 'image/jpeg').split('/')[1] || 'jpg';
+    var url = URL.createObjectURL(new Blob([bytes], { type: img.image_type || 'application/octet-stream' }));
+    var ext = String(img.image_type || 'image/jpeg').split('/')[1] || 'jpg';
     var a = document.createElement('a');
     a.href = url;
-    a.download = row.image_name && !/^photo\./i.test(row.image_name) ? row.image_name : 'capture-' + String(row.sync_id).slice(0, 8) + '.' + ext;
+    a.download = img.image_name && !/^photo\./i.test(img.image_name) ? img.image_name : 'capture-' + String(id).slice(0, 8) + '.' + ext;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
   }
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
-  // ── Hub ───────────────────────────────────────────────────────────────
+  // ── Server ────────────────────────────────────────────────────────────
   // The Homer session, refreshed first when it is about to run out.
   function authHeader() {
     var fresh = window.__db && window.__db.auth ? window.__db.auth.getSession().catch(function () {}) : Promise.resolve();
@@ -145,7 +156,7 @@
   }
   function call(body) {
     return authHeader().then(function (auth) {
-      if (!auth) throw new Error('Sign in to Homer (Account) to sync captures.');
+      if (!auth) throw new Error('Sign in to Homer (Account) to sync the inbox.');
       return fetch(API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: auth },
@@ -154,66 +165,70 @@
       });
     }).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (data) {
-        if (r.status === 401) throw new Error('Your Homer sign-in has ended. Sign in again (Account) to sync captures.');
-        if (!r.ok) throw new Error(data.error || ('Second Brain answered ' + r.status));
+        if (r.status === 401) throw new Error('Your Homer sign-in has ended. Sign in again (Account) to sync the inbox.');
+        if (r.status === 409 && data.notYet) return data;
+        if (!r.ok) throw new Error(data.error || ('Homer answered ' + r.status));
         return data;
       });
     });
   }
 
-  // Pulls every capture changed on the hub since the last pull. A capture
-  // edited here and not sent yet is kept when it is newer than the hub's.
-  async function pull() {
-    var since = (await getMeta('sinceSeq')) || 0;
-    for (var guard = 0; guard < 200; guard++) {
-      var data = await call({ action: 'pull', sinceSeq: since });
-      var rows = Array.isArray(data.rows) ? data.rows : [];
-      for (var i = 0; i < rows.length; i++) {
-        var hubRow = rows[i];
-        var local = await getRow(hubRow.sync_id);
-        if (local && local._dirty && String(local.updated_at) > String(hubRow.updated_at)) continue;
-        if (hubRow.deleted_at) await deleteRow(hubRow.sync_id);
-        else await putRow(Object.assign({}, hubRow, { _dirty: false }));
-      }
-      var next = data.nextSeq == null ? since : data.nextSeq;
-      if (!rows.length || String(next) === String(since)) break;
-      since = next;
-      await setMeta('sinceSeq', since);
+  // Sends deletes and pictures that are waiting. An item's picture can only follow once
+  // the item itself has reached Second Brain (the inbox goes out first in
+  // the same Sync, a moment earlier), so a "not yet" is retried briefly and
+  // then left for the next Sync.
+  async function pushImages() {
+    var sent = 0, notYet = 0, failed = [];
+    var gone = deleteQueue();
+    if (gone.length) {
+      try {
+        await call({ action: 'delete', ids: gone });
+        setDeleteQueue(deleteQueue().filter(function (id) { return gone.indexOf(id) < 0; }));
+      } catch (err) { failed.push(err.message); }
     }
+    var waiting = (await allImages()).filter(function (r) { return r.pending; });
+    var live = {};
+    readInbox().forEach(function (x) { live[String(x.id)] = true; });
+    for (var i = 0; i < waiting.length; i++) {
+      var rec = waiting[i];
+      if (!live[rec.id]) { await dropImage(rec.id); continue; }
+      var image = rec.removed ? null : { image_name: rec.image_name, image_type: rec.image_type, image_data: rec.image_data };
+      var res = null;
+      for (var attempt = 0; attempt < 5; attempt++) {
+        try { res = await call({ action: 'image-put', id: rec.id, image: image }); }
+        catch (err) { res = { error: err.message }; break; }
+        if (!res.notYet) break;
+        await wait(2500);
+      }
+      if (res && res.ok) {
+        sent++;
+        if (rec.removed) await dropImage(rec.id);
+        else await putImage(Object.assign({}, rec, { pending: false }));
+      } else if (res && res.notYet) notYet++;
+      else failed.push((res && res.error) || 'not sent');
+    }
+    await countWaiting();
+    return { sent: sent, notYet: notYet, failed: failed };
   }
 
-  var COLUMNS = ['content', 'source', 'status', 'category', 'tags', 'error', 'processed_at', 'image_name', 'image_type', 'image_data'];
-  function wireRow(row) {
-    var out = { sync_id: row.sync_id, created_at: row.created_at, updated_at: row.updated_at, deleted_at: row.deleted_at || null };
-    COLUMNS.forEach(function (c) { out[c] = row[c] === undefined ? null : row[c]; });
-    // NOT NULL on the hub; a null bypasses its default.
-    if (!Array.isArray(out.tags)) out.tags = [];
-    if (out.content == null) out.content = '';
-    if (!out.source) out.source = 'homer';
-    if (!out.status) out.status = 'pending';
-    return out;
+  // Pulls Second Brain now (the server would otherwise wait up to 15 s
+  // between hub pulls) and merges the result into the local inbox.
+  async function refresh() {
+    var data = await call({ action: 'refresh' });
+    if (typeof window._homerApplyRemoteInbox === 'function') window._homerApplyRemoteInbox(data.value);
+    rerender();
   }
 
-  // One row per request: a picture can be tens of MB.
-  async function push() {
-    var rows = (await allRows()).filter(function (r) { return r._dirty; });
-    var sent = 0, failed = [];
-    for (var i = 0; i < rows.length; i++) {
-      var row = rows[i];
-      var res = await call({ action: 'push', rows: [wireRow(row)] });
-      var ok = (res.accepted || []).some(function (a) { return a.sync_id === row.sync_id; });
-      var rej = (res.rejected || []).filter(function (a) { return a.sync_id === row.sync_id; })[0];
-      if (ok || (rej && rej.reason === 'stale-conflict')) {
-        // Accepted, or the hub holds a newer edit made elsewhere: either way
-        // the next pull brings the hub's version.
-        if (row.deleted_at) await deleteRow(row.sync_id);
-        else await putRow(Object.assign({}, row, { _dirty: false, _sent: true }));
-        if (ok) sent++;
-      } else {
-        failed.push(rej && rej.reason ? rej.reason : (res.error || 'not accepted'));
-      }
-    }
-    return { sent: sent, failed: failed };
+  // A picture captured elsewhere (or sent from here earlier), fetched when shown.
+  var fetching = {};
+  function loadImage(id) {
+    if (fetching[id]) return fetching[id];
+    fetching[id] = call({ action: 'image-get', id: id }).then(function (data) {
+      if (!data.image) return null;
+      var rec = Object.assign({ id: id, pending: false }, data.image);
+      return putImage(rec).then(function () { return rec; });
+    }).catch(function () { return null; }).then(function (rec) { delete fetching[id]; return rec; });
+    return fetching[id];
   }
 
   // ── Panel ─────────────────────────────────────────────────────────────
@@ -249,6 +264,7 @@
       '.sbcap-list{display:flex;flex-direction:column;gap:10px;margin-top:8px;}',
       '.sbcap-item{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);border-radius:14px;padding:12px 14px;}',
       '.sbcap-item.unsent{border-color:rgba(245,158,11,.45);}',
+      '.sbcap-item.done .sbcap-text{opacity:.55;text-decoration:line-through;}',
       '.sbcap-text{white-space:pre-wrap;word-break:break-word;font-size:.93rem;line-height:1.45;}',
       '.sbcap-text a{color:var(--accent-2);}',
       '.sbcap-photo{margin-top:8px;display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;}',
@@ -270,50 +286,65 @@
     document.head.appendChild(css);
   }
 
+  // Kept here, not read back from the page: renders overlap (a Sync's pull
+  // re-renders while the Sync itself still has a message to show).
+  var statusMsg = '', statusErr = false;
   function say(msg, isErr) {
+    statusMsg = msg || '';
+    statusErr = !!isErr;
     var s = el && el.querySelector('.sbcap-status');
     if (!s) return;
-    s.textContent = msg || '';
-    s.classList.toggle('err', !!isErr);
+    s.textContent = statusMsg;
+    s.classList.toggle('err', statusErr);
   }
 
   function linkify(text) {
     return esc(text).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
   }
 
-  var SOURCE_ICON = { ios: '📱', android: '📱', mobile: '📱', web: '🌐', homer: '🏠', desktop: '🖥️' };
-  function sourceLabel(src) {
-    var s = String(src || 'desktop');
-    return (SOURCE_ICON[s] || '🖥️') + ' ' + (s === 'homer' ? 'Homer' : s === 'ios' ? 'iPhone' : s.charAt(0).toUpperCase() + s.slice(1));
-  }
+  var SOURCE_LABEL = { ios: '📱 iPhone', android: '📱 Phone', mobile: '📱 Phone', web: '🌐 Web', homer: '🏠 Homer', desktop: '🖥️ Desktop' };
+  function sourceLabel(src) { return src ? (SOURCE_LABEL[src] || '🖥️ ' + src) : '🏠 Homer'; }
 
-  function itemHtml(c) {
-    if (editing && editing.id === c.sync_id) {
-      var p = editing.photo === undefined ? c : (editing.photo || {});
+  // Not on Second Brain yet: never came back from it (no status), or a
+  // picture still waiting.
+  function isUnsent(x, img) { return !x.status || !!(img && img.pending); }
+
+  function itemHtml(x, img) {
+    var id = String(x.id);
+    var shown = img && !img.removed ? img : null;
+    var hasPic = shown || (x.hasImage && !(img && img.removed));
+    if (editing && editing.id === id) {
+      var p = editing.photo === undefined ? shown : editing.photo;
       var src = photoSrc(p);
-      return '<div class="sbcap-item" data-id="' + c.sync_id + '"><div class="sbcap-edit">' +
-        '<textarea class="sbcap-field" data-edit-text rows="3">' + esc(c.content) + '</textarea>' +
-        (p.image_data ? '<div class="sbcap-photo">' + (src ? '<img src="' + src + '" alt="">' : '<span class="sbcap-sub">Picture in a format this browser cannot show.</span>') + '</div>' : '') +
+      var keepsPic = editing.photo === undefined ? hasPic : !!editing.photo;
+      return '<div class="sbcap-item" data-id="' + esc(id) + '"><div class="sbcap-edit">' +
+        '<textarea class="sbcap-field" data-edit-text rows="3">' + esc(editing.text !== undefined ? editing.text : itemText(x)) + '</textarea>' +
+        (keepsPic ? '<div class="sbcap-photo">' + (src ? '<img src="' + src + '" alt="">' : '<span class="sbcap-sub">🖼️ Picture</span>') + '</div>' : '') +
         '<div class="sbcap-row">' +
-          '<button class="sbcap-btn sm" data-edit-photo>📷 ' + (p.image_data ? 'Replace picture' : 'Add picture') + '</button>' +
-          (p.image_data ? '<button class="sbcap-btn sm" data-edit-unphoto>Remove picture</button>' : '') +
+          '<button class="sbcap-btn sm" data-edit-photo>📷 ' + (keepsPic ? 'Replace picture' : 'Add picture') + '</button>' +
+          (keepsPic ? '<button class="sbcap-btn sm" data-edit-unphoto>Remove picture</button>' : '') +
           '<span style="flex:1"></span>' +
           '<button class="sbcap-btn sm" data-edit-cancel>Cancel</button>' +
           '<button class="sbcap-btn sm primary" data-edit-save>Save</button>' +
         '</div></div></div>';
     }
-    var img = photoSrc(c);
-    return '<div class="sbcap-item' + (c._dirty ? ' unsent' : '') + '" data-id="' + c.sync_id + '">' +
-      (c.content ? '<div class="sbcap-text">' + linkify(c.content) + '</div>' : '') +
-      (c.image_data ? '<div class="sbcap-photo">' +
-        (img ? '<img src="' + img + '" alt="" data-open-photo title="See it full size">' : '<span class="sbcap-sub">Picture in a format this browser cannot show.</span>') +
-        '<button class="sbcap-btn sm" data-download>⬇ Download</button></div>' : '') +
+    var text = itemText(x);
+    var srcImg = photoSrc(shown);
+    var unsent = isUnsent(x, img);
+    return '<div class="sbcap-item' + (unsent ? ' unsent' : '') + (x.done ? ' done' : '') + '" data-id="' + esc(id) + '">' +
+      (text ? '<div class="sbcap-text">' + linkify(text) + '</div>' : '') +
+      (hasPic ? '<div class="sbcap-photo">' +
+        (srcImg ? '<img src="' + srcImg + '" alt="" data-open-photo title="See it full size">'
+          : shown ? '<span class="sbcap-sub">Picture in a format this browser cannot show.</span>'
+          : '<span class="sbcap-sub" data-load-photo>🖼️ Loading picture…</span>') +
+        (shown ? '<button class="sbcap-btn sm" data-download>⬇ Download</button>' : '') + '</div>' : '') +
       '<div class="sbcap-meta">' +
-        (c._dirty ? '<span class="sbcap-badge unsent">not sent</span>' : '') +
-        '<span class="sbcap-badge ' + esc(c.status === 'done' || c.status === 'error' ? c.status : '') + '">' + esc(c.status || 'pending') + '</span>' +
-        (c.category ? '<span class="sbcap-badge">' + esc(c.category) + '</span>' : '') +
-        (Array.isArray(c.tags) ? c.tags.slice(0, 4).map(function (t) { return '<span class="sbcap-badge">#' + esc(t) + '</span>'; }).join('') : '') +
-        '<span>' + sourceLabel(c.source) + ' · ' + esc(timeAgo(c.created_at)) + '</span>' +
+        (unsent ? '<span class="sbcap-badge unsent">not sent</span>' : '') +
+        (x.status ? '<span class="sbcap-badge ' + (x.status === 'done' || x.status === 'error' ? x.status : '') + '">' + esc(x.status) + '</span>' : '') +
+        (x.category ? '<span class="sbcap-badge">' + esc(x.category) + '</span>' : '') +
+        (x.type && x.type !== 'thought' ? '<span class="sbcap-badge">' + esc(x.type) + '</span>' : '') +
+        (Array.isArray(x.tags) ? x.tags.slice(0, 4).map(function (t) { return '<span class="sbcap-badge">#' + esc(t) + '</span>'; }).join('') : '') +
+        '<span>' + sourceLabel(x.source) + ' · ' + esc(timeAgo(itemTime(x))) + '</span>' +
         '<span class="sbcap-grow"></span>' +
         '<button class="sbcap-btn sm" data-edit>Edit</button>' +
         '<button class="sbcap-btn sm danger" data-delete title="Delete">✕</button>' +
@@ -323,43 +354,40 @@
   async function render() {
     if (!el) return;
     var box = el.querySelector('#sbcap-box');
-    var keepStatus = el.querySelector('.sbcap-status');
-    var statusText = keepStatus ? keepStatus.textContent : '';
-    var statusErr = keepStatus ? keepStatus.classList.contains('err') : false;
+    var images = {};
+    (await allImages().catch(function () { return []; })).forEach(function (r) { images[r.id] = r; });
+    // Read after the await: renders overlap, and the newest state must win.
     var typed = el.querySelector('#sbcap-input') ? el.querySelector('#sbcap-input').value : '';
+    var items = readInbox().filter(function (x) { return x && x.id != null; })
+      .sort(function (a, b) { return itemTime(b) - itemTime(a); });
+    var waiting = items.filter(function (x) { return isUnsent(x, images[String(x.id)]); }).length + deleteQueue().length;
 
-    var rows = (await allRows()).filter(function (r) { return !r.deleted_at; })
-      .sort(function (a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
-    var unsent = (await allRows()).filter(function (r) { return r._dirty; }).length;
-
-    var head = '<div class="sbcap-head"><div class="sbcap-grow"><h3>📥 Captures</h3>' +
-      '<div class="sbcap-sub">Shared with your Second Brain devices · ' + rows.length + (rows.length === 1 ? ' item' : ' items') + '</div></div>' +
-      '<button class="sbcap-btn primary" id="sbcap-sync" title="Send what is waiting and get the latest"' + (busy ? ' disabled' : '') + '>' + (busy ? 'Syncing…' : '⟳ Sync') + (unsent ? '<span class="sbcap-count">' + unsent + '</span>' : '') + '</button>' +
-      '<button class="sbcap-x" id="sbcap-close" title="Close">&times;</button></div>';
-
-    var addForm = '<div class="sbcap-add" id="sbcap-add">' +
-      '<input type="file" id="sbcap-file" accept="image/*" hidden>' +
-      '<button class="sbcap-btn" id="sbcap-photo" title="Add a picture (you can also paste or drop one)">📷</button>' +
-      '<textarea class="sbcap-field" id="sbcap-input" rows="1" placeholder="Throw in an idea, link, note or picture…"></textarea>' +
-      '<button class="sbcap-btn primary" id="sbcap-addbtn">Add</button></div>' +
+    box.innerHTML =
+      '<div class="sbcap-head"><div class="sbcap-grow"><h3>📥 Inbox</h3>' +
+        '<div class="sbcap-sub">Same list as Captures in Second Brain · ' + items.length + (items.length === 1 ? ' item' : ' items') + '</div></div>' +
+        '<button class="sbcap-btn primary" id="sbcap-sync" title="Send what is waiting and get the latest (same as Sync Now)"' + (busy ? ' disabled' : '') + '>' +
+          (busy ? 'Syncing…' : '⟳ Sync') + (waiting && !busy ? '<span class="sbcap-count">' + waiting + '</span>' : '') + '</button>' +
+        '<button class="sbcap-x" id="sbcap-close" title="Close">&times;</button></div>' +
+      '<div class="sbcap-add" id="sbcap-add">' +
+        '<input type="file" id="sbcap-file" accept="image/*" hidden>' +
+        '<button class="sbcap-btn" id="sbcap-photo" title="Add a picture (you can also paste or drop one)">📷</button>' +
+        '<textarea class="sbcap-field" id="sbcap-input" rows="1" placeholder="Throw in an idea, link, note or picture…"></textarea>' +
+        '<button class="sbcap-btn primary" id="sbcap-addbtn">Add</button></div>' +
       (pendingPhoto ? '<div class="sbcap-pending">' + (photoSrc(pendingPhoto) ? '<img src="' + photoSrc(pendingPhoto) + '" alt="">' : '🖼️') +
-        '<span>' + esc(pendingPhoto.image_name) + '</span><button class="sbcap-btn sm" id="sbcap-unphoto">Remove</button></div>' : '');
-
-    var body = addForm + '<div class="sbcap-status"></div>' +
-      (rows.length ? '<div class="sbcap-list">' + rows.map(itemHtml).join('') + '</div>'
+        '<span>' + esc(pendingPhoto.image_name) + '</span><button class="sbcap-btn sm" id="sbcap-unphoto">Remove</button></div>' : '') +
+      '<div class="sbcap-status"></div>' +
+      (items.length ? '<div class="sbcap-list">' + items.map(function (x) { return itemHtml(x, images[String(x.id)]); }).join('') + '</div>'
         : '<div class="sbcap-empty"><div>📥</div>Nothing here yet. Add something above, or press Sync to get what your other devices captured.</div>');
-    box.innerHTML = head + body;
-    say(statusText, statusErr);
-    var input = el.querySelector('#sbcap-input');
-    if (input) input.value = typed;
-    wire(rows);
+    say(statusMsg, statusErr);
+    el.querySelector('#sbcap-input').value = typed;
+    wire(items, images);
   }
+  function rerender() { if (el && el.style.display === 'flex') render(); }
 
-  function wire(rows) {
-    var byId = function (id) { return rows.filter(function (r) { return r.sync_id === id; })[0]; };
+  function wire(items, images) {
+    var byId = function (id) { return items.filter(function (x) { return String(x.id) === id; })[0]; };
     var q = function (s) { return el.querySelector(s); };
     q('#sbcap-close').onclick = close;
-
     q('#sbcap-sync').onclick = sync;
 
     var input = q('#sbcap-input');
@@ -388,94 +416,113 @@
     };
     if (q('#sbcap-unphoto')) q('#sbcap-unphoto').onclick = function () { pendingPhoto = null; render(); };
 
-    el.querySelectorAll('.sbcap-item').forEach(function (item) {
-      var row = byId(item.dataset.id);
-      if (!row) return;
-      var on = function (sel, fn) { var b = item.querySelector(sel); if (b) b.onclick = fn; };
-      on('[data-open-photo]', function () { openPhoto(row); });
-      on('[data-download]', function () { downloadPhoto(row); });
-      on('[data-edit]', function () { editing = { id: row.sync_id, photo: undefined }; render(); });
-      on('[data-delete]', function () { remove(row); });
+    var toLoad = [];
+    el.querySelectorAll('.sbcap-item').forEach(function (node) {
+      var id = node.dataset.id, x = byId(id), img = images[id];
+      if (!x) return;
+      var on = function (sel, fn) { var b = node.querySelector(sel); if (b) b.onclick = fn; };
+      on('[data-open-photo]', function () { openPhoto(id, img); });
+      on('[data-download]', function () { downloadPhoto(id, img); });
+      on('[data-edit]', function () { editing = { id: id, photo: undefined }; render(); });
+      on('[data-delete]', function () { remove(x); });
       on('[data-edit-cancel]', function () { editing = null; render(); });
-      on('[data-edit-unphoto]', function () { editing.photo = null; keepEditText(item); render(); });
+      on('[data-edit-unphoto]', function () { keepEditText(node); editing.photo = null; render(); });
       on('[data-edit-photo]', function () {
         var f = document.createElement('input'); f.type = 'file'; f.accept = 'image/*';
         f.onchange = async function () {
           var photo = await readPhoto(f.files[0]);
-          if (photo) { editing.photo = photo; keepEditText(item); render(); }
+          if (photo) { keepEditText(node); editing.photo = photo; render(); }
         };
         f.click();
       });
-      on('[data-edit-save]', function () { saveEdit(row, item.querySelector('[data-edit-text]').value); });
-      var ta = item.querySelector('[data-edit-text]');
-      if (ta) {
-        if (editing.text !== undefined) ta.value = editing.text;
-        ta.focus();
-      }
+      on('[data-edit-save]', function () { saveEdit(x, node.querySelector('[data-edit-text]').value); });
+      var ta = node.querySelector('[data-edit-text]');
+      if (ta) ta.focus();
+      if (node.querySelector('[data-load-photo]')) toLoad.push(id);
     });
+    // Pictures from other devices, a few at a time.
+    if (toLoad.length) {
+      Promise.all(toLoad.slice(0, 6).map(loadImage)).then(function (recs) {
+        if (recs.some(Boolean)) rerender();
+        else el.querySelectorAll('[data-load-photo]').forEach(function (n) { n.textContent = '🖼️ Picture (shows after a Sync)'; });
+      });
+    }
   }
-  function keepEditText(item) {
-    var ta = item.querySelector('[data-edit-text]');
+  function keepEditText(node) {
+    var ta = node.querySelector('[data-edit-text]');
     if (ta && editing) editing.text = ta.value;
   }
 
   async function add() {
     var input = el.querySelector('#sbcap-input');
-    var content = input.value.trim();
-    if (!content && !pendingPhoto) return input.focus();
-    var now = new Date().toISOString();
-    var photo = pendingPhoto || {};
-    await putRow({
-      sync_id: uuid(), content: content, source: 'homer', status: 'pending', category: null, tags: [],
-      error: null, processed_at: null,
-      image_name: photo.image_name || null, image_type: photo.image_type || null, image_data: photo.image_data || null,
-      created_at: now, updated_at: now, deleted_at: null, _dirty: true,
-    });
+    var parts = splitText(input.value);
+    if (!parts.text && !parts.note && !pendingPhoto) return input.focus();
+    var now = Date.now();
+    var item = {
+      id: uuid(), text: parts.text, note: parts.note, type: 'thought', source: 'homer',
+      ts: new Date(now).toISOString(), createdAt: now, done: false
+    };
+    if (pendingPhoto) {
+      item.hasImage = true;
+      await putImage(Object.assign({ id: item.id, pending: true }, pendingPhoto));
+    }
+    var list = readInbox();
+    list.unshift(item);
+    writeInbox(list);
     pendingPhoto = null;
     input.value = '';
-    countDirty();
-    say('Saved here. Press Sync to send it to your other devices.');
+    await countWaiting();
+    say('Saved. Press Sync to send it to your other devices.');
     await render();
     el.querySelector('#sbcap-input').focus();
   }
 
-  async function saveEdit(row, text) {
+  async function saveEdit(x, content) {
+    var parts = splitText(content);
     var photo = editing && editing.photo;
-    var content = String(text || '').trim();
-    var next = Object.assign({}, row, { content: content, updated_at: new Date().toISOString(), _dirty: true });
-    if (photo !== undefined) {
-      next.image_name = photo ? photo.image_name : null;
-      next.image_type = photo ? photo.image_type : null;
-      next.image_data = photo ? photo.image_data : null;
+    var id = String(x.id);
+    var img = await getImage(id).catch(function () { return null; });
+    var willHavePic = photo === undefined ? !!((img && !img.removed) || (x.hasImage && !(img && img.removed))) : !!photo;
+    if (!parts.text && !parts.note && !willHavePic) return say('An item needs some text or a picture.', true);
+    if (photo) await putImage(Object.assign({ id: id, pending: true }, photo));
+    else if (photo === null) {
+      // Never sent: nothing to take off the hub.
+      if (img && img.pending && !x.status) await dropImage(id);
+      else await putImage({ id: id, pending: true, removed: true });
     }
-    if (!next.content && !next.image_data) return say('A capture needs some text or a picture.', true);
-    await putRow(next);
+    var list = readInbox().map(function (it) {
+      if (String(it.id) !== id) return it;
+      var next = Object.assign({}, it, { text: parts.text, note: parts.note, editedAt: Date.now() });
+      if (photo !== undefined) next.hasImage = !!photo;
+      return next;
+    });
+    writeInbox(list);
     editing = null;
-    countDirty();
+    await countWaiting();
     say('Edited. Press Sync to send the change.');
     render();
   }
 
-  async function remove(row) {
-    if (!confirm('Delete this capture? It is removed from your other devices on the next Sync.')) return;
-    // Never reached the hub: nothing to tell the other devices.
-    if (!row.hub_seq && !row._sent) await deleteRow(row.sync_id);
-    else {
-      var now = new Date().toISOString();
-      await putRow(Object.assign({}, row, { deleted_at: now, updated_at: now, _dirty: true }));
-    }
-    countDirty();
+  async function remove(x) {
+    if (!confirm('Delete this item? It is removed from your other devices on the next Sync.')) return;
+    var id = String(x.id);
+    if (typeof window._homerInboxTombstone === 'function') window._homerInboxTombstone(id);
+    var queue = deleteQueue();
+    if (queue.indexOf(id) < 0) setDeleteQueue(queue.concat([id]));
+    writeInbox(readInbox().filter(function (it) { return String(it.id) !== id; }));
+    await dropImage(id).catch(function () {});
+    await countWaiting();
     render();
   }
 
-  function openPhoto(row) {
-    var src = photoSrc(row);
+  function openPhoto(id, img) {
+    var src = photoSrc(img);
     if (!src) return;
     var lb = document.createElement('div');
     lb.id = 'sbcap-lightbox';
     lb.innerHTML = '<img alt=""><button class="sbcap-btn">⬇ Download</button>';
     lb.querySelector('img').src = src;
-    lb.querySelector('button').onclick = function (e) { e.stopPropagation(); downloadPhoto(row); };
+    lb.querySelector('button').onclick = function (e) { e.stopPropagation(); downloadPhoto(id, img); };
     var shut = function () { lb.remove(); document.removeEventListener('keydown', onKey, true); };
     var onKey = function (e) { if (e.key === 'Escape') { e.stopPropagation(); shut(); } };
     lb.onclick = shut;
@@ -483,49 +530,87 @@
     document.body.appendChild(lb);
   }
 
-  function rerender() { if (el && el.style.display === 'flex') render(); }
-
-  // The panel's Sync button: send what is waiting, then get the latest.
+  // The panel's Sync button is Homer's Sync Now (which calls the hooks
+  // below); without it, just the inbox.
   async function sync() {
     if (busy) return;
     busy = true; await render();
+    say('Syncing…');
+    lastPush = null;
     try {
-      say('Sending…');
-      var res = await push();
-      say('Getting the latest…');
-      await pull();
-      if (res.failed.length) say(res.failed.length + ' could not be sent (' + res.failed[0] + '). They stay here; try Sync again.', true);
-      else say(res.sent ? 'Sent ' + res.sent + ' to your other devices.' : 'Up to date.');
+      if (typeof window.homerSyncNow === 'function') {
+        await window.homerSyncNow('both');
+      } else {
+        if (typeof window._homerSyncInboxNow === 'function') await window._homerSyncInboxNow();
+        lastPush = await pushImages();
+        await refresh();
+      }
+      say(syncSummary());
     } catch (err) { say(err.message || String(err), true); }
-    busy = false; render(); countDirty();
+    busy = false; await countWaiting(); render();
+  }
+  var lastPush = null, lastError = '';
+  function syncSummary() {
+    if (lastError) { var e = lastError; lastError = ''; return e; }
+    var waitingNow = readInbox().filter(function (x) { return !x.status; }).length;
+    if (lastPush && lastPush.failed.length) return lastPush.failed.length + ' picture(s) could not be sent (' + lastPush.failed[0] + '). Press Sync to try again.';
+    if (lastPush && lastPush.notYet) return 'Synced. ' + lastPush.notYet + ' picture(s) go out on the next Sync, once their item has reached Second Brain.';
+    if (waitingNow) return 'Synced, but ' + waitingNow + ' item(s) have not reached Second Brain yet. Press Sync again in a moment.';
+    return 'Synced ✓';
   }
 
-  // For the Sync & Backup panel (app-shell runSync). Errors are thrown so it
-  // can log them; what was not sent stays waiting.
-  var dirtyCount = 0;
-  function countDirty() {
-    return allRows().then(function (rows) {
-      dirtyCount = rows.filter(function (r) { return r._dirty; }).length;
-      return dirtyCount;
-    }).catch(function () { return dirtyCount; });
+  // ── Hooks for Homer's Sync (app-shell runSync) ─────────────────────────
+  var waitingCount = 0;
+  function countWaiting() {
+    return allImages().then(function (rows) {
+      waitingCount = rows.filter(function (r) { return r.pending; }).length + deleteQueue().length;
+      return waitingCount;
+    }).catch(function () { return waitingCount; });
   }
   window._homerCapturesPush = function () {
-    return push().then(function (res) {
-      rerender(); countDirty();
-      if (res.failed.length) throw new Error(res.failed.length + ' capture(s) not sent: ' + res.failed[0]);
+    return pushImages().then(function (res) {
+      lastPush = res;
+      rerender();
+      if (res.failed.length) throw new Error(res.failed.length + ' inbox picture(s) not sent: ' + res.failed[0]);
       return res;
     });
   };
-  window._homerCapturesPull = function () { return pull().then(function () { rerender(); countDirty(); }); };
-  window._homerCapturesDirtyCount = function () { return dirtyCount; };
-  countDirty();
+  window._homerCapturesPull = function () {
+    return refresh().catch(function (err) { lastError = err.message || String(err); throw err; });
+  };
+  // Field changes are counted by app-shell itself; this adds waiting pictures.
+  window._homerCapturesDirtyCount = function () { return waitingCount; };
+
+  // Items saved by the first version of this panel (its own store, not the
+  // inbox) move into the inbox once.
+  function migrateOldCaptures() {
+    return tx('captures', 'readonly', function (s) { return s.getAll(); }).then(function (rows) {
+      var keep = (rows || []).filter(function (r) { return r && r._dirty && !r.deleted_at; });
+      if (!rows || !rows.length) return;
+      var list = readInbox();
+      var have = {};
+      list.forEach(function (x) { have[String(x.id)] = true; });
+      var chain = Promise.resolve();
+      keep.forEach(function (r) {
+        if (have[r.sync_id]) return;
+        var parts = splitText(r.content);
+        var t = Date.parse(r.created_at) || Date.now();
+        list.unshift({ id: r.sync_id, text: parts.text, note: parts.note, type: 'thought', source: 'homer', ts: new Date(t).toISOString(), createdAt: t, done: false, hasImage: !!r.image_data });
+        if (r.image_data) chain = chain.then(function () { return putImage({ id: r.sync_id, image_name: r.image_name, image_type: r.image_type, image_data: r.image_data, pending: true }); });
+      });
+      return chain.then(function () {
+        if (keep.length) writeInbox(list);
+        return tx('captures', 'readwrite', function (s) { s.clear(); });
+      });
+    }).catch(function () {}).then(countWaiting);
+  }
 
   function open() {
     injectCss();
     if (!el) {
       el = document.createElement('div');
       el.id = 'sbcap-overlay';
-      el.innerHTML = '<div id="sbcap-box"></div>';
+      el.innerHTML = '<div id="sbcap-box" class="sbcap-panel"></div>';
       el.addEventListener('click', function (e) { if (e.target === el) close(); });
       // Keep Homer's tab-swipe gesture from firing underneath.
       ['touchstart', 'touchmove', 'touchend'].forEach(function (t) {
@@ -548,12 +633,20 @@
   }
 
   window.openSbCaptures = open;
+  window.addEventListener('homer-inbox-changed', rerender);
+  migrateOldCaptures();
 
   // ── Entry points ──────────────────────────────────────────────────────
-  // The phone menu's "Capture" tile opens this instead of the older quick
-  // capture; it runs in the capture phase so the earlier handlers never see it.
+  // This panel is the Inbox: the older inbox side panel's opener points here,
+  // set again after load in case that script initialises later.
+  function claimInbox() { window._homerOpenInbox = open; }
+  claimInbox();
+  document.addEventListener('DOMContentLoaded', claimInbox);
+  window.addEventListener('load', function () { setTimeout(claimInbox, 0); });
+  // The phone menu's Capture and Inbox tiles and the sidebar item open it;
+  // capture phase, so the older handlers never see these clicks.
   document.addEventListener('click', function (e) {
-    var t = e.target.closest && e.target.closest('#msheet-qa-capture,#sbcap-sb-btn');
+    var t = e.target.closest && e.target.closest('#msheet-qa-capture,#msheet-qa-inbox,#sbcap-sb-btn');
     if (!t) return;
     e.preventDefault();
     e.stopImmediatePropagation();

@@ -1047,19 +1047,72 @@
     // Only scalar keys (like homer-payday-day) use simple pullKey/pushKey here.
     var SYNC_KEYS=['homer-inbox','homer-payday-day','homer-expense-budgets-excluded'];
 
-    // Inbox uses merge-by-ID semantics instead of last-write-wins so items
-    // added on different devices are combined rather than overwriting each other.
-    function mergeInboxArrays(a,b){
-      var seen={},merged=[];
-      a.concat(b).forEach(function(x){if(x&&x.id&&!seen[x.id]){seen[x.id]=true;merged.push(x);}});
-      merged.sort(function(x,y){return x.ts<y.ts?1:-1;});
-      return merged.slice(0,200);
+    // Inbox merge (a = local, b = cloud). The cloud copy is also secondbrain's
+    // Captures (lib/hub-bridge.js), so it wins for everything it has, except
+    // a local edit made since the inbox was last sent. A local-only item is
+    // kept only when it is newer than that (not sent yet); older ones were
+    // deleted elsewhere. Items deleted here are tombstoned so a merge never
+    // brings them back.
+    var INBOX_DELETED_KEY='homer-inbox-deleted',INBOX_SENT_KEY='homer-inbox-sent-at';
+    function inboxTime(x){
+      return Number(x.createdAt)||Date.parse(x.ts||x.date||'')||(/^\d{12,}$/.test(String(x.id))?Number(x.id):0);
     }
+    function inboxTombstones(){
+      var t=safeJson(localStorage.getItem(INBOX_DELETED_KEY),{});
+      return t&&typeof t==='object'&&!Array.isArray(t)?t:{};
+    }
+    window._homerInboxTombstone=function(id){
+      var t=inboxTombstones(),cut=Date.now()-60*86400000;
+      Object.keys(t).forEach(function(k){if(t[k]<cut)delete t[k];});
+      t[String(id)]=Date.now();
+      nativeSetItem(INBOX_DELETED_KEY,JSON.stringify(t));
+    };
+    function mergeInboxArrays(a,b){
+      var tomb=inboxTombstones(),sentAt=Number(localStorage.getItem(INBOX_SENT_KEY))||0;
+      var local={},seen={},merged=[];
+      a.forEach(function(x){if(x&&x.id!=null)local[String(x.id)]=x;});
+      b.forEach(function(x){
+        if(!x||x.id==null)return;
+        var id=String(x.id);
+        if(seen[id]||tomb[id])return;
+        seen[id]=true;
+        var mine=local[id];
+        merged.push(mine&&Number(mine.editedAt)>sentAt?mine:x);
+      });
+      a.forEach(function(x){
+        if(!x||x.id==null)return;
+        var id=String(x.id);
+        if(seen[id]||tomb[id])return;
+        seen[id]=true;
+        if(!sentAt||inboxTime(x)>sentAt||Number(x.editedAt)>sentAt)merged.push(x);
+      });
+      merged.sort(function(x,y){return inboxTime(y)-inboxTime(x);});
+      return merged.slice(0,2000);
+    }
+    // Applies a cloud copy of the inbox (from syncInbox or the Inbox panel's
+    // refresh) without queueing it to be sent back.
+    function applyRemoteInbox(remote){
+      var key='homer-inbox';
+      var local=safeJson(localStorage.getItem(key),[]);
+      var merged=mergeInboxArrays(Array.isArray(local)?local:[],Array.isArray(remote)?remote:[]);
+      var mergedStr=JSON.stringify(merged);
+      if(mergedStr!==JSON.stringify(local)){
+        nativeSetItem(key,mergedStr);
+        nativeSetItem('_he_ts_'+key,String(Date.now()));
+        window.dispatchEvent(new Event('homer-inbox-changed'));
+      }
+      return mergedStr;
+    }
+    window._homerApplyRemoteInbox=function(value){
+      var parsed=typeof value==='string'?safeJson(value,[]):value;
+      if(parsed&&!Array.isArray(parsed)&&typeof parsed._ts==='number')parsed=safeJson(parsed._data,[]);
+      return applyRemoteInbox(parsed);
+    };
     function syncInbox(){
       if(!canSync())return;
       var client=getClient(),uid=getUid();if(!client||!uid)return;
       var key='homer-inbox';
-      var local=safeJson(localStorage.getItem(key),[]);
+      var sendingAt=Date.now();
       showBadge('Syncing\u2026','syncing');
       return client.from('field_state').select('value,server_ts').eq('field_id','ls:'+key).eq('user_id',uid).maybeSingle()
         .then(function(r){
@@ -1069,20 +1122,14 @@
             var remoteData=(parsed&&typeof parsed._ts==='number')?parsed._data:r.data.value;
             remote=safeJson(remoteData,[]);
           }
-          var merged=mergeInboxArrays(local,remote);
-          var mergedStr=JSON.stringify(merged);
-          if(mergedStr!==JSON.stringify(local)){
-            nativeSetItem(key,mergedStr);
-            nativeSetItem('_he_ts_'+key,String(Date.now()));
-            window.dispatchEvent(new Event('homer-inbox-changed'));
-          }
+          var mergedStr=applyRemoteInbox(remote);
           var ts=getLocalTs(key)||Date.now();
           delete _syncDirty[key];
           return client.from('field_state').upsert({field_id:'ls:'+key,value:mergedStr,user_id:uid,kind:'json',client_ts:ts,client_seq:0,device_id:'web',server_ts:ts,updated_at:new Date(ts).toISOString()},{onConflict:'user_id,field_id'});
         })
         .then(function(r){
           if(r&&r.error)showBadge('Sync error','error');
-          else showBadge('Synced \u2713','synced');
+          else{nativeSetItem(INBOX_SENT_KEY,String(sendingAt));showBadge('Synced \u2713','synced');}
         })
         .catch(function(){showBadge('Sync error','error');});
     }
