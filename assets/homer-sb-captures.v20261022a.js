@@ -21,8 +21,9 @@
 
   var API = '/api/sb-captures';
   var KEY = 'homer-inbox';
-  var DB_NAME = 'homer-sb-captures';
-  var DB_VERSION = 2;
+  var DB_NAME = 'homer-inbox-pictures';
+  // The first version of this panel kept its own list here (migrated once).
+  var OLD_DB_NAME = 'homer-sb-captures';
   // Same ceiling as Second Brain's own clients: a picture travels as base64
   // inside its row and the hub refuses rows over 32 MB.
   var MAX_PHOTO_BYTES = 22 * 1024 * 1024;
@@ -30,21 +31,34 @@
   // ── Storage ───────────────────────────────────────────────────────────
   // images: { id (inbox item id), image_name, image_type, image_data,
   //           pending: not sent yet, removed: the picture was taken off }
-  // captures: left over from the first version of this panel (migrated once).
+  //
+  // An open that never answers (an upgrade blocked by another tab running an
+  // older copy of this script) must not leave the panel blank: give up after
+  // a few seconds; the panel still works, just without local pictures.
+  function openIdb(name, version, upgrade) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var finish = function (fn, v) { if (!done) { done = true; clearTimeout(timer); fn(v); } };
+      var timer = setTimeout(function () { finish(reject, new Error('picture storage is busy (close other Homer tabs)')); }, 4000);
+      var req = version ? indexedDB.open(name, version) : indexedDB.open(name);
+      if (upgrade) req.onupgradeneeded = function () { upgrade(req.result); };
+      req.onsuccess = function () {
+        var db = req.result;
+        // Let a newer copy of this script in another tab upgrade it.
+        db.onversionchange = function () { db.close(); dbPromise = null; };
+        if (done) db.close(); else finish(resolve, db);
+      };
+      req.onerror = function () { finish(reject, req.error); };
+      req.onblocked = function () { finish(reject, new Error('picture storage is busy (close other Homer tabs)')); };
+    });
+  }
   var dbPromise = null;
   function openDb() {
-    if (dbPromise) return dbPromise;
-    dbPromise = new Promise(function (resolve, reject) {
-      var req = indexedDB.open(DB_NAME, DB_VERSION);
-      req.onupgradeneeded = function () {
-        var db = req.result;
-        if (!db.objectStoreNames.contains('captures')) db.createObjectStore('captures', { keyPath: 'sync_id' });
-        if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta');
+    if (!dbPromise) {
+      dbPromise = openIdb(DB_NAME, 1, function (db) {
         if (!db.objectStoreNames.contains('images')) db.createObjectStore('images', { keyPath: 'id' });
-      };
-      req.onsuccess = function () { resolve(req.result); };
-      req.onerror = function () { dbPromise = null; reject(req.error); };
-    });
+      }).catch(function (err) { dbPromise = null; throw err; });
+    }
     return dbPromise;
   }
   function tx(store, mode, fn) {
@@ -464,7 +478,8 @@
     };
     if (pendingPhoto) {
       item.hasImage = true;
-      await putImage(Object.assign({ id: item.id, pending: true }, pendingPhoto));
+      try { await putImage(Object.assign({ id: item.id, pending: true }, pendingPhoto)); }
+      catch (err) { return say('The picture could not be saved: ' + err.message, true); }
     }
     var list = readInbox();
     list.unshift(item);
@@ -484,12 +499,14 @@
     var img = await getImage(id).catch(function () { return null; });
     var willHavePic = photo === undefined ? !!((img && !img.removed) || (x.hasImage && !(img && img.removed))) : !!photo;
     if (!parts.text && !parts.note && !willHavePic) return say('An item needs some text or a picture.', true);
-    if (photo) await putImage(Object.assign({ id: id, pending: true }, photo));
-    else if (photo === null) {
-      // Never sent: nothing to take off the hub.
-      if (img && img.pending && !x.status) await dropImage(id);
-      else await putImage({ id: id, pending: true, removed: true });
-    }
+    try {
+      if (photo) await putImage(Object.assign({ id: id, pending: true }, photo));
+      else if (photo === null) {
+        // Never sent: nothing to take off the hub.
+        if (img && img.pending && !x.status) await dropImage(id);
+        else await putImage({ id: id, pending: true, removed: true });
+      }
+    } catch (err) { return say('The picture could not be saved: ' + err.message, true); }
     var list = readInbox().map(function (it) {
       if (String(it.id) !== id) return it;
       var next = Object.assign({}, it, { text: parts.text, note: parts.note, editedAt: Date.now() });
@@ -584,7 +601,21 @@
   // Items saved by the first version of this panel (its own store, not the
   // inbox) move into the inbox once.
   function migrateOldCaptures() {
-    return tx('captures', 'readonly', function (s) { return s.getAll(); }).then(function (rows) {
+    var listed = indexedDB.databases ? indexedDB.databases() : Promise.resolve([{ name: OLD_DB_NAME }]);
+    var oldDb = null;
+    return listed.then(function (dbs) {
+      if (!dbs.some(function (d) { return d.name === OLD_DB_NAME; })) return [];
+      // No version: opens what is there, so it never waits on an upgrade.
+      return openIdb(OLD_DB_NAME, 0).then(function (db) {
+        oldDb = db;
+        if (!db.objectStoreNames.contains('captures')) return [];
+        return new Promise(function (resolve, reject) {
+          var req = db.transaction('captures', 'readonly').objectStore('captures').getAll();
+          req.onsuccess = function () { resolve(req.result || []); };
+          req.onerror = function () { reject(req.error); };
+        });
+      });
+    }).then(function (rows) {
       var keep = (rows || []).filter(function (r) { return r && r._dirty && !r.deleted_at; });
       if (!rows || !rows.length) return;
       var list = readInbox();
@@ -600,9 +631,14 @@
       });
       return chain.then(function () {
         if (keep.length) writeInbox(list);
-        return tx('captures', 'readwrite', function (s) { s.clear(); });
+        // Done with it; an older tab still holding it just delays the delete.
+        if (oldDb) { oldDb.close(); oldDb = null; }
+        indexedDB.deleteDatabase(OLD_DB_NAME);
       });
-    }).catch(function () {}).then(countWaiting);
+    }).catch(function () {}).then(function () {
+      if (oldDb) oldDb.close();
+      return countWaiting();
+    });
   }
 
   function open() {
