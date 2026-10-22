@@ -1333,11 +1333,14 @@
 
   function checkExpiryAlerts(data) {
     var urgent = [], warn = [];
+    // Only cars that still exist: records of a deleted car must not raise alerts.
+    var carIds = (data.vehicles || []).map(function(v) { return String(v.id); });
+    function isLiveCar(id) { return !carIds.length || carIds.indexOf(String(id)) >= 0; }
     // Deduplicate by (vehicleId, type): keep only the latest expiryDate per type per vehicle.
     // Prevents stale/superseded entries from triggering false expired alerts.
     var docMap = {};
     (data.documents || []).forEach(function(doc) {
-      if (!doc.expiryDate || doc.deleted) return;
+      if (!doc.expiryDate || doc.deleted || !isLiveCar(doc.vehicleId)) return;
       var k = (doc.vehicleId || '') + ':' + (doc.type || '');
       if (!docMap[k] || doc.expiryDate > docMap[k].expiryDate) docMap[k] = doc;
     });
@@ -1352,7 +1355,7 @@
     // Maintenance: deduplicate by (vehicleId, type), keep the record with the latest nextDateDue.
     var maintMap = {};
     (data.maintenance || []).forEach(function(rec) {
-      if (!rec.nextDateDue || rec.deleted) return;
+      if (!rec.nextDateDue || rec.deleted || !isLiveCar(rec.vehicleId)) return;
       var k = (rec.vehicleId || '') + ':' + (rec.type || '');
       if (!maintMap[k] || rec.nextDateDue > maintMap[k].nextDateDue) maintMap[k] = rec;
     });

@@ -503,12 +503,15 @@
 
     var todayMs = new Date(todayStr()).getTime();
     var alerts = [];
+    // Only cars that still exist: records of a deleted car must not raise alerts.
+    var carIds = (raw.vehicles || []).map(function (v) { return String(v.id); });
+    function isLiveCar(id) { return !carIds.length || carIds.indexOf(String(id)) >= 0; }
 
     // Deduplicate by (vehicleId, type): keep the latest expiryDate per type per vehicle.
     // Prevents a renewed document's old expired entry from still showing as an alert.
     var docMap = {};
     (raw.documents || []).forEach(function (doc) {
-      if (!doc.expiryDate || doc.deleted) return;
+      if (!doc.expiryDate || doc.deleted || !isLiveCar(doc.vehicleId)) return;
       var k = (doc.vehicleId || '') + ':' + (doc.type || '');
       if (!docMap[k] || doc.expiryDate > docMap[k].expiryDate) docMap[k] = doc;
     });
@@ -521,7 +524,7 @@
     // Deduplicate maintenance by (vehicleId, type): keep the latest nextDateDue.
     var maintMap = {};
     (raw.maintenance || []).forEach(function (m) {
-      if (!m.nextDateDue) return;
+      if (!m.nextDateDue || !isLiveCar(m.vehicleId)) return;
       var k = (m.vehicleId || '') + ':' + (m.type || '');
       if (!maintMap[k] || m.nextDateDue > maintMap[k].nextDateDue) maintMap[k] = m;
     });
