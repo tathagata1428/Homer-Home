@@ -6,21 +6,34 @@ the Pages Functions (`/api/auth`, `/api/db`, `/api/sync`, `/api/joey`, …), whi
 connect through Cloudflare Hyperdrive.
 
 ```
-browser / Android ──HTTPS──▶ Cloudflare Pages Functions ──Hyperdrive──▶ Cloudflare Tunnel ──▶ Postgres (Oracle VM)
+browser / Android ──HTTPS──▶ Pages Functions ──Hyperdrive──▶ Workers VPC service ──▶ Unraid tunnel (cloudflared) ──▶ postgresql16
 ```
 
 Cross-device updates use polling: the browser asks `/api/db` for changed rows
 every 10 s while the tab is visible, and Android does the same while the app is
 in the foreground.
 
+Current setup (all on the Cloudflare account that owns `b4it.ro`):
+
+| Piece | Value |
+|---|---|
+| Database | `homer` on the Unraid `postgresql16` container (role `homer`), password in `/mnt/user/appdata/homer-home/setup.env` |
+| TLS | self-signed `server.crt`/`server.key` in the container's data dir, `ssl = on` |
+| Workers VPC service | `homer-postgres` (`01a161e4-eb18-7df3-b987-1fe5891f9239`): tcp `postgresql16:5432` via tunnel `9272bf37-…` (the Unraid `cloudflared`), cert verification off |
+| Hyperdrive | `homer-db` (`3e57700378e843a2b281783a0bc5ecc0`), **caching disabled** so polling sees fresh rows |
+
+Port 5432 is not exposed to the internet; Cloudflare reaches the container only
+through the tunnel (`cloudflared` and `postgresql16` share the `proxynet` network).
+If Unraid or its internet connection is down, sync and Joey history are unavailable.
+
 ---
 
-## 1 · Create the database (on the Oracle VM)
+## 1 · Create the database
 
-Use a separate database and role. Do not reuse the sync hub's own database.
+Use a separate database and role (the container also hosts Nextcloud and EspoCRM):
 
 ```bash
-sudo -u postgres psql <<'SQL'
+docker exec -i postgresql16 psql -U bogdan -d postgres <<'SQL'
 CREATE ROLE homer LOGIN PASSWORD '<strong password>';
 CREATE DATABASE homer OWNER homer;
 SQL
@@ -28,10 +41,9 @@ SQL
 
 ## 2 · Apply the schema and create the owner account
 
-From any machine that can reach the database (e.g. over an SSH tunnel):
-
 ```bash
-DATABASE_URL=postgres://homer:<pw>@localhost:5432/homer npm run db:schema
+set -a; . /mnt/user/appdata/homer-home/setup.env; set +a
+npm run db:schema
 ```
 
 This is safe to run again after schema changes.
@@ -42,34 +54,32 @@ This is safe to run again after schema changes.
 SUPABASE_URL=https://fwzxxrldxnlhcyulkwrg.supabase.co \
 SUPABASE_SERVICE_ROLE_KEY=... \
 SUPABASE_OWNER_ID=<uuid> \
-DATABASE_URL=postgres://homer:<pw>@localhost:5432/homer \
+DATABASE_URL=postgres://homer:<pw>@127.0.0.1:5432/homer \
 npm run db:migrate-from-supabase -- --dry-run     # then without --dry-run
 ```
 
 Rows are re-owned by the local owner account, and rows that already exist are
 skipped, so re-running it is safe.
 
-## 4 · Expose Postgres to Cloudflare without opening port 5432
+## 4 · Connect Cloudflare to the database
 
-On the Oracle VM, add a Cloudflare Tunnel public hostname, e.g.
-`homer-db.b4it.ro → tcp://localhost:5432`. Then, in Zero Trust:
-
-1. **Access → Applications → Add → Self-hosted** for `homer-db.b4it.ro`.
-2. **Access → Service Auth → Create service token**, and allow it in the
-   application's policy (action: *Service Auth*).
-
-Then create the Hyperdrive config:
+Hyperdrive requires TLS on the origin. Enable it once with a self-signed cert:
 
 ```bash
-npx wrangler hyperdrive create homer-db \
-  --host=homer-db.b4it.ro --user=homer --password='<pw>' --database=homer \
-  --access-client-id=<service token id> --access-client-secret=<service token secret>
+docker exec -u postgres postgresql16 sh -c 'cd /var/lib/postgresql/data && openssl req -new -x509 -days 3650 -nodes -subj "/CN=postgresql16" -keyout server.key -out server.crt && chmod 600 server.key'
+docker exec postgresql16 psql -U bogdan -d postgres -c "ALTER SYSTEM SET ssl = on" -c "SELECT pg_reload_conf()"
 ```
 
-Uncomment the `[[hyperdrive]]` block in `wrangler.toml` and put the printed id in it.
+Then (logged in with `npx wrangler login`):
 
-(Alternatively, set `DATABASE_URL` as a Pages secret pointing at a TLS-enabled,
-publicly reachable Postgres. Hyperdrive is still recommended for pooling.)
+```bash
+npx wrangler vpc service create homer-postgres --type tcp --tunnel-id <unraid tunnel id> \
+  --hostname postgresql16 --tcp-port 5432 --app-protocol postgresql --cert-verification-mode disabled
+npx wrangler hyperdrive create homer-db --service-id <vpc service id> \
+  --database homer --user homer --password '<pw>' --caching-disabled
+```
+
+Put the Hyperdrive id in the `[[hyperdrive]]` block of `wrangler.toml`.
 
 ## 5 · Pages environment variables
 

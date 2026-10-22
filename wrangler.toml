@@ -3,8 +3,9 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "."
 
-# Postgres via Hyperdrive (see DATABASE_SETUP.md). Uncomment once the
-# Hyperdrive config exists; functions/_middleware.js turns it into DATABASE_URL.
-# [[hyperdrive]]
-# binding = "HYPERDRIVE"
-# id = "<hyperdrive-id>"
+# Postgres on Unraid (postgresql16) via Hyperdrive + Workers VPC service over the
+# Unraid tunnel; functions/_middleware.js turns it into DATABASE_URL. Caching is
+# off so change polling sees fresh rows. See DATABASE_SETUP.md.
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "3e57700378e843a2b281783a0bc5ecc0"
