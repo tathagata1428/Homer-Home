@@ -31,10 +31,7 @@ SQL
 From any machine that can reach the database (e.g. over an SSH tunnel):
 
 ```bash
-# Reuse the old Supabase user id so migrated rows keep their owner.
-DATABASE_URL=postgres://homer:<pw>@localhost:5432/homer \
-HOMER_OWNER_ID=<old SUPABASE_OWNER_ID> \
-npm run db:schema
+DATABASE_URL=postgres://homer:<pw>@localhost:5432/homer npm run db:schema
 ```
 
 This is safe to run again after schema changes.
@@ -49,7 +46,8 @@ DATABASE_URL=postgres://homer:<pw>@localhost:5432/homer \
 npm run db:migrate-from-supabase -- --dry-run     # then without --dry-run
 ```
 
-Rows that already exist are skipped, so re-running it is safe.
+Rows are re-owned by the local owner account, and rows that already exist are
+skipped, so re-running it is safe.
 
 ## 4 · Expose Postgres to Cloudflare without opening port 5432
 
